@@ -1,0 +1,360 @@
+package com.fromwau.kotoml.parser
+
+/**
+ * Receives the [Event]s of a parse, in input order. Every function has a default that ignores its event,
+ * so an implementation overrides only what it needs.
+ *
+ * The spans of all events together cover the input without gaps. The parser does not decode or validate
+ * event content: that is the receiver's choice, through [Source.get] and the [Raw] decoders.
+ */
+public interface EventReceiver {
+    /** `[` of a standard table header. */
+    public fun stdTableOpen(span: Span, error: ErrorSink) {}
+
+    /** `]` of a standard table header. */
+    public fun stdTableClose(span: Span, error: ErrorSink) {}
+
+    /** `[[` of an array-of-tables header. */
+    public fun arrayTableOpen(span: Span, error: ErrorSink) {}
+
+    /** `]]` of an array-of-tables header. */
+    public fun arrayTableClose(span: Span, error: ErrorSink) {}
+
+    /** `{` of an inline table. Returning false skips the table's content, as a nesting limit does. */
+    public fun inlineTableOpen(span: Span, error: ErrorSink): Boolean = true
+
+    /** `}` of an inline table. */
+    public fun inlineTableClose(span: Span, error: ErrorSink) {}
+
+    /** `[` of an array. Returning false skips the array's content, as a nesting limit does. */
+    public fun arrayOpen(span: Span, error: ErrorSink): Boolean = true
+
+    /** `]` of an array. */
+    public fun arrayClose(span: Span, error: ErrorSink) {}
+
+    /** One part of a key, written in [encoding] when quoted. The span is empty where a key is missing. */
+    public fun simpleKey(span: Span, encoding: Encoding?, error: ErrorSink) {}
+
+    /** `.` between the parts of a dotted key. */
+    public fun keySep(span: Span, error: ErrorSink) {}
+
+    /** `=` between a key and its value. */
+    public fun keyValSep(span: Span, error: ErrorSink) {}
+
+    /** A scalar value, written in [encoding] when quoted. The span is empty where a value is missing. */
+    public fun scalar(span: Span, encoding: Encoding?, error: ErrorSink) {}
+
+    /** `,` between values. */
+    public fun valueSep(span: Span, error: ErrorSink) {}
+
+    /** A run of spaces and tabs. */
+    public fun whitespace(span: Span, error: ErrorSink) {}
+
+    /** A comment. */
+    public fun comment(span: Span, error: ErrorSink) {}
+
+    /** A newline. */
+    public fun newline(span: Span, error: ErrorSink) {}
+
+    /** Input the parser skipped while recovering from an error it has reported. */
+    public fun error(span: Span, error: ErrorSink) {}
+
+    public companion object {
+        /** A receiver that ignores every event. */
+        public val IGNORE: EventReceiver = object : EventReceiver {}
+    }
+}
+
+/**
+ * A receiver that turns each callback into an [Event] and hands it to [push], such as `events::add` to
+ * collect them.
+ */
+public fun eventReceiver(push: (Event) -> Unit): EventReceiver = object : EventReceiver {
+    override fun stdTableOpen(span: Span, error: ErrorSink) = push(Event(EventKind.StdTableOpen, null, span))
+
+    override fun stdTableClose(span: Span, error: ErrorSink) = push(Event(EventKind.StdTableClose, null, span))
+
+    override fun arrayTableOpen(span: Span, error: ErrorSink) = push(Event(EventKind.ArrayTableOpen, null, span))
+
+    override fun arrayTableClose(span: Span, error: ErrorSink) =
+        push(Event(EventKind.ArrayTableClose, null, span))
+
+    override fun inlineTableOpen(span: Span, error: ErrorSink): Boolean {
+        push(Event(EventKind.InlineTableOpen, null, span))
+        return true
+    }
+
+    override fun inlineTableClose(span: Span, error: ErrorSink) =
+        push(Event(EventKind.InlineTableClose, null, span))
+
+    override fun arrayOpen(span: Span, error: ErrorSink): Boolean {
+        push(Event(EventKind.ArrayOpen, null, span))
+        return true
+    }
+
+    override fun arrayClose(span: Span, error: ErrorSink) = push(Event(EventKind.ArrayClose, null, span))
+
+    override fun simpleKey(span: Span, encoding: Encoding?, error: ErrorSink) =
+        push(Event(EventKind.SimpleKey, encoding, span))
+
+    override fun keySep(span: Span, error: ErrorSink) = push(Event(EventKind.KeySep, null, span))
+
+    override fun keyValSep(span: Span, error: ErrorSink) = push(Event(EventKind.KeyValSep, null, span))
+
+    override fun scalar(span: Span, encoding: Encoding?, error: ErrorSink) =
+        push(Event(EventKind.Scalar, encoding, span))
+
+    override fun valueSep(span: Span, error: ErrorSink) = push(Event(EventKind.ValueSep, null, span))
+
+    override fun whitespace(span: Span, error: ErrorSink) = push(Event(EventKind.Whitespace, null, span))
+
+    override fun comment(span: Span, error: ErrorSink) = push(Event(EventKind.Comment, null, span))
+
+    override fun newline(span: Span, error: ErrorSink) = push(Event(EventKind.Newline, null, span))
+
+    override fun error(span: Span, error: ErrorSink) = push(Event(EventKind.Error, null, span))
+}
+
+/**
+ * Validates whitespace, comments and newlines as they pass, reporting what TOML forbids in them, and
+ * forwards every event to [receiver] unchanged.
+ */
+public class ValidateWhitespace(
+    private val receiver: EventReceiver,
+    private val source: Source,
+) : EventReceiver {
+    override fun stdTableOpen(span: Span, error: ErrorSink): Unit = receiver.stdTableOpen(span, error)
+
+    override fun stdTableClose(span: Span, error: ErrorSink): Unit = receiver.stdTableClose(span, error)
+
+    override fun arrayTableOpen(span: Span, error: ErrorSink): Unit = receiver.arrayTableOpen(span, error)
+
+    override fun arrayTableClose(span: Span, error: ErrorSink): Unit = receiver.arrayTableClose(span, error)
+
+    override fun inlineTableOpen(span: Span, error: ErrorSink): Boolean = receiver.inlineTableOpen(span, error)
+
+    override fun inlineTableClose(span: Span, error: ErrorSink): Unit = receiver.inlineTableClose(span, error)
+
+    override fun arrayOpen(span: Span, error: ErrorSink): Boolean = receiver.arrayOpen(span, error)
+
+    override fun arrayClose(span: Span, error: ErrorSink): Unit = receiver.arrayClose(span, error)
+
+    override fun simpleKey(span: Span, encoding: Encoding?, error: ErrorSink): Unit =
+        receiver.simpleKey(span, encoding, error)
+
+    override fun keySep(span: Span, error: ErrorSink): Unit = receiver.keySep(span, error)
+
+    override fun keyValSep(span: Span, error: ErrorSink): Unit = receiver.keyValSep(span, error)
+
+    override fun scalar(span: Span, encoding: Encoding?, error: ErrorSink): Unit =
+        receiver.scalar(span, encoding, error)
+
+    override fun valueSep(span: Span, error: ErrorSink): Unit = receiver.valueSep(span, error)
+
+    override fun whitespace(span: Span, error: ErrorSink) {
+        source.get(span)?.decodeWhitespace(error)
+        receiver.whitespace(span, error)
+    }
+
+    override fun comment(span: Span, error: ErrorSink) {
+        source.get(span)?.decodeComment(error)
+        receiver.comment(span, error)
+    }
+
+    override fun newline(span: Span, error: ErrorSink) {
+        source.get(span)?.decodeNewline(error)
+        receiver.newline(span, error)
+    }
+
+    override fun error(span: Span, error: ErrorSink): Unit = receiver.error(span, error)
+}
+
+/**
+ * Bounds how deeply arrays and inline tables may nest, forwarding every event to [receiver].
+ *
+ * Past [maxDepth] it reports `cannot recurse further; max recursion depth met` and refuses the open, so
+ * the parser skips that value's content instead of descending into it.
+ */
+public class RecursionGuard(
+    private val receiver: EventReceiver,
+    private val maxDepth: UInt,
+) : EventReceiver {
+    private var depth = 0L
+
+    private fun withinDepth(): Boolean = depth <= maxDepth.toLong()
+
+    override fun stdTableOpen(span: Span, error: ErrorSink): Unit = receiver.stdTableOpen(span, error)
+
+    override fun stdTableClose(span: Span, error: ErrorSink): Unit = receiver.stdTableClose(span, error)
+
+    override fun arrayTableOpen(span: Span, error: ErrorSink): Unit = receiver.arrayTableOpen(span, error)
+
+    override fun arrayTableClose(span: Span, error: ErrorSink): Unit = receiver.arrayTableClose(span, error)
+
+    override fun inlineTableOpen(span: Span, error: ErrorSink): Boolean {
+        val allowed = receiver.inlineTableOpen(span, error)
+        depth += 1
+        val withinDepth = withinDepth()
+        if (allowed && !withinDepth) {
+            error.reportError(ParseError(ParseErrorReason.RecursionLimit, unexpected = span))
+        }
+        return allowed && withinDepth
+    }
+
+    override fun inlineTableClose(span: Span, error: ErrorSink) {
+        depth -= 1
+        receiver.inlineTableClose(span, error)
+    }
+
+    override fun arrayOpen(span: Span, error: ErrorSink): Boolean {
+        val allowed = receiver.arrayOpen(span, error)
+        depth += 1
+        val withinDepth = withinDepth()
+        if (allowed && !withinDepth) {
+            error.reportError(ParseError(ParseErrorReason.RecursionLimit, unexpected = span))
+        }
+        return allowed && withinDepth
+    }
+
+    override fun arrayClose(span: Span, error: ErrorSink) {
+        depth -= 1
+        receiver.arrayClose(span, error)
+    }
+
+    override fun simpleKey(span: Span, encoding: Encoding?, error: ErrorSink): Unit =
+        receiver.simpleKey(span, encoding, error)
+
+    override fun keySep(span: Span, error: ErrorSink): Unit = receiver.keySep(span, error)
+
+    override fun keyValSep(span: Span, error: ErrorSink): Unit = receiver.keyValSep(span, error)
+
+    override fun scalar(span: Span, encoding: Encoding?, error: ErrorSink): Unit =
+        receiver.scalar(span, encoding, error)
+
+    override fun valueSep(span: Span, error: ErrorSink): Unit = receiver.valueSep(span, error)
+
+    override fun whitespace(span: Span, error: ErrorSink): Unit = receiver.whitespace(span, error)
+
+    override fun comment(span: Span, error: ErrorSink): Unit = receiver.comment(span, error)
+
+    override fun newline(span: Span, error: ErrorSink): Unit = receiver.newline(span, error)
+
+    override fun error(span: Span, error: ErrorSink): Unit = receiver.error(span, error)
+}
+
+/** One parse event: its [kind], the string [encoding] of a key or scalar, and the [span] it covers. */
+public class Event(
+    private val kind: EventKind,
+    private val encoding: Encoding?,
+    private val span: Span,
+) : Comparable<Event> {
+
+    /** What kind of event this is. */
+    public fun kind(): EventKind = kind
+
+    /** How a quoted key or scalar was written, or null for anything else. */
+    public fun encoding(): Encoding? = encoding
+
+    /** The bytes of input this event covers. */
+    public fun span(): Span = span
+
+    override fun compareTo(other: Event): Int {
+        val byKind = kind.compareTo(other.kind)
+        if (byKind != 0) return byKind
+        val byEncoding = when {
+            encoding == other.encoding -> 0
+            encoding == null -> -1
+            other.encoding == null -> 1
+            else -> encoding.compareTo(other.encoding)
+        }
+        return if (byEncoding != 0) byEncoding else span.compareTo(other.span)
+    }
+
+    override fun equals(other: Any?): Boolean =
+        other is Event && kind == other.kind && encoding == other.encoding && span == other.span
+
+    override fun hashCode(): Int = 31 * (31 * kind.hashCode() + encoding.hashCode()) + span.hashCode()
+
+    override fun toString(): String = "Event(kind=$kind, encoding=$encoding, span=$span)"
+
+    public companion object {
+        /** An event built by hand, not checked against any input. */
+        public fun newUnchecked(kind: EventKind, encoding: Encoding?, span: Span): Event = Event(kind, encoding, span)
+    }
+}
+
+/** The kinds of [Event]. */
+public enum class EventKind {
+    /** `[` of a standard table header. */
+    StdTableOpen,
+
+    /** `]` of a standard table header. */
+    StdTableClose,
+
+    /** `[[` of an array-of-tables header. */
+    ArrayTableOpen,
+
+    /** `]]` of an array-of-tables header. */
+    ArrayTableClose,
+
+    /** `{` of an inline table. */
+    InlineTableOpen,
+
+    /** `}` of an inline table. */
+    InlineTableClose,
+
+    /** `[` of an array. */
+    ArrayOpen,
+
+    /** `]` of an array. */
+    ArrayClose,
+
+    /** One part of a key. */
+    SimpleKey,
+
+    /** `.` between the parts of a dotted key. */
+    KeySep,
+
+    /** `=` between a key and its value. */
+    KeyValSep,
+
+    /** A scalar value. */
+    Scalar,
+
+    /** `,` between values. */
+    ValueSep,
+
+    /** A run of spaces and tabs. */
+    Whitespace,
+
+    /** A comment. */
+    Comment,
+
+    /** A newline. */
+    Newline,
+
+    /** Input skipped while recovering from a reported error. */
+    Error,
+    ;
+
+    /** The kind in words, such as `key-value separator`. */
+    public fun description(): String = when (this) {
+        StdTableOpen -> "std-table open"
+        StdTableClose -> "std-table close"
+        ArrayTableOpen -> "array-table open"
+        ArrayTableClose -> "array-table close"
+        InlineTableOpen -> "inline-table open"
+        InlineTableClose -> "inline-table close"
+        ArrayOpen -> "array open"
+        ArrayClose -> "array close"
+        SimpleKey -> "key"
+        KeySep -> "key separator"
+        KeyValSep -> "key-value separator"
+        Scalar -> "value"
+        ValueSep -> "value separator"
+        Whitespace -> "whitespace"
+        Comment -> "comment"
+        Newline -> "newline"
+        Error -> "error"
+    }
+}

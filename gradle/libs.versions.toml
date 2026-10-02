@@ -1,0 +1,32 @@
+[versions]
+# One version across every kotoml module, released together, so a consumer pins a single number.
+kotomlVersion = "0.1.0"
+
+kern = "0.3.1"
+klap = "0.5.0"
+
+agp = "9.4.1"
+android-compileSdk = "37"
+android-minSdk = "26"
+dotenv-gradle = "0.1.0"
+jdk = "25"
+
+kotlin = "2.4.20"
+kotlinx-io = "0.9.1"
+kotlinx-serialization = "1.11.0"
+
+[libraries]
+android-gradlePlugin = { module = "com.android.tools.build:gradle", version.ref = "agp" }
+dotenv-gradlePlugin = { module = "com.fromwau:dotenv-gradle", version.ref = "dotenv-gradle" }
+kotlin-gradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+
+kern-result = { module = "com.fromwau.kern:result", version.ref = "kern" }
+klap = { module = "com.fromwau:klap", version.ref = "klap" }
+
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+kotlinx-io-core = { module = "org.jetbrains.kotlinx:kotlinx-io-core", version.ref = "kotlinx-io" }
+kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialization" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+
+[plugins]
+kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

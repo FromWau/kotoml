@@ -1,0 +1,321 @@
+package com.fromwau.kotoml
+
+import com.fromwau.kotoml.visit.Visit
+import com.fromwau.kotoml.visitmut.VisitMut
+import com.fromwau.kotoml.visitmut.visitValueMut
+import kotlin.math.round
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+/** Upstream's documentation examples for `toml_edit`, which `cargo test` runs as doctests. */
+class EditDocTest {
+
+    @Test
+    fun crateExample() {
+        val toml = """
+"hello" = 'toml!' # comment
+['a'.b]
+"""
+        val doc = DocumentMut.parse(toml).unwrap()
+        assertEquals(toml, doc.toString())
+        // Add a new key/value pair inside a.b: c = {d = "hello"}
+        doc["a"]["b"]["c"]["d"] = value("hello")
+        // Autoformat inline table a.b.c: { d = "hello" }
+        doc["a"]["b"]["c"].asInlineTableMut()?.fmt()
+        val expected = """
+"hello" = 'toml!' # comment
+['a'.b]
+c = { d = "hello" }
+"""
+        assertEquals(expected, doc.toString())
+    }
+
+    @Test
+    fun readmeExample() {
+        val toml = "\n\"hello\" = 'toml!' # comment\n['a'.b]\n    "
+        val doc = DocumentMut.parse(toml).unwrap()
+        assertEquals(toml, doc.toString())
+        // Add a new key/value pair inside a.b: c = {d = "hello"}
+        doc["a"]["b"]["c"]["d"] = value("hello")
+        // Autoformat inline table a.b.c: { d = "hello" }
+        doc["a"]["b"]["c"].asInlineTableMut()?.fmt()
+        val expected = "\n\"hello\" = 'toml!' # comment\n['a'.b]\nc = { d = \"hello\" }\n    "
+        assertEquals(expected, doc.toString())
+    }
+
+    @Test
+    fun repositoryReadmeExample() {
+        val doc = DocumentMut.parse("[package]\nname = \"kotoml\" # the name\n").unwrap()
+        doc["package"]["version"] = value("0.1.0")
+        assertEquals("[package]\nname = \"kotoml\" # the name\nversion = \"0.1.0\"\n", doc.toString())
+    }
+
+    @Test
+    fun moduleReadmeExample() {
+        val text = "\n\"hello\" = 'toml!' # comment\n['a'.b]\n"
+        val doc = DocumentMut.parse(text).unwrap()
+        assertEquals(text, doc.toString())
+        doc["a"]["b"]["c"]["d"] = value("hello")
+        doc["a"]["b"]["c"].asInlineTableMut()?.fmt()
+        assertEquals("\n\"hello\" = 'toml!' # comment\n['a'.b]\nc = { d = \"hello\" }\n", doc.toString())
+    }
+
+    @Test
+    fun moduleReadmeSetIntoAString() {
+        val doc = DocumentMut.parse("a = 'text'\n").unwrap()
+        assertTrue(doc["a"].set("key", value(1L)).unwrapErr() is TomlEditError.NotATable)
+        assertEquals("a = 'text'\n", doc.toString())
+    }
+
+    @Test
+    fun moduleReadmeError() {
+        val input = "a = 1\na = 2\n"
+        val error = DocumentMut.parse(input).unwrapErr()
+        assertEquals(TomlParseError.Reason.DuplicateKey("a"), error.reason)
+        assertEquals(TextPosition(line = 2, column = 1), error.position)
+        assertData(
+            """
+TOML parse error at line 2, column 1
+  |
+2 | a = 2
+  | ^
+duplicate key
+
+""",
+            error.render(input),
+        )
+    }
+
+    @Test
+    fun crateDefaultFormatting() {
+        val doc = DocumentMut()
+        doc["foo"] = value("bar")
+        assertEquals("foo = \"bar\"\n", doc.toString())
+    }
+
+    @Test
+    fun crateCustomRepresentation() {
+        val doc = DocumentMut()
+        doc["foo"] = Item.parse("'bar'").unwrap()
+        assertEquals("foo = 'bar'\n", doc.toString())
+    }
+
+    @Test
+    fun arrayNew() {
+        TomlArray()
+    }
+
+    @Test
+    fun arrayLen() {
+        val arr = TomlArray()
+        arr.push(1L)
+        arr.push("foo")
+        assertEquals(2, arr.len())
+    }
+
+    @Test
+    fun arrayIsEmpty() {
+        val arr = TomlArray()
+        assertTrue(arr.isEmpty())
+
+        arr.push(1L)
+        arr.push("foo")
+        assertTrue(!arr.isEmpty())
+    }
+
+    @Test
+    fun arrayPush() {
+        val arr = TomlArray()
+        arr.push(1L)
+        arr.push("foo")
+    }
+
+    @Test
+    fun arrayPushFormatted() {
+        val formattedValue = Value.parse("'literal'").unwrap()
+        val arr = TomlArray()
+        arr.pushFormatted(formattedValue)
+    }
+
+    @Test
+    fun arrayInsert() {
+        val arr = TomlArray()
+        arr.push(1L)
+        arr.push("foo")
+
+        arr.insert(0, Value.from("start")).unwrap()
+    }
+
+    @Test
+    fun arrayInsertFormatted() {
+        val arr = TomlArray()
+        arr.push(1L)
+        arr.push("foo")
+
+        val formattedValue = Value.parse("'start'").unwrap()
+        arr.insertFormatted(0, formattedValue).unwrap()
+    }
+
+    @Test
+    fun arrayReplace() {
+        val arr = TomlArray()
+        arr.push(1L)
+        arr.push("foo")
+
+        arr.replace(0, Value.from("start")).unwrap()
+    }
+
+    @Test
+    fun arrayReplaceFormatted() {
+        val arr = TomlArray()
+        arr.push(1L)
+        arr.push("foo")
+
+        val formattedValue = Value.parse("'start'").unwrap()
+        arr.replaceFormatted(0, formattedValue).unwrap()
+    }
+
+    @Test
+    fun arrayRemove() {
+        val arr = TomlArray()
+        arr.push(1L)
+        arr.push("foo")
+
+        arr.remove(0).unwrap()
+        assertEquals(1, arr.len())
+    }
+
+    @Test
+    fun arrayOfTablesReplace() {
+        val arr = ArrayOfTables()
+        arr.push(Table.fromIter(listOf("name" to value("apple"))))
+
+        arr.replace(0, Table.fromIter(listOf("name" to value("banana")))).unwrap()
+    }
+
+    @Test
+    fun itemValue() {
+        val table = Table()
+        val array = TomlArray()
+        array.push("hello")
+        // A backslash is only allowed in a literal string.
+        array.push("\\, world")
+        table["key1"] = value("value1")
+        table["key2"] = value(42L)
+        table["key3"] = value(array)
+        assertEquals("key1 = \"value1\"\nkey2 = 42\nkey3 = [\"hello\", '\\, world']\n", table.toString())
+    }
+
+    @Test
+    fun tableSetImplicit() {
+        val doc = DocumentMut.parse("[a]\n[a.b]\n").unwrap()
+
+        doc["a"].asTableMut()!!.setImplicit(true)
+        assertEquals("[a.b]\n", doc.toString())
+    }
+
+    @Test
+    fun tableEntryKey() {
+        val map = Table()
+        assertEquals("hello", map.entry("hello").key())
+    }
+
+    @Test
+    fun tableOccupiedEntryKey() {
+        val map = Table()
+        assertEquals("foo", map.entry("foo").key())
+    }
+
+    @Test
+    fun tableVacantEntryKey() {
+        val map = Table()
+        assertEquals("foo", map.entry("foo").key())
+    }
+
+    @Test
+    fun inlineEntryKey() {
+        val map = Table()
+        assertEquals("hello", map.entry("hello").key())
+    }
+
+    @Test
+    fun valueDecorMut() {
+        val v = Value.from(true)
+        assertNull(v.decor().suffix())
+    }
+
+    @Test
+    fun valueDecor() {
+        val v = Value.from(true)
+        assertNull(v.decor().suffix())
+    }
+
+    @Test
+    fun valueDecorated() {
+        val v = Value.from(42L)
+        assertEquals("42", v.toString())
+        val d = v.decorated(" ", " ")
+        assertEquals(" 42 ", d.toString())
+    }
+
+    @Test
+    fun visitStringCollector() {
+        class StringCollector : Visit {
+            val strings = mutableListOf<String>()
+
+            override fun visitString(node: Formatted<String>) {
+                strings += node.value()
+            }
+        }
+
+        val input = """
+laputa = "sky-castle"
+the-force = { value = "surrounds-you" }
+"""
+
+        val document = DocumentMut.parse(input).unwrap()
+        val visitor = StringCollector()
+        visitor.visitDocument(document)
+
+        assertEquals(listOf("sky-castle", "surrounds-you"), visitor.strings)
+    }
+
+    @Test
+    fun visitMutFloatToString() {
+        class FloatToString : VisitMut {
+            override fun visitValueMut(node: Value): Value {
+                var kept = node
+                if (node is Value.Float) {
+                    // Convert the float to a string, with two decimals.
+                    val hundredths = round(node.formatted.value() * 100).toLong()
+                    val text = "${hundredths / 100}.${(hundredths % 100).toString().padStart(2, '0')}"
+                    val s = Formatted.of(text)
+                    // Copy over the formatting.
+                    s.decorMut().assign(node.decor())
+                    kept = Value.String(s)
+                }
+                // Most of the time, you will also need to call the default implementation to recurse
+                // further down the document tree.
+                return visitValueMut(this, kept)
+            }
+        }
+
+        val input = """
+banana = 3.26
+table = { apple = 4.5 }
+"""
+
+        val document = DocumentMut.parse(input).unwrap()
+        val visitor = FloatToString()
+        visitor.visitDocumentMut(document)
+
+        val output = """
+banana = "3.26"
+table = { apple = "4.50" }
+"""
+
+        assertEquals(output, document.toString())
+    }
+}

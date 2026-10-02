@@ -1,0 +1,518 @@
+package com.fromwau.kotoml
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+
+/** `toml_edit/tests/compliance/parse.rs` */
+class ComplianceParseTest {
+
+    private fun parseValue(text: String): Value = Value.parse(text).unwrap()
+
+    private fun parseDocument(text: String): DocumentMut = DocumentMut.parse(text).unwrap()
+
+    @Test
+    fun testValueFromStr() {
+        assertTrue(parseValue("1979-05-27T00:32:00.999999-07:00").isDatetime())
+        assertTrue(parseValue("1979-05-27T00:32:00.999999Z").isDatetime())
+        assertTrue(parseValue("1979-05-27T00:32:00.999999").isDatetime())
+        assertTrue(parseValue("1979-05-27T00:32:00").isDatetime())
+        assertTrue(parseValue("1979-05-27").isDatetime())
+        assertTrue(parseValue("00:32:00").isDatetime())
+        assertTrue(parseValue("-239").isInteger())
+        assertTrue(parseValue("1e200").isFloat())
+        assertTrue(parseValue("9_224_617.445_991_228_313").isFloat())
+        assertTrue(parseValue("\"basic string\\nJos\\u00E9\\n\"").isStr())
+        assertTrue(parseValue("\"\"\"\nmultiline basic string\n\"\"\"").isStr())
+        assertTrue(parseValue("'literal string\\ \\'").isStr())
+        assertTrue(
+            parseValue(
+                """'''multiline
+literal \ \
+string'''""",
+            ).isStr(),
+        )
+        assertTrue(parseValue("{ hello = \"world\", a = 1}").isInlineTable())
+        assertTrue(parseValue("[ { x = 1, a = \"2\" }, {a = \"a\",b = \"b\",     c =    \"c\"} ]").isArray())
+        val wp = "C:\\Users\\appveyor\\AppData\\Local\\Temp\\1\\cargo-edit-test.YizxPxxElXn9"
+        val lwp = "'C:\\Users\\appveyor\\AppData\\Local\\Temp\\1\\cargo-edit-test.YizxPxxElXn9'"
+        assertEquals(Value.from(wp).asStr(), parseValue(lwp).asStr())
+        assertTrue(parseValue("\"\\\\\\\"\\b\\f\\n\\r\\t\\u00E9\\U000A0000\"").isStr())
+    }
+
+    @Test
+    fun testKeyUnification() {
+        val toml = """
+[a]
+[a.'b'.c]
+[a."b".c.e]
+[a.b.c.d]
+"""
+        // Upstream prints every header with the spelling the first one used; this port keeps each header as
+        // written, which the toml-test round trip requires (valid/table/with-literal-string).
+        val expected = """
+
+[a]
+[a.'b'.c]
+[a."b".c.e]
+[a.b.c.d]
+
+"""
+        val doc = DocumentMut.parse(toml)
+        assertTrue(doc.isOk())
+        assertData(expected, doc.unwrap().toString())
+    }
+
+    @Test
+    fun crlf() {
+        parseDocument(
+            "[project]\r\n\r\nname = \"splay\"\r\nversion = \"0.1.0\"\r\nauthors = [\"alex@crichton.co\"]\r\n\r\n" +
+                "[[lib]]\r\n\r\npath = \"lib.rs\"\r\nname = \"splay\"\r\ndescription = \"\"\"A Rust implementatio" +
+                    "n of " +
+                "a TAR file reader and writer. This library does not\r\ncurrently handle compression, but it is " +
+                "abstract over all I/O readers and\r\nwriters. Additionally, great lengths are taken to ensure that " +
+                "the entire\r\ncontents are never required to be entirely resident in memory all at once.\r\n\"\"\"",
+        )
+    }
+
+    @Test
+    fun funWithStrings() {
+        val table = parseDocument(
+            "\nbar = \"\\U00000000\"\nkey1 = \"One\\nTwo\"\nkey2 = \"\"\"One\\nTwo\"\"\"\nkey3 = \"\"\"\nOne\nTwo" +
+                "\"\"\"\n" +
+                "\nkey4 = \"The quick brown fox jumps over the lazy dog.\"\nkey5 = \"\"\"\nThe quick brown \\\n\n\n" +
+                "fox jumps over \\\nthe lazy dog.\"\"\"\nkey6 = \"\"\"\\\n   The quick brown \\\n   fox jumps over " +
+                "\\\n   the lazy dog.\\\n   \"\"\"\n# What you see is what you get.\nwinpath  = " +
+                "'C:\\Users\\nodejs\\templates'\nwinpath2 = '\\\\ServerX\\admin\$\\system32\\'\nquoted   = " +
+                "'Tom \"Dubs\" Preston-Werner'\nregex    = '<\\i\\c*\\s*>'\n\nregex2 = '''I [dw]on't need \\d{2} " +
+                "apples'''\nlines  = '''\nThe first newline is\ntrimmed in raw strings.\nAll other whitespace\n" +
+                "is preserved.\n'''\n",
+        )
+        assertEquals("\u0000", table["bar"].asStr())
+        assertEquals("One\nTwo", table["key1"].asStr())
+        assertEquals("One\nTwo", table["key2"].asStr())
+        assertEquals("One\nTwo", table["key3"].asStr())
+
+        val msg = "The quick brown fox jumps over the lazy dog."
+        assertEquals(msg, table["key4"].asStr())
+        assertEquals(msg, table["key5"].asStr())
+        assertEquals(msg, table["key6"].asStr())
+
+        assertEquals("C:\\Users\\nodejs\\templates", table["winpath"].asStr())
+        assertEquals("\\\\ServerX\\admin\$\\system32\\", table["winpath2"].asStr())
+        assertEquals("Tom \"Dubs\" Preston-Werner", table["quoted"].asStr())
+        assertEquals("<\\i\\c*\\s*>", table["regex"].asStr())
+        assertEquals("I [dw]on't need \\d{2} apples", table["regex2"].asStr())
+        assertEquals(
+            "The first newline is\ntrimmed in raw strings.\nAll other whitespace\nis preserved.\n",
+            table["lines"].asStr(),
+        )
+    }
+
+    @Test
+    fun tablesInArrays() {
+        val table = parseDocument(
+            """
+[[foo]]
+#…
+[foo.bar]
+#…
+
+[[foo]] # ...
+#…
+[foo.bar]
+#...
+""",
+        )
+        assertTrue(table["foo"][0]["bar"].asTable() != null)
+        assertTrue(table["foo"][1]["bar"].asTable() != null)
+    }
+
+    @Test
+    fun emptyTable() {
+        val table = parseDocument("\n[foo]")
+        assertTrue(table["foo"].asTable() != null)
+    }
+
+    @Test
+    fun mixedTableIssue527() {
+        val input = """
+[package]
+metadata.msrv = "1.65.0"
+
+[package.metadata.release.pre-release-replacements]
+"""
+        val expected = """
+
+[package]
+metadata.msrv = "1.65.0"
+
+[package.metadata.release.pre-release-replacements]
+
+"""
+        val document = parseDocument(input)
+        assertData(expected, document.toString())
+    }
+
+    @Test
+    fun fruit() {
+        val table = parseDocument(
+            """
+[[fruit]]
+name = "apple"
+
+[fruit.physical]
+color = "red"
+shape = "round"
+
+[[fruit.variety]]
+name = "red delicious"
+
+[[fruit.variety]]
+name = "granny smith"
+
+[[fruit]]
+name = "banana"
+
+[[fruit.variety]]
+name = "plantain"
+""",
+        )
+        assertEquals("apple", table["fruit"][0]["name"].asStr())
+        assertEquals("red", table["fruit"][0]["physical"]["color"].asStr())
+        assertEquals("round", table["fruit"][0]["physical"]["shape"].asStr())
+        assertEquals("red delicious", table["fruit"][0]["variety"][0]["name"].asStr())
+        assertEquals("granny smith", table["fruit"][0]["variety"][1]["name"].asStr())
+        assertEquals("banana", table["fruit"][1]["name"].asStr())
+        assertEquals("plantain", table["fruit"][1]["variety"][0]["name"].asStr())
+    }
+
+    @Test
+    fun blankLiteralString() {
+        val table = parseDocument("foo = ''")
+        assertEquals("", table["foo"].asStr())
+    }
+
+    @Test
+    fun manyBlank() {
+        val table = parseDocument("foo = \"\"\"\n\n\n\"\"\"")
+        assertEquals("\n\n", table["foo"].asStr())
+    }
+
+    @Test
+    fun literalEatsCrlf() {
+        val table = parseDocument(
+            "\n        foo = \"\"\"\\\r\n\"\"\"\n        bar = \"\"\"\\\r\n   \r\n   \r\n   a\"\"\"\n    ",
+        )
+        assertEquals("", table["foo"].asStr())
+        assertEquals("a", table["bar"].asStr())
+    }
+
+    @Test
+    fun floats() {
+        fun t(actual: String, expected: Double) {
+            val a = parseDocument("foo = $actual")
+            assertEquals(expected, a["foo"].asFloat())
+        }
+
+        t("1.0", 1.0)
+        t("1.0e0", 1.0)
+        t("1.0e+0", 1.0)
+        t("1.0e-0", 1.0)
+        t("1E-0", 1.0)
+        t("1.001e-0", 1.001)
+        t("2e10", 2e10)
+        t("2e+10", 2e10)
+        t("2e-10", 2e-10)
+        t("2_0.0", 20.0)
+        t("2_0.0_0e1_0", 20.0e10)
+        t("2_0.1_0e1_0", 20.1e10)
+    }
+
+    @Test
+    fun bareKeyNames() {
+        val a = parseDocument(
+            """
+        foo = 3
+        foo_3 = 3
+        foo_-2--3--r23f--4-f2-4 = 3
+        _ = 3
+        - = 3
+        8 = 8
+        "a" = 3
+        "!" = 3
+        "a^b" = 3
+        "\"" = 3
+        "character encoding" = "value"
+        'ʎǝʞ' = "value"
+    """,
+        )
+        for (key in listOf("foo", "-", "_", "8", "foo_3", "foo_-2--3--r23f--4-f2-4", "a", "!", "\"")) {
+            assertTrue(a.containsKey(key), key)
+        }
+        assertTrue(a.containsKey("character encoding"))
+        assertTrue(a.containsKey("ʎǝʞ"))
+    }
+
+    @Test
+    fun tableNames() {
+        val a = parseDocument(
+            """
+        [a."b"]
+        ["f f"]
+        ["f.f"]
+        ["\""]
+        ['a.a']
+        ['""']
+    """,
+        )
+        assertTrue(a["a"]["b"].isTable())
+        assertTrue(a["f f"].isTable())
+        assertTrue(a["f.f"].isTable())
+        assertTrue(a["\""].isTable())
+        assertTrue(a["\"\""].isTable())
+    }
+
+    @Test
+    fun inlineTables() {
+        parseDocument("a = {}")
+        parseDocument("a = {b=1}")
+        parseDocument("a = {   b   =   1    }")
+        parseDocument("a = {a=1,b=2}")
+        parseDocument("a = {a=1,b=2,c={}}")
+        parseDocument("a = {a=[\n]}")
+        parseDocument("a = {\"a\"=[\n]}")
+        parseDocument("a = [\n{},\n{},\n]")
+    }
+
+    @Test
+    fun numberUnderscores() {
+        fun t(actual: String, expected: Long) {
+            val table = parseDocument("foo = $actual")
+            assertEquals(expected, table["foo"].asInteger())
+        }
+
+        t("1_0", 10)
+        t("1_0_0", 100)
+        t("1_000", 1000)
+        t("+1_000", 1000)
+        t("-1_000", -1000)
+    }
+
+    @Test
+    fun emptyString() {
+        assertEquals("", parseDocument("foo = \"\"")["foo"].asStr())
+    }
+
+    @Test
+    fun datetimes() {
+        fun t(actual: String) {
+            val toml = parseDocument("foo = $actual")
+            assertEquals(actual, toml["foo"].asDatetime().toString())
+        }
+
+        t("2016-09-09T09:09:09Z")
+        t("2016-09-09T09:09:09.1Z")
+        t("2016-09-09T09:09:09.2+10:00")
+        t("2016-09-09T09:09:09.123456789-02:00")
+    }
+
+    @Test
+    fun dontUseDottedKeyPrefixOnTableFuzz57049() {
+        val input = """
+p.a=4
+[p.o]
+"""
+        val expected = """
+
+p.a=4
+[p.o]
+
+"""
+        assertData(expected, parseDocument(input).toString())
+    }
+
+    @Test
+    fun dottedKeyCommentRoundtrip() {
+        val input = """
+rust.unsafe_op_in_unsafe_fn = "deny"
+
+rust.explicit_outlives_requirements = "warn"
+# rust.unused_crate_dependencies = "warn"
+
+clippy.cast_lossless = "warn"
+clippy.doc_markdown = "warn"
+clippy.exhaustive_enums = "warn"
+"""
+        val expected = """
+
+rust.unsafe_op_in_unsafe_fn = "deny"
+
+rust.explicit_outlives_requirements = "warn"
+# rust.unused_crate_dependencies = "warn"
+
+clippy.cast_lossless = "warn"
+clippy.doc_markdown = "warn"
+clippy.exhaustive_enums = "warn"
+
+"""
+        assertData(expected, parseDocument(input).toString())
+    }
+
+    private fun assertStringReprRoundtrip(input: String, expected: String) {
+        val value = parseValue(input)
+        val actual = value.toString()
+        parseValue(actual)
+        assertData(expected, actual)
+    }
+
+    @Test
+    fun stringReprRoundtrip() {
+        assertStringReprRoundtrip("\"\"", "\"\"")
+        assertStringReprRoundtrip("\"a\"", "\"a\"")
+
+        assertStringReprRoundtrip("\"tab \\t tab\"", "\"tab \\t tab\"")
+        assertStringReprRoundtrip("\"lf \\n lf\"", "\"lf \\n lf\"")
+        assertStringReprRoundtrip("\"crlf \\r\\n crlf\"", "\"crlf \\r\\n crlf\"")
+        assertStringReprRoundtrip("\"bell \\b bell\"", "\"bell \\b bell\"")
+        assertStringReprRoundtrip("\"feed \\f feed\"", "\"feed \\f feed\"")
+        assertStringReprRoundtrip("\"backslash \\\\ backslash\"", "\"backslash \\\\ backslash\"")
+
+        assertStringReprRoundtrip("\"squote ' squote\"", "\"squote ' squote\"")
+        assertStringReprRoundtrip("\"triple squote ''' triple squote\"", "\"triple squote ''' triple squote\"")
+        assertStringReprRoundtrip("\"end squote '\"", "\"end squote '\"")
+
+        assertStringReprRoundtrip("\"quote \\\" quote\"", "\"quote \\\" quote\"")
+        assertStringReprRoundtrip(
+            "\"triple quote \\\"\\\"\\\" triple quote\"",
+            "\"triple quote \\\"\\\"\\\" triple quote\"",
+        )
+        assertStringReprRoundtrip("\"end quote \\\"\"", "\"end quote \\\"\"")
+        assertStringReprRoundtrip("\"quoted \\\"content\\\" quoted\"", "\"quoted \\\"content\\\" quoted\"")
+        assertStringReprRoundtrip("\"squoted 'content' squoted\"", "\"squoted 'content' squoted\"")
+        assertStringReprRoundtrip(
+            "\"mixed quoted \\\"start\\\" 'end'' mixed quote\"",
+            "\"mixed quoted \\\"start\\\" 'end'' mixed quote\"",
+        )
+    }
+
+    private fun assertStringValueRoundtrip(input: String, expected: String) {
+        val parsed = parseValue(input)
+        // Drops the repr.
+        val value = Value.from(parsed.asStr()!!)
+        val actual = value.toString()
+        parseValue(actual)
+        assertData(expected, actual)
+    }
+
+    @Test
+    fun stringValueRoundtrip() {
+        assertStringValueRoundtrip("\"\"", "\"\"")
+        assertStringValueRoundtrip("\"a\"", "\"a\"")
+
+        assertStringValueRoundtrip("\"tab \\t tab\"", "\"tab \\t tab\"")
+        assertStringValueRoundtrip("\"lf \\n lf\"", "\n\"\"\"\nlf \n lf\"\"\"\n")
+        assertStringValueRoundtrip("\"crlf \\r\\n crlf\"", "\n\"\"\"\ncrlf \\r\n crlf\"\"\"\n")
+        assertStringValueRoundtrip("\"bell \\b bell\"", "\"bell \\b bell\"")
+        assertStringValueRoundtrip("\"feed \\f feed\"", "\"feed \\f feed\"")
+        assertStringValueRoundtrip("\"backslash \\\\ backslash\"", "'backslash \\ backslash'")
+
+        assertStringValueRoundtrip("\"squote ' squote\"", "\"squote ' squote\"")
+        assertStringValueRoundtrip("\"triple squote ''' triple squote\"", "\"triple squote ''' triple squote\"")
+        assertStringValueRoundtrip("\"end squote '\"", "\"end squote '\"")
+
+        assertStringValueRoundtrip("\"quote \\\" quote\"", "'quote \" quote'")
+        assertStringValueRoundtrip("\"triple quote \\\"\\\"\\\" triple quote\"", "'triple quote \"\"\" triple quote'")
+        assertStringValueRoundtrip("\"end quote \\\"\"", "'end quote \"'")
+        assertStringValueRoundtrip("\"quoted \\\"content\\\" quoted\"", "'quoted \"content\" quoted'")
+        assertStringValueRoundtrip("\"squoted 'content' squoted\"", "\"squoted 'content' squoted\"")
+        assertStringValueRoundtrip(
+            "\"mixed quoted \\\"start\\\" 'end'' mixed quote\"",
+            "\"\"\"mixed quoted \"start\" 'end'' mixed quote\"\"\"",
+        )
+    }
+
+    private fun recursionLimit(input: (Int) -> String) {
+        val depths = listOf(1 to true, 20 to true, 300 to false)
+        for ((depth, isOk) in depths) {
+            val document = DocumentMut.parse(input(depth))
+            assertEquals(isOk, document.isOk(), "depth: $depth")
+        }
+    }
+
+    @Test
+    fun arrayRecursionLimit() {
+        recursionLimit { depth -> "x=${"[".repeat(depth)}${"]".repeat(depth)}" }
+    }
+
+    @Test
+    fun inlineTableRecursionLimit() {
+        recursionLimit { depth -> "x=${"{ x = ".repeat(depth)}true${"}".repeat(depth)}" }
+    }
+
+    @Test
+    fun tableKeyRecursionLimit() {
+        recursionLimit { depth -> "[x${".x".repeat(depth)}]" }
+    }
+
+    @Test
+    fun dottedKeyRecursionLimit() {
+        recursionLimit { depth -> "x${".x".repeat(depth)} = true" }
+    }
+
+    @Test
+    fun inlineDottedKeyRecursionLimit() {
+        recursionLimit { depth -> "x = { x${".x".repeat(depth)} = true }" }
+    }
+
+    @Test
+    fun garbage1() {
+        val input = "={=<=u=="
+        val err = DocumentMut.parse(input).unwrapErr()
+        assertData(
+            """
+TOML parse error at line 1, column 5
+  |
+1 | ={=<=u==
+  |     ^
+extra assignment between key-value pairs, expected `,`
+
+""",
+            err.render(input),
+        )
+    }
+
+    @Test
+    fun garbage2() {
+        val input = "={=<=u==}"
+        val err = DocumentMut.parse(input).unwrapErr()
+        assertData(
+            """
+TOML parse error at line 1, column 5
+  |
+1 | ={=<=u==}
+  |     ^
+extra assignment between key-value pairs, expected `,`
+
+""",
+            err.render(input),
+        )
+    }
+
+    @Test
+    fun garbage3() {
+        val input = "==\n[._[._"
+        val err = DocumentMut.parse(input).unwrapErr()
+        assertData(
+            """
+TOML parse error at line 1, column 2
+  |
+1 | ==
+  |  ^
+extra `=`, expected nothing
+
+""",
+            err.render(input),
+        )
+    }
+}

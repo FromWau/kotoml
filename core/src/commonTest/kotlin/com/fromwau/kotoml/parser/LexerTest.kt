@@ -1,0 +1,1596 @@
+package com.fromwau.kotoml.parser
+
+import com.fromwau.kotoml.assertData
+import com.fromwau.kotoml.assertDebug
+import com.fromwau.kotoml.seq
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+class LexerTest {
+
+    private fun t(input: String, expected: String) {
+        val source = Source(input)
+        val actual = source.lex().intoVec()
+        assertDebug(expected, seq(actual.map { it.dbg() }))
+
+        if (actual.isNotEmpty()) {
+            val spans = actual.map { it.span() }
+            assertEquals(0, spans.first().start())
+            assertEquals(input.encodeToByteArray().size, spans.last().end())
+            for (i in 0 until spans.size - 1) {
+                assertEquals(spans[i].end(), spans[i + 1].start())
+            }
+        }
+    }
+
+    @Test
+    fun testLexAsciiChar() {
+        val cases = listOf(
+            Triple(
+                ".trailing",
+                """
+Token {
+    kind: Dot,
+    span: 0..1,
+}
+
+""",
+                "trailing",
+            ),
+        )
+        for ((input, expectedTokens, expectedStream) in cases) {
+            val stream = LexStream(input.encodeToByteArray())
+            val actualTokens = stream.lexAsciiChar(TokenKind.Dot)
+            assertDebug(expectedTokens, actualTokens.dbg())
+            assertData(expectedStream, stream.rest())
+        }
+    }
+
+    @Test
+    fun testLexWhitespace() {
+        val cases = listOf(
+            Triple(
+                " ",
+                """
+Token {
+    kind: Whitespace,
+    span: 0..1,
+}
+
+""",
+                "",
+            ),
+            Triple(
+                " \t  \t  \t ",
+                """
+Token {
+    kind: Whitespace,
+    span: 0..9,
+}
+
+""",
+                "",
+            ),
+            Triple(
+                """ 
+""",
+                """
+Token {
+    kind: Whitespace,
+    span: 0..1,
+}
+
+""",
+                """
+
+
+""",
+            ),
+            Triple(
+                " #",
+                """
+Token {
+    kind: Whitespace,
+    span: 0..1,
+}
+
+""",
+                "#",
+            ),
+            Triple(
+                " a",
+                """
+Token {
+    kind: Whitespace,
+    span: 0..1,
+}
+
+""",
+                "a",
+            ),
+        )
+        for ((input, expectedTokens, expectedStream) in cases) {
+            val stream = LexStream(input.encodeToByteArray())
+            val actualTokens = stream.lexWhitespace()
+            assertDebug(expectedTokens, actualTokens.dbg())
+            assertData(expectedStream, stream.rest())
+        }
+    }
+
+    @Test
+    fun testLexComment() {
+        val cases = listOf(
+            Triple(
+                "#",
+                """
+Token {
+    kind: Comment,
+    span: 0..1,
+}
+
+""",
+                "",
+            ),
+            Triple(
+                "# content",
+                """
+Token {
+    kind: Comment,
+    span: 0..9,
+}
+
+""",
+                "",
+            ),
+            Triple(
+                """# content 
+trailing""",
+                """
+Token {
+    kind: Comment,
+    span: 0..10,
+}
+
+""",
+                """
+
+trailing
+""",
+            ),
+            Triple(
+                "# content \r\ntrailing",
+                """
+Token {
+    kind: Comment,
+    span: 0..10,
+}
+
+""",
+                """
+
+trailing
+""",
+            ),
+            Triple(
+                "# content \u0000continue",
+                """
+Token {
+    kind: Comment,
+    span: 0..19,
+}
+
+""",
+                "",
+            ),
+        )
+        for ((input, expectedTokens, expectedStream) in cases) {
+            val stream = LexStream(input.encodeToByteArray())
+            val actualTokens = stream.lexComment()
+            assertDebug(expectedTokens, actualTokens.dbg())
+            assertData(expectedStream, stream.rest())
+        }
+    }
+
+    @Test
+    fun testLexCrlf() {
+        val cases = listOf(
+            Triple(
+                "\r\ntrailing",
+                """
+Token {
+    kind: Newline,
+    span: 0..2,
+}
+
+""",
+                "trailing",
+            ),
+            Triple(
+                "\rtrailing",
+                """
+Token {
+    kind: Newline,
+    span: 0..1,
+}
+
+""",
+                "trailing",
+            ),
+        )
+        for ((input, expectedTokens, expectedStream) in cases) {
+            val stream = LexStream(input.encodeToByteArray())
+            val actualTokens = stream.lexCrlf()
+            assertDebug(expectedTokens, actualTokens.dbg())
+            assertData(expectedStream, stream.rest())
+        }
+    }
+
+    @Test
+    fun testLexLiteralString() {
+        val cases = listOf(
+            Triple(
+                "''",
+                """
+Token {
+    kind: LiteralString,
+    span: 0..2,
+}
+
+""",
+                "",
+            ),
+            Triple(
+                "''trailing",
+                """
+Token {
+    kind: LiteralString,
+    span: 0..2,
+}
+
+""",
+                "trailing",
+            ),
+            Triple(
+                "'content'trailing",
+                """
+Token {
+    kind: LiteralString,
+    span: 0..9,
+}
+
+""",
+                "trailing",
+            ),
+            Triple(
+                "'content",
+                """
+Token {
+    kind: LiteralString,
+    span: 0..8,
+}
+
+""",
+                "",
+            ),
+            Triple(
+                """'content
+trailing""",
+                """
+Token {
+    kind: LiteralString,
+    span: 0..8,
+}
+
+""",
+                """
+
+trailing
+""",
+            ),
+        )
+        for ((input, expectedTokens, expectedStream) in cases) {
+            val stream = LexStream(input.encodeToByteArray())
+            val actualTokens = stream.lexLiteralString()
+            assertDebug(expectedTokens, actualTokens.dbg())
+            assertData(expectedStream, stream.rest())
+        }
+    }
+
+    @Test
+    fun testLexMlLiteralString() {
+        val cases = listOf(
+            Triple(
+                "''''''",
+                """
+Token {
+    kind: MlLiteralString,
+    span: 0..6,
+}
+
+""",
+                "",
+            ),
+            Triple(
+                "''''''trailing",
+                """
+Token {
+    kind: MlLiteralString,
+    span: 0..6,
+}
+
+""",
+                "trailing",
+            ),
+            Triple(
+                "'''content'''trailing",
+                """
+Token {
+    kind: MlLiteralString,
+    span: 0..13,
+}
+
+""",
+                "trailing",
+            ),
+            Triple(
+                "'''content",
+                """
+Token {
+    kind: MlLiteralString,
+    span: 0..10,
+}
+
+""",
+                "",
+            ),
+            Triple(
+                "'''content'",
+                """
+Token {
+    kind: MlLiteralString,
+    span: 0..11,
+}
+
+""",
+                "",
+            ),
+            Triple(
+                "'''content''",
+                """
+Token {
+    kind: MlLiteralString,
+    span: 0..12,
+}
+
+""",
+                "",
+            ),
+            Triple(
+                """'''content
+trailing""",
+                """
+Token {
+    kind: MlLiteralString,
+    span: 0..19,
+}
+
+""",
+                "",
+            ),
+            Triple(
+                "'''''''trailing",
+                """
+Token {
+    kind: MlLiteralString,
+    span: 0..7,
+}
+
+""",
+                "trailing",
+            ),
+            Triple(
+                "''''''''trailing",
+                """
+Token {
+    kind: MlLiteralString,
+    span: 0..8,
+}
+
+""",
+                "trailing",
+            ),
+            Triple(
+                "'''''''''trailing",
+                """
+Token {
+    kind: MlLiteralString,
+    span: 0..8,
+}
+
+""",
+                "'trailing",
+            ),
+            Triple(
+                "'''''content''''trailing",
+                """
+Token {
+    kind: MlLiteralString,
+    span: 0..16,
+}
+
+""",
+                "trailing",
+            ),
+            Triple(
+                "'''''content'''''trailing",
+                """
+Token {
+    kind: MlLiteralString,
+    span: 0..17,
+}
+
+""",
+                "trailing",
+            ),
+            Triple(
+                "'''''content''''''trailing",
+                """
+Token {
+    kind: MlLiteralString,
+    span: 0..17,
+}
+
+""",
+                "'trailing",
+            ),
+        )
+        for ((input, expectedTokens, expectedStream) in cases) {
+            val stream = LexStream(input.encodeToByteArray())
+            val actualTokens = stream.lexMlLiteralString()
+            assertDebug(expectedTokens, actualTokens.dbg())
+            assertData(expectedStream, stream.rest())
+        }
+    }
+
+    @Test
+    fun testLexBasicString() {
+        val cases = listOf(
+            Triple(
+                "\"\"",
+                """
+Token {
+    kind: BasicString,
+    span: 0..2,
+}
+
+""",
+                "",
+            ),
+            Triple(
+                "\"\"trailing",
+                """
+Token {
+    kind: BasicString,
+    span: 0..2,
+}
+
+""",
+                "trailing",
+            ),
+            Triple(
+                "\"content\"trailing",
+                """
+Token {
+    kind: BasicString,
+    span: 0..9,
+}
+
+""",
+                "trailing",
+            ),
+            Triple(
+                "\"content",
+                """
+Token {
+    kind: BasicString,
+    span: 0..8,
+}
+
+""",
+                "",
+            ),
+            Triple(
+                "\"content\\ntrailing",
+                """
+Token {
+    kind: BasicString,
+    span: 0..18,
+}
+
+""",
+                "",
+            ),
+        )
+        for ((input, expectedTokens, expectedStream) in cases) {
+            val stream = LexStream(input.encodeToByteArray())
+            val actualTokens = stream.lexBasicString()
+            assertDebug(expectedTokens, actualTokens.dbg())
+            assertData(expectedStream, stream.rest())
+        }
+    }
+
+    @Test
+    fun testLexAtom() {
+        val cases = listOf(
+            Triple(
+                "hello",
+                """
+Token {
+    kind: Atom,
+    span: 0..5,
+}
+
+""",
+                "",
+            ),
+            Triple(
+                "hello = world",
+                """
+Token {
+    kind: Atom,
+    span: 0..5,
+}
+
+""",
+                " = world",
+            ),
+            Triple(
+                "1.100e100 ]",
+                """
+Token {
+    kind: Atom,
+    span: 0..1,
+}
+
+""",
+                ".100e100 ]",
+            ),
+            Triple(
+                "a.b.c = 5",
+                """
+Token {
+    kind: Atom,
+    span: 0..1,
+}
+
+""",
+                ".b.c = 5",
+            ),
+            Triple(
+                "true ]",
+                """
+Token {
+    kind: Atom,
+    span: 0..4,
+}
+
+""",
+                " ]",
+            ),
+        )
+        for ((input, expectedTokens, expectedStream) in cases) {
+            val stream = LexStream(input.encodeToByteArray())
+            val actualTokens = stream.lexAtom()
+            assertDebug(expectedTokens, actualTokens.dbg())
+            assertData(expectedStream, stream.rest())
+        }
+    }
+
+    @Test
+    fun literalStrings() {
+        t(
+            "''",
+            """
+[
+    Token {
+        kind: LiteralString,
+        span: 0..2,
+    },
+    Token {
+        kind: Eof,
+        span: 2..2,
+    },
+]
+
+""",
+        )
+        t(
+            "''''''",
+            """
+[
+    Token {
+        kind: MlLiteralString,
+        span: 0..6,
+    },
+    Token {
+        kind: Eof,
+        span: 6..6,
+    },
+]
+
+""",
+        )
+        t(
+            """'''
+'''""",
+            """
+[
+    Token {
+        kind: MlLiteralString,
+        span: 0..7,
+    },
+    Token {
+        kind: Eof,
+        span: 7..7,
+    },
+]
+
+""",
+        )
+        t(
+            "'a'",
+            """
+[
+    Token {
+        kind: LiteralString,
+        span: 0..3,
+    },
+    Token {
+        kind: Eof,
+        span: 3..3,
+    },
+]
+
+""",
+        )
+        t(
+            "'\"a'",
+            """
+[
+    Token {
+        kind: LiteralString,
+        span: 0..4,
+    },
+    Token {
+        kind: Eof,
+        span: 4..4,
+    },
+]
+
+""",
+        )
+        t(
+            "''''a'''",
+            """
+[
+    Token {
+        kind: MlLiteralString,
+        span: 0..8,
+    },
+    Token {
+        kind: Eof,
+        span: 8..8,
+    },
+]
+
+""",
+        )
+        t(
+            """'''
+'a
+'''""",
+            """
+[
+    Token {
+        kind: MlLiteralString,
+        span: 0..10,
+    },
+    Token {
+        kind: Eof,
+        span: 10..10,
+    },
+]
+
+""",
+        )
+        t(
+            "'''a\n'a\r\n'''",
+            """
+[
+    Token {
+        kind: MlLiteralString,
+        span: 0..12,
+    },
+    Token {
+        kind: Eof,
+        span: 12..12,
+    },
+]
+
+""",
+        )
+    }
+
+    @Test
+    fun basicStrings() {
+        t(
+            "\"\"",
+            """
+[
+    Token {
+        kind: BasicString,
+        span: 0..2,
+    },
+    Token {
+        kind: Eof,
+        span: 2..2,
+    },
+]
+
+""",
+        )
+        t(
+            "\"\"\"\"\"\"",
+            """
+[
+    Token {
+        kind: MlBasicString,
+        span: 0..6,
+    },
+    Token {
+        kind: Eof,
+        span: 6..6,
+    },
+]
+
+""",
+        )
+        t(
+            "\"a\"",
+            """
+[
+    Token {
+        kind: BasicString,
+        span: 0..3,
+    },
+    Token {
+        kind: Eof,
+        span: 3..3,
+    },
+]
+
+""",
+        )
+        t(
+            "\"\"\"a\"\"\"",
+            """
+[
+    Token {
+        kind: MlBasicString,
+        span: 0..7,
+    },
+    Token {
+        kind: Eof,
+        span: 7..7,
+    },
+]
+
+""",
+        )
+        t(
+            "\"\\t\"",
+            """
+[
+    Token {
+        kind: BasicString,
+        span: 0..4,
+    },
+    Token {
+        kind: Eof,
+        span: 4..4,
+    },
+]
+
+""",
+        )
+        t(
+            "\"\\u0000\"",
+            """
+[
+    Token {
+        kind: BasicString,
+        span: 0..8,
+    },
+    Token {
+        kind: Eof,
+        span: 8..8,
+    },
+]
+
+""",
+        )
+        t(
+            "\"\\U00000000\"",
+            """
+[
+    Token {
+        kind: BasicString,
+        span: 0..12,
+    },
+    Token {
+        kind: Eof,
+        span: 12..12,
+    },
+]
+
+""",
+        )
+        t(
+            "\"\\U000A0000\"",
+            """
+[
+    Token {
+        kind: BasicString,
+        span: 0..12,
+    },
+    Token {
+        kind: Eof,
+        span: 12..12,
+    },
+]
+
+""",
+        )
+        t(
+            "\"\\\\t\"",
+            """
+[
+    Token {
+        kind: BasicString,
+        span: 0..5,
+    },
+    Token {
+        kind: Eof,
+        span: 5..5,
+    },
+]
+
+""",
+        )
+        t(
+            "\"\t\"",
+            """
+[
+    Token {
+        kind: BasicString,
+        span: 0..3,
+    },
+    Token {
+        kind: Eof,
+        span: 3..3,
+    },
+]
+
+""",
+        )
+        t(
+            "\"\"\"\n\t\"\"\"",
+            """
+[
+    Token {
+        kind: MlBasicString,
+        span: 0..8,
+    },
+    Token {
+        kind: Eof,
+        span: 8..8,
+    },
+]
+
+""",
+        )
+        t(
+            "\"\"\"\\\n\"\"\"",
+            """
+[
+    Token {
+        kind: MlBasicString,
+        span: 0..8,
+    },
+    Token {
+        kind: Eof,
+        span: 8..8,
+    },
+]
+
+""",
+        )
+        t(
+            "\"\"\"\\\n     \t   \t  \\\r\n  \t \n  \t \r\n\"\"\"",
+            """
+[
+    Token {
+        kind: MlBasicString,
+        span: 0..34,
+    },
+    Token {
+        kind: Eof,
+        span: 34..34,
+    },
+]
+
+""",
+        )
+        t(
+            "\"\\r\"",
+            """
+[
+    Token {
+        kind: BasicString,
+        span: 0..4,
+    },
+    Token {
+        kind: Eof,
+        span: 4..4,
+    },
+]
+
+""",
+        )
+        t(
+            "\"\\n\"",
+            """
+[
+    Token {
+        kind: BasicString,
+        span: 0..4,
+    },
+    Token {
+        kind: Eof,
+        span: 4..4,
+    },
+]
+
+""",
+        )
+        t(
+            "\"\\b\"",
+            """
+[
+    Token {
+        kind: BasicString,
+        span: 0..4,
+    },
+    Token {
+        kind: Eof,
+        span: 4..4,
+    },
+]
+
+""",
+        )
+        t(
+            "\"a\\fa\"",
+            """
+[
+    Token {
+        kind: BasicString,
+        span: 0..6,
+    },
+    Token {
+        kind: Eof,
+        span: 6..6,
+    },
+]
+
+""",
+        )
+        t(
+            "\"\\\"a\"",
+            """
+[
+    Token {
+        kind: BasicString,
+        span: 0..5,
+    },
+    Token {
+        kind: Eof,
+        span: 5..5,
+    },
+]
+
+""",
+        )
+        t(
+            "\"\"\"\na\"\"\"",
+            """
+[
+    Token {
+        kind: MlBasicString,
+        span: 0..8,
+    },
+    Token {
+        kind: Eof,
+        span: 8..8,
+    },
+]
+
+""",
+        )
+        t(
+            "\"\"\"\n\"\"\"",
+            """
+[
+    Token {
+        kind: MlBasicString,
+        span: 0..7,
+    },
+    Token {
+        kind: Eof,
+        span: 7..7,
+    },
+]
+
+""",
+        )
+        t(
+            "\"\"\"a\\\"\"\"b\"\"\"",
+            """
+[
+    Token {
+        kind: MlBasicString,
+        span: 0..12,
+    },
+    Token {
+        kind: Eof,
+        span: 12..12,
+    },
+]
+
+""",
+        )
+        t(
+            "\"\\a",
+            """
+[
+    Token {
+        kind: BasicString,
+        span: 0..3,
+    },
+    Token {
+        kind: Eof,
+        span: 3..3,
+    },
+]
+
+""",
+        )
+        t(
+            "\"\\\n",
+            """
+[
+    Token {
+        kind: BasicString,
+        span: 0..2,
+    },
+    Token {
+        kind: Newline,
+        span: 2..3,
+    },
+    Token {
+        kind: Eof,
+        span: 3..3,
+    },
+]
+
+""",
+        )
+        t(
+            "\"\\\r\n",
+            """
+[
+    Token {
+        kind: BasicString,
+        span: 0..3,
+    },
+    Token {
+        kind: Newline,
+        span: 3..4,
+    },
+    Token {
+        kind: Eof,
+        span: 4..4,
+    },
+]
+
+""",
+        )
+        t(
+            "\"\\",
+            """
+[
+    Token {
+        kind: BasicString,
+        span: 0..2,
+    },
+    Token {
+        kind: Eof,
+        span: 2..2,
+    },
+]
+
+""",
+        )
+        t(
+            "\"\u0000",
+            """
+[
+    Token {
+        kind: BasicString,
+        span: 0..2,
+    },
+    Token {
+        kind: Eof,
+        span: 2..2,
+    },
+]
+
+""",
+        )
+        t(
+            "\"\\U00\"",
+            """
+[
+    Token {
+        kind: BasicString,
+        span: 0..6,
+    },
+    Token {
+        kind: Eof,
+        span: 6..6,
+    },
+]
+
+""",
+        )
+        t(
+            "\"\\U00",
+            """
+[
+    Token {
+        kind: BasicString,
+        span: 0..5,
+    },
+    Token {
+        kind: Eof,
+        span: 5..5,
+    },
+]
+
+""",
+        )
+        t(
+            "\"\\uD800",
+            """
+[
+    Token {
+        kind: BasicString,
+        span: 0..7,
+    },
+    Token {
+        kind: Eof,
+        span: 7..7,
+    },
+]
+
+""",
+        )
+        t(
+            "\"\\UFFFFFFFF",
+            """
+[
+    Token {
+        kind: BasicString,
+        span: 0..11,
+    },
+    Token {
+        kind: Eof,
+        span: 11..11,
+    },
+]
+
+""",
+        )
+    }
+
+    @Test
+    fun keylike() {
+        t(
+            "foo",
+            """
+[
+    Token {
+        kind: Atom,
+        span: 0..3,
+    },
+    Token {
+        kind: Eof,
+        span: 3..3,
+    },
+]
+
+""",
+        )
+        t(
+            "0bar",
+            """
+[
+    Token {
+        kind: Atom,
+        span: 0..4,
+    },
+    Token {
+        kind: Eof,
+        span: 4..4,
+    },
+]
+
+""",
+        )
+        t(
+            "bar0",
+            """
+[
+    Token {
+        kind: Atom,
+        span: 0..4,
+    },
+    Token {
+        kind: Eof,
+        span: 4..4,
+    },
+]
+
+""",
+        )
+        t(
+            "1234",
+            """
+[
+    Token {
+        kind: Atom,
+        span: 0..4,
+    },
+    Token {
+        kind: Eof,
+        span: 4..4,
+    },
+]
+
+""",
+        )
+        t(
+            "a-b",
+            """
+[
+    Token {
+        kind: Atom,
+        span: 0..3,
+    },
+    Token {
+        kind: Eof,
+        span: 3..3,
+    },
+]
+
+""",
+        )
+        t(
+            "a_B",
+            """
+[
+    Token {
+        kind: Atom,
+        span: 0..3,
+    },
+    Token {
+        kind: Eof,
+        span: 3..3,
+    },
+]
+
+""",
+        )
+        t(
+            "-_-",
+            """
+[
+    Token {
+        kind: Atom,
+        span: 0..3,
+    },
+    Token {
+        kind: Eof,
+        span: 3..3,
+    },
+]
+
+""",
+        )
+        t(
+            "___",
+            """
+[
+    Token {
+        kind: Atom,
+        span: 0..3,
+    },
+    Token {
+        kind: Eof,
+        span: 3..3,
+    },
+]
+
+""",
+        )
+    }
+
+    @Test
+    fun all() {
+        t(
+            " a ",
+            """
+[
+    Token {
+        kind: Whitespace,
+        span: 0..1,
+    },
+    Token {
+        kind: Atom,
+        span: 1..2,
+    },
+    Token {
+        kind: Whitespace,
+        span: 2..3,
+    },
+    Token {
+        kind: Eof,
+        span: 3..3,
+    },
+]
+
+""",
+        )
+        t(
+            " a\t [[]] \t [] {} , . =\n# foo \r\n#foo \n ",
+            """
+[
+    Token {
+        kind: Whitespace,
+        span: 0..1,
+    },
+    Token {
+        kind: Atom,
+        span: 1..2,
+    },
+    Token {
+        kind: Whitespace,
+        span: 2..4,
+    },
+    Token {
+        kind: LeftSquareBracket,
+        span: 4..5,
+    },
+    Token {
+        kind: LeftSquareBracket,
+        span: 5..6,
+    },
+    Token {
+        kind: RightSquareBracket,
+        span: 6..7,
+    },
+    Token {
+        kind: RightSquareBracket,
+        span: 7..8,
+    },
+    Token {
+        kind: Whitespace,
+        span: 8..11,
+    },
+    Token {
+        kind: LeftSquareBracket,
+        span: 11..12,
+    },
+    Token {
+        kind: RightSquareBracket,
+        span: 12..13,
+    },
+    Token {
+        kind: Whitespace,
+        span: 13..14,
+    },
+    Token {
+        kind: LeftCurlyBracket,
+        span: 14..15,
+    },
+    Token {
+        kind: RightCurlyBracket,
+        span: 15..16,
+    },
+    Token {
+        kind: Whitespace,
+        span: 16..17,
+    },
+    Token {
+        kind: Comma,
+        span: 17..18,
+    },
+    Token {
+        kind: Whitespace,
+        span: 18..19,
+    },
+    Token {
+        kind: Dot,
+        span: 19..20,
+    },
+    Token {
+        kind: Whitespace,
+        span: 20..21,
+    },
+    Token {
+        kind: Equals,
+        span: 21..22,
+    },
+    Token {
+        kind: Newline,
+        span: 22..23,
+    },
+    Token {
+        kind: Comment,
+        span: 23..29,
+    },
+    Token {
+        kind: Newline,
+        span: 29..31,
+    },
+    Token {
+        kind: Comment,
+        span: 31..36,
+    },
+    Token {
+        kind: Newline,
+        span: 36..37,
+    },
+    Token {
+        kind: Whitespace,
+        span: 37..38,
+    },
+    Token {
+        kind: Eof,
+        span: 38..38,
+    },
+]
+
+""",
+        )
+    }
+
+    @Test
+    fun bareCrBad() {
+        t(
+            "\r",
+            """
+[
+    Token {
+        kind: Newline,
+        span: 0..1,
+    },
+    Token {
+        kind: Eof,
+        span: 1..1,
+    },
+]
+
+""",
+        )
+        t(
+            """'
+""",
+            """
+[
+    Token {
+        kind: LiteralString,
+        span: 0..1,
+    },
+    Token {
+        kind: Newline,
+        span: 1..2,
+    },
+    Token {
+        kind: Eof,
+        span: 2..2,
+    },
+]
+
+""",
+        )
+        t(
+            "'\u0000",
+            """
+[
+    Token {
+        kind: LiteralString,
+        span: 0..2,
+    },
+    Token {
+        kind: Eof,
+        span: 2..2,
+    },
+]
+
+""",
+        )
+        t(
+            "'",
+            """
+[
+    Token {
+        kind: LiteralString,
+        span: 0..1,
+    },
+    Token {
+        kind: Eof,
+        span: 1..1,
+    },
+]
+
+""",
+        )
+        t(
+            "\u0000",
+            """
+[
+    Token {
+        kind: Atom,
+        span: 0..1,
+    },
+    Token {
+        kind: Eof,
+        span: 1..1,
+    },
+]
+
+""",
+        )
+    }
+
+    @Test
+    fun badComment() {
+        t(
+            "#\u0000",
+            """
+[
+    Token {
+        kind: Comment,
+        span: 0..2,
+    },
+    Token {
+        kind: Eof,
+        span: 2..2,
+    },
+]
+
+""",
+        )
+    }
+}

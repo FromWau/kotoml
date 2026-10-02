@@ -1,0 +1,102 @@
+package com.fromwau.kotoml
+
+import com.fromwau.kotoml.parser.Span
+import com.fromwau.kotoml.writer.rustDebug
+
+// Upstream's derived and hand-written `Debug` for the document model, field for field.
+
+internal fun RawString.dbg(): Dbg {
+    val span = span()
+    val text = asStr()
+    return when {
+        span != null -> lit("${span.start()}..${span.end()}")
+        text.isNullOrEmpty() -> lit("empty")
+        else -> str(text)
+    }
+}
+
+internal fun Repr.dbg(): Dbg = asRaw().dbg()
+
+private fun Span?.dbgOption(): Dbg = option(this) { lit("${it.start()}..${it.end()}") }
+
+internal fun Decor.dbg(): Dbg = struct(
+    "Decor",
+    "prefix" to (prefix()?.dbg() ?: str("default")),
+    "suffix" to (suffix()?.dbg() ?: str("default")),
+)
+
+internal fun Key.dbg(): Dbg = struct(
+    "Key",
+    "key" to str(get()),
+    "repr" to option(asRepr()) { it.dbg() },
+    "leaf_decor" to leafDecor().dbg(),
+    "dotted_decor" to dottedDecor().dbg(),
+)
+
+internal fun <T : Any> Formatted<T>.dbg(value: (T) -> Dbg): Dbg = struct(
+    "Formatted",
+    "value" to value(value()),
+    "repr" to (asRepr()?.dbg() ?: str("default")),
+    "decor" to decor().dbg(),
+)
+
+internal fun Value.dbg(): Dbg = when (this) {
+    is Value.String -> tuple("String", formatted.dbg { str(it) })
+    is Value.Integer -> tuple("Integer", formatted.dbg { lit(it) })
+    is Value.Float -> tuple("Float", formatted.dbg { lit(rustDebug(it)) })
+    is Value.Boolean -> tuple("Boolean", formatted.dbg { lit(it) })
+    is Value.Datetime -> tuple("Datetime", formatted.dbg { it.dbg() })
+    is Value.Array -> tuple("Array", array.dbg())
+    is Value.InlineTable -> tuple("InlineTable", table.dbg())
+}
+
+internal fun TomlArray.dbg(): Dbg = struct(
+    "Array",
+    "trailing" to trailing().dbg(),
+    "trailing_comma" to lit(trailingComma()),
+    "decor" to decor().dbg(),
+    "span" to span().dbgOption(),
+    "values" to seq(values.map { it.dbg() }),
+)
+
+private fun KeyValuePairs.dbg(): Dbg = Dbg.MapOf(entries().map { it.key.dbg() to it.item.dbg() })
+
+internal fun InlineTable.dbg(): Dbg = struct(
+    "InlineTable",
+    "trailing" to trailing().dbg(),
+    "trailing_comma" to lit(trailingComma()),
+    "implicit" to lit(isImplicit()),
+    "decor" to decor().dbg(),
+    "span" to span().dbgOption(),
+    "dotted" to lit(isDotted()),
+    "items" to items.dbg(),
+)
+
+internal fun Table.dbg(): Dbg = struct(
+    "Table",
+    "decor" to decor().dbg(),
+    "implicit" to lit(isImplicit()),
+    "dotted" to lit(isDotted()),
+    "doc_position" to option(position()) { lit(it) },
+    "span" to span().dbgOption(),
+    "items" to items.dbg(),
+)
+
+internal fun ArrayOfTables.dbg(): Dbg = struct(
+    "ArrayOfTables",
+    "span" to span().dbgOption(),
+    "values" to seq(values.map { it.dbg() }),
+)
+
+internal fun Item.dbg(): Dbg {
+    asValue()?.let { return tuple("Value", it.dbg()) }
+    asTable()?.let { return tuple("Table", it.dbg()) }
+    asArrayOfTables()?.let { return tuple("ArrayOfTables", it.dbg()) }
+    return lit("None")
+}
+
+internal fun DocumentMut.dbg(): Dbg = struct(
+    "DocumentMut",
+    "root" to asItem().dbg(),
+    "trailing" to trailing().dbg(),
+)
