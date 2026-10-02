@@ -12,9 +12,9 @@ import com.fromwau.kern.result.Result
  * Upstream calls it `Array`; the Kotlin name keeps it from shadowing `kotlin.Array`.
  */
 public class TomlArray() : Iterable<Value> {
-    private var trailing: RawString = RawString()
+    internal var rawTrailing: RawString = RawString()
     private var trailingComma: Boolean = false
-    private val decor: Decor = Decor()
+    internal val rawDecor: RawDecor = RawDecor()
     internal var span: Span? = null
 
     // Slots that refuse anything but a value; held as items so indexing an item hands out the same slots.
@@ -26,7 +26,7 @@ public class TomlArray() : Iterable<Value> {
         for (item in values) {
             val value = item.asValue() ?: continue
             val (prefix, suffix) = if (index == 0) DEFAULT_LEADING_VALUE_DECOR else DEFAULT_VALUE_DECOR
-            value.decorate(RawString.from(prefix), RawString.from(suffix))
+            value.decorate(prefix, suffix)
             index++
         }
         // Everything is on one line now, so a trailing comma and trailing text go too.
@@ -43,31 +43,24 @@ public class TomlArray() : Iterable<Value> {
     public fun trailingComma(): Boolean = trailingComma
 
     /** Sets the text after the last element: whitespace, comments, newlines. */
-    public fun setTrailing(trailing: RawString) {
-        this.trailing = trailing
-    }
-
-    /** Sets the text after the last element: whitespace, comments, newlines. */
     public fun setTrailing(trailing: String) {
-        this.trailing = RawString.from(trailing)
+        rawTrailing = RawString.from(trailing)
     }
 
     /** The text after the last element. */
-    public fun trailing(): RawString = trailing
+    public fun trailing(): String = rawTrailing.toStrWithDefault("")
 
-    /** The text around the array, to change. */
-    public fun decorMut(): Decor = decor
-
-    /** The text around the array. */
-    public fun decor(): Decor = decor
-
-    /** Where the array lies in the original document; see [RawString.span]. */
-    public fun span(): Span? = span
+    /** The text around the array, such as the whitespace between it and the `=` before it. */
+    public var decor: Decor
+        get() = rawDecor.toDecor()
+        set(value) {
+            rawDecor.set(value)
+        }
 
     internal fun despan(input: SourceText) {
         span = null
-        decor.despan(input)
-        trailing = trailing.despan(input)
+        rawDecor.despan(input)
+        rawTrailing = rawTrailing.despan(input)
         for (value in values) value.despan(input)
     }
 
@@ -103,27 +96,27 @@ public class TomlArray() : Iterable<Value> {
 
     /** Appends a string. */
     public fun push(value: String) {
-        push(Value.from(value))
+        push(Value.String(value))
     }
 
     /** Appends an integer. */
     public fun push(value: Long) {
-        push(Value.from(value))
+        push(Value.Integer(value))
     }
 
     /** Appends a float. */
     public fun push(value: Double) {
-        push(Value.from(value))
+        push(Value.Float(value))
     }
 
     /** Appends a boolean. */
     public fun push(value: Boolean) {
-        push(Value.from(value))
+        push(Value.Boolean(value))
     }
 
     /** Appends a date-time. */
     public fun push(value: Datetime) {
-        push(Value.from(value))
+        push(Value.Datetime(value))
     }
 
     /** Appends an already formatted value, keeping its formatting. */
@@ -150,7 +143,7 @@ public class TomlArray() : Iterable<Value> {
      */
     public fun replace(index: Int, value: Value): Result<Value, TomlEditError> {
         val existing = get(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
-        value.decorMut().assign(existing.decor())
+        value.rawDecor().assign(existing.rawDecor())
         return replaceFormatted(index, value)
     }
 
@@ -201,11 +194,11 @@ public class TomlArray() : Iterable<Value> {
     /** A deep copy of this array. */
     public fun clone(): TomlArray {
         val copy = TomlArray()
-        copy.trailing = trailing
+        copy.rawTrailing = rawTrailing
         copy.trailingComma = trailingComma
-        copy.decor.assign(decor)
+        copy.rawDecor.assign(rawDecor)
         copy.span = span
-        for (value in iter()) copy.values.add(Item.inArray(value.clone()))
+        for (value in iter()) copy.values.add(Item.inArray(value.copy()))
         return copy
     }
 

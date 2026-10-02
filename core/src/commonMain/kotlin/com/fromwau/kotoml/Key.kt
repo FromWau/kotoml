@@ -18,23 +18,11 @@ import com.fromwau.kotoml.writer.toTomlKey
  */
 public class Key(private val key: String) : Comparable<Key> {
     internal var repr: Repr? = null
-    internal val leafDecor: Decor = Decor()
-    internal val dottedDecor: Decor = Decor()
+    internal val rawLeafDecor: RawDecor = RawDecor()
+    internal val rawDottedDecor: RawDecor = RawDecor()
 
     internal fun withReprUnchecked(repr: Repr): Key {
         this.repr = repr
-        return this
-    }
-
-    /** Sets the text around this key where it ends a line entry or header, and returns this key. */
-    public fun withLeafDecor(decor: Decor): Key {
-        leafDecor.assign(decor)
-        return this
-    }
-
-    /** Sets the text around this key between the dots of a dotted key, and returns this key. */
-    public fun withDottedDecor(decor: Decor): Key {
-        dottedDecor.assign(decor)
         return this
     }
 
@@ -44,48 +32,57 @@ public class Key(private val key: String) : Comparable<Key> {
     /** The key's text. */
     public fun get(): String = key
 
-    /** How the key was spelled, if it came from parsed text. */
-    public fun asRepr(): Repr? = repr
+    /** The text the key was written as, such as `"a b"` for the key `a b`, or null when it has none of its own. */
+    public val spelling: String?
+        get() = repr?.asRaw()?.asStr()
 
-    /** The spelling the key gets when it has none of its own: bare when it can be. */
-    public fun defaultRepr(): Repr = Repr.newUnchecked(TomlKeyBuilder(key).asDefault().toTomlKey())
+    /** The text the key prints as: its [spelling], or the default one, bare when it can be. */
+    public val displaySpelling: String
+        get() = spelling ?: defaultRepr()
+            .asRaw()
+            .asStr()
+            .orEmpty()
 
-    /** The spelling printed: the original one when there is one, otherwise the default. */
-    public fun displayRepr(): String = repr?.asRaw()?.asStr() ?: defaultRepr().asRaw().asStr().orEmpty()
+    internal fun defaultRepr(): Repr = Repr.newUnchecked(
+        TomlKeyBuilder(key)
+            .asDefault()
+            .toTomlKey(),
+    )
 
-    /** The text around the key at the end of a line entry or header, to change. */
-    public fun leafDecorMut(): Decor = leafDecor
+    /** The text around the key where it ends a key/value line or a table header. */
+    public var leafDecor: Decor
+        get() = rawLeafDecor.toDecor()
+        set(value) {
+            rawLeafDecor.set(value)
+        }
 
-    /** The text around this key's part of a dotted key, to change. */
-    public fun dottedDecorMut(): Decor = dottedDecor
+    /** The text around this key's part of a dotted key, between the dots. */
+    public var dottedDecor: Decor
+        get() = rawDottedDecor.toDecor()
+        set(value) {
+            rawDottedDecor.set(value)
+        }
 
-    /** The text around the key at the end of a line entry or header. */
-    public fun leafDecor(): Decor = leafDecor
-
-    /** The text around this key's part of a dotted key. */
-    public fun dottedDecor(): Decor = dottedDecor
-
-    /** Where the key lies in the original document; see [RawString.span]. */
-    public fun span(): Span? = repr?.span()
+    internal fun span(): Span? = repr?.span()
 
     internal fun despan(input: SourceText) {
-        leafDecor.despan(input)
-        dottedDecor.despan(input)
+        rawLeafDecor.despan(input)
+        rawDottedDecor.despan(input)
         repr = repr?.despan(input)
     }
 
     /** Drops the key's spelling and decor so it prints in its default form. */
     public fun fmt() {
         repr = null
-        leafDecor.clear()
-        dottedDecor.clear()
+        rawLeafDecor.clear()
+        rawDottedDecor.clear()
     }
 
     /** A copy of this key with its spelling and decor. */
     public fun clone(): Key = Key(key).also {
         it.repr = repr
-        it.leafDecor.assign(leafDecor)
-        it.dottedDecor.assign(dottedDecor)
+        it.rawLeafDecor.assign(rawLeafDecor)
+        it.rawDottedDecor.assign(rawDottedDecor)
     }
 
     override fun compareTo(other: Key): Int = compareRustStr(key, other.key)
@@ -103,7 +100,10 @@ public class Key(private val key: String) : Comparable<Key> {
          *
          * Unlike [parseSimple], whitespace around the parts and dots is allowed and kept as decor.
          */
-        public fun parse(repr: String, version: TomlVersion = TomlVersion.V1_1): Result<List<Key>, TomlParseError> {
+        public fun parse(
+            repr: String,
+            version: TomlVersion = TomlVersion.V1_1,
+        ): Result<List<Key>, TomlParseError> {
             val source = TomlSource(repr)
             val sink = TomlSink(repr)
             val keys = parseKeyPath(source, sink, version)
@@ -114,7 +114,10 @@ public class Key(private val key: String) : Comparable<Key> {
         }
 
         /** Parses one undotted key, bare or quoted: upstream's `FromStr for Key`. */
-        public fun parseSimple(repr: String, version: TomlVersion = TomlVersion.V1_1): Result<Key, TomlParseError> {
+        public fun parseSimple(
+            repr: String,
+            version: TomlVersion = TomlVersion.V1_1,
+        ): Result<Key, TomlParseError> {
             val source = TomlSource(repr)
             val sink = TomlSink(repr)
             val key = parseSimpleKeyItem(source, sink, version)
@@ -131,26 +134,27 @@ public class KeyMut internal constructor(private val key: Key) : Comparable<KeyM
     /** The key's text. */
     public fun get(): String = key.get()
 
-    /** How the key was spelled, if it came from parsed text. */
-    public fun asRepr(): Repr? = key.asRepr()
+    /** The text the key was written as, or null when it has none of its own; see [Key.spelling]. */
+    public val spelling: String?
+        get() = key.spelling
 
-    /** The spelling the key gets when it has none of its own. */
-    public fun defaultRepr(): Repr = key.defaultRepr()
+    /** The text the key prints as; see [Key.displaySpelling]. */
+    public val displaySpelling: String
+        get() = key.displaySpelling
 
-    /** The spelling printed: the original one when there is one, otherwise the default. */
-    public fun displayRepr(): String = key.displayRepr()
+    /** The text around the key where it ends a key/value line or a table header. */
+    public var leafDecor: Decor
+        get() = key.leafDecor
+        set(value) {
+            key.leafDecor = value
+        }
 
-    /** The text around the key at the end of a line entry or header, to change. */
-    public fun leafDecorMut(): Decor = key.leafDecorMut()
-
-    /** The text around this key's part of a dotted key, to change. */
-    public fun dottedDecorMut(): Decor = key.dottedDecorMut()
-
-    /** The text around the key at the end of a line entry or header. */
-    public fun leafDecor(): Decor = key.leafDecor()
-
-    /** The text around this key's part of a dotted key. */
-    public fun dottedDecor(): Decor = key.dottedDecor()
+    /** The text around this key's part of a dotted key, between the dots. */
+    public var dottedDecor: Decor
+        get() = key.dottedDecor
+        set(value) {
+            key.dottedDecor = value
+        }
 
     /** Drops the key's spelling and decor so it prints in its default form. */
     public fun fmt() {

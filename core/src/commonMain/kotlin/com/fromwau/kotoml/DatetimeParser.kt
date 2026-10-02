@@ -98,19 +98,19 @@ internal class DatetimeParser(private val input: String) {
                 if (month.raw.length != 2) return dateError(Width(Month, 2))
                 if (day.raw.length != 2) return dateError(Width(Day, 2))
                 val parsed = Date(
-                    year = digitsValue(year.raw).toUShort(),
-                    month = digitsValue(month.raw).toUByte(),
-                    day = digitsValue(day.raw).toUByte(),
+                    year = digitsValue(year.raw),
+                    month = digitsValue(month.raw),
+                    day = digitsValue(day.raw),
                 )
-                if (parsed.month < 1u || parsed.month > 12u) return dateError(Range(Month, 1, 12))
-                val yearValue = parsed.year.toInt()
+                if (parsed.month < 1 || parsed.month > 12) return dateError(Range(Month, 1, 12))
+                val yearValue = parsed.year
                 val isLeapYear = yearValue % 4 == 0 && (yearValue % 100 != 0 || yearValue % 400 == 0)
-                val maxDays = when (parsed.month.toInt()) {
+                val maxDays = when (parsed.month) {
                     2 -> if (isLeapYear) 29 else 28
                     4, 6, 9, 11 -> 30
                     else -> 31
                 }
-                if (parsed.day < 1u || parsed.day.toInt() > maxDays) {
+                if (parsed.day < 1 || parsed.day > maxDays) {
                     return dateError(Range(Day, 1, maxDays))
                 }
                 date = parsed
@@ -159,14 +159,14 @@ internal class DatetimeParser(private val input: String) {
             if (second != null && second.raw.length != 2) return timeError(Width(Second, 2))
 
             val parsed = Time(
-                hour = digitsValue(hour.raw).toUByte(),
-                minute = digitsValue(minute.raw).toUByte(),
-                second = second?.let { digitsValue(it.raw).toUByte() },
+                hour = digitsValue(hour.raw),
+                minute = digitsValue(minute.raw),
+                second = second?.let { digitsValue(it.raw) },
                 nanosecond = nanosecond?.let { secondsToNanoseconds(it.raw) },
             )
-            if (parsed.hour > 23u) return timeError(Range(Hour, 0, 23))
-            if (parsed.minute > 59u) return timeError(Range(Minute, 0, 59))
-            if ((parsed.second ?: 0u) > 60u) return timeError(Range(Second, 0, 60))
+            if (parsed.hour > 23) return timeError(Range(Hour, 0, 23))
+            if (parsed.minute > 59) return timeError(Range(Minute, 0, 59))
+            if ((parsed.second ?: 0) > 60) return timeError(Range(Second, 0, 60))
             time = parsed
         }
 
@@ -207,12 +207,12 @@ internal class DatetimeParser(private val input: String) {
     private fun digitsValue(digits: String): Int = digits.fold(0) { value, digit -> value * 10 + (digit - '0') }
 
     // Digits past the ninth are truncated, as the spec requires of precision an implementation cannot keep.
-    private fun secondsToNanoseconds(digits: String): UInt {
-        var nanosecond = 0u
-        var scale = 100_000_000u
+    private fun secondsToNanoseconds(digits: String): Int {
+        var nanosecond = 0
+        var scale = 100_000_000
         for (index in 0 until minOf(digits.length, 9)) {
-            nanosecond += scale * (digits[index] - '0').toUInt()
-            scale /= 10u
+            nanosecond += scale * (digits[index] - '0')
+            scale /= 10
         }
         return nanosecond
     }

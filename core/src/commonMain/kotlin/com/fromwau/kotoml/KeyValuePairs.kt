@@ -49,7 +49,7 @@ internal class PathSpelling private constructor(
 
         /** Everything about a key that printing a path uses. */
         private fun looks(key: Key): String =
-            "${key.asRepr()?.asRaw()}|${key.dottedDecor().prefix()}|${key.dottedDecor().suffix()}"
+            "${key.repr?.asRaw()}|${key.rawDottedDecor.prefix}|${key.rawDottedDecor.suffix}"
     }
 }
 
@@ -107,7 +107,7 @@ internal class KeyValuePairs {
     fun deepClone(): KeyValuePairs {
         val copy = KeyValuePairs()
         for (entry in entries.values) {
-            val clone = KeyValue(entry.key.clone(), entry.item.clone())
+            val clone = KeyValue(entry.key.clone(), entry.item.copySlot())
             clone.lineEnding = entry.lineEnding
             clone.order = entry.order
             clone.pathSpelling = entry.pathSpelling?.clone()

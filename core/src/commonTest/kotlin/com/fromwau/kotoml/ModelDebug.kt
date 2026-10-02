@@ -18,25 +18,25 @@ internal fun Repr.dbg(): Dbg = asRaw().dbg()
 
 private fun Span?.dbgOption(): Dbg = option(this) { lit("${it.start}..${it.end}") }
 
-internal fun Decor.dbg(): Dbg = struct(
+internal fun RawDecor.dbg(): Dbg = struct(
     "Decor",
-    "prefix" to (prefix()?.dbg() ?: str("default")),
-    "suffix" to (suffix()?.dbg() ?: str("default")),
+    "prefix" to (prefix?.dbg() ?: str("default")),
+    "suffix" to (suffix?.dbg() ?: str("default")),
 )
 
 internal fun Key.dbg(): Dbg = struct(
     "Key",
     "key" to str(get()),
-    "repr" to option(asRepr()) { it.dbg() },
-    "leaf_decor" to leafDecor().dbg(),
-    "dotted_decor" to dottedDecor().dbg(),
+    "repr" to option(repr) { it.dbg() },
+    "leaf_decor" to rawLeafDecor.dbg(),
+    "dotted_decor" to rawDottedDecor.dbg(),
 )
 
 internal fun <T : Any> Formatted<T>.dbg(value: (T) -> Dbg): Dbg = struct(
     "Formatted",
-    "value" to value(value()),
-    "repr" to (asRepr()?.dbg() ?: str("default")),
-    "decor" to decor().dbg(),
+    "value" to value(this.value),
+    "repr" to (repr?.dbg() ?: str("default")),
+    "decor" to decor.dbg(),
 )
 
 internal fun Value.dbg(): Dbg = when (this) {
@@ -51,10 +51,10 @@ internal fun Value.dbg(): Dbg = when (this) {
 
 internal fun TomlArray.dbg(): Dbg = struct(
     "Array",
-    "trailing" to trailing().dbg(),
+    "trailing" to rawTrailing.dbg(),
     "trailing_comma" to lit(trailingComma()),
-    "decor" to decor().dbg(),
-    "span" to span().dbgOption(),
+    "decor" to rawDecor.dbg(),
+    "span" to span.dbgOption(),
     "values" to seq(values.map { it.dbg() }),
 )
 
@@ -62,28 +62,28 @@ private fun KeyValuePairs.dbg(): Dbg = Dbg.MapOf(entries().map { it.key.dbg() to
 
 internal fun InlineTable.dbg(): Dbg = struct(
     "InlineTable",
-    "trailing" to trailing().dbg(),
+    "trailing" to rawTrailing.dbg(),
     "trailing_comma" to lit(trailingComma()),
     "implicit" to lit(isImplicit()),
-    "decor" to decor().dbg(),
-    "span" to span().dbgOption(),
+    "decor" to rawDecor.dbg(),
+    "span" to span.dbgOption(),
     "dotted" to lit(isDotted()),
     "items" to items.dbg(),
 )
 
 internal fun Table.dbg(): Dbg = struct(
     "Table",
-    "decor" to decor().dbg(),
+    "decor" to rawDecor.dbg(),
     "implicit" to lit(isImplicit()),
     "dotted" to lit(isDotted()),
     "doc_position" to option(position()) { lit(it) },
-    "span" to span().dbgOption(),
+    "span" to span.dbgOption(),
     "items" to items.dbg(),
 )
 
 internal fun ArrayOfTables.dbg(): Dbg = struct(
     "ArrayOfTables",
-    "span" to span().dbgOption(),
+    "span" to span.dbgOption(),
     "values" to seq(values.map { it.dbg() }),
 )
 
@@ -97,5 +97,5 @@ internal fun Item.dbg(): Dbg {
 internal fun DocumentMut.dbg(): Dbg = struct(
     "DocumentMut",
     "root" to asItem().dbg(),
-    "trailing" to trailing().dbg(),
+    "trailing" to rawTrailing.dbg(),
 )

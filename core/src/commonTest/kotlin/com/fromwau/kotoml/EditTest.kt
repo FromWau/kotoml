@@ -62,9 +62,9 @@ class EditTest {
         assertEquals(input, document.toString())
 
         val name = document["parent"]["entries"][1]["name"]
-        val decor = name.asValue()!!.decor().clone()
+        val decor = name.asValue()!!.decor
         name.assign(value("updated"))
-        name.asValueMut()!!.decorMut().assign(decor)
+        name.asValueMut()!!.decor = decor
         assertEquals(input.replace("\"second\"", "\"updated\""), document.toString())
     }
 
@@ -370,8 +370,7 @@ class EditTest {
             "in.rs\"\n\n[dependencies]\nnom = \"4.0\" # future is here\n\n[[bin]]\nname = \"delete me please\"\npath " +
             "= \"src/bin/dmp/main.rs\"")
             .runningOnDoc { document ->
-                    document.decorMut().setPrefix("# Some Header\n\n")
-                    document.decorMut().setSuffix("# Some Footer")
+                    document.decor = Decor(prefix = "# Some Header\n\n", suffix = "# Some Footer")
                     document.setTrailing("\n\ntrailing...")
             }
             .producesDisplay("""
@@ -404,8 +403,8 @@ trailing...
             "in.rs\"\n\n[dependencies]\nnom = \"4.0\" # future is here\n\n[[bin]]\nname = \"delete me please\"\npath " +
             "= \"src/bin/dmp/main.rs\"")
             .runningOnDoc { document ->
-                    assertTrue(document.decor().prefix() == null)
-                    assertTrue(document.decor().suffix() == null)
+                    assertTrue(document.decor.prefix == null)
+                    assertTrue(document.decor.suffix == null)
                     document.setTrailing("\n\ntrailing...")
             }
             .producesDisplay("""
@@ -732,8 +731,8 @@ name = "dep"
                 assertTrue(value != null)
                 assertTrue(value.isValue())
                 val version = value.asValue()!!
-                assertTrue(version.isStr())
-                assertData("1.0.0", version.asStr()!!)
+                assertTrue(version is Value.String)
+                assertData("1.0.0", version.stringOrNull!!)
             }
             .producesDisplay("""
 
@@ -756,7 +755,7 @@ name = "dep"
                 val value = aTable.remove("b")
                 assertTrue(value != null)
                 assertTrue(value.isValue())
-                assertEquals(1L, value.asValue()!!.asInteger())
+                assertEquals(1L, value.asValue()!!.longOrNull)
             }
             .producesDisplay("")
     }
@@ -808,7 +807,7 @@ name = "dep"
                 val a = root.getMut("a")!!.asTableMut()!!
                 // Sort by the representation, not the value. So "\"c\"" sorts before "a" because '"' sorts
                 // before 'a'.
-                a.sortValuesBy { k1, _, k2, _ -> compareRustStr(k1.displayRepr(), k2.displayRepr()) }
+                a.sortValuesBy { k1, _, k2, _ -> compareRustStr(k1.displaySpelling, k2.displaySpelling) }
             }
             .producesDisplay("""
 
@@ -864,7 +863,7 @@ name = "dep"
                     val t = Table()
                     t.setPosition(-1)
                     Item.from(t)
-                }
+                }.unwrap()
                 pkg["edition"] = value("2024")
             }
             .producesDisplay("""
@@ -935,27 +934,27 @@ edition = "2024"
         b = []""")
             .running { root ->
                 run {
-                    val a = root.getMut("a")!!.asArrayMut()!!
+                    val a = root.getMut("a")!!.arrayOrNull!!
                     assertEquals(3, a.len())
                     assertTrue(a.get(2) != null)
                     a.push(4L)
                     assertEquals(4, a.len())
                     a.fmt()
                 }
-                val b = root.getMut("b")!!.asArrayMut()!!
+                val b = root.getMut("b")!!.arrayOrNull!!
                 assertTrue(b.isEmpty())
                 b.push("hello")
                 assertEquals(1, b.len())
-                b.pushFormatted(Value.from("world").decorated("\n", "\n"))
-                b.pushFormatted(Value.from("test").decorated("", ""))
-                b.insert(1, Value.from("beep")).unwrap()
-                b.insertFormatted(2, Value.from("boop").decorated("   ", "   ")).unwrap()
+                b.pushFormatted(Value.String("world", Decor("\n", "\n")))
+                b.pushFormatted(Value.String("test", Decor("", "")))
+                b.insert(1, Value.String("beep")).unwrap()
+                b.insertFormatted(2, Value.String("boop", Decor("   ", "   "))).unwrap()
                 // This should preserve formatting.
-                assertEquals("boop", b.replace(2, Value.from("zoink")).unwrap().asStr())
+                assertEquals("boop", b.replace(2, Value.String("zoink")).unwrap().stringOrNull)
                 // This should replace formatting.
                 assertEquals(
                     "test",
-                    b.replaceFormatted(4, Value.from("yikes").decorated("  ", "")).unwrap().asStr(),
+                    b.replaceFormatted(4, Value.String("yikes", Decor("  ", ""))).unwrap().stringOrNull,
                 )
             }
             .producesDisplay("""
@@ -975,14 +974,14 @@ edition = "2024"
         b = ["hello"]""")
             .running { root ->
                 run {
-                    val a = root.getMut("a")!!.asArrayMut()!!
+                    val a = root.getMut("a")!!.arrayOrNull!!
                     assertEquals(4, a.len())
-                    assertTrue(a.remove(3).unwrap().isInteger())
+                    assertTrue(a.remove(3).unwrap() is Value.Integer)
                     assertEquals(3, a.len())
                 }
-                val b = root.getMut("b")!!.asArrayMut()!!
+                val b = root.getMut("b")!!.arrayOrNull!!
                 assertEquals(1, b.len())
-                assertTrue(b.remove(0).unwrap().isStr())
+                assertTrue(b.remove(0).unwrap() is Value.String)
                 assertTrue(b.isEmpty())
             }
             .producesDisplay("""
@@ -1004,7 +1003,7 @@ edition = "2024"
     """)
             .running { root ->
                 for ((_, v) in root.iterMut()) {
-                    v.asArrayMut()?.fmt()
+                    v.arrayOrNull?.fmt()
                 }
             }
             .producesDisplay("""
@@ -1020,16 +1019,16 @@ edition = "2024"
         b = {}""")
             .running { root ->
                 run {
-                    val a = root.getMut("a")!!.asInlineTableMut()!!
+                    val a = root.getMut("a")!!.inlineTableOrNull!!
                     assertEquals(2, a.len())
                     assertTrue(a.containsKey("a") && a.get("c") != null && a.getMut("c") != null)
-                    a.getOrInsert("b", Value.from(42L))
+                    a.getOrInsert("b", Value.Integer(42L))
                     assertEquals(3, a.len())
                     a.fmt()
                 }
-                val b = root.getMut("b")!!.asInlineTableMut()!!
+                val b = root.getMut("b")!!.inlineTableOrNull!!
                 assertTrue(b.isEmpty())
-                b.getOrInsert("hello", Value.from("world"))
+                b.getOrInsert("hello", Value.String("world"))
                 assertEquals(1, b.len())
                 b.fmt()
             }
@@ -1048,12 +1047,12 @@ edition = "2024"
         b = {'hello' = "world"}""")
             .running { root ->
                 run {
-                    val a = root.getMut("a")!!.asInlineTableMut()!!
+                    val a = root.getMut("a")!!.inlineTableOrNull!!
                     assertEquals(3, a.len())
                     assertTrue(a.remove("c") != null)
                     assertEquals(2, a.len())
                 }
-                val b = root.getMut("b")!!.asInlineTableMut()!!
+                val b = root.getMut("b")!!.inlineTableOrNull!!
                 assertEquals(1, b.len())
                 assertTrue(b.remove("hello") != null)
                 assertTrue(b.isEmpty())
@@ -1080,12 +1079,12 @@ edition = "2024"
                 assertTrue(a != null)
                 assertEquals(3, a.iterItems().asSequence().count())
                 assertEquals(3, a.len())
-                assertEquals(2L, a.getItem("a")?.asInteger())
+                assertEquals(2L, a.getItem("a")?.longOrNull)
                 val b = root["b"].asTableLike()
                 assertTrue(b != null)
                 assertEquals(1, b.iterItems().asSequence().count())
                 assertEquals(1, b.len())
-                assertEquals("y", b.getItem("x")?.asStr())
+                assertEquals("y", b.getItem("x")?.stringOrNull)
                 assertEquals(0, root["x"].asTableLike()?.iterItems()?.asSequence()?.count())
                 assertEquals(true, root["empty"].asTableLike()?.isEmpty())
                 assertTrue(root["bin"].asTableLike() == null)
@@ -1094,11 +1093,21 @@ edition = "2024"
 
     @Test
     fun testInlineTableAppend() {
-        val a = Value.fromPairs(listOf("a" to Value.from(1L), "b" to Value.from(2L), "c" to Value.from(3L)))
-        val aTable = a.asInlineTableMut()!!
-        val b = Value.fromPairs(listOf("c" to Value.from(4L), "d" to Value.from(5L), "e" to Value.from(6L)))
-        val bTable = b.asInlineTableMut()!!
-        aTable.extend(bTable.iter().asSequence().map { (key, value) -> key to value.clone() }.asIterable())
+        val a = Value.InlineTable(
+            InlineTable.fromIter(listOf("a" to Value.Integer(1L), "b" to Value.Integer(2L), "c" to Value.Integer(3L))),
+        )
+        val aTable = a.inlineTableOrNull!!
+        val b = Value.InlineTable(
+            InlineTable.fromIter(listOf("c" to Value.Integer(4L), "d" to Value.Integer(5L), "e" to Value.Integer(6L))),
+        )
+        val bTable = b.inlineTableOrNull!!
+        aTable.extend(
+            bTable
+                .iter()
+                .asSequence()
+                .map { (key, value) -> key to value.copy() }
+                .asIterable(),
+        )
         assertEquals(5, aTable.len())
         assertTrue(aTable.containsKey("e"))
         assertEquals(3, bTable.len())
@@ -1138,8 +1147,8 @@ src.git = "https://github.com/nixos/nixpkgs"
     @Test
     fun sortingWithReferences() {
         val values = listOf("foo", "qux", "bar")
-        val array = TomlArray.fromIter(values.map { Value.from(it) })
-        array.sortBy { lhs, rhs -> compareValues(lhs.asStr(), rhs.asStr()) }
+        val array = TomlArray.fromIter(values.map { Value.String(it) })
+        array.sortBy { lhs, rhs -> compareValues(lhs.stringOrNull, rhs.stringOrNull) }
     }
 
     @Test
@@ -1201,7 +1210,7 @@ other = "world"
             "world\" } }\n"
         val doc = DocumentMut.parse(toml).unwrap()
         val t = doc.remove("table")!!
-        val inline = t.asInlineTable() ?: fail("Unexpected $t")
+        val inline = t.inlineTableOrNull ?: fail("Unexpected $t")
         val table = inline.intoTable()
         doc.insert("table", Item.from(table))
         val actual = doc.toString()
@@ -1269,7 +1278,7 @@ other = "world"
         val doc = DocumentMut.parse("aaaaaa = 1").unwrap()
         val key = Key.parseSimple("bbb").unwrap()
         val table = doc.asTableMut()
-        table.insertFormatted(key, Item.from(Value.Integer(Formatted.of(2L))))
+        table.insertFormatted(key, Item.from(Value.Integer(2L)))
         assertEquals("aaaaaa = 1\nbbb = 2\n", doc.toString())
     }
 
@@ -1327,7 +1336,10 @@ other = "world"
     @Test
     fun tableUnderInline() {
         val doc = DocumentMut()
-        doc["tool"]["typst-test"] = table()
+        // An inline table holds only values, so a dotted inline table stands in for upstream's table here.
+        val dotted = InlineTable()
+        dotted.setDotted(true)
+        doc["tool"]["typst-test"] = value(dotted)
         doc["tool"]["typst-test"]["tests"] = value("tests")
         assertData("""
 tool = { typst-test.tests = "tests" }
@@ -1350,7 +1362,8 @@ name = "banana"
                     array.insert(0, newTable)
                     // The previously-first table (now at index 1) had no leading blank line
                     // from parsing; fix it up so it separates properly.
-                    array.getMut(1)!!.decorMut().setPrefix("\n")
+                    val moved = array.getMut(1)!!
+                    moved.decor = moved.decor.copy(prefix = "\n")
             }
             .producesDisplay("""
 [[fruit]]
@@ -1378,7 +1391,7 @@ name = "banana"
                     val newTable = Table()
                     newTable.insert("name", value("cherry"))
                     // Give the new table a leading blank line to match the existing style.
-                    newTable.decorMut().setPrefix("\n")
+                    newTable.decor = newTable.decor.copy(prefix = "\n")
                     array.insert(1, newTable)
             }
             .producesDisplay("""
@@ -1407,7 +1420,7 @@ name = "banana"
                     val newTable = Table()
                     newTable.insert("name", value("cherry"))
                     // Give the new table a leading blank line to match the existing style.
-                    newTable.decorMut().setPrefix("\n")
+                    newTable.decor = newTable.decor.copy(prefix = "\n")
                     array.insert(2, newTable)
             }
             .producesDisplay("""
@@ -1490,7 +1503,7 @@ name = "banana"
                 val newTable = Table()
                 newTable.insert("name", value("cherry"))
                 val old = array.replace(1, newTable).unwrap()
-                assertEquals("banana", old["name"].asStr())
+                assertEquals("banana", old["name"].stringOrNull)
             }
             .producesDisplay("""
 [[fruit]]

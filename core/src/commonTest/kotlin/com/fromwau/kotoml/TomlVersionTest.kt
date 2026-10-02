@@ -89,7 +89,7 @@ missing escaped value, expected `b`, `f`, `n`, `r`, `\`, `"`, `u`, `U`
 
     @Test
     fun escapedBackslashBeforeXIsAllowed() {
-        assertEquals("\\x41", DocumentMut.parse("s = \"\\\\x41\"\n", TomlVersion.V1_0).unwrap()["s"].asStr())
+        assertEquals("\\x41", DocumentMut.parse("s = \"\\\\x41\"\n", TomlVersion.V1_0).unwrap()["s"].stringOrNull)
     }
 
     @Test

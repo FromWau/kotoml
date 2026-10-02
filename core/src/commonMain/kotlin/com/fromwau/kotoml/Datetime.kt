@@ -19,6 +19,7 @@ import kotlinx.serialization.Serializable
  *
  * ```kotlin
  * val odt = Datetime.parse("1979-05-27T07:32:00Z")
+ * val date = Datetime(date = Date(year = 1979, month = 5, day = 27))
  * ```
  *
  * Datetimes order by their date, then time, then offset, each missing part sorting before a present one.
@@ -26,11 +27,11 @@ import kotlinx.serialization.Serializable
  */
 public data class Datetime(
     /** The date, required for an offset date-time, a local date-time and a local date. */
-    val date: Date?,
+    val date: Date? = null,
     /** The time, required for an offset date-time, a local date-time and a local time. */
-    val time: Time?,
+    val time: Time? = null,
     /** The offset from UTC, required for an offset date-time only. */
-    val offset: Offset?,
+    val offset: Offset? = null,
 ) : Comparable<Datetime> {
 
     override fun compareTo(other: Datetime): Int {
@@ -50,12 +51,6 @@ public data class Datetime(
     }
 
     public companion object {
-        /** A local date-time holding only [date]. */
-        public fun from(date: Date): Datetime = Datetime(date = date, time = null, offset = null)
-
-        /** A local time holding only [time]. */
-        public fun from(time: Time): Datetime = Datetime(date = null, time = time, offset = null)
-
         /**
          * Parses one of the four RFC 3339 forms TOML allows: an offset date-time, a local date-time, a
          * local date or a local time.
@@ -75,11 +70,11 @@ public data class Datetime(
  */
 public data class Date(
     /** The year, written with four digits. */
-    val year: UShort,
+    val year: Int,
     /** The month, 1 to 12. */
-    val month: UByte,
+    val month: Int,
     /** The day of the month, 1 to 28, 29, 30 or 31 depending on [month] and [year]. */
-    val day: UByte,
+    val day: Int,
 ) : Comparable<Date> {
 
     override fun compareTo(other: Date): Int {
@@ -100,13 +95,13 @@ public data class Date(
  */
 public data class Time(
     /** The hour, 0 to 23. */
-    val hour: UByte,
+    val hour: Int,
     /** The minute, 0 to 59. */
-    val minute: UByte,
+    val minute: Int,
     /** The second, 0 to 60 to allow a leap second, or null when the text had none. */
-    val second: UByte?,
+    val second: Int?,
     /** The fraction of the second in nanoseconds, 0 to 999 999 999, or null when the text had none. */
-    val nanosecond: UInt?,
+    val nanosecond: Int?,
 ) : Comparable<Time> {
 
     override fun compareTo(other: Time): Int {
@@ -121,7 +116,7 @@ public data class Time(
         append(hour.pad(2))
         append(':')
         append(minute.pad(2))
-        val shownSecond = second ?: if (nanosecond != null) 0u.toUByte() else null
+        val shownSecond = second ?: if (nanosecond != null) 0 else null
         if (shownSecond != null) {
             append(':')
             append(shownSecond.pad(2))
@@ -251,9 +246,5 @@ private fun <T : Comparable<T>> compareNullable(left: T?, right: T?): Int = when
     right == null -> 1
     else -> left.compareTo(right)
 }
-
-private fun UShort.pad(width: Int): String = toString().padStart(width, '0')
-
-private fun UByte.pad(width: Int): String = toString().padStart(width, '0')
 
 private fun Int.pad(width: Int): String = toString().padStart(width, '0')

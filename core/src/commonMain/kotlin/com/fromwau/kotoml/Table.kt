@@ -2,6 +2,8 @@ package com.fromwau.kotoml
 
 import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
+import com.fromwau.kern.result.map
+import com.fromwau.kern.result.onSuccess
 
 /**
  * A standard table: the key/value pairs under a `[header]`, and the tables nested in it.
@@ -15,8 +17,7 @@ import com.fromwau.kern.result.Result
  * formatting.
  */
 public class Table() : TableLike, Iterable<Pair<String, Item>> {
-    // Comments and whitespace before and after the header.
-    internal val decor: Decor = Decor()
+    internal val rawDecor: RawDecor = RawDecor()
     internal var implicit: Boolean = false
     internal var dotted: Boolean = false
 
@@ -30,6 +31,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     internal var headerSpelling: PathSpelling? = null
 
     internal constructor(items: KeyValuePairs) : this() {
+        for (entry in items.entries()) entry.item = entry.item.movedTo(Item.Holds.Anything)
         this.items = items
     }
 
@@ -92,9 +94,9 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     override fun fmt() {
         for (entry in items.entries()) {
             val value = entry.item.asValue() ?: continue
-            entry.key.leafDecorMut().clear()
-            entry.key.dottedDecorMut().clear()
-            value.decorMut().clear()
+            entry.key.rawLeafDecor.clear()
+            entry.key.rawDottedDecor.clear()
+            value.rawDecor().clear()
         }
     }
 
@@ -154,11 +156,15 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     /** Where the table prints among the document's tables, or null for a table made by hand. */
     public fun position(): Long? = docPosition
 
-    /** The text around the header, to change. */
-    public fun decorMut(): Decor = decor
-
-    /** The text around the header. */
-    public fun decor(): Decor = decor
+    /**
+     * The text around the header: comments and blank lines before `[header]`, and what follows it on its line.
+     * For a document's root table, the text before the first line and after the last.
+     */
+    public var decor: Decor
+        get() = rawDecor.toDecor()
+        set(value) {
+            rawDecor.set(value)
+        }
 
     /** The key [key] as stored, with its formatting. */
     override fun key(key: String): Key? = items.getEntry(key)?.key
@@ -166,12 +172,9 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     /** A view of the key [key] that can change its formatting. */
     override fun keyMut(key: String): KeyMut? = key(key)?.asMut()
 
-    /** Where the table lies in the original document; see [RawString.span]. */
-    public fun span(): Span? = span
-
     internal fun despan(input: SourceText) {
         span = null
-        decor.despan(input)
+        rawDecor.despan(input)
         headerSpelling?.despan(input)
         for (entry in items.entries()) {
             entry.key.despan(input)
@@ -206,10 +209,10 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     }
 
     /** The entry for [key], to read, insert or change in place. */
-    public fun entry(key: String): Entry = tableEntry(items, Key(key))
+    public fun entry(key: String): Entry = tableEntry(items, Key(key), Item.Holds.Anything)
 
     /** The entry for [key], keeping the key's formatting if it is inserted. */
-    public fun entryFormat(key: Key): Entry = tableEntry(items, key.clone())
+    public fun entryFormat(key: Key): Entry = tableEntry(items, key.clone(), Item.Holds.Anything)
 
     /** The item at [key], or null when there is none: upstream's `get`, renamed for the index operator. */
     public fun getOrNull(key: String): Item? = items.get(key)?.takeIf { !it.isNone() }
@@ -221,7 +224,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
      * The slot at [key]: the item stored there, or an empty item that joins this table under [key] when it
      * is first written to. Reading never adds a key.
      */
-    public operator fun get(key: String): Item = items.get(key) ?: Item.detached { child ->
+    public operator fun get(key: String): Item = items.get(key) ?: Item.detached(Item.Holds.Anything) { child ->
         items.insert(Key(key), child)
         Ok(Unit)
     }
@@ -300,7 +303,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     /** A deep copy of this table. */
     public fun clone(): Table {
         val copy = Table(items.deepClone())
-        copy.decor.assign(decor)
+        copy.rawDecor.assign(rawDecor)
         copy.implicit = implicit
         copy.dotted = dotted
         copy.docPosition = docPosition
@@ -443,20 +446,25 @@ public interface TableLike {
     public fun keyMut(key: String): KeyMut?
 }
 
-/** An entry of a table, from [Table.entry]: either occupied or vacant. */
+/**
+ * An entry of a table, from [Table.entry] or [TableLike.itemEntry]: either occupied or vacant.
+ *
+ * An entry of an [InlineTable] holds only values, so putting anything else there fails with
+ * [TomlEditError.NotAValue]; an entry of a [Table] takes any item.
+ */
 public sealed interface Entry {
     /** The entry's key. */
     public fun key(): String
 
     /** The item in the entry, inserting a copy of [default] first when it is vacant. */
-    public fun orInsert(default: Item): Item = when (this) {
-        is OccupiedEntry -> intoMut()
+    public fun orInsert(default: Item): Result<Item, TomlEditError> = when (this) {
+        is OccupiedEntry -> Ok(intoMut())
         is VacantEntry -> insert(default)
     }
 
     /** The item in the entry, inserting a copy of what [default] makes first when it is vacant. */
-    public fun orInsertWith(default: () -> Item): Item = when (this) {
-        is OccupiedEntry -> intoMut()
+    public fun orInsertWith(default: () -> Item): Result<Item, TomlEditError> = when (this) {
+        is OccupiedEntry -> Ok(intoMut())
         is VacantEntry -> insert(default())
     }
 }
@@ -465,6 +473,7 @@ public sealed interface Entry {
 public class OccupiedEntry internal constructor(
     private val items: KeyValuePairs,
     private val entry: KeyValue,
+    private val holds: Item.Holds,
 ) : Entry {
 
     override fun key(): String = entry.key.get()
@@ -481,11 +490,14 @@ public class OccupiedEntry internal constructor(
     /** The item, to change in place, upstream's `into_mut`. */
     public fun intoMut(): Item = entry.item
 
-    /** Replaces the item with a copy of [value], returning the old one. */
-    public fun insert(value: Item): Item {
+    /**
+     * Replaces the item with a copy of [value], returning the old one. Fails, changing nothing, when this is an
+     * inline table's entry and [value] holds no value.
+     */
+    public fun insert(value: Item): Result<Item, TomlEditError> = value.copyAsSlot(holds).map { stored ->
         val old = entry.item
-        entry.item = value.clone()
-        return old
+        entry.item = stored
+        old
     }
 
     /** Removes the entry from its table and returns its item. */
@@ -499,19 +511,24 @@ public class OccupiedEntry internal constructor(
 public class VacantEntry internal constructor(
     private val items: KeyValuePairs,
     private val key: Key,
+    private val holds: Item.Holds,
 ) : Entry {
 
     override fun key(): String = key.get()
 
-    /** Inserts a copy of [value] under the entry's key and returns the stored item. */
-    public fun insert(value: Item): Item {
-        val stored = value.clone()
-        items.insert(key, stored)
-        return stored
-    }
+    /**
+     * Inserts a copy of [value] under the entry's key and returns the stored item. Fails, inserting nothing, when
+     * this is an inline table's entry and [value] holds no value.
+     */
+    public fun insert(value: Item): Result<Item, TomlEditError> =
+        value.copyAsSlot(holds).onSuccess { stored -> items.insert(key, stored) }
 }
 
-internal fun tableEntry(items: KeyValuePairs, key: Key): Entry {
+internal fun tableEntry(
+    items: KeyValuePairs,
+    key: Key,
+    holds: Item.Holds,
+): Entry {
     val existing = items.getEntry(key.get())
-    return if (existing != null) OccupiedEntry(items, existing) else VacantEntry(items, key)
+    return if (existing != null) OccupiedEntry(items, existing, holds) else VacantEntry(items, key, holds)
 }

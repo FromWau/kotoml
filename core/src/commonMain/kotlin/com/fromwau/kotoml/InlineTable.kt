@@ -12,15 +12,16 @@ import com.fromwau.kern.result.Result
  * prints back as a dotted key rather than as `b = { c = 2 }`.
  */
 public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
-    private var trailing: RawString = RawString()
+    internal var rawTrailing: RawString = RawString()
     private var trailingComma: Boolean = false
     private var implicit: Boolean = false
-    private val decor: Decor = Decor()
+    internal val rawDecor: RawDecor = RawDecor()
     internal var span: Span? = null
     private var dotted: Boolean = false
     internal var items: KeyValuePairs = KeyValuePairs()
 
     internal constructor(items: KeyValuePairs) : this() {
+        for (entry in items.entries()) entry.item = entry.item.movedTo(Item.Holds.Value)
         this.items = items
     }
 
@@ -60,7 +61,7 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
     private fun forgetOrder() {
         for (entry in items.entries()) {
             entry.order = null
-            val table = entry.item.asInlineTable()
+            val table = entry.item.inlineTableOrNull
             if (table != null && table.isDotted()) table.forgetOrder()
         }
     }
@@ -69,9 +70,9 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
     override fun fmt() {
         for (entry in items.entries()) {
             val value = entry.item.asValue() ?: continue
-            entry.key.leafDecorMut().clear()
-            entry.key.dottedDecorMut().clear()
-            value.decorMut().clear()
+            entry.key.rawLeafDecor.clear()
+            entry.key.rawDottedDecor.clear()
+            value.rawDecor().clear()
         }
     }
 
@@ -84,24 +85,19 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
     public fun trailingComma(): Boolean = trailingComma
 
     /** Sets the text after the last entry. */
-    public fun setTrailing(trailing: RawString) {
-        this.trailing = trailing
-    }
-
-    /** Sets the text after the last entry. */
     public fun setTrailing(trailing: String) {
-        this.trailing = RawString.from(trailing)
+        rawTrailing = RawString.from(trailing)
     }
 
     /** The text after the last entry. */
-    public fun trailing(): RawString = trailing
+    public fun trailing(): String = rawTrailing.toStrWithDefault("")
 
     /** Sorts the entries by key, dotted sub-tables included. The sort is stable and not recursive. */
     override fun sortValues() {
         forgetOrder()
         items.sortBy { left, right -> left.key.compareTo(right.key) }
         for (entry in items.entries()) {
-            val table = entry.item.asInlineTable()
+            val table = entry.item.inlineTableOrNull
             if (table != null && table.isDotted()) table.sortValues()
         }
     }
@@ -123,7 +119,7 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
             }
         }
         for (entry in items.entries()) {
-            val table = entry.item.asInlineTable()
+            val table = entry.item.inlineTableOrNull
             if (table != null && table.isDotted()) table.sortValuesBy(compare)
         }
     }
@@ -142,11 +138,12 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
     /** Whether this table stands for the parts of a dotted key rather than for `{ ... }`. */
     override fun isDotted(): Boolean = dotted
 
-    /** The text around the table, to change. */
-    public fun decorMut(): Decor = decor
-
-    /** The text around the table. */
-    public fun decor(): Decor = decor
+    /** The text around the table, such as the whitespace between it and the `=` before it. */
+    public var decor: Decor
+        get() = rawDecor.toDecor()
+        set(value) {
+            rawDecor.set(value)
+        }
 
     /** The key [key] as stored, with its formatting. */
     override fun key(key: String): Key? = items.getEntry(key)?.key
@@ -154,13 +151,10 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
     /** A view of the key [key] that can change its formatting. */
     override fun keyMut(key: String): KeyMut? = key(key)?.asMut()
 
-    /** Where the table lies in the original document; see [RawString.span]. */
-    public fun span(): Span? = span
-
     internal fun despan(input: SourceText) {
         span = null
-        decor.despan(input)
-        trailing = trailing.despan(input)
+        rawDecor.despan(input)
+        rawTrailing = rawTrailing.despan(input)
         for (entry in items.entries()) {
             entry.key.despan(input)
             entry.pathSpelling?.despan(input)
@@ -202,7 +196,7 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
         // An occupied entry always holds a value, which keeps the occupied entry simple.
         if (!existing.item.isValue()) {
             val value = existing.item.intoValue() ?: Value.InlineTable(InlineTable())
-            existing.item = Item.from(value)
+            existing.item = Item.inInlineTable(value)
         }
         return InlineOccupiedEntry(this, existing)
     }
@@ -220,7 +214,7 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
     public operator fun set(key: String, value: Value): EmptyResult<TomlEditError> {
         val entry = items.getEntry(key)
         if (entry == null || !entry.item.isValue()) return Err(TomlEditError.KeyNotFound(key))
-        entry.item = Item.from(value)
+        entry.item = Item.inInlineTable(value)
         return Ok(Unit)
     }
 
@@ -239,7 +233,7 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
     public fun getOrInsert(key: String, value: Value): Value {
         val existing = items.get(key)
         if (existing != null) return existing.asValue() ?: value
-        items.insert(Key(key), Item.from(value))
+        items.insert(Key(key), Item.inInlineTable(value))
         return value
     }
 
@@ -252,10 +246,10 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
         if (existing != null) {
             existing.key.fmt()
             val old = existing.item
-            existing.item = Item.from(value)
+            existing.item = Item.inInlineTable(value)
             return old.intoValue()
         }
-        items.insert(Key(key), Item.from(value))
+        items.insert(Key(key), Item.inInlineTable(value))
         return null
     }
 
@@ -265,10 +259,10 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
         if (existing != null) {
             existing.key = key.clone()
             val old = existing.item
-            existing.item = Item.from(value)
+            existing.item = Item.inInlineTable(value)
             return old.intoValue()
         }
-        items.insert(key.clone(), Item.from(value))
+        items.insert(key.clone(), Item.inInlineTable(value))
         return null
     }
 
@@ -289,16 +283,16 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
 
     /** Adds every pair of [pairs], keeping the values' formatting. */
     public fun extend(pairs: Iterable<Pair<String, Value>>) {
-        for ((key, value) in pairs) items.insert(Key(key), Item.from(value))
+        for ((key, value) in pairs) items.insert(Key(key), Item.inInlineTable(value))
     }
 
     /** A deep copy of this table. */
     public fun clone(): InlineTable {
         val copy = InlineTable(items.deepClone())
-        copy.trailing = trailing
+        copy.rawTrailing = rawTrailing
         copy.trailingComma = trailingComma
         copy.implicit = implicit
-        copy.decor.assign(decor)
+        copy.rawDecor.assign(rawDecor)
         copy.span = span
         copy.dotted = dotted
         return copy
@@ -314,9 +308,9 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
     override fun iterItemsMut(): Iterator<Pair<KeyMut, Item>> =
         items.snapshot().map { it.key.asMut() to it.item }.iterator()
 
-    override fun itemEntry(key: String): Entry = tableEntry(items, Key(key))
+    override fun itemEntry(key: String): Entry = tableEntry(items, Key(key), Item.Holds.Value)
 
-    override fun itemEntryFormat(key: Key): Entry = tableEntry(items, Key(key.get()))
+    override fun itemEntryFormat(key: Key): Entry = tableEntry(items, Key(key.get()), Item.Holds.Value)
 
     override fun getItem(key: String): Item? = items.get(key)
 
@@ -381,7 +375,7 @@ public class InlineOccupiedEntry internal constructor(
     /** Replaces the value, returning the old one. */
     public fun insert(value: Value): Value {
         val old = get()
-        entry.item = Item.from(value)
+        entry.item = Item.inInlineTable(value)
         return old
     }
 
@@ -402,7 +396,7 @@ public class InlineVacantEntry internal constructor(
 
     /** Inserts [value] under the entry's key and returns it. */
     public fun insert(value: Value): Value {
-        table.items.insert(key, Item.from(value))
+        table.items.insert(key, Item.inInlineTable(value))
         return value
     }
 }

@@ -32,12 +32,11 @@ private fun Item.tagged(): JsonElement {
 }
 
 private fun Value.tagged(): JsonElement = when (this) {
-    is Value.String -> scalar("string", formatted.value())
-    is Value.Integer -> scalar("integer", formatted.value().toString())
-    is Value.Float -> scalar("float", formatted.value().let { if (it.isFinite()) it.toString() else it.tomlName() })
-    is Value.Boolean -> scalar("bool", formatted.value().toString())
+    is Value.String -> scalar("string", value)
+    is Value.Integer -> scalar("integer", value.toString())
+    is Value.Float -> scalar("float", value.let { if (it.isFinite()) it.toString() else it.tomlName() })
+    is Value.Boolean -> scalar("bool", value.toString())
     is Value.Datetime -> {
-        val value = formatted.value()
         val type = when {
             value.date != null && value.time != null && value.offset != null -> "datetime"
             value.date != null && value.time != null -> "datetime-local"
@@ -45,7 +44,7 @@ private fun Value.tagged(): JsonElement = when (this) {
             else -> "time-local"
         }
         // toml-test reads a time with its seconds, which TOML 1.1 lets a document leave out.
-        val time = value.time?.let { it.copy(second = it.second ?: 0u) }
+        val time = value.time?.let { it.copy(second = it.second ?: 0) }
         scalar(type, value.copy(time = time).toString())
     }
     is Value.Array -> JsonArray(array.iter().asSequence().map { it.tagged() }.toList())
@@ -83,7 +82,7 @@ private fun JsonElement.toValue(path: String): Result<Value, AppError> {
                     is Result.Error -> return value
                 }
             }
-            return Ok(Value.from(array))
+            return Ok(Value.Array(array))
         }
         is JsonObject -> {
             scalarOrNull()?.let { (type, text) -> return scalarValue(type, text)?.let { Ok(it) } ?: notTagged(path) }
@@ -94,7 +93,7 @@ private fun JsonElement.toValue(path: String): Result<Value, AppError> {
                     is Result.Error -> return value
                 }
             }
-            return Ok(Value.from(table))
+            return Ok(Value.InlineTable(table))
         }
         else -> return notTagged(path)
     }
@@ -111,17 +110,17 @@ private fun JsonObject.scalarOrNull(): Pair<String, String>? {
 }
 
 private fun scalarValue(type: String, text: String): Value? = when (type) {
-    "string" -> Value.from(text)
-    "integer" -> text.toLongOrNull()?.let { Value.from(it) }
+    "string" -> Value.String(text)
+    "integer" -> text.toLongOrNull()?.let { Value.Integer(it) }
     "float" -> when (text) {
-        "nan", "+nan", "-nan" -> Value.from(Double.NaN)
-        "inf", "+inf" -> Value.from(Double.POSITIVE_INFINITY)
-        "-inf" -> Value.from(Double.NEGATIVE_INFINITY)
-        else -> text.toDoubleOrNull()?.let { Value.from(it) }
+        "nan", "+nan", "-nan" -> Value.Float(Double.NaN)
+        "inf", "+inf" -> Value.Float(Double.POSITIVE_INFINITY)
+        "-inf" -> Value.Float(Double.NEGATIVE_INFINITY)
+        else -> text.toDoubleOrNull()?.let { Value.Float(it) }
     }
-    "bool" -> text.toBooleanStrictOrNull()?.let { Value.from(it) }
+    "bool" -> text.toBooleanStrictOrNull()?.let { Value.Boolean(it) }
     "datetime", "datetime-local", "date-local", "time-local" -> when (val parsed = Datetime.parse(text)) {
-        is Result.Success -> Value.from(parsed.value)
+        is Result.Success -> Value.Datetime(parsed.value)
         is Result.Error -> null
     }
     else -> null

@@ -11,13 +11,13 @@ class EditUnitTest {
     @Test
     fun valueFromIterFormatting() {
         val features = listOf("node", "mouth")
-        val value = Value.fromIter(features.map { Value.from(it) })
+        val value = Value.Array(TomlArray.fromIter(features.map { Value.String(it) }))
         assertEquals("[\"node\", \"mouth\"]", value.toString())
     }
 
     @Test
     fun valueStringRoundtrip() {
-        Value.parse(Value.from("hello").toString()).unwrap()
+        Value.parse(Value.String("hello").toString()).unwrap()
     }
 
     @Test
@@ -40,7 +40,7 @@ class EditUnitTest {
         val random = Random(0x5354_5249)
         repeat(512) {
             val string = randomPrintableString(random)
-            val value = Value.from(string)
+            val value = Value.String(string)
             val encoded = value.toString()
             Value.parse(encoded).unwrap()
         }

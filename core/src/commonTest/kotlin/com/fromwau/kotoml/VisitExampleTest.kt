@@ -95,7 +95,7 @@ class VisitExampleTest {
         when (state) {
             VisitState.Target, VisitState.TargetWithSpec, VisitState.Dependencies -> {
                 // A top-level dependency row, or above it: inline tables become regular ones.
-                val inlineTable = item.asInlineTable()
+                val inlineTable = item.inlineTableOrNull
                 if (inlineTable != null) {
                     val table = inlineTable.intoTable()
                     key.fmt()

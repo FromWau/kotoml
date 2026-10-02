@@ -20,7 +20,7 @@ class EditDocTest {
         // Add a new key/value pair inside a.b: c = {d = "hello"}
         doc["a"]["b"]["c"]["d"] = value("hello")
         // Autoformat inline table a.b.c: { d = "hello" }
-        doc["a"]["b"]["c"].asInlineTableMut()?.fmt()
+        doc["a"]["b"]["c"].inlineTableOrNull?.fmt()
         val expected = """
 "hello" = 'toml!' # comment
 ['a'.b]
@@ -37,7 +37,7 @@ c = { d = "hello" }
         // Add a new key/value pair inside a.b: c = {d = "hello"}
         doc["a"]["b"]["c"]["d"] = value("hello")
         // Autoformat inline table a.b.c: { d = "hello" }
-        doc["a"]["b"]["c"].asInlineTableMut()?.fmt()
+        doc["a"]["b"]["c"].inlineTableOrNull?.fmt()
         val expected = "\n\"hello\" = 'toml!' # comment\n['a'.b]\nc = { d = \"hello\" }\n    "
         assertEquals(expected, doc.toString())
     }
@@ -55,8 +55,24 @@ c = { d = "hello" }
         val doc = DocumentMut.parse(text).unwrap()
         assertEquals(text, doc.toString())
         doc["a"]["b"]["c"]["d"] = value("hello")
-        doc["a"]["b"]["c"].asInlineTableMut()?.fmt()
+        doc["a"]["b"]["c"].inlineTableOrNull?.fmt()
         assertEquals("\n\"hello\" = 'toml!' # comment\n['a'.b]\nc = { d = \"hello\" }\n", doc.toString())
+    }
+
+    @Test
+    fun moduleReadmeValues() {
+        val doc = DocumentMut()
+        doc["port"] = value(Value.Integer(8080L, Decor(prefix = " ", suffix = " # default")))
+        doc["when"] = value(Datetime(date = Date(year = 1979, month = 5, day = 27)))
+        assertEquals("port = 8080 # default\nwhen = 1979-05-27\n", doc.toString())
+
+        assertEquals(8080L, doc["port"].longOrNull)
+        val parsed = DocumentMut.parse("n = 0x10\n").unwrap()
+        val spelled = parsed["n"].asValue() as Value.Integer
+        assertEquals(16L, spelled.value)
+        assertEquals("0x10", spelled.spelling)
+        spelled.resetFormatting()
+        assertEquals("16", spelled.displaySpelling)
     }
 
     @Test
@@ -142,7 +158,7 @@ duplicate key
         arr.push(1L)
         arr.push("foo")
 
-        arr.insert(0, Value.from("start")).unwrap()
+        arr.insert(0, Value.String("start")).unwrap()
     }
 
     @Test
@@ -161,7 +177,7 @@ duplicate key
         arr.push(1L)
         arr.push("foo")
 
-        arr.replace(0, Value.from("start")).unwrap()
+        arr.replace(0, Value.String("start")).unwrap()
     }
 
     @Test
@@ -239,22 +255,22 @@ duplicate key
 
     @Test
     fun valueDecorMut() {
-        val v = Value.from(true)
-        assertNull(v.decor().suffix())
+        val v = Value.Boolean(true)
+        assertNull(v.decor.suffix)
     }
 
     @Test
     fun valueDecor() {
-        val v = Value.from(true)
-        assertNull(v.decor().suffix())
+        val v = Value.Boolean(true)
+        assertNull(v.decor.suffix)
     }
 
     @Test
     fun valueDecorated() {
-        val v = Value.from(42L)
+        val v = Value.Integer(42L)
         assertEquals("42", v.toString())
-        val d = v.decorated(" ", " ")
-        assertEquals(" 42 ", d.toString())
+        v.decor = Decor(" ", " ")
+        assertEquals(" 42 ", v.toString())
     }
 
     private fun collectStrings(
@@ -278,7 +294,7 @@ duplicate key
         strings: MutableList<String>,
     ) {
         when (value) {
-            is Value.String -> strings += value.formatted.value()
+            is Value.String -> strings += value.value
             is Value.Array -> value.array.forEach { collectStrings(it, strings) }
             is Value.InlineTable -> collectStrings(value.table, strings)
             is Value.Integer, is Value.Float, is Value.Boolean, is Value.Datetime -> {}
@@ -317,12 +333,10 @@ the-force = { value = "surrounds-you" }
     private fun floatsToStrings(value: Value): Value = when (value) {
         is Value.Float -> {
             // Convert the float to a string, with two decimals.
-            val hundredths = round(value.formatted.value() * 100).toLong()
+            val hundredths = round(value.value * 100).toLong()
             val text = "${hundredths / 100}.${(hundredths % 100).toString().padStart(2, '0')}"
-            val s = Formatted.of(text)
             // Copy over the formatting.
-            s.decorMut().assign(value.decor())
-            Value.String(s)
+            Value.String(text, value.decor)
         }
         is Value.Array -> {
             for (index in 0 until value.array.len()) {

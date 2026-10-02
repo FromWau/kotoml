@@ -34,7 +34,7 @@ val doc = DocumentMut.parse(text).getOrNull()!!
 check(doc.toString() == text)
 
 doc["a"]["b"]["c"]["d"] = value("hello")
-doc["a"]["b"]["c"].asInlineTableMut()?.fmt()
+doc["a"]["b"]["c"].inlineTableOrNull?.fmt()
 // "hello" = 'toml!' # comment
 // ['a'.b]
 // c = { d = "hello" }
@@ -43,6 +43,25 @@ doc["a"]["b"]["c"].asInlineTableMut()?.fmt()
 Indexing a key that is not there gives an empty item; writing to it adds the key. Where `toml_edit` panics,
 for example on an index out of bounds or on writing a key into a string, the call returns a `TomlEditError`
 instead. The `item["key"] = value` form drops that error; call `item.set("key", value)` to see it.
+
+## Make and read values
+
+```kotlin
+val doc = DocumentMut()
+doc["port"] = value(Value.Integer(8080L, Decor(prefix = " ", suffix = " # default")))
+doc["when"] = value(Datetime(date = Date(year = 1979, month = 5, day = 27)))
+// port = 8080 # default
+// when = 1979-05-27
+
+val port: Long? = doc["port"].longOrNull // 8080
+val spelled = DocumentMut.parse("n = 0x10\n").getOrNull()!!["n"].asValue() as Value.Integer
+// spelled.value == 16, spelled.spelling == "0x10"
+```
+
+Each kind of value has a constructor, and an optional `Decor` sets the text before and after it; a side left
+`null` prints the default spacing for where the value stands. A parsed value keeps the text it was written as
+in `spelling`, and `resetFormatting()` drops it. The `OrNull` properties read a value of one kind, or `null`
+for any other kind.
 
 ## Handle errors
 

@@ -5,7 +5,7 @@ package com.fromwau.kotoml
 // spelling, as upstream's Display does.
 
 internal fun encodeKey(buf: StringBuilder, key: Key) {
-    buf.append(key.displayRepr())
+    buf.append(key.displaySpelling)
 }
 
 internal fun encodeKeyPath(
@@ -13,10 +13,10 @@ internal fun encodeKeyPath(
     path: List<Key>,
     defaultPrefix: String,
     defaultSuffix: String,
-    leafDecor: Decor,
+    leafDecor: RawDecor,
 ) {
     for ((index, key) in path.withIndex()) {
-        val dottedDecor = key.dottedDecor()
+        val dottedDecor = key.rawDottedDecor
         val first = index == 0
         val last = index + 1 == path.size
 
@@ -43,14 +43,14 @@ internal fun encodeFormatted(
     defaultPrefix: String,
     defaultSuffix: String,
 ) {
-    val decor = formatted.decor()
+    val decor = formatted.decor
     decor.prefixEncode(buf, defaultPrefix)
     buf.append(formatted.displayRepr())
     decor.suffixEncode(buf, defaultSuffix)
 }
 
 internal fun encodeArray(buf: StringBuilder, array: TomlArray, defaultPrefix: String, defaultSuffix: String) {
-    val decor = array.decor()
+    val decor = array.rawDecor
     decor.prefixEncode(buf, defaultPrefix)
     buf.append('[')
 
@@ -67,13 +67,13 @@ internal fun encodeArray(buf: StringBuilder, array: TomlArray, defaultPrefix: St
     }
     if (array.trailingComma() && !array.isEmpty()) buf.append(',')
 
-    encodeRaw(buf, array.trailing().toStrWithDefault(""))
+    encodeRaw(buf, array.rawTrailing.toStrWithDefault(""))
     buf.append(']')
     decor.suffixEncode(buf, defaultSuffix)
 }
 
 internal fun encodeInlineTable(buf: StringBuilder, table: InlineTable, defaultPrefix: String, defaultSuffix: String) {
-    val decor = table.decor()
+    val decor = table.rawDecor
     decor.prefixEncode(buf, defaultPrefix)
     buf.append('{')
 
@@ -83,14 +83,14 @@ internal fun encodeInlineTable(buf: StringBuilder, table: InlineTable, defaultPr
         val value = child.value
         if (index != 0) buf.append(',')
         val inner = if (index == children.size - 1) DEFAULT_TRAILING_VALUE_DECOR else DEFAULT_VALUE_DECOR
-        val leafDecor = keyPath.last().leafDecor()
+        val leafDecor = keyPath.last().rawLeafDecor
         encodeKeyPath(buf, keyPath, DEFAULT_INLINE_KEY_DECOR.first, DEFAULT_INLINE_KEY_DECOR.second, leafDecor)
         buf.append('=')
         encodeValue(buf, value, inner.first, inner.second)
     }
     if (table.trailingComma() && !table.isEmpty()) buf.append(',')
 
-    encodeRaw(buf, table.trailing().toStrWithDefault(""))
+    encodeRaw(buf, table.rawTrailing.toStrWithDefault(""))
     buf.append('}')
     decor.suffixEncode(buf, defaultSuffix)
 }
@@ -118,7 +118,7 @@ internal class LineWriter(val buf: StringBuilder, private var lastEnding: String
 private fun encodeKeyValueLine(writer: LineWriter, visual: VisualValue) {
     val buf = writer.buf
     val keyPath = visual.spelledPath()
-    val leafDecor = keyPath.last().leafDecor()
+    val leafDecor = keyPath.last().rawLeafDecor
     encodeKeyPath(buf, keyPath, DEFAULT_KEY_DECOR.first, DEFAULT_KEY_DECOR.second, leafDecor)
     buf.append('=')
     encodeValue(buf, visual.value, DEFAULT_VALUE_DECOR.first, DEFAULT_VALUE_DECOR.second)
@@ -136,7 +136,7 @@ private class TableToVisit(val position: Long, val table: Table, val path: List<
 /** A whole document, tables in their original order: upstream's `Display for DocumentMut`. */
 internal fun encodeDocument(buf: StringBuilder, document: DocumentMut) {
     val root = document.asTable()
-    val decor = root.decor()
+    val decor = root.rawDecor
     decor.prefixEncode(buf, DEFAULT_ROOT_DECOR.first)
     val writer = LineWriter(buf, document.lineEnding)
 
@@ -153,7 +153,7 @@ internal fun encodeDocument(buf: StringBuilder, document: DocumentMut) {
         firstTable = visitTable(writer, visit.table, visit.path, visit.isArray, firstTable)
     }
     decor.suffixEncode(buf, DEFAULT_ROOT_DECOR.second)
-    encodeRaw(buf, document.trailing().toStrWithDefault(""))
+    encodeRaw(buf, document.rawTrailing.toStrWithDefault(""))
 }
 
 private fun visitNestedTables(
@@ -186,11 +186,11 @@ private fun visitNestedTables(
  * Splits the leaf decor of a header's last key into the part written before `[` and the part inside it:
  * the spec allows only spaces and tabs inside the brackets, so a prefix holding a newline goes before them.
  */
-private fun leafDecorBeforeBracket(path: List<Key>): Pair<Decor?, Decor> {
-    val lastKey = path.lastOrNull() ?: return null to Decor.EMPTY
-    val leafDecor = lastKey.leafDecor()
-    val needsExtraction = leafDecor.prefix()?.toStrWithDefault(DEFAULT_KEY_PATH_DECOR.first)?.contains('\n') ?: false
-    return if (needsExtraction) leafDecor to Decor.EMPTY else null to leafDecor
+private fun leafDecorBeforeBracket(path: List<Key>): Pair<RawDecor?, RawDecor> {
+    val lastKey = path.lastOrNull() ?: return null to RawDecor.EMPTY
+    val leafDecor = lastKey.rawLeafDecor
+    val needsExtraction = leafDecor.prefix?.toStrWithDefault(DEFAULT_KEY_PATH_DECOR.first)?.contains('\n') ?: false
+    return if (needsExtraction) leafDecor to RawDecor.EMPTY else null to leafDecor
 }
 
 /** Writes one table's header and body; returns whether no table has been written yet. */
@@ -219,11 +219,11 @@ private fun visitTable(
         val spelledPath = table.headerSpelling?.resolve(path.subList(0, path.size - 1))?.plus(path.last()) ?: path
         val (beforeBracket, keyDecor) = leafDecorBeforeBracket(spelledPath)
         beforeBracket?.prefixEncode(buf, DEFAULT_KEY_PATH_DECOR.first)
-        table.decor.prefixEncode(buf, defaultDecor.first)
+        table.rawDecor.prefixEncode(buf, defaultDecor.first)
         buf.append(if (isArrayOfTables) "[[" else "[")
         encodeKeyPath(buf, spelledPath, DEFAULT_KEY_PATH_DECOR.first, DEFAULT_KEY_PATH_DECOR.second, keyDecor)
         buf.append(if (isArrayOfTables) "]]" else "]")
-        table.decor.suffixEncode(buf, defaultDecor.second)
+        table.rawDecor.suffixEncode(buf, defaultDecor.second)
         writer.endLine(table.headerLineEnding)
     }
     for (visual in children) encodeKeyValueLine(writer, visual)

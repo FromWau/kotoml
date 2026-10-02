@@ -84,8 +84,8 @@ internal fun parseKeyPath(source: TomlSource, errors: TomlSink, version: TomlVer
         }
     }
     val last = key ?: return emptyList()
-    prefix?.let { last.leafDecor.setPrefix(it) }
-    suffix?.let { last.leafDecor.setSuffix(it) }
+    prefix?.let { last.rawLeafDecor.prefix = it }
+    suffix?.let { last.rawLeafDecor.suffix = it }
     return (path ?: emptyList()) + last
 }
 
@@ -140,7 +140,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
                     val header = onTable(event)
                     val (suffixSpan, newline) = wsCommentNewline(input)
                     val suffix = suffixSpan?.let { RawString.withSpan(it) } ?: RawString()
-                    startTable(header, Decor(prefix, suffix))
+                    startTable(header, RawDecor(prefix, suffix))
                     currentTable.headerLineEnding = newline?.let { context.text(it.span()) }
                 }
                 EventKind.SimpleKey -> {
@@ -154,8 +154,8 @@ private class DocumentBuilder(private val input: EventStream, private val contex
                         next = input.nextToken() ?: break
                     }
                     if (next.kind() != EventKind.KeyValSep) break
-                    key.leafDecor.setPrefix(keyPrefix)
-                    key.leafDecor.setSuffix(keySuffix?.let { RawString.withSpan(it.span()) } ?: RawString())
+                    key.rawLeafDecor.prefix = keyPrefix
+                    key.rawLeafDecor.suffix = keySuffix?.let { RawString.withSpan(it.span()) } ?: RawString()
 
                     val valuePrefix = if (input.first()?.kind() == EventKind.Whitespace) {
                         input.nextToken()?.let { RawString.withSpan(it.span()) }
@@ -165,9 +165,9 @@ private class DocumentBuilder(private val input: EventStream, private val contex
                     val value = value(input, context)
                     val (suffixSpan, newline) = wsCommentNewline(input)
                     val valueSuffix = suffixSpan?.let { RawString.withSpan(it) } ?: RawString()
-                    val decor = value.decorMut()
-                    decor.setPrefix(valuePrefix)
-                    decor.setSuffix(valueSuffix)
+                    val decor = value.rawDecor()
+                    decor.prefix = valuePrefix
+                    decor.suffix = valueSuffix
 
                     val entry = captureKeyValue(path, key, value)
                     entry?.lineEnding = newline?.let { context.text(it.span()) }
@@ -216,7 +216,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
         // The event parser reports a key, if only an empty one, inside every header.
         val prefix = currentPrefix ?: openEvent.span().after()
         val suffix = currentSuffix ?: openEvent.span().after()
-        currentKey?.leafDecor?.assign(Decor(RawString.withSpan(prefix), RawString.withSpan(suffix)))
+        currentKey?.rawLeafDecor?.assign(RawDecor(RawString.withSpan(prefix), RawString.withSpan(suffix)))
 
         return TableHeader(currentPath ?: emptyList(), currentKey, currentSpan, isArray)
     }
@@ -286,15 +286,15 @@ private class DocumentBuilder(private val input: EventStream, private val contex
                 return
             }
             array.push(previousTable)
-            val first = array.values.firstOrNull()?.asTable()?.span()
-            val last = array.values.lastOrNull()?.asTable()?.span()
+            val first = array.values.firstOrNull()?.asTable()?.span
+            val last = array.values.lastOrNull()?.asTable()?.span
             array.span = if (first != null && last != null) Span(first.start, last.end) else null
         } else {
             parentTable.items.insert(key, Item.from(previousTable))
         }
     }
 
-    private fun startTable(header: TableHeader, decor: Decor) {
+    private fun startTable(header: TableHeader, decor: RawDecor) {
         if (!header.isArray) {
             // Looking the table up here points a duplicate-key error at the right line, and keeps the child
             // tables an implicit table already has.
@@ -317,7 +317,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
         }
 
         currentPosition += 1
-        currentTable.decor.assign(decor)
+        currentTable.rawDecor.assign(decor)
         currentTable.setImplicit(false)
         currentTable.setDotted(false)
         currentTable.setPosition(currentPosition)
@@ -391,7 +391,7 @@ private fun descendPath(
     return table
 }
 
-private fun keySpan(key: Key): Span = key.asRepr()?.span() ?: Span.DEFAULT
+private fun keySpan(key: Key): Span = key.repr?.span() ?: Span.DEFAULT
 
 /** The whitespace and comment to the end of the line, and the newline ending it, if the input did not end first. */
 private fun wsCommentNewline(input: EventStream): Pair<Span?, Event?> {
@@ -435,7 +435,7 @@ internal fun onKey(keyEvent: Event, input: EventStream, context: ParseContext): 
 
         val parsed = Key(decoded.toString())
             .withReprUnchecked(Repr.newUnchecked(RawString.withSpan(key.span())))
-            .withDottedDecor(Decor(RawString.withSpan(prefixSpan), RawString.withSpan(suffixSpan)))
+        parsed.rawDottedDecor.assign(RawDecor(RawString.withSpan(prefixSpan), RawString.withSpan(suffixSpan)))
         resultKey?.let { resultPath.add(it) }
         resultKey = parsed
     }
@@ -496,7 +496,7 @@ private fun value(input: EventStream, context: ParseContext): Value {
     }
 
     val formatted = Formatted.of(0L)
-    formatted.setReprUnchecked(Repr.newUnchecked(RawString.withSpan(0, 0)))
+    formatted.repr = Repr.newUnchecked(RawString.withSpan(0, 0))
     return Value.Integer(formatted)
 }
 
@@ -595,7 +595,7 @@ private fun checkEscapes(event: Event, context: ParseContext) {
 }
 
 private fun <T : Any> Formatted<T>.withRepr(raw: RawString): Formatted<T> {
-    setReprUnchecked(Repr.newUnchecked(raw))
+    repr = Repr.newUnchecked(raw)
     return this
 }
 
@@ -622,9 +622,9 @@ private fun onArray(openEvent: Event, input: EventStream, context: ParseContext)
         currentPrefix = null
         val suffix = currentSuffix ?: event.span().before()
         currentSuffix = null
-        val decor = value.decorMut()
-        decor.setPrefix(RawString.withSpan(prefix))
-        decor.setSuffix(RawString.withSpan(suffix))
+        val decor = value.rawDecor()
+        decor.prefix = RawString.withSpan(prefix)
+        decor.suffix = RawString.withSpan(suffix)
         result.pushFormatted(value)
     }
 
@@ -661,7 +661,7 @@ private fun onArray(openEvent: Event, input: EventStream, context: ParseContext)
                 val trailingComma = trailingStart != null && !result.isEmpty()
                 val start = trailingStart ?: event.span().start
                 result.setTrailingComma(trailingComma)
-                result.setTrailing(RawString.withSpan(start, event.span().start))
+                result.rawTrailing = RawString.withSpan(start, event.span().start)
                 result.span = openEvent.span().append(event.span())
                 break
             }
@@ -703,24 +703,24 @@ private fun onInlineTable(openEvent: Event, input: EventStream, context: ParseCo
         val shared = mutableListOf<Key>()
         val table = descendInlinePath(result, path, true, errors, shared) ?: return
 
-        val decor = value.decorMut()
-        decor.setPrefix(RawString.withSpan(prefix))
-        decor.setSuffix(RawString.withSpan(suffix))
+        val decor = value.rawDecor()
+        decor.prefix = RawString.withSpan(prefix)
+        decor.suffix = RawString.withSpan(suffix)
 
         // "Likewise, using dotted keys to redefine tables already defined in [table] form is not allowed"
         val mixedTableTypes = table.isDotted() == path.isEmpty()
-        val keySpan = key.asRepr()?.span() ?: event.span()
+        val keySpan = key.repr?.span() ?: event.span()
         if (mixedTableTypes) {
             errors.report(Reason.DuplicateKey(key.get()), unexpected = keySpan)
         } else {
             val existing = table.items.getEntry(key.get())
             if (existing == null) {
-                table.items.insert(key, Item.from(value))
+                table.items.insert(key, Item.inInlineTable(value))
                 val entry = table.items.getEntry(key.get())
                 entry?.order = context.nextOrder()
                 if (path.isNotEmpty()) entry?.pathSpelling = PathSpelling.of(path, shared)
             } else {
-                val oldSpan = existing.key.asRepr()?.span() ?: event.span()
+                val oldSpan = existing.key.repr?.span() ?: event.span()
                 errors.report(Reason.DuplicateKey(key.get()), unexpected = keySpan, context = oldSpan)
             }
         }
@@ -752,7 +752,7 @@ private fun onInlineTable(openEvent: Event, input: EventStream, context: ParseCo
                     currentPrefix = null
                     val suffix = currentSuffix ?: event.span().before()
                     currentSuffix = null
-                    lastKey.leafDecor.assign(Decor(RawString.withSpan(prefix), RawString.withSpan(suffix)))
+                    lastKey.rawLeafDecor.assign(RawDecor(RawString.withSpan(prefix), RawString.withSpan(suffix)))
                 }
             }
             EventKind.InlineTableOpen -> {
@@ -801,7 +801,7 @@ private fun onInlineTable(openEvent: Event, input: EventStream, context: ParseCo
                 }
                 val start = trailingStart ?: event.span().start
                 result.setTrailingComma(trailingComma)
-                result.setTrailing(RawString.withSpan(start, event.span().start))
+                result.rawTrailing = RawString.withSpan(start, event.span().start)
                 result.span = openEvent.span().append(event.span())
                 break
             }
@@ -828,7 +828,7 @@ private fun descendInlinePath(
             newTable.setImplicit(true)
             newTable.setDotted(dotted)
             val held = key.clone()
-            table.items.insert(held, Item.from(Value.InlineTable(newTable)))
+            table.items.insert(held, Item.inInlineTable(Value.InlineTable(newTable)))
             shared += held
             table = newTable
             continue
@@ -836,7 +836,7 @@ private fun descendInlinePath(
         shared += existing.key
         // An occupied entry always holds a value, as InlineTable.entryFormat guarantees upstream.
         val value = existing.item.intoValue() ?: Value.InlineTable(InlineTable())
-        existing.item = Item.from(value)
+        existing.item = Item.inInlineTable(value)
         table = when (value) {
             is Value.InlineTable -> {
                 // Tables cannot be defined more than once, and dotted keys cannot extend an inline table.

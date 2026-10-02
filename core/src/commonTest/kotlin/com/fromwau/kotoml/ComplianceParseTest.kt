@@ -13,31 +13,31 @@ class ComplianceParseTest {
 
     @Test
     fun testValueFromStr() {
-        assertTrue(parseValue("1979-05-27T00:32:00.999999-07:00").isDatetime())
-        assertTrue(parseValue("1979-05-27T00:32:00.999999Z").isDatetime())
-        assertTrue(parseValue("1979-05-27T00:32:00.999999").isDatetime())
-        assertTrue(parseValue("1979-05-27T00:32:00").isDatetime())
-        assertTrue(parseValue("1979-05-27").isDatetime())
-        assertTrue(parseValue("00:32:00").isDatetime())
-        assertTrue(parseValue("-239").isInteger())
-        assertTrue(parseValue("1e200").isFloat())
-        assertTrue(parseValue("9_224_617.445_991_228_313").isFloat())
-        assertTrue(parseValue("\"basic string\\nJos\\u00E9\\n\"").isStr())
-        assertTrue(parseValue("\"\"\"\nmultiline basic string\n\"\"\"").isStr())
-        assertTrue(parseValue("'literal string\\ \\'").isStr())
+        assertTrue(parseValue("1979-05-27T00:32:00.999999-07:00") is Value.Datetime)
+        assertTrue(parseValue("1979-05-27T00:32:00.999999Z") is Value.Datetime)
+        assertTrue(parseValue("1979-05-27T00:32:00.999999") is Value.Datetime)
+        assertTrue(parseValue("1979-05-27T00:32:00") is Value.Datetime)
+        assertTrue(parseValue("1979-05-27") is Value.Datetime)
+        assertTrue(parseValue("00:32:00") is Value.Datetime)
+        assertTrue(parseValue("-239") is Value.Integer)
+        assertTrue(parseValue("1e200") is Value.Float)
+        assertTrue(parseValue("9_224_617.445_991_228_313") is Value.Float)
+        assertTrue(parseValue("\"basic string\\nJos\\u00E9\\n\"") is Value.String)
+        assertTrue(parseValue("\"\"\"\nmultiline basic string\n\"\"\"") is Value.String)
+        assertTrue(parseValue("'literal string\\ \\'") is Value.String)
         assertTrue(
             parseValue(
                 """'''multiline
 literal \ \
 string'''""",
-            ).isStr(),
+            ) is Value.String,
         )
-        assertTrue(parseValue("{ hello = \"world\", a = 1}").isInlineTable())
-        assertTrue(parseValue("[ { x = 1, a = \"2\" }, {a = \"a\",b = \"b\",     c =    \"c\"} ]").isArray())
+        assertTrue(parseValue("{ hello = \"world\", a = 1}") is Value.InlineTable)
+        assertTrue(parseValue("[ { x = 1, a = \"2\" }, {a = \"a\",b = \"b\",     c =    \"c\"} ]") is Value.Array)
         val wp = "C:\\Users\\appveyor\\AppData\\Local\\Temp\\1\\cargo-edit-test.YizxPxxElXn9"
         val lwp = "'C:\\Users\\appveyor\\AppData\\Local\\Temp\\1\\cargo-edit-test.YizxPxxElXn9'"
-        assertEquals(Value.from(wp).asStr(), parseValue(lwp).asStr())
-        assertTrue(parseValue("\"\\\\\\\"\\b\\f\\n\\r\\t\\u00E9\\U000A0000\"").isStr())
+        assertEquals(Value.String(wp).stringOrNull, parseValue(lwp).stringOrNull)
+        assertTrue(parseValue("\"\\\\\\\"\\b\\f\\n\\r\\t\\u00E9\\U000A0000\"") is Value.String)
     }
 
     @Test
@@ -88,24 +88,24 @@ string'''""",
                 "apples'''\nlines  = '''\nThe first newline is\ntrimmed in raw strings.\nAll other whitespace\n" +
                 "is preserved.\n'''\n",
         )
-        assertEquals("\u0000", table["bar"].asStr())
-        assertEquals("One\nTwo", table["key1"].asStr())
-        assertEquals("One\nTwo", table["key2"].asStr())
-        assertEquals("One\nTwo", table["key3"].asStr())
+        assertEquals("\u0000", table["bar"].stringOrNull)
+        assertEquals("One\nTwo", table["key1"].stringOrNull)
+        assertEquals("One\nTwo", table["key2"].stringOrNull)
+        assertEquals("One\nTwo", table["key3"].stringOrNull)
 
         val msg = "The quick brown fox jumps over the lazy dog."
-        assertEquals(msg, table["key4"].asStr())
-        assertEquals(msg, table["key5"].asStr())
-        assertEquals(msg, table["key6"].asStr())
+        assertEquals(msg, table["key4"].stringOrNull)
+        assertEquals(msg, table["key5"].stringOrNull)
+        assertEquals(msg, table["key6"].stringOrNull)
 
-        assertEquals("C:\\Users\\nodejs\\templates", table["winpath"].asStr())
-        assertEquals("\\\\ServerX\\admin\$\\system32\\", table["winpath2"].asStr())
-        assertEquals("Tom \"Dubs\" Preston-Werner", table["quoted"].asStr())
-        assertEquals("<\\i\\c*\\s*>", table["regex"].asStr())
-        assertEquals("I [dw]on't need \\d{2} apples", table["regex2"].asStr())
+        assertEquals("C:\\Users\\nodejs\\templates", table["winpath"].stringOrNull)
+        assertEquals("\\\\ServerX\\admin\$\\system32\\", table["winpath2"].stringOrNull)
+        assertEquals("Tom \"Dubs\" Preston-Werner", table["quoted"].stringOrNull)
+        assertEquals("<\\i\\c*\\s*>", table["regex"].stringOrNull)
+        assertEquals("I [dw]on't need \\d{2} apples", table["regex2"].stringOrNull)
         assertEquals(
             "The first newline is\ntrimmed in raw strings.\nAll other whitespace\nis preserved.\n",
-            table["lines"].asStr(),
+            table["lines"].stringOrNull,
         )
     }
 
@@ -178,25 +178,25 @@ name = "banana"
 name = "plantain"
 """,
         )
-        assertEquals("apple", table["fruit"][0]["name"].asStr())
-        assertEquals("red", table["fruit"][0]["physical"]["color"].asStr())
-        assertEquals("round", table["fruit"][0]["physical"]["shape"].asStr())
-        assertEquals("red delicious", table["fruit"][0]["variety"][0]["name"].asStr())
-        assertEquals("granny smith", table["fruit"][0]["variety"][1]["name"].asStr())
-        assertEquals("banana", table["fruit"][1]["name"].asStr())
-        assertEquals("plantain", table["fruit"][1]["variety"][0]["name"].asStr())
+        assertEquals("apple", table["fruit"][0]["name"].stringOrNull)
+        assertEquals("red", table["fruit"][0]["physical"]["color"].stringOrNull)
+        assertEquals("round", table["fruit"][0]["physical"]["shape"].stringOrNull)
+        assertEquals("red delicious", table["fruit"][0]["variety"][0]["name"].stringOrNull)
+        assertEquals("granny smith", table["fruit"][0]["variety"][1]["name"].stringOrNull)
+        assertEquals("banana", table["fruit"][1]["name"].stringOrNull)
+        assertEquals("plantain", table["fruit"][1]["variety"][0]["name"].stringOrNull)
     }
 
     @Test
     fun blankLiteralString() {
         val table = parseDocument("foo = ''")
-        assertEquals("", table["foo"].asStr())
+        assertEquals("", table["foo"].stringOrNull)
     }
 
     @Test
     fun manyBlank() {
         val table = parseDocument("foo = \"\"\"\n\n\n\"\"\"")
-        assertEquals("\n\n", table["foo"].asStr())
+        assertEquals("\n\n", table["foo"].stringOrNull)
     }
 
     @Test
@@ -204,15 +204,15 @@ name = "plantain"
         val table = parseDocument(
             "\n        foo = \"\"\"\\\r\n\"\"\"\n        bar = \"\"\"\\\r\n   \r\n   \r\n   a\"\"\"\n    ",
         )
-        assertEquals("", table["foo"].asStr())
-        assertEquals("a", table["bar"].asStr())
+        assertEquals("", table["foo"].stringOrNull)
+        assertEquals("a", table["bar"].stringOrNull)
     }
 
     @Test
     fun floats() {
         fun t(actual: String, expected: Double) {
             val a = parseDocument("foo = $actual")
-            assertEquals(expected, a["foo"].asFloat())
+            assertEquals(expected, a["foo"].doubleOrNull)
         }
 
         t("1.0", 1.0)
@@ -289,7 +289,7 @@ name = "plantain"
     fun numberUnderscores() {
         fun t(actual: String, expected: Long) {
             val table = parseDocument("foo = $actual")
-            assertEquals(expected, table["foo"].asInteger())
+            assertEquals(expected, table["foo"].longOrNull)
         }
 
         t("1_0", 10)
@@ -301,14 +301,14 @@ name = "plantain"
 
     @Test
     fun emptyString() {
-        assertEquals("", parseDocument("foo = \"\"")["foo"].asStr())
+        assertEquals("", parseDocument("foo = \"\"")["foo"].stringOrNull)
     }
 
     @Test
     fun datetimes() {
         fun t(actual: String) {
             val toml = parseDocument("foo = $actual")
-            assertEquals(actual, toml["foo"].asDatetime().toString())
+            assertEquals(actual, toml["foo"].datetimeOrNull.toString())
         }
 
         t("2016-09-09T09:09:09Z")
@@ -399,7 +399,7 @@ clippy.exhaustive_enums = "warn"
     private fun assertStringValueRoundtrip(input: String, expected: String) {
         val parsed = parseValue(input)
         // Drops the repr.
-        val value = Value.from(parsed.asStr()!!)
+        val value = Value.String(parsed.stringOrNull!!)
         val actual = value.toString()
         parseValue(actual)
         assertData(expected, actual)

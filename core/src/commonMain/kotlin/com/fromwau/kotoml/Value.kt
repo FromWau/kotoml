@@ -10,50 +10,207 @@ import com.fromwau.kotoml.InlineTable as TomlInlineTable
 /**
  * A value: on the right of a key/value pair, or inside an array or inline table.
  *
- * The scalar kinds wrap a [Formatted], which keeps the value's spelling and decor; [Array] and [InlineTable]
- * wrap the containers. Values are mutable in place through their parts; to replace a value with a
- * different one, assign through the container that holds it.
+ * The scalar kinds keep the value together with how it was spelled and the text around it, so a parsed value
+ * prints back as written. One you make with its constructor prints in the default spelling:
+ *
+ * ```kotlin
+ * val port = Value.Integer(8080L)
+ * val name = Value.String("kotoml", Decor(prefix = " ", suffix = " # the library"))
+ * ```
+ *
+ * [Array] and [InlineTable] wrap the containers, which change in place. To replace a value with a different
+ * one, assign through the container that holds it.
  */
 public sealed interface Value {
 
-    /** A string. */
-    public class String(public val formatted: Formatted<kotlin.String>) : Value {
+    /**
+     * A string.
+     *
+     * @param value the string.
+     * @param decor the text around the value; by default the usual spacing for where it stands.
+     */
+    public class String internal constructor(internal val formatted: Formatted<kotlin.String>) : Value {
+        /** A value with no spelling of its own, which prints in the default one, surrounded by [decor]. */
+        public constructor(
+            value: kotlin.String,
+            decor: Decor = Decor(),
+        ) : this(Formatted.of(value)) {
+            formatted.decor.set(decor)
+        }
+
+        /** The string. */
+        public val value: kotlin.String
+            get() = formatted.value
+
+        /** The text the value was written as, such as `0x10` for 16, or null when it has none of its own. */
+        public val spelling: kotlin.String?
+            get() = formatted.spelling()
+
+        /** The text the value prints as: its [spelling], or the default one when it has none. */
+        public val displaySpelling: kotlin.String
+            get() = formatted.displayRepr()
+
         /** The value as TOML, with its decor. */
         override fun toString(): kotlin.String = display()
     }
 
-    /** A 64-bit integer. */
-    public class Integer(public val formatted: Formatted<Long>) : Value {
+    /**
+     * A 64-bit integer.
+     *
+     * @param value the integer.
+     * @param decor the text around the value; by default the usual spacing for where it stands.
+     */
+    public class Integer internal constructor(internal val formatted: Formatted<Long>) : Value {
+        /** A value with no spelling of its own, which prints in the default one, surrounded by [decor]. */
+        public constructor(
+            value: Long,
+            decor: Decor = Decor(),
+        ) : this(Formatted.of(value)) {
+            formatted.decor.set(decor)
+        }
+
+        /** The integer. */
+        public val value: Long
+            get() = formatted.value
+
+        /** The text the value was written as, such as `0x10` for 16, or null when it has none of its own. */
+        public val spelling: kotlin.String?
+            get() = formatted.spelling()
+
+        /** The text the value prints as: its [spelling], or the default one when it has none. */
+        public val displaySpelling: kotlin.String
+            get() = formatted.displayRepr()
+
         /** The value as TOML, with its decor. */
         override fun toString(): kotlin.String = display()
     }
 
-    /** A 64-bit float. */
-    public class Float(public val formatted: Formatted<Double>) : Value {
+    /**
+     * A 64-bit float. The sign of a NaN is kept and may print as `-nan`.
+     *
+     * @param value the float.
+     * @param decor the text around the value; by default the usual spacing for where it stands.
+     */
+    public class Float internal constructor(internal val formatted: Formatted<Double>) : Value {
+        /** A value with no spelling of its own, which prints in the default one, surrounded by [decor]. */
+        public constructor(
+            value: Double,
+            decor: Decor = Decor(),
+        ) : this(Formatted.of(value)) {
+            formatted.decor.set(decor)
+        }
+
+        /** The float. */
+        public val value: Double
+            get() = formatted.value
+
+        /** The text the value was written as, such as `0x10` for 16, or null when it has none of its own. */
+        public val spelling: kotlin.String?
+            get() = formatted.spelling()
+
+        /** The text the value prints as: its [spelling], or the default one when it has none. */
+        public val displaySpelling: kotlin.String
+            get() = formatted.displayRepr()
+
         /** The value as TOML, with its decor. */
         override fun toString(): kotlin.String = display()
     }
 
-    /** A boolean. */
-    public class Boolean(public val formatted: Formatted<kotlin.Boolean>) : Value {
+    /**
+     * A boolean.
+     *
+     * @param value the boolean.
+     * @param decor the text around the value; by default the usual spacing for where it stands.
+     */
+    public class Boolean internal constructor(internal val formatted: Formatted<kotlin.Boolean>) : Value {
+        /** A value with no spelling of its own, which prints in the default one, surrounded by [decor]. */
+        public constructor(
+            value: kotlin.Boolean,
+            decor: Decor = Decor(),
+        ) : this(Formatted.of(value)) {
+            formatted.decor.set(decor)
+        }
+
+        /** The boolean. */
+        public val value: kotlin.Boolean
+            get() = formatted.value
+
+        /** The text the value was written as, such as `0x10` for 16, or null when it has none of its own. */
+        public val spelling: kotlin.String?
+            get() = formatted.spelling()
+
+        /** The text the value prints as: its [spelling], or the default one when it has none. */
+        public val displaySpelling: kotlin.String
+            get() = formatted.displayRepr()
+
         /** The value as TOML, with its decor. */
         override fun toString(): kotlin.String = display()
     }
 
-    /** An offset date-time, local date-time, local date or local time. */
-    public class Datetime(public val formatted: Formatted<TomlDatetime>) : Value {
+    /**
+     * An offset date-time, local date-time, local date or local time.
+     *
+     * @param value the date-time.
+     * @param decor the text around the value; by default the usual spacing for where it stands.
+     */
+    public class Datetime internal constructor(internal val formatted: Formatted<TomlDatetime>) : Value {
+        /** A value with no spelling of its own, which prints in the default one, surrounded by [decor]. */
+        public constructor(
+            value: TomlDatetime,
+            decor: Decor = Decor(),
+        ) : this(Formatted.of(value)) {
+            formatted.decor.set(decor)
+        }
+
+        /** The date-time. */
+        public val value: TomlDatetime
+            get() = formatted.value
+
+        /** The text the value was written as, such as `0x10` for 16, or null when it has none of its own. */
+        public val spelling: kotlin.String?
+            get() = formatted.spelling()
+
+        /** The text the value prints as: its [spelling], or the default one when it has none. */
+        public val displaySpelling: kotlin.String
+            get() = formatted.displayRepr()
+
+        /** The value as TOML, with its decor. */
+        override fun toString(): kotlin.String = display()
+    }
+    /**
+     * An array of values.
+     *
+     * @param array the array, which this value wraps rather than copies.
+     * @param decor the text around the array; by default the decor [array] already has.
+     */
+    public class Array internal constructor(public val array: TomlArray) : Value {
+        /** Wraps [array], setting its decor to [decor]. */
+        public constructor(
+            array: TomlArray,
+            decor: Decor = array.decor,
+        ) : this(array) {
+            array.decor = decor
+        }
+
         /** The value as TOML, with its decor. */
         override fun toString(): kotlin.String = display()
     }
 
-    /** An array of values. */
-    public class Array(public val array: TomlArray) : Value {
-        /** The value as TOML, with its decor. */
-        override fun toString(): kotlin.String = display()
-    }
+    /**
+     * An inline table of key/value pairs.
+     *
+     * @param table the table, which this value wraps rather than copies.
+     * @param decor the text around the table; by default the decor [table] already has.
+     */
+    public class InlineTable internal constructor(public val table: TomlInlineTable) : Value {
+        /** Wraps [table], setting its decor to [decor]. */
+        public constructor(
+            table: TomlInlineTable,
+            decor: Decor = table.decor,
+        ) : this(table) {
+            table.decor = decor
+        }
 
-    /** An inline table of key/value pairs. */
-    public class InlineTable(public val table: TomlInlineTable) : Value {
         /** The value as TOML, with its decor. */
         override fun toString(): kotlin.String = display()
     }
@@ -70,104 +227,72 @@ public sealed interface Value {
             is InlineTable -> TomlType.InlineTable
         }
 
-    /** The string, if this is one. */
-    public fun asStr(): kotlin.String? = (this as? String)?.formatted?.value()
+    /** The string, or null when this is not one. */
+    public val stringOrNull: kotlin.String?
+        get() = (this as? String)?.value
 
-    /** Whether this is a string. */
-    public fun isStr(): kotlin.Boolean = asStr() != null
+    /** The integer, or null when this is not one. */
+    public val longOrNull: Long?
+        get() = (this as? Integer)?.value
 
-    /** The integer, if this is one. */
-    public fun asInteger(): Long? = (this as? Integer)?.formatted?.value()
+    /** The float, or null when this is not one. */
+    public val doubleOrNull: Double?
+        get() = (this as? Float)?.value
 
-    /** Whether this is an integer. */
-    public fun isInteger(): kotlin.Boolean = asInteger() != null
+    /** The boolean, or null when this is not one. */
+    public val booleanOrNull: kotlin.Boolean?
+        get() = (this as? Boolean)?.value
 
-    /** The float, if this is one. */
-    public fun asFloat(): Double? = (this as? Float)?.formatted?.value()
+    /** The date-time, or null when this is not one. */
+    public val datetimeOrNull: TomlDatetime?
+        get() = (this as? Datetime)?.value
 
-    /** Whether this is a float. */
-    public fun isFloat(): kotlin.Boolean = asFloat() != null
+    /** The array, or null when this is not one. Changing the array changes this value. */
+    public val arrayOrNull: TomlArray?
+        get() = (this as? Array)?.array
 
-    /** The boolean, if this is one. */
-    public fun asBool(): kotlin.Boolean? = (this as? Boolean)?.formatted?.value()
-
-    /** Whether this is a boolean. */
-    public fun isBool(): kotlin.Boolean = asBool() != null
-
-    /** The date-time, if this is one. */
-    public fun asDatetime(): TomlDatetime? = (this as? Datetime)?.formatted?.value()
-
-    /** Whether this is a date-time. */
-    public fun isDatetime(): kotlin.Boolean = asDatetime() != null
-
-    /** The array, if this is one. */
-    public fun asArray(): TomlArray? = (this as? Array)?.array
-
-    /** The array, if this is one, to change. */
-    public fun asArrayMut(): TomlArray? = asArray()
-
-    /** Whether this is an array. */
-    public fun isArray(): kotlin.Boolean = asArray() != null
-
-    /** The inline table, if this is one. */
-    public fun asInlineTable(): TomlInlineTable? = (this as? InlineTable)?.table
-
-    /** The inline table, if this is one, to change. */
-    public fun asInlineTableMut(): TomlInlineTable? = asInlineTable()
-
-    /** Whether this is an inline table. */
-    public fun isInlineTable(): kotlin.Boolean = asInlineTable() != null
-
-    /** The text around the value, to change. */
-    public fun decorMut(): Decor = when (this) {
-        is String -> formatted.decorMut()
-        is Integer -> formatted.decorMut()
-        is Float -> formatted.decorMut()
-        is Boolean -> formatted.decorMut()
-        is Datetime -> formatted.decorMut()
-        is Array -> array.decorMut()
-        is InlineTable -> table.decorMut()
-    }
-
-    /** The text around the value. */
-    public fun decor(): Decor = decorMut()
+    /** The inline table, or null when this is not one. Changing the table changes this value. */
+    public val inlineTableOrNull: TomlInlineTable?
+        get() = (this as? InlineTable)?.table
 
     /**
-     * Sets the text before and after the value, and returns this value.
+     * The text around the value. Setting it changes how this value prints:
      *
      * ```kotlin
-     * Value.from(42L).decorated(" ", " ").toString() // " 42 "
+     * val value = Value.Integer(42L)
+     * value.decor = Decor(" ", " ")
+     * value.toString() // " 42 "
      * ```
      */
-    public fun decorated(prefix: kotlin.String, suffix: kotlin.String): Value {
-        decorate(RawString.from(prefix), RawString.from(suffix))
-        return this
+    public var decor: Decor
+        get() = rawDecor().toDecor()
+        set(value) {
+            rawDecor().set(value)
+        }
+
+    /**
+     * Drops the value's own spelling so it prints in the default one. An array or inline table instead drops
+     * the formatting of its elements, as [TomlArray.fmt] and [TomlInlineTable.fmt] do.
+     */
+    public fun resetFormatting() {
+        when (this) {
+            is String -> formatted.repr = null
+            is Integer -> formatted.repr = null
+            is Float -> formatted.repr = null
+            is Boolean -> formatted.repr = null
+            is Datetime -> formatted.repr = null
+            is Array -> array.fmt()
+            is InlineTable -> table.fmt()
+        }
     }
 
-    /** Sets the text before and after the value, and returns this value. */
-    public fun decorated(prefix: RawString, suffix: RawString): Value {
-        decorate(prefix, suffix)
-        return this
-    }
-
-    /** Where the value lies in the original document; see [RawString.span]. */
-    public fun span(): Span? = when (this) {
-        is String -> formatted.span()
-        is Integer -> formatted.span()
-        is Float -> formatted.span()
-        is Boolean -> formatted.span()
-        is Datetime -> formatted.span()
-        is Array -> array.span()
-        is InlineTable -> table.span()
-    }
-
-    /** A deep copy of this value. */
-    public fun clone(): Value = when (this) {
-        is String -> String(formatted.clone())
-        is Integer -> Integer(formatted.clone())
-        is Float -> Float(formatted.clone())
-        is Boolean -> Boolean(formatted.clone())
-        is Datetime -> Datetime(formatted.clone())
+    /** A deep copy of this value, with its spelling and decor. */
+    public fun copy(): Value = when (this) {
+        is String -> String(formatted.copy())
+        is Integer -> Integer(formatted.copy())
+        is Float -> Float(formatted.copy())
+        is Boolean -> Boolean(formatted.copy())
+        is Datetime -> Datetime(formatted.copy())
         is Array -> Array(array.clone())
         is InlineTable -> InlineTable(table.clone())
     }
@@ -180,59 +305,46 @@ public sealed interface Value {
          * Value.parse("'literal'") // a string that prints as 'literal'
          * ```
          */
-        public fun parse(text: kotlin.String, version: TomlVersion = TomlVersion.V1_1): Result<Value, TomlParseError> {
+        public fun parse(
+            text: kotlin.String,
+            version: TomlVersion = TomlVersion.V1_1,
+        ): Result<Value, TomlParseError> {
             val source = TomlSource(text)
             val sink = TomlSink(text)
             val value = parseValueItem(source, sink, version)
             sink.error()?.let { return Err(it) }
             // Keep the spelling, not the decor: whitespace around the text is probably not intended.
-            value.decorMut().clear()
+            value.rawDecor().clear()
             value.despan(SourceText(text))
             return Ok(value)
         }
-
-        /** A string in its default spelling. */
-        public fun from(value: kotlin.String): Value = String(Formatted.of(value))
-
-        /** An integer in its default spelling. */
-        public fun from(value: Long): Value = Integer(Formatted.of(value))
-
-        /** A float in its default spelling; the sign of a NaN is kept and may print as `-nan`. */
-        public fun from(value: Double): Value = Float(Formatted.of(value))
-
-        /** A boolean. */
-        public fun from(value: kotlin.Boolean): Value = Boolean(Formatted.of(value))
-
-        /** A date-time in its default spelling. */
-        public fun from(value: TomlDatetime): Value = Datetime(Formatted.of(value))
-
-        /** A local date. */
-        public fun from(value: Date): Value = from(TomlDatetime.from(value))
-
-        /** A local time. */
-        public fun from(value: Time): Value = from(TomlDatetime.from(value))
-
-        /** An array. */
-        public fun from(value: TomlArray): Value = Array(value)
-
-        /** An inline table. */
-        public fun from(value: TomlInlineTable): Value = InlineTable(value)
-
-        /** A copy of [value], upstream's `From<&Value>`. */
-        public fun from(value: Value): Value = value.clone()
-
-        /** An array of [values], each in its default formatting. */
-        public fun fromIter(values: Iterable<Value>): Value = Array(TomlArray.fromIter(values))
-
-        /** An inline table of [pairs], each in its default formatting. */
-        public fun fromPairs(pairs: Iterable<kotlin.Pair<kotlin.String, Value>>): Value =
-            InlineTable(TomlInlineTable.fromIter(pairs))
     }
 }
 
-internal fun Value.decorate(prefix: RawString, suffix: RawString) {
-    val decor = decorMut()
-    decor.assign(Decor(prefix, suffix))
+internal fun Value.rawDecor(): RawDecor = when (this) {
+    is Value.String -> formatted.decor
+    is Value.Integer -> formatted.decor
+    is Value.Float -> formatted.decor
+    is Value.Boolean -> formatted.decor
+    is Value.Datetime -> formatted.decor
+    is Value.Array -> array.rawDecor
+    is Value.InlineTable -> table.rawDecor
+}
+
+internal fun Value.span(): Span? = when (this) {
+    is Value.String -> formatted.span()
+    is Value.Integer -> formatted.span()
+    is Value.Float -> formatted.span()
+    is Value.Boolean -> formatted.span()
+    is Value.Datetime -> formatted.span()
+    is Value.Array -> array.span
+    is Value.InlineTable -> table.span
+}
+
+internal fun Value.decorate(prefix: String, suffix: String) {
+    val decor = rawDecor()
+    decor.prefix = RawString.from(prefix)
+    decor.suffix = RawString.from(suffix)
 }
 
 internal fun Value.despan(input: SourceText) {

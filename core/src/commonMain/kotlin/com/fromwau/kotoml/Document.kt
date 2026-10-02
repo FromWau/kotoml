@@ -6,7 +6,7 @@ import com.fromwau.kern.result.Result
 import com.fromwau.kotoml.parser.TomlSource
 
 /**
- * A parsed TOML document that still points into its text: every item knows its [span][Item.span] in [raw].
+ * A parsed TOML document that still points into its text [raw].
  *
  * It is for reading. To edit and print, turn it into a [DocumentMut] with [intoMut]; editing a `Document`
  * directly is not supported, though Kotlin cannot stop it.
@@ -37,7 +37,7 @@ public class Document internal constructor(
     public fun iter(): Iterator<Pair<String, Item>> = asTable().iter()
 
     /** The text after the last item. */
-    public fun trailing(): RawString = trailing
+    public fun trailing(): String = trailing.toStr(SourceText(raw))
 
     /** The text the document was parsed from. */
     public fun raw(): String = raw
@@ -75,13 +75,13 @@ public class Document internal constructor(
  * ```kotlin
  * val doc = DocumentMut.parse("\"hello\" = 'toml!' # comment\n['a'.b]\n").getOrNull()!!
  * doc["a"]["b"]["c"]["d"] = value("hello")
- * doc["a"]["b"]["c"].asInlineTableMut()?.fmt()
+ * doc["a"]["b"]["c"].inlineTableOrNull?.fmt()
  * doc.toString() // "\"hello\" = 'toml!' # comment\n['a'.b]\nc = { d = \"hello\" }\n"
  * ```
  */
 public class DocumentMut internal constructor(
     internal val root: Item,
-    private var trailing: RawString,
+    internal var rawTrailing: RawString,
     internal val lineEnding: String,
     // The text this document was parsed from, kept to print it back without a final newline it never had.
     private val parsedFrom: String?,
@@ -120,17 +120,12 @@ public class DocumentMut internal constructor(
     override fun iterator(): Iterator<Pair<String, Item>> = iter()
 
     /** Sets the text after the last item. */
-    public fun setTrailing(trailing: RawString) {
-        this.trailing = trailing
-    }
-
-    /** Sets the text after the last item. */
     public fun setTrailing(trailing: String) {
-        this.trailing = RawString.from(trailing)
+        rawTrailing = RawString.from(trailing)
     }
 
     /** The text after the last item. */
-    public fun trailing(): RawString = trailing
+    public fun trailing(): String = rawTrailing.toStrWithDefault("")
 
     /** The slot at [key] of the root table; see [Table.get]. */
     public operator fun get(key: String): Item = asTable()[key]
@@ -161,14 +156,15 @@ public class DocumentMut internal constructor(
     /** Whether the root table holds no items. */
     public fun isEmpty(): Boolean = asTable().isEmpty()
 
-    /** The text around the root table, to change. */
-    public fun decorMut(): Decor = asTable().decorMut()
-
-    /** The text around the root table. */
-    public fun decor(): Decor = asTable().decor()
+    /** The text before the document's first line and after its last; see [Table.decor]. */
+    public var decor: Decor
+        get() = asTable().decor
+        set(value) {
+            asTable().decor = value
+        }
 
     /** A deep copy. */
-    public fun clone(): DocumentMut = DocumentMut(root.clone(), trailing, lineEnding, parsedFrom)
+    public fun clone(): DocumentMut = DocumentMut(root.clone(), rawTrailing, lineEnding, parsedFrom)
 
     /** The document as TOML text. */
     override fun toString(): String {

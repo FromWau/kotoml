@@ -71,9 +71,9 @@ private fun instant(text: String): Pair<Long, Long>? {
     val seconds = days * 86_400 +
         time.hour.toLong() * 3_600 +
         time.minute.toLong() * 60 +
-        (time.second ?: 0u).toLong() -
+        (time.second ?: 0).toLong() -
         offsetMinutes * 60L
-    return seconds to (time.nanosecond ?: 0u).toLong()
+    return seconds to (time.nanosecond ?: 0).toLong()
 }
 
 /** A local date, time or date-time with missing seconds and fraction read as zero. */
@@ -88,8 +88,8 @@ private fun local(text: String): List<Long>? {
         date?.day?.toLong() ?: -1,
         time?.hour?.toLong() ?: -1,
         time?.minute?.toLong() ?: -1,
-        time?.let { (it.second ?: 0u).toLong() } ?: -1,
-        time?.let { (it.nanosecond ?: 0u).toLong() } ?: -1,
+        time?.let { (it.second ?: 0).toLong() } ?: -1,
+        time?.let { (it.nanosecond ?: 0).toLong() } ?: -1,
     )
 }
 
@@ -117,13 +117,12 @@ private fun Item.toTagged(): Tagged {
 }
 
 private fun Value.toTagged(): Tagged = when (this) {
-    is Value.Integer -> Tagged.Scalar("integer", formatted.value().toString())
-    is Value.String -> Tagged.Scalar("string", formatted.value())
-    is Value.Float -> Tagged.Scalar("float", taggedFloat(formatted.value()))
-    is Value.Boolean -> Tagged.Scalar("bool", formatted.value().toString())
+    is Value.Integer -> Tagged.Scalar("integer", value.toString())
+    is Value.String -> Tagged.Scalar("string", value)
+    is Value.Float -> Tagged.Scalar("float", taggedFloat(value))
+    is Value.Boolean -> Tagged.Scalar("bool", value.toString())
     is Value.Datetime -> {
-        val value = formatted.value()
-        val time = value.time?.let { it.copy(second = it.second ?: 0u, nanosecond = it.nanosecond ?: 0u) }
+        val time = value.time?.let { it.copy(second = it.second ?: 0, nanosecond = it.nanosecond ?: 0) }
         val normalized = value.copy(time = time)
         val type = when {
             value.date != null && value.time != null && value.offset != null -> "datetime"
@@ -155,28 +154,28 @@ internal fun Tagged.toDocument(): DocumentMut? {
 
 private fun Tagged.toValue(): Value? = when (this) {
     is Tagged.Scalar -> when (type) {
-        "string" -> Value.from(value)
-        "integer" -> parseRustI64(value, 10)?.let { Value.from(it) }
-        "float" -> parseRustF64(value)?.let { Value.from(it) }
+        "string" -> Value.String(value)
+        "integer" -> parseRustI64(value, 10)?.let { Value.Integer(it) }
+        "float" -> parseRustF64(value)?.let { Value.Float(it) }
         "bool" -> when (value) {
-            "true" -> Value.from(true)
-            "false" -> Value.from(false)
+            "true" -> Value.Boolean(true)
+            "false" -> Value.Boolean(false)
             else -> null
         }
         else -> when (val parsed = Datetime.parse(value)) {
-            is Result.Success -> Value.from(parsed.value)
+            is Result.Success -> Value.Datetime(parsed.value)
             is Result.Error -> null
         }
     }
     is Tagged.Table -> {
         val table = InlineTable()
         for ((key, value) in entries) table.insert(key, value.toValue() ?: return null)
-        Value.from(table)
+        Value.InlineTable(table)
     }
     is Tagged.Array -> {
         val array = TomlArray()
         for (item in items) array.pushFormatted(item.toValue() ?: return null)
-        Value.from(array)
+        Value.Array(array)
     }
 }
 

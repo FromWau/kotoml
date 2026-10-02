@@ -20,9 +20,6 @@ public class ArrayOfTables() : Iterable<Table> {
         return array
     }
 
-    /** Where the tables lie in the original document; see [RawString.span]. */
-    public fun span(): Span? = span
-
     internal fun despan(input: SourceText) {
         span = null
         for (value in values) value.despan(input)

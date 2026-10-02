@@ -27,7 +27,7 @@ document model. The parser types a `TomlParseError` carries are public and live 
 ### Bytes, not characters
 
 The lexer, the event parser and the decoders work on the UTF-8 bytes of the input, never on the
-`String`'s UTF-16 units. Every `Span`, every error position and every `RawString` span is a byte
+`String`'s UTF-16 units. Every `Span`, every error position and every span kept for formatting is a byte
 offset, exactly as upstream's are, so a span read off this port indexes the same text a Rust caller would
 index. Only the slices that become values (decoded strings, keys, raw text kept for formatting) are
 decoded back to `String`. The reason is that upstream's error columns, its `Span`s and the text an edit
@@ -40,7 +40,9 @@ points there, never UTF-16 units: the error column, the key ordering of `sort_va
 
 ### Naming
 
-- Types and functions keep upstream's names in Kotlin casing, accessors included: `token.kind()`, `decor_mut` becomes `decorMut()`. A Rust `new` constructor is the Kotlin constructor.
+- Types and functions keep upstream's names in Kotlin casing, accessors included: `token.kind()`, `trailing_comma`
+  becomes `trailingComma()`. A Rust `new` constructor is the Kotlin constructor. Values are the exception: they
+  have constructors, `OrNull` properties and a `var decor`, listed in section 5.
 - A Rust trait implemented on a standard type (a closure, `()`, `Vec<T>`, `Option<T>`) has no Kotlin home, so
   the port names the implementation instead; each one is listed in its crate's table.
 - Display is `toString()`. `FromStr` is a `parse` function on the companion that returns a kern `Result`.
@@ -62,17 +64,20 @@ references, not places, so the port makes the difference explicit:
 - `Item` is a mutable slot. Tables and arrays store items, indexing hands out the stored item, and
   `item.assign(other)` is `*item = other.clone()`. Indexing a missing key returns an empty item that joins its
   parent at the first write, so `doc["a"]["b"] = value(...)` works as in Rust, and reading never adds a key.
-- `Value` is a sealed type whose parts (`Formatted`, `TomlArray`, `InlineTable`, `Decor`) are mutable in place.
-  A whole value is replaced through its container (`TomlArray.replace`, `InlineTable.insert`, `Item.assign`).
-- `Decor.assign(other)` is `*decor = other`.
+- `Value` is a sealed type. A scalar's spelling is fixed once made, apart from `resetFormatting()`; its
+  `decor` and the containers `TomlArray` and `InlineTable` change in place. A whole value is replaced through
+  its container (`TomlArray.replace`, `InlineTable.insert`, `Item.assign`).
+- `Decor` is an immutable data class, and every holder exposes it as a `var decor`: `*decor_mut() = other` is
+  `holder.decor = other`, and `set_prefix(p)` is `holder.decor = holder.decor.copy(prefix = p)`.
 - Storing an item stores a copy of its content (`assign`, `table[key] = item`, `insert`, `extend`, an entry's
   `insert`), so two places never share a slot, a table or a value. Rust moves the value into its place; Kotlin
   cannot empty the caller's variable, and moving out of an array element would leave a hole in the array.
 - A `Value` or `Table` handed to a container directly (`TomlArray.push`, `InlineTable.insert`,
   `ArrayOfTables.push`) is stored as is, as Rust moves it: keep using it only through the document, or hand over
-  its `clone()`.
-- An array element is always a value and an array-of-tables element always a table. Writing anything else
-  into one fails, so upstream's placeholder elements cannot occur and `len()` counts what iteration yields.
+  its `copy()` (a value) or `clone()` (a container).
+- An array element and an inline-table entry are always values, and an array-of-tables element always a
+  table. Writing anything else into one fails with `NotAValue` or `NotATableElement`, so upstream's placeholder
+  elements cannot occur, `len()` counts what iteration yields, and an inline table never holds a `Table`.
 - `into_*` conversions move the content into the result and leave the source empty, as Rust's move does.
 
 ### Beyond upstream: the whole toml-test suite
@@ -112,14 +117,14 @@ section 1.
 
 | upstream | Kotlin | status | tests |
 |---|---|---|---|
-| `Datetime` (`date`, `time`, `offset` fields) | `Datetime` data class | done | `DatetimeDisplayTest`, `DatetimeParseTest` |
-| `Date` (`year`, `month`, `day`) | `Date` (`UShort`, `UByte`, `UByte`) | done | `DatetimeDisplayTest.datetimeWithoutSeconds`, `DatetimeParseTest.datetimeWithoutSeconds` |
-| `Time` (`hour`, `minute`, `second`, `nanosecond`) | `Time` (`UByte`, `UByte`, `UByte?`, `UInt?`) | done | `DatetimeDisplayTest`, `DatetimeParseTest.timeWithoutSeconds` |
+| `Datetime` (`date`, `time`, `offset` fields) | `Datetime(date, time, offset)` data class, each part defaulting to `null` | done | `DatetimeDisplayTest`, `DatetimeParseTest` |
+| `Date` (`year`, `month`, `day`) | `Date` (`Int`, `Int`, `Int`) | done | `DatetimeDisplayTest.datetimeWithoutSeconds`, `DatetimeParseTest.datetimeWithoutSeconds` |
+| `Time` (`hour`, `minute`, `second`, `nanosecond`) | `Time` (`Int`, `Int`, `Int?`, `Int?`) | done | `DatetimeDisplayTest`, `DatetimeParseTest.timeWithoutSeconds` |
 | `Offset::Z`, `Offset::Custom { minutes }` | `Offset.Z`, `Offset.Custom(minutes: Short)` | done | `DatetimeDisplayTest.datetimeWithoutSeconds` |
 | `DatetimeParseError` | `DatetimeParseError(part, expected)`, typed: `DatetimePart`, `DatetimeExpected`, `DatetimeField` | done | `DatetimeParseTest` |
 | `impl Display for Datetime / Date / Time / Offset / DatetimeParseError` | `toString()`; the error's text is rendered as part of `TomlParseError.render` | done | `DatetimeDisplayTest`, `DatetimeParseTest` |
 | `impl FromStr for Datetime` | `Datetime.parse(String): Result<Datetime, DatetimeParseError>` | done | `DatetimeParseTest` |
-| `impl From<Date> for Datetime`, `impl From<Time> for Datetime` | `Datetime.from(Date)`, `Datetime.from(Time)` | done | |
+| `impl From<Date> for Datetime`, `impl From<Time> for Datetime` | `Datetime(date = …)`, `Datetime(time = …)` | done | `ValueTest` |
 | `impl Ord / PartialOrd / Eq / Hash` (derived) | `Comparable`, data-class `equals` / `hashCode` | done | |
 | `impl Error for DatetimeParseError` | `IError` | done | |
 | `de::*` (`DatetimeDeserializer`, `VisitMap`, `is_datetime`) | | serde-only | |
@@ -199,57 +204,68 @@ section 1.
 | upstream | Kotlin | status | tests |
 |---|---|---|---|
 | `DocumentMut::new`, `Default` | `DocumentMut()` | done | `EditUnitTest.documentDefaultRoundtrip` |
-| `DocumentMut::as_item`, `as_item_mut`, `into_item`, `as_table`, `as_table_mut`, `into_table`, `iter`, `set_trailing`, `trailing` | same names | done | `EditTest` |
+| `DocumentMut::as_item`, `as_item_mut`, `into_item`, `as_table`, `as_table_mut`, `into_table`, `iter`, `set_trailing`, `trailing` | same names; the trailing text is a `String` | done | `EditTest` |
 | `impl FromStr for DocumentMut` | `DocumentMut.parse(String): Result<DocumentMut, TomlParseError>` | done | `EditTest`, `ComplianceParseTest` |
 | `impl Display for DocumentMut` | `toString()`, keeping line endings, spellings and dotted-key order (see section 2) | done | `EditTest`, `PreservationTest`, `SuiteTest.roundTrips*` |
 | `impl Index<&str> / IndexMut<&str> for DocumentMut` | `operator get`, `operator set` | done | `EditTest` |
-| `impl Deref / DerefMut<Target = Table> for DocumentMut` | `asTable()`, plus forwards for `getOrNull`, `containsKey`, `insert`, `remove`, `entry`, `len`, `isEmpty`, `decor`, `decorMut` | done | `EditTest.testAddRootDecor` |
+| `impl Deref / DerefMut<Target = Table> for DocumentMut` | `asTable()`, plus forwards for `getOrNull`, `containsKey`, `insert`, `remove`, `entry`, `len`, `isEmpty`, and `var decor` for `decor` / `decor_mut` | done | `EditTest.testAddRootDecor` |
 | `impl From<Table> for DocumentMut` | `DocumentMut(Table)` | done | |
 | `Document::new`, `Default` | `Document()` | done | |
-| `Document::parse`, `as_item`, `into_item`, `as_table`, `into_table`, `iter`, `trailing`, `raw`, `into_mut` | same names | done | every `DocumentMut.parse` goes through them |
+| `Document::parse`, `as_item`, `into_item`, `as_table`, `into_table`, `iter`, `trailing`, `raw`, `into_mut` | same names; `trailing()` is the text as a `String` | done | every `DocumentMut.parse` goes through them |
 | `impl FromStr for Document<String>` | `Document.parse` | done | |
 | `impl Deref<Target = Table> for Document` | `asTable()`, `operator get` | done | |
 | `ImDocument` (deprecated alias of `Document`) | | n/a | deprecated upstream since 0.23 |
 | `Item::None / Value / Table / ArrayOfTables`, `Default` | `Item.none()`, `Item.from(Value / Table / ArrayOfTables)` | done | `EditTest` |
 | `Item::or_insert` | `orInsert(Item): Result<Item, TomlEditError>` | done | |
-| `Item::type_name` (as `type: TomlType`), `as_*`, `as_*_mut`, `is_*`, `as_integer` … `is_inline_table`, `as_table_like(_mut)`, `is_table_like`, `span` | same names | done | `EditTest`, `ComplianceParseTest` |
+| `Item::type_name` (as `type: TomlType`), `as_value(_mut)`, `as_table(_mut)`, `as_array_of_tables(_mut)`, `is_none`, `is_value`, `is_table`, `is_array_of_tables`, `as_table_like(_mut)`, `is_table_like` | same names | done | `EditTest`, `ComplianceParseTest` |
+| `Item::as_str`, `as_integer`, `as_float`, `as_bool`, `as_datetime`, `as_array(_mut)`, `as_inline_table(_mut)` | `stringOrNull`, `longOrNull`, `doubleOrNull`, `booleanOrNull`, `datetimeOrNull`, `arrayOrNull`, `inlineTableOrNull` | done | `EditTest`, `ComplianceParseTest` |
+| `Item::is_str` … `is_inline_table` | | n/a | `type`, or a check that the `OrNull` property is not null |
+| `Item::span` | | n/a | an editable item never holds spans; see section 2 |
 | `Item::get` / `get_mut` (`Option<&Item>`) | `getOrNull(String / Int)`, `getMut(String / Int)` | done | `EditTest` |
 | `impl Index / IndexMut<usize / &str / String> for Item` | `operator get(String / Int)`, `operator set(String / Int, Item)` | done | `EditTest`, `ComplianceParseTest.fruit` |
 | `Item::into_value / into_table / into_array_of_tables` (`Result<_, Item>`) | nullable results | done | `EditTest.inlineTableToTable` |
 | `Item::make_value` | `makeValue()` | done | `EditTest.tableIntoInline` |
 | `impl FromStr for Item`, `impl Display`, `impl Clone`, `From<…>` | `Item.parse`, `toString()`, `clone()`, `Item.from(…)` | done | `EditUnitTest.itemStringRoundtrip` |
 | `value()`, `table()`, `array()` | `value(…)` overloads, `table()`, `array()` | done | `EditDocTest.itemValue` |
-| `Value::String / Integer / Float / Boolean / Datetime / Array / InlineTable` | `Value.String(formatted)` … `Value.Array(array)`, `Value.InlineTable(table)` | done | `EditTest` |
-| `Value::type_name` (as `type: TomlType`), `as_str` … `is_inline_table`, `as_array_mut`, `as_inline_table_mut`, `decor_mut`, `decor`, `decorated`, `span` | same names | done | `EditDocTest` |
-| `impl FromStr for Value`, `impl Display`, `From<&str, String, i64, f64, bool, Datetime, Date, Time, Array, InlineTable, &Value>` | `Value.parse`, `toString()`, `Value.from(…)` | done | `ComplianceParseTest` |
-| `impl FromIterator<V> / FromIterator<(K, V)> for Value` | `Value.fromIter(Iterable<Value>)`, `Value.fromPairs(Iterable<Pair<String, Value>>)` | done | `EditUnitTest.valueFromIterFormatting` |
-| `Array` (`new`, `fmt`, `set_trailing_comma`, `trailing_comma`, `set_trailing`, `trailing`, `decor_mut`, `decor`, `span`, `iter`, `iter_mut`, `len`, `is_empty`, `clear`, `get`, `get_mut`, `push`, `push_formatted`, `retain`, `sort_by`, `sort_by_key`) | `TomlArray`, same names | done | `EditTest`, `EditDocTest` |
+| `Value::String / Integer / Float / Boolean / Datetime / Array / InlineTable` | `Value.String(value, decor)` … `Value.Datetime(value, decor)`, `Value.Array(array, decor)`, `Value.InlineTable(table, decor)`; each scalar has `value`, `spelling` and `displaySpelling` | done | `EditTest`, `ValueTest` |
+| `Value::type_name` (as `type: TomlType`), `as_str`, `as_integer`, `as_float`, `as_bool`, `as_datetime`, `as_array(_mut)`, `as_inline_table(_mut)` | `type`, `stringOrNull`, `longOrNull`, `doubleOrNull`, `booleanOrNull`, `datetimeOrNull`, `arrayOrNull`, `inlineTableOrNull` | done | `ValueTest`, `ComplianceParseTest` |
+| `Value::is_str` … `is_inline_table` | | n/a | `is Value.String` and its siblings, or `type` |
+| `Value::decor_mut`, `decor`, `decorated` | `var decor`, or the constructor's `decor` | done | `EditDocTest.valueDecorMut`, `valueDecor`, `valueDecorated` |
+| `Value::fmt` | `resetFormatting()` | done | `ValueTest` |
+| `Value::span` | | n/a | an editable value never holds spans; see section 2 |
+| `impl FromStr for Value`, `impl Display`, `impl Clone` | `Value.parse`, `toString()`, `copy()` | done | `ComplianceParseTest`, `ValueTest` |
+| `impl From<&str, String, i64, f64, bool, Datetime, Date, Time, Array, InlineTable, &Value> for Value` | the constructors: `Value.String(…)`, `Value.Datetime(Datetime(date = …))`, `Value.Array(…)`, `copy()` for `&Value` | done | `ComplianceParseTest` |
+| `impl FromIterator<V> / FromIterator<(K, V)> for Value` | `Value.Array(TomlArray.fromIter(…))`, `Value.InlineTable(InlineTable.fromIter(…))` | done | `EditUnitTest.valueFromIterFormatting`, `EditTest.testInlineTableAppend` |
+| `Array` (`new`, `fmt`, `set_trailing_comma`, `trailing_comma`, `set_trailing`, `trailing`, `decor_mut`, `decor`, `span`, `iter`, `iter_mut`, `len`, `is_empty`, `clear`, `get`, `get_mut`, `push`, `push_formatted`, `retain`, `sort_by`, `sort_by_key`) | `TomlArray`, same names; `var decor` for `decor` / `decor_mut`, the trailing text a `String`, no `span` | done | `EditTest`, `EditDocTest` |
 | `Array::insert`, `insert_formatted`, `replace`, `replace_formatted`, `remove` | same names, returning `TomlEditError` where upstream panics | done | `EditTest.testInsertReplaceIntoArray`, `EditDocTest` |
 | `impl Display / Extend / FromIterator / IntoIterator for Array`, `ArrayIter`, `ArrayIterMut`, `ArrayIntoIter` | `toString()`, `extend`, `TomlArray.fromIter`, `Iterable<Value>`; iterator aliases n/a | done | |
-| `ArrayOfTables` (`new`, `into_array`, `span`, `iter`, `iter_mut`, `len`, `is_empty`, `clear`, `get`, `get_mut`, `push`, `retain`) | same names | done | `EditTest` |
+| `ArrayOfTables` (`new`, `into_array`, `span`, `iter`, `iter_mut`, `len`, `is_empty`, `clear`, `get`, `get_mut`, `push`, `retain`) | same names, no `span` | done | `EditTest` |
 | `ArrayOfTables::insert`, `replace`, `remove` | same names, returning `TomlEditError` where upstream panics | done | `EditTest.arrayOfTables*` |
 | `impl Display / Extend / FromIterator / IntoIterator for ArrayOfTables`, iterator aliases | `toString()`, `extend`, `ArrayOfTables.fromIter`, `Iterable<Table>`; aliases n/a | done | |
-| `Table` (`new`, `into_inline_table`, `get_values`, `fmt`, `sort_values`, `sort_values_by`, `set_implicit`, `is_implicit`, `set_dotted`, `is_dotted`, `set_position`, `position`, `decor_mut`, `decor`, `key`, `key_mut`, `span`, `iter`, `iter_mut`, `len`, `is_empty`, `clear`, `entry`, `entry_format`, `get_mut`, `get_key_value`, `get_key_value_mut`, `contains_key`, `contains_table`, `contains_value`, `contains_array_of_tables`, `insert`, `insert_formatted`, `remove`, `remove_entry`, `retain`) | same names; `isize` positions are `Long` | done | `EditTest` |
+| `Table` (`new`, `into_inline_table`, `get_values`, `fmt`, `sort_values`, `sort_values_by`, `set_implicit`, `is_implicit`, `set_dotted`, `is_dotted`, `set_position`, `position`, `decor_mut`, `decor`, `key`, `key_mut`, `span`, `iter`, `iter_mut`, `len`, `is_empty`, `clear`, `entry`, `entry_format`, `get_mut`, `get_key_value`, `get_key_value_mut`, `contains_key`, `contains_table`, `contains_value`, `contains_array_of_tables`, `insert`, `insert_formatted`, `remove`, `remove_entry`, `retain`) | same names; `isize` positions are `Long`; `var decor` for `decor` / `decor_mut`; no `span` | done | `EditTest` |
 | `Table::get` | `getOrNull` | done | `EditTest` |
 | `impl Index / IndexMut<&str> for Table` | `operator get` (a slot), `operator set` | done | `EditTest` |
 | `impl Display / Extend / FromIterator / IntoIterator for Table`, `Iter`, `IterMut`, `IntoIter` | `toString()`, `extend`, `Table.fromIter`, `Iterable<Pair<String, Item>>`; aliases n/a | done | `EditDocTest.itemValue` |
 | `TableLike` (`iter`, `iter_mut`, `len`, `is_empty`, `clear`, `entry`, `entry_format`, `get`, `get_mut`, `get_key_value`, `get_key_value_mut`, `contains_key`, `insert`, `remove`, `get_values`, `fmt`, `sort_values`, `set_dotted`, `is_dotted`, `key`, `key_mut`) | `TableLike`; renamed `iterItems`, `iterItemsMut`, `itemEntry`, `itemEntryFormat`, `getItem`, `insertItem`, `removeItem` | done | `EditTest.testAsTableLike` |
-| `Entry`, `OccupiedEntry` (`key`, `key_mut`, `get`, `get_mut`, `into_mut`, `insert`, `remove`), `VacantEntry` (`key`, `insert`) | same names; the variants implement `Entry` directly | done | `EditTest.testSetPositionNegative`, `EditDocTest` |
-| `InlineTable` (`new`, `into_table`, `get_values`, `fmt`, `set_trailing_comma`, `trailing_comma`, `set_trailing`, `trailing`, `sort_values`, `sort_values_by`, `set_dotted`, `is_dotted`, `decor_mut`, `decor`, `key`, `key_mut`, `span`, `iter`, `iter_mut`, `len`, `is_empty`, `clear`, `entry`, `entry_format`, `get`, `get_mut`, `get_key_value`, `get_key_value_mut`, `contains_key`, `get_or_insert`, `insert`, `insert_formatted`, `remove`, `remove_entry`, `retain`) | same names | done | `EditTest` |
+| `Entry`, `OccupiedEntry` (`key`, `key_mut`, `get`, `get_mut`, `into_mut`, `insert`, `remove`), `VacantEntry` (`key`, `insert`), `or_insert`, `or_insert_with` | same names; the variants implement `Entry` directly; `insert`, `orInsert` and `orInsertWith` return `Result<Item, TomlEditError>` | done | `EditTest.testSetPositionNegative`, `EditDocTest`, `SlotSemanticsTest` |
+| `InlineTable` (`new`, `into_table`, `get_values`, `fmt`, `set_trailing_comma`, `trailing_comma`, `set_trailing`, `trailing`, `sort_values`, `sort_values_by`, `set_dotted`, `is_dotted`, `decor_mut`, `decor`, `key`, `key_mut`, `span`, `iter`, `iter_mut`, `len`, `is_empty`, `clear`, `entry`, `entry_format`, `get`, `get_mut`, `get_key_value`, `get_key_value_mut`, `contains_key`, `get_or_insert`, `insert`, `insert_formatted`, `remove`, `remove_entry`, `retain`) | same names; `var decor` for `decor` / `decor_mut`, the trailing text a `String`, no `span` | done | `EditTest` |
 | `impl Index<&str> for InlineTable` | `operator get`, returning null where upstream panics | done | |
 | `impl IndexMut<&str> for InlineTable` | `operator set`, returning `TomlEditError` where upstream panics | done | |
 | `impl Display / Extend / FromIterator / IntoIterator for InlineTable`, iterator aliases | `toString()`, `extend`, `InlineTable.fromIter`, `Iterable<Pair<String, Value>>`; aliases n/a | done | `EditTest.testInlineTableAppend` |
 | `InlineEntry`, `InlineOccupiedEntry`, `InlineVacantEntry` | same names | done | |
-| `Key` (`new`, `parse`, `with_leaf_decor`, `with_dotted_decor`, `as_mut`, `get`, `as_repr`, `default_repr`, `display_repr`, `leaf_decor_mut`, `dotted_decor_mut`, `leaf_decor`, `dotted_decor`, `span`, `fmt`) | `Key(String)`, same names | done | `EditTest.testKeyFromStr`, `EditTest.keyReprRoundtrip` |
+| `Key` (`new`, `parse`, `as_mut`, `get`, `fmt`) | `Key(String)`, same names | done | `EditTest.testKeyFromStr`, `EditTest.keyReprRoundtrip` |
+| `Key::with_leaf_decor`, `with_dotted_decor`, `leaf_decor(_mut)`, `dotted_decor(_mut)` | `var leafDecor`, `var dottedDecor` | done | `ValueTest` |
+| `Key::as_repr`, `default_repr`, `display_repr` | `spelling`, `displaySpelling`; the default spelling is internal | done | `EditTest.testSortValuesBy` |
+| `Key::span` | | n/a | an editable key never holds spans; see section 2 |
 | `impl FromStr for Key` | `Key.parseSimple` | done | `EditTest.keyValueRoundtrip` |
 | `impl Display / Clone / Hash / Ord / Eq for Key`, `From<&str / String>` | `toString()`, `clone()`, `hashCode` / `compareTo` / `equals` by text, the constructor | done | |
 | `impl Deref<Target = str> / Borrow<str> for Key`, `PartialEq<str / &str / String>`, `From<Key> for String` | `get()` | n/a | Kotlin has no deref; compare `key.get()` |
-| `KeyMut` (`get`, `as_repr`, `default_repr`, `display_repr`, `leaf_decor_mut`, `dotted_decor_mut`, `leaf_decor`, `dotted_decor`, `fmt`), `Display` | same names | done | `VisitExampleTest` |
-| `RawString` (`as_str`, `span`, `Default`, `From<&str / String / &String / Box<str>>`) | same names, `RawString()`, `RawString.from(String)` | done | `EditTest.assignWhitespace` |
-| `Repr` (`as_raw`, `span`) | same names | done | `EditTest.assignWhitespace` |
-| `Decor` (`new`, `clear`, `prefix`, `set_prefix`, `suffix`, `set_suffix`, `Default`) | `Decor(prefix, suffix)`, same names, `Decor()` | done | `EditTest.testAddRootDecor` |
-| `Formatted` (`new`, `value`, `into_value`, `as_repr`, `default_repr`, `display_repr`, `span`, `decor_mut`, `decor`, `fmt`), `Display`, `Eq` | `Formatted.of(…)`, same names | done | `EditTest.despanKeys`, `EditDocTest` |
-| `ValueRepr` (sealed trait) | | n/a | `Formatted.of` is overloaded for exactly the five types it covers |
+| `KeyMut` (`get`, `as_repr`, `default_repr`, `display_repr`, `leaf_decor_mut`, `dotted_decor_mut`, `leaf_decor`, `dotted_decor`, `fmt`), `Display` | `get`, `spelling`, `displaySpelling`, `var leafDecor`, `var dottedDecor`, `fmt`, `toString()` | done | `VisitExampleTest` |
+| `RawString` (`as_str`, `span`, `Default`, `From<&str / String / &String / Box<str>>`) | internal; decor and trailing text are `String`s | done | `EditTest.assignWhitespace` |
+| `Repr` (`as_raw`, `span`) | internal; a value or key shows its `spelling` | done | `EditTest.assignWhitespace` |
+| `Decor` (`new`, `clear`, `prefix`, `set_prefix`, `suffix`, `set_suffix`, `Default`) | immutable `data class Decor(prefix: String?, suffix: String?)`; `Decor()` for `default` and `clear`, `copy(prefix = …)` for `set_prefix` | done | `EditTest.testAddRootDecor`, `ValueTest` |
+| `Formatted` (`new`, `value`, `into_value`, `as_repr`, `default_repr`, `display_repr`, `span`, `decor_mut`, `decor`, `fmt`), `Display`, `Eq` | internal; each scalar `Value` has `value`, `spelling`, `displaySpelling`, `decor` and `resetFormatting()` | done | `EditDocTest`, `ValueTest` |
+| `ValueRepr` (sealed trait) | | n/a | each scalar `Value` has its own constructor |
 | `TomlError` (`message`, `span`), `Display`, `Error`, `Eq`, `Hash` | `data class TomlParseError(reason, span, position, context, expected)`, an `IError`; `Display` is `render(source)` | done | `ComplianceInvalidTest`, `ComplianceParseTest.garbage*` |
 | `visit::Visit` and `visit_document` … `visit_value` | | n/a | a recursive function with a `when` over the sealed `Value` walks the tree; `VisitExampleTest`, `EditDocTest.visitStringCollector` show how |
 | `visit_mut::VisitMut` and `visit_document_mut` … `visit_value_mut` | | n/a | as for `Visit`; `VisitExampleTest`, `EditDocTest.visitMutFloatToString` show how |
@@ -670,9 +686,16 @@ commands of [`:app`](../app/README.md) and compares their output by its own rule
 | `Table::get`, `Item::get` | `get` | `getOrNull` | `get` is the index operator |
 | `TableLike` item functions | `iter`, `iter_mut`, `entry`, `entry_format`, `get`, `get_mut`, `insert`, `remove` | `iterItems`, `iterItemsMut`, `itemEntry`, `itemEntryFormat`, `getItem`, `insertItem`, `removeItem` | an `InlineTable` already uses those names for values, and Kotlin cannot overload on the return type |
 | `impl FromStr for Key` | `"a".parse::<Key>()` | `Key.parseSimple` | `Key.parse` is upstream's dotted-path parser |
-| `Formatted::new` | generic over the sealed `ValueRepr` | `Formatted.of` overloads | a Kotlin type parameter cannot be limited to five types |
+| `Formatted<T>`, `Repr`, `RawString` | public, `Value::String(Formatted<String>)` | internal; a scalar `Value` has its own constructor and `value`, `spelling`, `displaySpelling` and `decor` properties | a caller reads and builds values without unwrapping a formatting container |
+| `Value::from(…)`, `FromIterator for Value` | one conversion per source type | the constructors `Value.String(…)` … `Value.InlineTable(…)` | a constructor names the kind; `Value.from(Value)`, a clone, is `copy()` |
+| `Value::as_*`, `Item::as_*` scalar and container getters, `is_*` | functions, with `_mut` twins | `OrNull` properties, no `Mut` twins, no predicates | Kotlin's `xOrNull` convention; the `Mut` twin returns the same object, and `type` or `is Value.X` answers the predicate |
+| `Decor` | mutable through `decor_mut()`, `set_prefix`, `set_suffix`, `clear` | an immutable data class behind a `var decor` on each holder | a decor read out of one item can be stored on another without the two sharing a change |
+| `span()` on `Value`, `Key`, `Table`, `InlineTable`, `Array`, `ArrayOfTables`, `Item`, `Formatted`, `Repr`, `RawString`, `Decor` | public, `None` once a document is editable | not public | an editable document never holds spans; a parse error still carries its `span` |
+| `Date`, `Time` fields | `u16`, `u8`, `u32` | `Int` | Kotlin's unsigned types need a `u` suffix and conversions at every use; parsing still checks every range |
+| `Datetime` from a date or a time | `From<Date>`, `From<Time>` | `Datetime(date = …)`, `Datetime(time = …)` with the other parts defaulting to `null` | one constructor covers all four kinds |
+| `Value::fmt` | `fmt` | `resetFormatting()` | says what it does to the value |
 | `Item::into_value` and friends | `Result<_, Item>` returning the item | nullable | the Kotlin item still exists after a failed conversion |
-| `*place = value` through `&mut` | assignment | `Item.assign`, `Decor.assign`, container `replace` / `insert` | see "Items are slots, values are not" |
+| `*place = value` through `&mut` | assignment | `Item.assign`, `holder.decor = …`, container `replace` / `insert` | see "Items are slots, values are not" |
 | Errors | text: `ParseError::description`, `TomlError::message`, `DatetimeParseError`'s `what` / `expected` | typed reasons (`ParseErrorReason`, `TomlParseError.Reason`, `DatetimeExpected`); upstream's text comes from `TomlParseError.render(source)` | a caller branches on what went wrong without matching text, and the wording is decided where it is shown |
 | `description` on `Encoding`, `ScalarKind`, `IntegerRadix`, `TokenKind`, `EventKind` | public, English text | not ported | the public API carries typed values; `TomlParseError.render(source)` is the one place that words them |
 | `toml_parser`, `toml_writer` | public crates | internal packages, except the payload types of `TomlParseError` | a caller reads, edits and prints TOML through the document model, so the lexer, event parser and writer stay free to change |
@@ -686,6 +709,7 @@ commands of [`:app`](../app/README.md) and compares their output by its own rule
 | `IndexMut` before a write | inserts an empty slot (or turns an empty item into an inline table) at access time | joins the parent at the first write | reading in Kotlin cannot be told from writing; the document only changes when written |
 | Storing an `Item` | moves it | stores a copy | see "Items are slots, values are not" |
 | Writing a non-value into an `Array` element or a non-table into an `ArrayOfTables` element (`*item = other`, `Item::make_value`) | stores it as a placeholder that `len` counts and printing skips | `TomlEditError.NotAValue` / `NotATableElement`, nothing written; `makeValue()` returns the result | an element of the wrong kind would vanish from the printed document |
+| Writing a `Table` or `ArrayOfTables` into an `InlineTable` entry (`*item = other`, `TableLike::entry(…).or_insert`, an index on an empty item) | stores it; a table prints as dotted keys, an array of tables not at all | `TomlEditError.NotAValue`, nothing written; `Entry.orInsert`, `orInsertWith` and the entries' `insert` return `Result` | an inline table holds values; a dotted `InlineTable` prints the same dotted keys, as `EditTest.tableUnderInline` shows |
 | `Array::insert / replace / remove`, `ArrayOfTables::insert / replace / remove`, `IndexMut` on a scalar or a missing inline-table key, `TableLike::insert` of a non-value into an inline table | panic | `TomlEditError` | nothing throws |
 | `DocumentMut::as_table` when the root item was made a non-table | panics | resets the root to an empty table | nothing throws |
 | `Document` | immutable by borrow rules | editable through its items | Kotlin cannot hand out read-only views of mutable classes; documented as read-only |

@@ -17,7 +17,7 @@ class DatetimeDisplayTest {
         t(
             Datetime(
                 date = null,
-                time = Time(hour = 13u, minute = 37u, second = null, nanosecond = null),
+                time = Time(hour = 13, minute = 37, second = null, nanosecond = null),
                 offset = null,
             ),
             """
@@ -32,7 +32,7 @@ class DatetimeDisplayTest {
         t(
             Datetime(
                 date = null,
-                time = Time(hour = 13u, minute = 37u, second = null, nanosecond = 5u),
+                time = Time(hour = 13, minute = 37, second = null, nanosecond = 5),
                 offset = null,
             ),
             """
@@ -47,7 +47,7 @@ class DatetimeDisplayTest {
         t(
             Datetime(
                 date = null,
-                time = Time(hour = 13u, minute = 37u, second = 0u, nanosecond = 0u),
+                time = Time(hour = 13, minute = 37, second = 0, nanosecond = 0),
                 offset = null,
             ),
             """
@@ -61,8 +61,8 @@ class DatetimeDisplayTest {
     fun datetimeWithoutSeconds() {
         t(
             Datetime(
-                date = Date(year = 1979u, month = 5u, day = 27u),
-                time = Time(hour = 7u, minute = 32u, second = null, nanosecond = null),
+                date = Date(year = 1979, month = 5, day = 27),
+                time = Time(hour = 7, minute = 32, second = null, nanosecond = null),
                 offset = Offset.Z,
             ),
             """
