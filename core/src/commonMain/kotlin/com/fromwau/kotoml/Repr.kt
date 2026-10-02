@@ -1,6 +1,5 @@
 package com.fromwau.kotoml
 
-import com.fromwau.kotoml.parser.Span
 import com.fromwau.kotoml.writer.TomlStringBuilder
 import com.fromwau.kotoml.writer.WriteTomlValue
 import com.fromwau.kotoml.writer.toTomlValue
@@ -50,7 +49,7 @@ public class RawString private constructor(private val state: State) {
     }
 
     internal fun despan(input: SourceText): RawString = when (state) {
-        is State.Spanned -> if (state.span.isEmpty()) RawString() else from(input.slice(state.span))
+        is State.Spanned -> if (state.span.length <= 0) RawString() else from(input.slice(state.span))
         else -> this
     }
 
@@ -81,8 +80,8 @@ internal class SourceText(val text: String) {
 
     /** The text under [span], or the empty string when the span does not fit this input. */
     fun slice(span: Span): String {
-        val start = span.start()
-        val end = span.end()
+        val start = span.start
+        val end = span.end
         if (start < 0 || end > bytes.size || start > end) return ""
         return bytes.decodeToString(start, end)
     }

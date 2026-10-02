@@ -3,8 +3,7 @@ package com.fromwau.kotoml
 import com.fromwau.kern.result.Err
 import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
-import com.fromwau.kotoml.parser.Source
-import com.fromwau.kotoml.parser.Span
+import com.fromwau.kotoml.parser.TomlSource
 import com.fromwau.kotoml.writer.TomlKeyBuilder
 import com.fromwau.kotoml.writer.toTomlKey
 
@@ -105,7 +104,7 @@ public class Key(private val key: String) : Comparable<Key> {
          * Unlike [parseSimple], whitespace around the parts and dots is allowed and kept as decor.
          */
         public fun parse(repr: String, version: TomlVersion = TomlVersion.V1_1): Result<List<Key>, TomlParseError> {
-            val source = Source(repr)
+            val source = TomlSource(repr)
             val sink = TomlSink(repr)
             val keys = parseKeyPath(source, sink, version)
             sink.error()?.let { return Err(it) }
@@ -116,7 +115,7 @@ public class Key(private val key: String) : Comparable<Key> {
 
         /** Parses one undotted key, bare or quoted: upstream's `FromStr for Key`. */
         public fun parseSimple(repr: String, version: TomlVersion = TomlVersion.V1_1): Result<Key, TomlParseError> {
-            val source = Source(repr)
+            val source = TomlSource(repr)
             val sink = TomlSink(repr)
             val key = parseSimpleKeyItem(source, sink, version)
             sink.error()?.let { return Err(it) }

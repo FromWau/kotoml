@@ -1,12 +1,15 @@
 package com.fromwau.kotoml.parser
 
+import com.fromwau.kotoml.Encoding
+import com.fromwau.kotoml.Span
+
 /**
  * Splits TOML text into [Token]s without validating them, ending with one [TokenKind.Eof] token.
  *
  * Tokens cover the input without gaps, so their spans can rebuild it exactly; a leading byte-order mark
- * is skipped. Get one from [Source.lex].
+ * is skipped. Get one from [TomlSource.lex].
  */
-public class Lexer internal constructor(bytes: ByteArray) : Iterator<Token> {
+internal class Lexer internal constructor(bytes: ByteArray) : Iterator<Token> {
 
     private val stream = LexStream(bytes, if (startsWith(bytes, 0, BOM)) BOM.size else 0)
     private var eof = false
@@ -22,7 +25,7 @@ public class Lexer internal constructor(bytes: ByteArray) : Iterator<Token> {
     }
 
     /** Lexes the rest of the input into a list, the [TokenKind.Eof] token included. */
-    public fun intoVec(): List<Token> {
+    fun intoVec(): List<Token> {
         val tokens = ArrayList<Token>((stream.remaining() + 3) / 4)
         while (hasNext()) tokens.add(next())
         return tokens
@@ -205,16 +208,16 @@ private fun isAtomEnd(byte: Int): Boolean = when (byte) {
 }
 
 /** One unvalidated token: its [kind] and the [span] of input it covers. */
-public class Token internal constructor(
+internal class Token internal constructor(
     private val kind: TokenKind,
     private val span: Span,
 ) : Comparable<Token> {
 
     /** What kind of token this is. */
-    public fun kind(): TokenKind = kind
+    fun kind(): TokenKind = kind
 
     /** The bytes of input this token covers. */
-    public fun span(): Span = span
+    fun span(): Span = span
 
     override fun compareTo(other: Token): Int {
         val byKind = kind.compareTo(other.kind)
@@ -234,7 +237,7 @@ public class Token internal constructor(
  * They are declared in upstream's order: its kinds are numbered by the token's first byte and compare
  * by that number.
  */
-public enum class TokenKind {
+internal enum class TokenKind {
     /** A `'''multi-line literal'''` string, possibly unclosed. */
     MlLiteralString,
 
@@ -285,7 +288,7 @@ public enum class TokenKind {
     ;
 
     /** The kind in words, as error messages name it. */
-    public fun description(): String = when (this) {
+    fun description(): String = when (this) {
         Dot -> "`.`"
         Equals -> "`=`"
         Comma -> "`,`"
@@ -305,7 +308,7 @@ public enum class TokenKind {
     }
 
     /** The string encoding a token of this kind is written in, or null when it is not a string. */
-    public fun encoding(): Encoding? = when (this) {
+    fun encoding(): Encoding? = when (this) {
         LiteralString -> Encoding.LiteralString
         BasicString -> Encoding.BasicString
         MlLiteralString -> Encoding.MlLiteralString

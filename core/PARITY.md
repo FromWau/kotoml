@@ -12,12 +12,15 @@ Repository <https://github.com/toml-rs/toml>, commit `342362803e41051e522127ca93
 |-----------------|----------------------|---------------------------------------|
 | `toml_edit`     | `0.25.15+spec-1.1.0` | `com.fromwau.kotoml`            |
 | `toml_datetime` | `1.1.1+spec-1.1.0`   | `com.fromwau.kotoml`            |
-| `toml_parser`   | `1.1.3+spec-1.1.0`   | `com.fromwau.kotoml.parser`     |
-| `toml_writer`   | `1.1.2+spec-1.1.0`   | `com.fromwau.kotoml.writer`     |
+| `toml_parser`   | `1.1.3+spec-1.1.0`   | `com.fromwau.kotoml.parser`, internal |
+| `toml_writer`   | `1.1.2+spec-1.1.0`   | `com.fromwau.kotoml.writer`, internal |
 
 Features ported: the defaults, `parse` and `display`. Not ported: `serde`, `debug`, `unbounded`, `unsafe`.
 `toml_edit` re-exports `toml_datetime::*`, so the date-time types live in the root package next to the
-document model.
+document model. The `parser` and `writer` packages are internal: a caller reads and prints TOML through the
+document model. The parser types a `TomlParseError` carries are public and live in the root package:
+`Span`, `ParseErrorReason`, `ScalarKind`, `IntegerRadix`, `Encoding`, `FloatPart`, `Expected` and
+`ExpectedToken`.
 
 ## 2. Decisions a reader needs first
 
@@ -37,8 +40,7 @@ points there, never UTF-16 units: the error column, the key ordering of `sort_va
 
 ### Naming
 
-- Types and functions keep upstream's names in Kotlin casing, accessors included: `span.start()`,
-  `token.kind()`, `decor_mut` becomes `decorMut()`. A Rust `new` constructor is the Kotlin constructor.
+- Types and functions keep upstream's names in Kotlin casing, accessors included: `token.kind()`, `decor_mut` becomes `decorMut()`. A Rust `new` constructor is the Kotlin constructor.
 - A Rust trait implemented on a standard type (a closure, `()`, `Vec<T>`, `Option<T>`) has no Kotlin home, so
   the port names the implementation instead; each one is listed in its crate's table.
 - Display is `toString()`. `FromStr` is a `parse` function on the companion that returns a kern `Result`.
@@ -62,7 +64,6 @@ references, not places, so the port makes the difference explicit:
   the first write, so `doc["a"]["b"] = value(...)` works as in Rust, and reading never adds a key.
 - `Value` is a sealed type whose parts (`Formatted`, `TomlArray`, `InlineTable`, `Decor`) are mutable in place.
   A whole value is replaced through its container (`TomlArray.replace`, `InlineTable.insert`, `Item.assign`).
-  `VisitMut.visitValueMut` returns the value to keep in place, which is how a visitor replaces one.
 - `Decor.assign(other)` is `*decor = other`.
 - Content is shared, not copied: putting one `Item`, `Table` or `Value` in two places makes both places change
   together. `clone()` copies, as Rust's `Clone` does.
@@ -97,7 +98,9 @@ while `item.set("k", v)` hands the error back; in the `[]=` form it is discarded
 
 ## 3. Public items
 
-Status: `done`, `serde-only` (behind the `serde` feature, out of scope), or `n/a` with the reason.
+Status: `done`, `serde-only` (behind the `serde` feature, out of scope), or `n/a` with the reason. The
+`toml_parser` and `toml_writer` items are ported as `internal`, apart from the error payload types named in
+section 1.
 
 ### `toml_datetime`
 
@@ -121,16 +124,16 @@ Status: `done`, `serde-only` (behind the `serde` feature, out of scope), or `n/a
 
 | upstream | Kotlin | status | tests |
 |---|---|---|---|
-| `Source::new`, `lex`, `input` | `Source(String)`, `lex()`, `input()` | done | `LexerTest`, `ParseDocumentTest` |
-| `Source::get(impl SourceIndex)` | `Source.get(Span)`, `get(Token)`, `get(Event)` | done | `ParseDocumentTest` (every event is sliced) |
+| `Source::new`, `lex`, `input` | `TomlSource(String)`, `lex()`, `input()` | done | `LexerTest`, `ParseDocumentTest` |
+| `Source::get(impl SourceIndex)` | `TomlSource.get(Span)`, `get(Token)`, `get(Event)` | done | `ParseDocumentTest` (every event is sliced) |
 | `Source::get_unchecked` | | n/a | behind the `unsafe` feature |
-| `SourceIndex` (sealed trait over `Span`, `Token`, `Event`) | the three `Source.get` overloads | done | |
+| `SourceIndex` (sealed trait over `Span`, `Token`, `Event`) | the three `TomlSource.get` overloads | done | |
 | `Raw::new_unchecked` | `Raw.newUnchecked(String, Encoding?, Span)` | done | `DecoderStringTest`, `DecoderScalarTest` |
 | `Raw::decode_key / decode_scalar / decode_whitespace / decode_comment / decode_newline` | same names | done | `ParseDocumentTest`, `ParseValueTest`, `ParseSimpleKeyTest` |
 | `Raw::as_str / as_bytes / len / is_empty` | `asStr()`, `asBytes()` (a copy), `len()` (bytes), `isEmpty()` | done | |
-| `Span::new_unchecked`, `is_empty`, `len`, `start`, `end`, `before`, `after`, `append` | `Span(start, end)` and same names | done | every snapshot prints spans |
-| `impl Add<usize> / AddAssign<usize> for Span`, `impl Add<Span> for usize` | `Span.plus(Int)` | done | |
-| `impl Default for Span` | `Span.DEFAULT` | done | |
+| `Span::new_unchecked`, `is_empty`, `len`, `start`, `end`, `before`, `after`, `append` | `data class Span(start, end)` with a `length` property; `before`, `after`, `append` internal | done | every snapshot prints spans |
+| `impl Add<usize> / AddAssign<usize> for Span`, `impl Add<Span> for usize` | `Span.plus(Int)`, internal | done | |
+| `impl Default for Span` | `Span.DEFAULT`, internal | done | |
 | `impl Debug for Span` (`start..end`) | `toString()` | done | |
 | `ErrorSink` | `fun interface ErrorSink` | done | all parser tests |
 | `impl ErrorSink for FnMut(ParseError)` / `Vec<ParseError>` | a lambda: `ErrorSink { errors += it }` | done | all parser tests |
@@ -146,17 +149,17 @@ Status: `done`, `serde-only` (behind the `serde` feature, out of scope), or `n/a
 | `parser::EventReceiver` (17 callbacks with defaults) | `interface EventReceiver` | done | all parser tests |
 | `impl EventReceiver for FnMut(Event)` / `Vec<Event>` | `eventReceiver { ... }`, e.g. `eventReceiver(events::add)` | done | all parser tests |
 | `impl EventReceiver for ()` | `EventReceiver.IGNORE` | done | |
-| `parser::ValidateWhitespace::new` | `ValidateWhitespace(EventReceiver, Source)` | done | toml_edit's parser |
+| `parser::ValidateWhitespace::new` | `ValidateWhitespace(EventReceiver, TomlSource)` | done | toml_edit's parser |
 | `parser::RecursionGuard::new(_, u32)` | `RecursionGuard(EventReceiver, UInt)` | done | `ParseDocumentTest.*RecursionLimit` |
 | `parser::Event::new_unchecked / kind / encoding / span` | `Event(...)`, `Event.newUnchecked`, same names | done | all parser tests |
 | `parser::EventKind` (17 kinds), `description` | `EventKind`, same names | done | |
-| `decoder::Encoding`, `description` | `Encoding`, same name | done | |
+| `decoder::Encoding`, `description` | `Encoding`; `description` internal | done | |
 | `decoder::StringBuilder` | `DecodedStringBuilder` | done | `DecoderStringTest` |
 | `impl StringBuilder for String` / `Cow<str>` | `StringOutput` | done | `DecoderStringTest`, `ParseValueTest` |
 | `impl StringBuilder for &str` | `BorrowedOutput` | done | |
 | `impl StringBuilder for ()` | `DecodedStringBuilder.DISCARD` | done | `ParseDocumentTest` (keys) |
-| `decoder::ScalarKind` (`String`, `Boolean`, `DateTime`, `Float`, `Integer`), `description`, `invalid_description` | `ScalarKind` sealed interface, `description`; `invalid_description` is `ParseErrorReason.InvalidScalar(kind)` | done | `ParseValueTest` |
-| `decoder::IntegerRadix`, `description`, `value`, `invalid_description`, `Default` | `IntegerRadix`, `description`, `value`, `IntegerRadix.DEFAULT`; `invalid_description` as for `ScalarKind` | done | `ParseValueTest` |
+| `decoder::ScalarKind` (`String`, `Boolean`, `DateTime`, `Float`, `Integer`), `description`, `invalid_description` | `ScalarKind` sealed interface; `description` internal; `invalid_description` is `ParseErrorReason.InvalidScalar(kind)` | done | `ParseValueTest` |
+| `decoder::IntegerRadix`, `description`, `value`, `invalid_description`, `Default` | `IntegerRadix`, `value`; `description` internal; `Default` is `IntegerRadix.Dec`; `invalid_description` as for `ScalarKind` | done | `ParseValueTest` |
 | derived `Ord` / `Hash` / `Eq` on `Span`, `Token`, `TokenKind`, `Event`, `EventKind`, `Encoding`, `ScalarKind`, `IntegerRadix`, `ParseError` | `Comparable` / `equals` / `hashCode` | done | |
 
 ### `toml_writer`
@@ -242,8 +245,8 @@ Status: `done`, `serde-only` (behind the `serde` feature, out of scope), or `n/a
 | `Formatted` (`new`, `value`, `into_value`, `as_repr`, `default_repr`, `display_repr`, `span`, `decor_mut`, `decor`, `fmt`), `Display`, `Eq` | `Formatted.of(…)`, same names | done | `EditTest.despanKeys`, `EditDocTest` |
 | `ValueRepr` (sealed trait) | | n/a | `Formatted.of` is overloaded for exactly the five types it covers |
 | `TomlError` (`message`, `span`), `Display`, `Error`, `Eq`, `Hash` | `data class TomlParseError(reason, span, position, context, expected)`, an `IError`; `Display` is `render(source)` | done | `ComplianceInvalidTest`, `ComplianceParseTest.garbage*` |
-| `visit::Visit` and `visit_document` … `visit_value` | `com.fromwau.kotoml.visit` | done | `VisitExampleTest`, `EditDocTest.visitStringCollector` |
-| `visit_mut::VisitMut` and `visit_document_mut` … `visit_value_mut` | `com.fromwau.kotoml.visitmut` | done | `VisitExampleTest`, `EditDocTest.visitMutFloatToString` |
+| `visit::Visit` and `visit_document` … `visit_value` | | n/a | a recursive function with a `when` over the sealed `Value` walks the tree; `VisitExampleTest`, `EditDocTest.visitStringCollector` show how |
+| `visit_mut::VisitMut` and `visit_document_mut` … `visit_value_mut` | | n/a | as for `Visit`; `VisitExampleTest`, `EditDocTest.visitMutFloatToString` show how |
 | `de::*`, `ser::*`, `TomlError::custom`, `Serialize / Deserialize` impls | | serde-only | |
 | `toml_datetime::*` re-export | the date-time types in the same package | done | |
 | (none: an addition) | `TomlVersion`, and a `version` parameter on `DocumentMut.parse`, `Document.parse`, `Value.parse`, `Item.parse`, `Key.parse`, `Key.parseSimple` | added | `TomlVersionTest`, `SuiteTest.*Toml100` |
@@ -651,7 +654,7 @@ commands of [`:app`](../app/README.md) and compares their output by its own rule
 | where | upstream | Kotlin | why |
 |---|---|---|---|
 | `Offset::Custom` display | `minutes *= -1` overflows (panics in debug builds) for `i16::MIN` | prints the magnitude computed in `Int` | an `i16::MIN` offset is not a TOML value; Kotlin has no panic to copy |
-| `Source` over a `String` with an unpaired surrogate | not representable: `&str` is always valid UTF-8 | lexed as if U+FFFD stood there, which is what `encodeToByteArray` writes | Kotlin strings can hold what Rust strings cannot |
+| `TomlSource` over a `String` with an unpaired surrogate | not representable: `&str` is always valid UTF-8 | lexed as if U+FFFD stood there, which is what `encodeToByteArray` writes | Kotlin strings can hold what Rust strings cannot |
 | `ValidateWhitespace` given a span that does not slice its source | panics (`expect("token spans are valid")`) | skips validating that span | spans come from the lexer, so only a misused receiver reaches this |
 | `Lexer::next` after the end | returns `None` | returns another `Eof` token | Kotlin's `Iterator.next` past `hasNext() == false` would have to throw |
 | `parseDocument` with no `RecursionGuard` | recurses once per nesting level | iterates with a heap stack | a stack overflow on Kotlin/Native is a crash, not a value |
@@ -663,8 +666,14 @@ commands of [`:app`](../app/README.md) and compares their output by its own rule
 | `impl FromStr for Key` | `"a".parse::<Key>()` | `Key.parseSimple` | `Key.parse` is upstream's dotted-path parser |
 | `Formatted::new` | generic over the sealed `ValueRepr` | `Formatted.of` overloads | a Kotlin type parameter cannot be limited to five types |
 | `Item::into_value` and friends | `Result<_, Item>` returning the item | nullable | the Kotlin item still exists after a failed conversion |
-| `*place = value` through `&mut` | assignment | `Item.assign`, `Decor.assign`, container `replace` / `insert`, `VisitMut.visitValueMut` returning the value | see "Items are slots, values are not" |
+| `*place = value` through `&mut` | assignment | `Item.assign`, `Decor.assign`, container `replace` / `insert` | see "Items are slots, values are not" |
 | Errors | text: `ParseError::description`, `TomlError::message`, `DatetimeParseError`'s `what` / `expected` | typed reasons (`ParseErrorReason`, `TomlParseError.Reason`, `DatetimeExpected`); upstream's text comes from `TomlParseError.render(source)` | a caller branches on what went wrong without matching text, and the wording is decided where it is shown |
+| `description` on `Encoding`, `ScalarKind`, `IntegerRadix`, `TokenKind`, `EventKind` | public, English text | internal | the public API carries typed values; `TomlParseError.render(source)` is the one place that words them |
+| `toml_parser`, `toml_writer` | public crates | internal packages, except the payload types of `TomlParseError` | a caller reads, edits and prints TOML through the document model, so the lexer, event parser and writer stay free to change |
+| `ParseError`, `ErrorSink` | public | internal; a parse failure reaches a caller as `TomlParseError`, whose `Syntax` reason carries the `ParseErrorReason` | the document parser is the only reporter |
+| `Span` accessors | `start()`, `end()`, `len()`, `is_empty()` | `start`, `end` and `length` properties of a data class | Kotlin reads a field as a property; an empty span is one whose `length` is zero or less |
+| `Source` | named `Source` | `TomlSource` | `kotlinx.io.Source` is the name a caller holding a stream already uses |
+| `Visit`, `VisitMut` | traits with one overridable hook per node | not ported | an exhaustive `when` over the sealed `Value` walks the tree in plain recursion, and the compiler names every case it misses |
 | `TomlError` | holds a copy of the input to render from | `render` takes the source; the error keeps a byte `span` and a `TextPosition` | the error stays small, and the caller already holds the text |
 | Duplicate key and dotted key over a value | no key named | `DuplicateKey(key)`, `DottedKeyExtendsValue(key, type)` | the reason says which key |
 | `Index` on a missing key | panics (`index not found`) | returns an empty item, or null for `InlineTable` | reading through a missing key never fails, and the empty item joins the table when written to |

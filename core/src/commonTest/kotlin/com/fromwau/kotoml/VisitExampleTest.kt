@@ -1,14 +1,9 @@
 package com.fromwau.kotoml
 
-import com.fromwau.kotoml.visit.Visit
-import com.fromwau.kotoml.visit.visitTableLikeKv
-import com.fromwau.kotoml.visitmut.VisitMut
-import com.fromwau.kotoml.visitmut.visitTableLikeKvMut
-import com.fromwau.kotoml.visitmut.visitTableMut
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** `toml_edit/examples/visit.rs`, which runs its tests with `cargo test`. */
+/** `toml_edit/examples/visit.rs`, which runs its tests with `cargo test`, as plain recursion over the tree. */
 class VisitExampleTest {
 
     /** Where a visit stands among a `Cargo.toml`'s dependency tables. */
@@ -33,74 +28,110 @@ class VisitExampleTest {
         }
     }
 
-    /** Collects the names of every dependency key. */
-    private class DependencyNameVisitor : Visit {
-        var state = VisitState.Root
-        val names = mutableSetOf<String>()
-
-        override fun visitTableLikeKv(key: String, node: Item) {
+    /** Collects the names of every dependency key under [table], whose entries are in [state]. */
+    private fun collectDependencyNames(
+        table: TableLike,
+        state: VisitState,
+        names: MutableSet<String>,
+    ) {
+        for ((key, item) in table.iterItems()) {
+            // Only the keys right under [dependencies] are wanted, so this does not always recurse.
             if (state == VisitState.Dependencies) {
                 names += key
             } else {
-                // Only the keys right under [dependencies] are wanted, so this does not always recurse.
-                val oldState = state
-                state = state.descend(key)
-                visitTableLikeKv(this, key, node)
-                state = oldState
+                collectDependencyNames(item, state.descend(key), names)
             }
         }
     }
 
+    private fun collectDependencyNames(
+        item: Item,
+        state: VisitState,
+        names: MutableSet<String>,
+    ) {
+        item.asValue()?.let { collectDependencyNames(it, state, names) }
+        item.asTable()?.let { collectDependencyNames(it, state, names) }
+        item.asArrayOfTables()?.forEach { collectDependencyNames(it, state, names) }
+    }
+
+    private fun collectDependencyNames(
+        value: Value,
+        state: VisitState,
+        names: MutableSet<String>,
+    ) {
+        when (value) {
+            is Value.Array -> value.array.forEach { collectDependencyNames(it, state, names) }
+            is Value.InlineTable -> collectDependencyNames(value.table, state, names)
+            is Value.String, is Value.Integer, is Value.Float, is Value.Boolean, is Value.Datetime -> {}
+        }
+    }
+
     /** Normalizes every dependency table to `dep = { version = "1.0", ... }`, leaving other tables alone. */
-    private class NormalizeDependencyTablesVisitor : VisitMut {
-        var state = VisitState.Root
+    private fun normalizeDependencyTables(
+        table: Table,
+        state: VisitState,
+    ) {
+        normalizeDependencyEntries(table, state)
 
-        override fun visitTableMut(node: Table) {
-            visitTableMut(this, node)
+        // Turning regular tables into inline ones can leave explicit parent tables hanging, so they become
+        // implicit.
+        if (state == VisitState.Target || state == VisitState.TargetWithSpec) {
+            table.setImplicit(true)
+        }
+    }
 
-            // Turning regular tables into inline ones can leave explicit parent tables hanging, so they become
-            // implicit.
-            if (state == VisitState.Target || state == VisitState.TargetWithSpec) {
-                node.setImplicit(true)
+    private fun normalizeDependencyEntries(
+        table: TableLike,
+        state: VisitState,
+    ) {
+        for ((key, item) in table.iterItemsMut()) normalizeDependencyEntry(key, item, state.descend(key.get()))
+    }
+
+    private fun normalizeDependencyEntry(
+        key: KeyMut,
+        item: Item,
+        state: VisitState,
+    ) {
+        when (state) {
+            VisitState.Target, VisitState.TargetWithSpec, VisitState.Dependencies -> {
+                // A top-level dependency row, or above it: inline tables become regular ones.
+                val inlineTable = item.asInlineTable()
+                if (inlineTable != null) {
+                    val table = inlineTable.intoTable()
+                    key.fmt()
+                    item.assign(Item.from(table))
+                }
             }
+            VisitState.SubDependencies -> {
+                // A single dependency: regular tables become inline ones.
+                val table = item.asTable()
+                if (table != null) {
+                    val inlineTable = table.intoInlineTable()
+                    key.fmt()
+                    item.assign(Item.from(Value.InlineTable(inlineTable)))
+                }
+            }
+            else -> {}
         }
 
-        override fun visitTableLikeKvMut(key: KeyMut, node: Item) {
-            val oldState = state
-            state = state.descend(key.get())
+        item.asValueMut()?.let { normalizeDependencyValue(it, state) }
+        item.asTableMut()?.let { normalizeDependencyTables(it, state) }
+        item.asArrayOfTablesMut()?.forEach { normalizeDependencyTables(it, state) }
+    }
 
-            when (state) {
-                VisitState.Target, VisitState.TargetWithSpec, VisitState.Dependencies -> {
-                    // A top-level dependency row, or above it: inline tables become regular ones.
-                    val inlineTable = node.asInlineTable()
-                    if (inlineTable != null) {
-                        val table = inlineTable.intoTable()
-                        key.fmt()
-                        node.assign(Item.from(table))
-                    }
+    private fun normalizeDependencyValue(
+        value: Value,
+        state: VisitState,
+    ) {
+        when (value) {
+            is Value.Array -> {
+                // Arrays within dependencies go on one line.
+                if (state == VisitState.Dependencies || state == VisitState.SubDependencies) {
+                    value.array.fmt()
                 }
-                VisitState.SubDependencies -> {
-                    // A single dependency: regular tables become inline ones.
-                    val table = node.asTable()
-                    if (table != null) {
-                        val inlineTable = table.intoInlineTable()
-                        key.fmt()
-                        node.assign(Item.from(Value.InlineTable(inlineTable)))
-                    }
-                }
-                else -> {}
             }
-
-            visitTableLikeKvMut(this, key, node)
-
-            state = oldState
-        }
-
-        override fun visitArrayMut(node: TomlArray) {
-            // Arrays within dependencies go on one line.
-            if (state == VisitState.Dependencies || state == VisitState.SubDependencies) {
-                node.fmt()
-            }
+            is Value.InlineTable -> normalizeDependencyEntries(value.table, state)
+            is Value.String, is Value.Integer, is Value.Float, is Value.Boolean, is Value.Datetime -> {}
         }
     }
 
@@ -166,14 +197,13 @@ flate2 = { version = "0.4" }
 """
 
     private fun visitExample(document: DocumentMut): Set<String> {
-        val visitor = DependencyNameVisitor()
-        visitor.visitDocument(document)
-        return visitor.names
+        val names = mutableSetOf<String>()
+        collectDependencyNames(document.asTable(), VisitState.Root, names)
+        return names
     }
 
     private fun visitMutExample(document: DocumentMut) {
-        val visitor = NormalizeDependencyTablesVisitor()
-        visitor.visitDocumentMut(document)
+        normalizeDependencyTables(document.asTableMut(), VisitState.Root)
     }
 
     @Test

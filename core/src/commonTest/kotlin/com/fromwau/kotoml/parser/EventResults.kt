@@ -3,6 +3,8 @@ package com.fromwau.kotoml.parser
 import com.fromwau.kern.result.Result
 import com.fromwau.kotoml.Datetime
 import com.fromwau.kotoml.Dbg
+import com.fromwau.kotoml.ScalarKind
+import com.fromwau.kotoml.Span
 import com.fromwau.kotoml.assertFileData
 import com.fromwau.kotoml.parseRustF64
 import com.fromwau.kotoml.parseRustI64
@@ -28,11 +30,11 @@ internal class EventResults(val input: String) {
         if (events.isNotEmpty()) {
             val spans = events.map { it.span() }
             if (!input.startsWith('﻿')) {
-                assertEquals(0, spans.first().start(), "first span needs to start at 0")
+                assertEquals(0, spans.first().start, "first span needs to start at 0")
             }
-            assertEquals(input.encodeToByteArray().size, spans.last().end(), "last span needs to be at the end")
+            assertEquals(input.encodeToByteArray().size, spans.last().end, "last span needs to be at the end")
             for (i in 0 until spans.size - 1) {
-                assertEquals(spans[i].end(), spans[i + 1].start(), "events must not have gaps in spans")
+                assertEquals(spans[i].end, spans[i + 1].start, "events must not have gaps in spans")
             }
         }
         if (events.any { it.kind() == EventKind.Error }) {
@@ -42,7 +44,7 @@ internal class EventResults(val input: String) {
 
     /** Decodes every key, comment, newline and scalar, adding what they report to [errors]. */
     fun decodeEvents() {
-        val doc = Source(input)
+        val doc = TomlSource(input)
         for (event in events) {
             val raw = doc.get(event) ?: error("event $event does not slice the input")
             when (event.kind()) {

@@ -4,7 +4,6 @@ import com.fromwau.kern.result.EmptyResult
 import com.fromwau.kern.result.Err
 import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
-import com.fromwau.kotoml.parser.Span
 
 /**
  * An array value, `[1, 2, 3]`, with its formatting: the decor around it, a trailing comma, and the text

@@ -4,7 +4,6 @@ import com.fromwau.kern.result.EmptyResult
 import com.fromwau.kern.result.Err
 import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
-import com.fromwau.kotoml.parser.Span
 
 /**
  * A slot in a table or array holding nothing, a [Value], a [Table] or an [ArrayOfTables].

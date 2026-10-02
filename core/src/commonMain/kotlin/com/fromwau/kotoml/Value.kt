@@ -3,8 +3,7 @@ package com.fromwau.kotoml
 import com.fromwau.kern.result.Err
 import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
-import com.fromwau.kotoml.parser.Source
-import com.fromwau.kotoml.parser.Span
+import com.fromwau.kotoml.parser.TomlSource
 import com.fromwau.kotoml.Datetime as TomlDatetime
 import com.fromwau.kotoml.InlineTable as TomlInlineTable
 
@@ -182,7 +181,7 @@ public sealed interface Value {
          * ```
          */
         public fun parse(text: kotlin.String, version: TomlVersion = TomlVersion.V1_1): Result<Value, TomlParseError> {
-            val source = Source(text)
+            val source = TomlSource(text)
             val sink = TomlSink(text)
             val value = parseValueItem(source, sink, version)
             sink.error()?.let { return Err(it) }

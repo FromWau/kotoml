@@ -1,6 +1,5 @@
 package com.fromwau.kotoml
 
-import com.fromwau.kotoml.parser.Span
 import com.fromwau.kotoml.writer.rustDebug
 
 // Upstream's derived and hand-written `Debug` for the document model, field for field.
@@ -9,7 +8,7 @@ internal fun RawString.dbg(): Dbg {
     val span = span()
     val text = asStr()
     return when {
-        span != null -> lit("${span.start()}..${span.end()}")
+        span != null -> lit("${span.start}..${span.end}")
         text.isNullOrEmpty() -> lit("empty")
         else -> str(text)
     }
@@ -17,7 +16,7 @@ internal fun RawString.dbg(): Dbg {
 
 internal fun Repr.dbg(): Dbg = asRaw().dbg()
 
-private fun Span?.dbgOption(): Dbg = option(this) { lit("${it.start()}..${it.end()}") }
+private fun Span?.dbgOption(): Dbg = option(this) { lit("${it.start}..${it.end}") }
 
 internal fun Decor.dbg(): Dbg = struct(
     "Decor",

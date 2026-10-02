@@ -1,8 +1,5 @@
 package com.fromwau.kotoml
 
-import com.fromwau.kotoml.visit.Visit
-import com.fromwau.kotoml.visitmut.VisitMut
-import com.fromwau.kotoml.visitmut.visitValueMut
 import kotlin.math.round
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -260,56 +257,97 @@ duplicate key
         assertEquals(" 42 ", d.toString())
     }
 
+    private fun collectStrings(
+        table: TableLike,
+        strings: MutableList<String>,
+    ) {
+        for ((_, item) in table.iterItems()) collectStrings(item, strings)
+    }
+
+    private fun collectStrings(
+        item: Item,
+        strings: MutableList<String>,
+    ) {
+        item.asValue()?.let { collectStrings(it, strings) }
+        item.asTable()?.let { collectStrings(it, strings) }
+        item.asArrayOfTables()?.forEach { collectStrings(it, strings) }
+    }
+
+    private fun collectStrings(
+        value: Value,
+        strings: MutableList<String>,
+    ) {
+        when (value) {
+            is Value.String -> strings += value.formatted.value()
+            is Value.Array -> value.array.forEach { collectStrings(it, strings) }
+            is Value.InlineTable -> collectStrings(value.table, strings)
+            is Value.Integer, is Value.Float, is Value.Boolean, is Value.Datetime -> {}
+        }
+    }
+
     @Test
     fun visitStringCollector() {
-        class StringCollector : Visit {
-            val strings = mutableListOf<String>()
-
-            override fun visitString(node: Formatted<String>) {
-                strings += node.value()
-            }
-        }
-
         val input = """
 laputa = "sky-castle"
 the-force = { value = "surrounds-you" }
 """
 
         val document = DocumentMut.parse(input).unwrap()
-        val visitor = StringCollector()
-        visitor.visitDocument(document)
+        val strings = mutableListOf<String>()
+        collectStrings(document.asTable(), strings)
 
-        assertEquals(listOf("sky-castle", "surrounds-you"), visitor.strings)
+        assertEquals(listOf("sky-castle", "surrounds-you"), strings)
+    }
+
+    private fun floatsToStrings(table: TableLike) {
+        for ((_, item) in table.iterItemsMut()) floatsToStrings(item)
+    }
+
+    private fun floatsToStrings(item: Item) {
+        val value = item.asValueMut()
+        if (value != null) {
+            val kept = floatsToStrings(value)
+            if (kept !== value) item.assign(Item.from(kept))
+        }
+        item.asTableMut()?.let { floatsToStrings(it) }
+        item.asArrayOfTablesMut()?.forEach { floatsToStrings(it) }
+    }
+
+    /** Returns the value to keep in [value]'s place, since a [Value] cannot replace itself. */
+    private fun floatsToStrings(value: Value): Value = when (value) {
+        is Value.Float -> {
+            // Convert the float to a string, with two decimals.
+            val hundredths = round(value.formatted.value() * 100).toLong()
+            val text = "${hundredths / 100}.${(hundredths % 100).toString().padStart(2, '0')}"
+            val s = Formatted.of(text)
+            // Copy over the formatting.
+            s.decorMut().assign(value.decor())
+            Value.String(s)
+        }
+        is Value.Array -> {
+            for (index in 0 until value.array.len()) {
+                val element = value.array.getMut(index) ?: continue
+                val kept = floatsToStrings(element)
+                if (kept !== element) value.array.replaceFormatted(index, kept)
+            }
+            value
+        }
+        is Value.InlineTable -> {
+            floatsToStrings(value.table)
+            value
+        }
+        is Value.String, is Value.Integer, is Value.Boolean, is Value.Datetime -> value
     }
 
     @Test
     fun visitMutFloatToString() {
-        class FloatToString : VisitMut {
-            override fun visitValueMut(node: Value): Value {
-                var kept = node
-                if (node is Value.Float) {
-                    // Convert the float to a string, with two decimals.
-                    val hundredths = round(node.formatted.value() * 100).toLong()
-                    val text = "${hundredths / 100}.${(hundredths % 100).toString().padStart(2, '0')}"
-                    val s = Formatted.of(text)
-                    // Copy over the formatting.
-                    s.decorMut().assign(node.decor())
-                    kept = Value.String(s)
-                }
-                // Most of the time, you will also need to call the default implementation to recurse
-                // further down the document tree.
-                return visitValueMut(this, kept)
-            }
-        }
-
         val input = """
 banana = 3.26
 table = { apple = 4.5 }
 """
 
         val document = DocumentMut.parse(input).unwrap()
-        val visitor = FloatToString()
-        visitor.visitDocumentMut(document)
+        floatsToStrings(document.asTableMut())
 
         val output = """
 banana = "3.26"

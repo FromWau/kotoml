@@ -4,7 +4,6 @@ import com.fromwau.kern.result.EmptyResult
 import com.fromwau.kern.result.Err
 import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
-import com.fromwau.kotoml.parser.Span
 
 /** A sequence of tables, each under its own `[[header]]`. */
 public class ArrayOfTables() : Iterable<Table> {

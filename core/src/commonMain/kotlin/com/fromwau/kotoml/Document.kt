@@ -3,7 +3,7 @@ package com.fromwau.kotoml
 import com.fromwau.kern.result.Err
 import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
-import com.fromwau.kotoml.parser.Source
+import com.fromwau.kotoml.parser.TomlSource
 
 /**
  * A parsed TOML document that still points into its text: every item knows its [span][Item.span] in [raw].
@@ -55,7 +55,7 @@ public class Document internal constructor(
     public companion object {
         /** Parses [raw] as a TOML document of [version], failing at the first error. */
         public fun parse(raw: String, version: TomlVersion = TomlVersion.V1_1): Result<Document, TomlParseError> {
-            val source = Source(raw)
+            val source = TomlSource(raw)
             val sink = TomlSink(raw)
             val document = parseDocumentModel(source, sink, version)
             sink.error()?.let { return Err(it) }

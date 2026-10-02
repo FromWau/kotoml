@@ -1,7 +1,9 @@
 package com.fromwau.kotoml.parser
 
-import com.fromwau.kotoml.describe
 import com.fromwau.kotoml.Dbg
+import com.fromwau.kotoml.Expected
+import com.fromwau.kotoml.Span
+import com.fromwau.kotoml.describe
 import com.fromwau.kotoml.lit
 import com.fromwau.kotoml.option
 import com.fromwau.kotoml.seq
@@ -9,7 +11,7 @@ import com.fromwau.kotoml.str
 import com.fromwau.kotoml.struct
 import com.fromwau.kotoml.tuple
 
-internal fun Span.dbg(): Dbg = lit("${start()}..${end()}")
+internal fun Span.dbg(): Dbg = lit("$start..$end")
 
 internal fun Token.dbg(): Dbg = struct(
     "Token",

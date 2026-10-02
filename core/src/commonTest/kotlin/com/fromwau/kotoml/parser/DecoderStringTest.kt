@@ -1,5 +1,8 @@
 package com.fromwau.kotoml.parser
 
+import com.fromwau.kotoml.DEFAULT
+import com.fromwau.kotoml.Encoding
+import com.fromwau.kotoml.Span
 import com.fromwau.kotoml.assertData
 import com.fromwau.kotoml.assertDebug
 import kotlin.test.Test

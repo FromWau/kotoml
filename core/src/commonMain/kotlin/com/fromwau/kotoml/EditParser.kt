@@ -6,11 +6,8 @@ import com.fromwau.kotoml.parser.EventReceiver
 import com.fromwau.kotoml.parser.EventKind
 import com.fromwau.kotoml.TomlParseError.Reason
 import com.fromwau.kotoml.parser.ParseError
-import com.fromwau.kotoml.parser.ParseErrorReason
 import com.fromwau.kotoml.parser.RecursionGuard
-import com.fromwau.kotoml.parser.ScalarKind
-import com.fromwau.kotoml.parser.Source
-import com.fromwau.kotoml.parser.Span
+import com.fromwau.kotoml.parser.TomlSource
 import com.fromwau.kotoml.parser.StringOutput
 import com.fromwau.kotoml.parser.Token
 import com.fromwau.kotoml.parser.ValidateWhitespace
@@ -24,7 +21,7 @@ import com.fromwau.kotoml.parser.parseValue as parseValueEvents
 internal const val LIMIT: Int = 80
 
 private fun collectEvents(
-    source: Source,
+    source: TomlSource,
     errors: TomlSink,
     parse: (List<Token>, EventReceiver, ErrorSink) -> Unit,
 ): List<Event> {
@@ -36,7 +33,7 @@ private fun collectEvents(
 }
 
 /** What one parse shares: its input, where errors go, the TOML version, and the order lines are read in. */
-internal class ParseContext(val source: Source, val errors: TomlSink, val version: TomlVersion) {
+internal class ParseContext(val source: TomlSource, val errors: TomlSink, val version: TomlVersion) {
     private var nextOrder = 0L
 
     fun nextOrder(): Long = nextOrder++
@@ -44,14 +41,14 @@ internal class ParseContext(val source: Source, val errors: TomlSink, val versio
     fun text(span: Span): String = source.get(span)?.asStr().orEmpty()
 }
 
-internal fun parseDocumentModel(source: Source, errors: TomlSink, version: TomlVersion): Document {
+internal fun parseDocumentModel(source: TomlSource, errors: TomlSink, version: TomlVersion): Document {
     val events = collectEvents(source, errors, ::parseDocumentEvents)
     val context = ParseContext(source, errors, version)
     val lineEnding = events.firstOrNull { it.kind() == EventKind.Newline }?.let { context.text(it.span()) } ?: "\n"
     return DocumentBuilder(EventStream(events), context).document(lineEnding)
 }
 
-internal fun parseSimpleKeyItem(source: Source, errors: TomlSink, version: TomlVersion): Key {
+internal fun parseSimpleKeyItem(source: TomlSource, errors: TomlSink, version: TomlVersion): Key {
     val events = collectEvents(source, errors, ::parseSimpleKeyEvents)
     val context = ParseContext(source, errors, version)
     val event = events.firstOrNull { it.kind() == EventKind.SimpleKey }
@@ -63,7 +60,7 @@ internal fun parseSimpleKeyItem(source: Source, errors: TomlSink, version: TomlV
     return Key(source.input()).withReprUnchecked(Repr.newUnchecked(raw))
 }
 
-internal fun parseKeyPath(source: Source, errors: TomlSink, version: TomlVersion): List<Key> {
+internal fun parseKeyPath(source: TomlSource, errors: TomlSink, version: TomlVersion): List<Key> {
     val events = collectEvents(source, errors, ::parseKeyEvents)
     val context = ParseContext(source, errors, version)
     val input = EventStream(events)
@@ -92,7 +89,7 @@ internal fun parseKeyPath(source: Source, errors: TomlSink, version: TomlVersion
     return (path ?: emptyList()) + last
 }
 
-internal fun parseValueItem(source: Source, errors: TomlSink, version: TomlVersion): Value {
+internal fun parseValueItem(source: TomlSource, errors: TomlSink, version: TomlVersion): Value {
     val events = collectEvents(source, errors, ::parseValueEvents)
     return value(EventStream(events), ParseContext(source, errors, version))
 }
@@ -291,7 +288,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
             array.push(previousTable)
             val first = array.values.firstOrNull()?.asTable()?.span()
             val last = array.values.lastOrNull()?.asTable()?.span()
-            array.span = if (first != null && last != null) Span(first.start(), last.end()) else null
+            array.span = if (first != null && last != null) Span(first.start, last.end) else null
         } else {
             parentTable.items.insert(key, Item.from(previousTable))
         }
@@ -554,29 +551,29 @@ private fun onScalar(event: Event, context: ParseContext): Value {
 }
 
 private val EXPECTED_ESCAPES_V1_0 = listOf(
-    com.fromwau.kotoml.parser.Expected.Literal("b"),
-    com.fromwau.kotoml.parser.Expected.Literal("f"),
-    com.fromwau.kotoml.parser.Expected.Literal("n"),
-    com.fromwau.kotoml.parser.Expected.Literal("r"),
-    com.fromwau.kotoml.parser.Expected.Literal("\\"),
-    com.fromwau.kotoml.parser.Expected.Literal("\""),
-    com.fromwau.kotoml.parser.Expected.Literal("u"),
-    com.fromwau.kotoml.parser.Expected.Literal("U"),
+    Expected.Literal("b"),
+    Expected.Literal("f"),
+    Expected.Literal("n"),
+    Expected.Literal("r"),
+    Expected.Literal("\\"),
+    Expected.Literal("\""),
+    Expected.Literal("u"),
+    Expected.Literal("U"),
 )
 
 /** Refuses the `\x` and `\e` escapes of a basic string or key when reading TOML 1.0, which has neither. */
 private fun checkEscapes(event: Event, context: ParseContext) {
     if (context.version != TomlVersion.V1_0) return
     val encoding = event.encoding()
-    if (encoding != com.fromwau.kotoml.parser.Encoding.BasicString &&
-        encoding != com.fromwau.kotoml.parser.Encoding.MlBasicString
+    if (encoding != Encoding.BasicString &&
+        encoding != Encoding.MlBasicString
     ) {
         return
     }
     val bytes = context.source.bytes
     val span = event.span()
-    var index = span.start()
-    while (index < span.end() - 1) {
+    var index = span.start
+    while (index < span.end - 1) {
         if (bytes[index] != '\\'.code.toByte()) {
             index++
             continue
@@ -609,7 +606,7 @@ private fun onArray(openEvent: Event, input: EventStream, context: ParseContext)
 
     var currentPrefix: Span? = null
     var currentValue: Value? = null
-    var trailingStart: Int? = openEvent.span().end()
+    var trailingStart: Int? = openEvent.span().end
     var currentSuffix: Span? = null
 
     fun captureValue(event: Event, value: Value) {
@@ -650,7 +647,7 @@ private fun onArray(openEvent: Event, input: EventStream, context: ParseContext)
             EventKind.Scalar -> captureValue(event, onScalar(event, context))
             EventKind.ValueSep -> {
                 finishValue(event)
-                trailingStart = event.span().end()
+                trailingStart = event.span().end
             }
             EventKind.Whitespace, EventKind.Comment, EventKind.Newline -> {
                 if (currentValue == null) {
@@ -662,15 +659,15 @@ private fun onArray(openEvent: Event, input: EventStream, context: ParseContext)
             EventKind.ArrayClose -> {
                 finishValue(event)
                 val trailingComma = trailingStart != null && !result.isEmpty()
-                val start = trailingStart ?: event.span().start()
+                val start = trailingStart ?: event.span().start
                 result.setTrailingComma(trailingComma)
-                result.setTrailing(RawString.withSpan(start, event.span().start()))
+                result.setTrailing(RawString.withSpan(start, event.span().start))
                 result.span = openEvent.span().append(event.span())
                 break
             }
         }
     }
-    if (result.span == null) result.span = Span(openEvent.span().start(), closeSpan.end())
+    if (result.span == null) result.span = Span(openEvent.span().start, closeSpan.end)
 
     return Value.Array(result)
 }
@@ -685,7 +682,7 @@ private fun onInlineTable(openEvent: Event, input: EventStream, context: ParseCo
     var currentKey: Pair<List<Key>, Key>? = null
     var seenKeyvalSep = false
     var currentValue: Value? = null
-    var trailingStart: Int? = openEvent.span().end()
+    var trailingStart: Int? = openEvent.span().end
     var lastSeparator: Span? = null
     var currentSuffix: Span? = null
 
@@ -775,7 +772,7 @@ private fun onInlineTable(openEvent: Event, input: EventStream, context: ParseCo
             }
             EventKind.ValueSep -> {
                 finishValue(event)
-                trailingStart = event.span().end()
+                trailingStart = event.span().end
                 lastSeparator = event.span()
             }
             EventKind.Whitespace, EventKind.Comment, EventKind.Newline -> {
@@ -802,15 +799,15 @@ private fun onInlineTable(openEvent: Event, input: EventStream, context: ParseCo
                         unexpected = lastSeparator ?: event.span(),
                     )
                 }
-                val start = trailingStart ?: event.span().start()
+                val start = trailingStart ?: event.span().start
                 result.setTrailingComma(trailingComma)
-                result.setTrailing(RawString.withSpan(start, event.span().start()))
+                result.setTrailing(RawString.withSpan(start, event.span().start))
                 result.span = openEvent.span().append(event.span())
                 break
             }
         }
     }
-    if (result.span == null) result.span = Span(openEvent.span().start(), closeSpan.end())
+    if (result.span == null) result.span = Span(openEvent.span().start, closeSpan.end)
 
     return Value.InlineTable(result)
 }

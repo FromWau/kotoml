@@ -12,21 +12,21 @@ import com.fromwau.kern.result.EmptyResult
  * TomlStringBuilder("Hello\nworld!\n").asDefault().toTomlValue() // "\"\"\"\nHello\nworld!\n\"\"\""
  * ```
  */
-public class TomlStringBuilder(private val decoded: String) {
+internal class TomlStringBuilder(private val decoded: String) {
     private val metrics = ValueMetrics.calculate(decoded)
 
     /**
      * The first that fits of: basic without escapes, literal, multi-line basic without escapes,
      * multi-line literal; otherwise escaped basic, or escaped multi-line basic when the string has a newline.
      */
-    public fun asDefault(): TomlString = asBasicPretty()
+    fun asDefault(): TomlString = asBasicPretty()
         ?: asLiteral()
         ?: asMlBasicPretty()
         ?: asMlLiteral()
         ?: if (metrics.newline) asMlBasic() else asBasic()
 
     /** `'literal'`, unless the string has control characters, a `'` or a newline. */
-    public fun asLiteral(): TomlString? =
+    fun asLiteral(): TomlString? =
         if (metrics.escapeCodes || 0 < metrics.maxSeqSingleQuotes || metrics.newline) {
             null
         } else {
@@ -34,14 +34,14 @@ public class TomlStringBuilder(private val decoded: String) {
         }
 
     /** `'''multi-line literal'''`, unless the string has control characters or three `'` in a row. */
-    public fun asMlLiteral(): TomlString? = if (metrics.escapeCodes || 2 < metrics.maxSeqSingleQuotes) {
+    fun asMlLiteral(): TomlString? = if (metrics.escapeCodes || 2 < metrics.maxSeqSingleQuotes) {
         null
     } else {
         TomlString(decoded, StringEncoding.MlLiteralString, metrics.newline)
     }
 
     /** `"basic"` needing no escapes, unless the string has control characters, `\`, `"` or a newline. */
-    public fun asBasicPretty(): TomlString? =
+    fun asBasicPretty(): TomlString? =
         if (metrics.escapeCodes || metrics.escape || 0 < metrics.maxSeqDoubleQuotes || metrics.newline) {
             null
         } else {
@@ -49,20 +49,20 @@ public class TomlStringBuilder(private val decoded: String) {
         }
 
     /** `"""multi-line basic"""` needing no escapes, unless it has control characters, `\` or `"""`. */
-    public fun asMlBasicPretty(): TomlString? =
+    fun asMlBasicPretty(): TomlString? =
         if (metrics.escapeCodes || metrics.escape || 2 < metrics.maxSeqDoubleQuotes) null else asMlBasic()
 
     /** `"basic"`, escaping whatever needs it. Always possible. */
-    public fun asBasic(): TomlString = TomlString(decoded, StringEncoding.BasicString, metrics.newline)
+    fun asBasic(): TomlString = TomlString(decoded, StringEncoding.BasicString, metrics.newline)
 
     /** `"""multi-line basic"""`, escaping whatever needs it. Always possible. */
-    public fun asMlBasic(): TomlString = TomlString(decoded, StringEncoding.MlBasicString, metrics.newline)
+    fun asMlBasic(): TomlString = TomlString(decoded, StringEncoding.MlBasicString, metrics.newline)
 
     override fun toString(): String = "TomlStringBuilder(decoded=$decoded)"
 }
 
 /** A string value with its encoding chosen by [TomlStringBuilder]. Write it with [FmtWrite.value]. */
-public class TomlString internal constructor(
+internal class TomlString internal constructor(
     private val decoded: String,
     private val encoding: StringEncoding,
     private val newline: Boolean,
@@ -84,34 +84,34 @@ public class TomlString internal constructor(
  * Each `as` function returns that encoding, or null when the key cannot be written in it; [asDefault] picks
  * the most readable one that fits.
  */
-public class TomlKeyBuilder(private val decoded: String) {
+internal class TomlKeyBuilder(private val decoded: String) {
     private val metrics = KeyMetrics.calculate(decoded)
 
     /** The first that fits of: bare, basic without escapes, literal; otherwise escaped basic. */
-    public fun asDefault(): TomlKey = asUnquoted() ?: asBasicPretty() ?: asLiteral() ?: asBasic()
+    fun asDefault(): TomlKey = asUnquoted() ?: asBasicPretty() ?: asLiteral() ?: asBasic()
 
     /** A bare key, when it is non-empty and holds only `A-Z a-z 0-9 - _`. */
-    public fun asUnquoted(): TomlKey? = if (metrics.unquoted) TomlKey(decoded, null) else null
+    fun asUnquoted(): TomlKey? = if (metrics.unquoted) TomlKey(decoded, null) else null
 
     /** `'literal'`, unless the key has control characters or a `'`. */
-    public fun asLiteral(): TomlKey? = if (metrics.escapeCodes || metrics.singleQuotes) {
+    fun asLiteral(): TomlKey? = if (metrics.escapeCodes || metrics.singleQuotes) {
         null
     } else {
         TomlKey(decoded, StringEncoding.LiteralString)
     }
 
     /** `"basic"` needing no escapes, unless the key has control characters, `\` or `"`. */
-    public fun asBasicPretty(): TomlKey? =
+    fun asBasicPretty(): TomlKey? =
         if (metrics.escapeCodes || metrics.escape || metrics.doubleQuotes) null else asBasic()
 
     /** `"basic"`, escaping whatever needs it. Always possible. */
-    public fun asBasic(): TomlKey = TomlKey(decoded, StringEncoding.BasicString)
+    fun asBasic(): TomlKey = TomlKey(decoded, StringEncoding.BasicString)
 
     override fun toString(): String = "TomlKeyBuilder(decoded=$decoded)"
 }
 
 /** A key with its encoding chosen by [TomlKeyBuilder]. Write it with [FmtWrite.key]. */
-public class TomlKey internal constructor(
+internal class TomlKey internal constructor(
     private val decoded: String,
     private val encoding: StringEncoding?,
 ) : WriteTomlKey {
@@ -127,7 +127,7 @@ public class TomlKey internal constructor(
 }
 
 /** The four string forms a [TomlString] or [TomlKey] can be written in. */
-public enum class StringEncoding {
+internal enum class StringEncoding {
     /** `'literal'` */
     LiteralString,
 

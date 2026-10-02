@@ -4,7 +4,6 @@ import com.fromwau.kern.result.EmptyResult
 import com.fromwau.kern.result.Err
 import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
-import com.fromwau.kotoml.parser.Span
 
 /**
  * An inline table value, `{ a = 1, b.c = 2 }`, with its formatting.

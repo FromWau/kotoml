@@ -5,7 +5,7 @@ import com.fromwau.kotoml.parser.ErrorSink
 import com.fromwau.kotoml.parser.Event
 import com.fromwau.kotoml.parser.EventKind
 import com.fromwau.kotoml.parser.ParseError
-import com.fromwau.kotoml.parser.Source
+import com.fromwau.kotoml.parser.TomlSource
 import com.fromwau.kotoml.parser.StringOutput
 import com.fromwau.kotoml.parser.eventReceiver
 import com.fromwau.kotoml.parser.parseDocument
@@ -20,7 +20,7 @@ import kotlin.test.assertTrue
  */
 internal fun assertParsesBack(key: String, value: String, decoded: String) {
     val toml = "$key = $value"
-    val source = Source(toml)
+    val source = TomlSource(toml)
     val events = mutableListOf<Event>()
     val errors = mutableListOf<ParseError>()
     val sink = ErrorSink { errors += it }

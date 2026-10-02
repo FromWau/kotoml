@@ -7,14 +7,14 @@ class ParseDocumentTest {
 
     private fun t(input: String, snapshot: String) {
         val actual = EventResults(input)
-        val tokens = Source(input).lex().intoVec()
+        val tokens = TomlSource(input).lex().intoVec()
         parseDocument(tokens, actual.receiver, actual.sink)
         actual.validate("testsuite__parse_document__$snapshot")
     }
 
     private fun tRecurse(input: String, maxDepth: UInt, snapshot: String) {
         val actual = EventResults(input)
-        val tokens = Source(input).lex().intoVec()
+        val tokens = TomlSource(input).lex().intoVec()
         parseDocument(tokens, RecursionGuard(actual.receiver, maxDepth), actual.sink)
         actual.validate("testsuite__parse_document__$snapshot")
     }
@@ -467,7 +467,7 @@ v=1_.2
         val input = "v${equals}1\n"
 
         val actual = EventResults(input)
-        val tokens = Source(input).lex().intoVec()
+        val tokens = TomlSource(input).lex().intoVec()
         parseDocument(tokens, actual.receiver, actual.sink)
 
         assertTrue(actual.errors.isNotEmpty())

@@ -10,32 +10,32 @@ import com.fromwau.kern.result.EmptyResult
  * number.toTomlValue() // "0xa"
  * ```
  */
-public class TomlIntegerFormat private constructor(private val radix: Radix) {
+internal class TomlIntegerFormat private constructor(private val radix: Radix) {
 
     /** Decimal, the default. */
-    public constructor() : this(Radix.Decimal)
+    constructor() : this(Radix.Decimal)
 
     /** Decimal. */
-    public fun asDecimal(): TomlIntegerFormat = TomlIntegerFormat(Radix.Decimal)
+    fun asDecimal(): TomlIntegerFormat = TomlIntegerFormat(Radix.Decimal)
 
     /** Hexadecimal with upper-case digits, `0xFF`. */
-    public fun asHexUpper(): TomlIntegerFormat = TomlIntegerFormat(Radix.HexUpper)
+    fun asHexUpper(): TomlIntegerFormat = TomlIntegerFormat(Radix.HexUpper)
 
     /** Hexadecimal with lower-case digits, `0xff`. */
-    public fun asHexLower(): TomlIntegerFormat = TomlIntegerFormat(Radix.HexLower)
+    fun asHexLower(): TomlIntegerFormat = TomlIntegerFormat(Radix.HexLower)
 
     /** Octal, `0o17`. */
-    public fun asOctal(): TomlIntegerFormat = TomlIntegerFormat(Radix.Octal)
+    fun asOctal(): TomlIntegerFormat = TomlIntegerFormat(Radix.Octal)
 
     /** Binary, `0b101`. */
-    public fun asBinary(): TomlIntegerFormat = TomlIntegerFormat(Radix.Binary)
+    fun asBinary(): TomlIntegerFormat = TomlIntegerFormat(Radix.Binary)
 
     /** [value] in this format, or null when it cannot be: TOML writes only decimal integers with a sign. */
-    public fun format(value: Long): TomlInteger? =
+    fun format(value: Long): TomlInteger? =
         if (value < 0 && radix != Radix.Decimal) null else TomlInteger(value < 0, value.absoluteMagnitude(), this)
 
     /** [value] in this format. */
-    public fun format(value: ULong): TomlInteger = TomlInteger(false, value, this)
+    fun format(value: ULong): TomlInteger = TomlInteger(false, value, this)
 
     internal fun write(negative: Boolean, magnitude: ULong): String = when (radix) {
         Radix.Decimal -> (if (negative) "-" else "") + magnitude.toString()
@@ -51,23 +51,23 @@ public class TomlIntegerFormat private constructor(private val radix: Radix) {
 }
 
 /** An integer with its [TomlIntegerFormat] applied. Write it with [FmtWrite.value]. */
-public class TomlInteger internal constructor(
+internal class TomlInteger internal constructor(
     private val negative: Boolean,
     private val magnitude: ULong,
     private val format: TomlIntegerFormat,
 ) : WriteTomlValue {
 
     /** [value] in decimal. */
-    public constructor(value: Long) : this(value < 0, value.absoluteMagnitude(), TomlIntegerFormat())
+    constructor(value: Long) : this(value < 0, value.absoluteMagnitude(), TomlIntegerFormat())
 
     override fun writeTomlValue(writer: FmtWrite): EmptyResult<FmtError> =
         writer.writeStr(format.write(negative, magnitude))
 
     override fun toString(): String = "TomlInteger(${format.write(negative, magnitude)})"
 
-    public companion object {
+    companion object {
         /** [value] in decimal. A constructor would clash on the JVM with the `Long` one. */
-        public fun of(value: ULong): TomlInteger = TomlInteger(false, value, TomlIntegerFormat())
+        fun of(value: ULong): TomlInteger = TomlInteger(false, value, TomlIntegerFormat())
     }
 }
 

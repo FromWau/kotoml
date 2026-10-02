@@ -18,7 +18,7 @@ class ComplianceInvalidTest {
     /** The input under an error's span, sliced by bytes as Rust slices a `str`. */
     private fun spanText(input: String, error: TomlParseError): String {
         val span = error.span!!
-        return input.encodeToByteArray().decodeToString(span.start(), span.end())
+        return input.encodeToByteArray().decodeToString(span.start, span.end)
     }
 
     @Test

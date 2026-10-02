@@ -9,16 +9,16 @@ import kotlin.test.assertEquals
 class LexerTest {
 
     private fun t(input: String, expected: String) {
-        val source = Source(input)
+        val source = TomlSource(input)
         val actual = source.lex().intoVec()
         assertDebug(expected, seq(actual.map { it.dbg() }))
 
         if (actual.isNotEmpty()) {
             val spans = actual.map { it.span() }
-            assertEquals(0, spans.first().start())
-            assertEquals(input.encodeToByteArray().size, spans.last().end())
+            assertEquals(0, spans.first().start)
+            assertEquals(input.encodeToByteArray().size, spans.last().end)
             for (i in 0 until spans.size - 1) {
-                assertEquals(spans[i].end(), spans[i + 1].start())
+                assertEquals(spans[i].end, spans[i + 1].start)
             }
         }
     }
