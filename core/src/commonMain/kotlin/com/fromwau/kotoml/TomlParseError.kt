@@ -2,10 +2,7 @@ package com.fromwau.kotoml
 
 import com.fromwau.kern.result.IError
 import com.fromwau.kotoml.parser.ErrorSink
-import com.fromwau.kotoml.parser.Expected
 import com.fromwau.kotoml.parser.ParseError
-import com.fromwau.kotoml.parser.ParseErrorReason
-import com.fromwau.kotoml.parser.Span
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -192,7 +189,7 @@ internal class TomlSink(private val input: String) : ErrorSink {
     ) {
         if (first != null) return
         val position = unexpected?.let {
-            val (line, column) = translatePosition(input.encodeToByteArray(), it.start())
+            val (line, column) = translatePosition(input.encodeToByteArray(), it.start)
             TextPosition(line + 1, column + 1)
         }
         first = TomlParseError(reason, unexpected, position, context, expected)

@@ -1,14 +1,7 @@
 package com.fromwau.kotoml
 
 import com.fromwau.kotoml.TomlParseError.Reason
-import com.fromwau.kotoml.parser.Encoding
-import com.fromwau.kotoml.parser.Expected
-import com.fromwau.kotoml.parser.ExpectedToken
-import com.fromwau.kotoml.parser.FloatPart
-import com.fromwau.kotoml.parser.IntegerRadix
 import com.fromwau.kotoml.parser.ParseError
-import com.fromwau.kotoml.parser.ParseErrorReason
-import com.fromwau.kotoml.parser.ScalarKind
 
 /**
  * The error as a person reads it, pointing at the offending text of [source], the text that was parsed:
@@ -33,7 +26,7 @@ public fun TomlParseError.render(source: String): String = buildString {
         val content = source.split('\n')[lineNum - 1]
         val contentBytes = content.encodeToByteArray().size
         // Allow the highlight to reach one past the line.
-        val highlightLength = minOf(span.end() - span.start(), maxOf(contentBytes - column, 0))
+        val highlightLength = minOf(span.end - span.start, maxOf(contentBytes - column, 0))
 
         append("TOML parse error at line $lineNum, column ${position.column}\n")
         repeat(gutter + 1) { append(' ') }

@@ -1,5 +1,15 @@
 package com.fromwau.kotoml.parser
 
+import com.fromwau.kotoml.DEFAULT
+import com.fromwau.kotoml.Encoding
+import com.fromwau.kotoml.Expected
+import com.fromwau.kotoml.ExpectedToken
+import com.fromwau.kotoml.ParseErrorReason
+import com.fromwau.kotoml.Span
+import com.fromwau.kotoml.after
+import com.fromwau.kotoml.append
+import com.fromwau.kotoml.before
+
 /**
  * Parses lexed [tokens] as a whole TOML document, reporting [Event]s to [receiver] and problems to
  * [error].
@@ -11,28 +21,28 @@ package com.fromwau.kotoml.parser
  * Nesting is followed with a heap-allocated stack, so any depth parses without exhausting the call stack;
  * wrap [receiver] in a [RecursionGuard] to bound it.
  */
-public fun parseDocument(tokens: List<Token>, receiver: EventReceiver, error: ErrorSink) {
+internal fun parseDocument(tokens: List<Token>, receiver: EventReceiver, error: ErrorSink) {
     val parser = DocumentParser(TokenStream(tokens), receiver, error)
     parser.document()
     parser.eof()
 }
 
 /** Parses lexed [tokens] as one key, simple or dotted. See [parseDocument]. */
-public fun parseKey(tokens: List<Token>, receiver: EventReceiver, error: ErrorSink) {
+internal fun parseKey(tokens: List<Token>, receiver: EventReceiver, error: ErrorSink) {
     val parser = DocumentParser(TokenStream(tokens), receiver, error)
     parser.key(ParseErrorReason.InvalidKey)
     parser.eof()
 }
 
 /** Parses lexed [tokens] as one simple, undotted key. See [parseDocument]. */
-public fun parseSimpleKey(tokens: List<Token>, receiver: EventReceiver, error: ErrorSink) {
+internal fun parseSimpleKey(tokens: List<Token>, receiver: EventReceiver, error: ErrorSink) {
     val parser = DocumentParser(TokenStream(tokens), receiver, error)
     parser.simpleKey(ParseErrorReason.InvalidKey)
     parser.eof()
 }
 
 /** Parses lexed [tokens] as one value. See [parseDocument]. */
-public fun parseValue(tokens: List<Token>, receiver: EventReceiver, error: ErrorSink) {
+internal fun parseValue(tokens: List<Token>, receiver: EventReceiver, error: ErrorSink) {
     val parser = DocumentParser(TokenStream(tokens), receiver, error)
     parser.value()
     parser.eof()

@@ -6,14 +6,14 @@ class ParseSimpleKeyTest {
 
     private fun t(input: String, snapshot: String) {
         val actual = EventResults(input)
-        val tokens = Source(input).lex().intoVec()
+        val tokens = TomlSource(input).lex().intoVec()
         parseSimpleKey(tokens, actual.receiver, actual.sink)
         actual.validate("testsuite__parse_simple_key__$snapshot")
     }
 
     private fun tRecurse(input: String, maxDepth: UInt, snapshot: String) {
         val actual = EventResults(input)
-        val tokens = Source(input).lex().intoVec()
+        val tokens = TomlSource(input).lex().intoVec()
         parseSimpleKey(tokens, RecursionGuard(actual.receiver, maxDepth), actual.sink)
         actual.validate("testsuite__parse_simple_key__$snapshot")
     }

@@ -1,5 +1,11 @@
 package com.fromwau.kotoml.parser
 
+import com.fromwau.kotoml.Encoding
+import com.fromwau.kotoml.Expected
+import com.fromwau.kotoml.ExpectedToken
+import com.fromwau.kotoml.ParseErrorReason
+import com.fromwau.kotoml.Span
+
 // Every offset in this file is a byte offset relative to the start of the Raw being decoded.
 
 private const val REPLACEMENT_CHARACTER = 0xFFFD

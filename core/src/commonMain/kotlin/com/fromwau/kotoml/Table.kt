@@ -2,7 +2,6 @@ package com.fromwau.kotoml
 
 import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
-import com.fromwau.kotoml.parser.Span
 
 /**
  * A standard table: the key/value pairs under a `[header]`, and the tables nested in it.

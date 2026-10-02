@@ -1,67 +1,71 @@
 package com.fromwau.kotoml.parser
 
+import com.fromwau.kotoml.Encoding
+import com.fromwau.kotoml.ParseErrorReason
+import com.fromwau.kotoml.Span
+
 /**
  * Receives the [Event]s of a parse, in input order. Every function has a default that ignores its event,
  * so an implementation overrides only what it needs.
  *
  * The spans of all events together cover the input without gaps. The parser does not decode or validate
- * event content: that is the receiver's choice, through [Source.get] and the [Raw] decoders.
+ * event content: that is the receiver's choice, through [TomlSource.get] and the [Raw] decoders.
  */
-public interface EventReceiver {
+internal interface EventReceiver {
     /** `[` of a standard table header. */
-    public fun stdTableOpen(span: Span, error: ErrorSink) {}
+    fun stdTableOpen(span: Span, error: ErrorSink) {}
 
     /** `]` of a standard table header. */
-    public fun stdTableClose(span: Span, error: ErrorSink) {}
+    fun stdTableClose(span: Span, error: ErrorSink) {}
 
     /** `[[` of an array-of-tables header. */
-    public fun arrayTableOpen(span: Span, error: ErrorSink) {}
+    fun arrayTableOpen(span: Span, error: ErrorSink) {}
 
     /** `]]` of an array-of-tables header. */
-    public fun arrayTableClose(span: Span, error: ErrorSink) {}
+    fun arrayTableClose(span: Span, error: ErrorSink) {}
 
     /** `{` of an inline table. Returning false skips the table's content, as a nesting limit does. */
-    public fun inlineTableOpen(span: Span, error: ErrorSink): Boolean = true
+    fun inlineTableOpen(span: Span, error: ErrorSink): Boolean = true
 
     /** `}` of an inline table. */
-    public fun inlineTableClose(span: Span, error: ErrorSink) {}
+    fun inlineTableClose(span: Span, error: ErrorSink) {}
 
     /** `[` of an array. Returning false skips the array's content, as a nesting limit does. */
-    public fun arrayOpen(span: Span, error: ErrorSink): Boolean = true
+    fun arrayOpen(span: Span, error: ErrorSink): Boolean = true
 
     /** `]` of an array. */
-    public fun arrayClose(span: Span, error: ErrorSink) {}
+    fun arrayClose(span: Span, error: ErrorSink) {}
 
     /** One part of a key, written in [encoding] when quoted. The span is empty where a key is missing. */
-    public fun simpleKey(span: Span, encoding: Encoding?, error: ErrorSink) {}
+    fun simpleKey(span: Span, encoding: Encoding?, error: ErrorSink) {}
 
     /** `.` between the parts of a dotted key. */
-    public fun keySep(span: Span, error: ErrorSink) {}
+    fun keySep(span: Span, error: ErrorSink) {}
 
     /** `=` between a key and its value. */
-    public fun keyValSep(span: Span, error: ErrorSink) {}
+    fun keyValSep(span: Span, error: ErrorSink) {}
 
     /** A scalar value, written in [encoding] when quoted. The span is empty where a value is missing. */
-    public fun scalar(span: Span, encoding: Encoding?, error: ErrorSink) {}
+    fun scalar(span: Span, encoding: Encoding?, error: ErrorSink) {}
 
     /** `,` between values. */
-    public fun valueSep(span: Span, error: ErrorSink) {}
+    fun valueSep(span: Span, error: ErrorSink) {}
 
     /** A run of spaces and tabs. */
-    public fun whitespace(span: Span, error: ErrorSink) {}
+    fun whitespace(span: Span, error: ErrorSink) {}
 
     /** A comment. */
-    public fun comment(span: Span, error: ErrorSink) {}
+    fun comment(span: Span, error: ErrorSink) {}
 
     /** A newline. */
-    public fun newline(span: Span, error: ErrorSink) {}
+    fun newline(span: Span, error: ErrorSink) {}
 
     /** Input the parser skipped while recovering from an error it has reported. */
-    public fun error(span: Span, error: ErrorSink) {}
+    fun error(span: Span, error: ErrorSink) {}
 
-    public companion object {
+    companion object {
         /** A receiver that ignores every event. */
-        public val IGNORE: EventReceiver = object : EventReceiver {}
+        val IGNORE: EventReceiver = object : EventReceiver {}
     }
 }
 
@@ -69,7 +73,7 @@ public interface EventReceiver {
  * A receiver that turns each callback into an [Event] and hands it to [push], such as `events::add` to
  * collect them.
  */
-public fun eventReceiver(push: (Event) -> Unit): EventReceiver = object : EventReceiver {
+internal fun eventReceiver(push: (Event) -> Unit): EventReceiver = object : EventReceiver {
     override fun stdTableOpen(span: Span, error: ErrorSink) = push(Event(EventKind.StdTableOpen, null, span))
 
     override fun stdTableClose(span: Span, error: ErrorSink) = push(Event(EventKind.StdTableClose, null, span))
@@ -119,9 +123,9 @@ public fun eventReceiver(push: (Event) -> Unit): EventReceiver = object : EventR
  * Validates whitespace, comments and newlines as they pass, reporting what TOML forbids in them, and
  * forwards every event to [receiver] unchanged.
  */
-public class ValidateWhitespace(
+internal class ValidateWhitespace(
     private val receiver: EventReceiver,
-    private val source: Source,
+    private val source: TomlSource,
 ) : EventReceiver {
     override fun stdTableOpen(span: Span, error: ErrorSink): Unit = receiver.stdTableOpen(span, error)
 
@@ -175,7 +179,7 @@ public class ValidateWhitespace(
  * Past [maxDepth] it reports `cannot recurse further; max recursion depth met` and refuses the open, so
  * the parser skips that value's content instead of descending into it.
  */
-public class RecursionGuard(
+internal class RecursionGuard(
     private val receiver: EventReceiver,
     private val maxDepth: UInt,
 ) : EventReceiver {
@@ -243,20 +247,20 @@ public class RecursionGuard(
 }
 
 /** One parse event: its [kind], the string [encoding] of a key or scalar, and the [span] it covers. */
-public class Event(
+internal class Event(
     private val kind: EventKind,
     private val encoding: Encoding?,
     private val span: Span,
 ) : Comparable<Event> {
 
     /** What kind of event this is. */
-    public fun kind(): EventKind = kind
+    fun kind(): EventKind = kind
 
     /** How a quoted key or scalar was written, or null for anything else. */
-    public fun encoding(): Encoding? = encoding
+    fun encoding(): Encoding? = encoding
 
     /** The bytes of input this event covers. */
-    public fun span(): Span = span
+    fun span(): Span = span
 
     override fun compareTo(other: Event): Int {
         val byKind = kind.compareTo(other.kind)
@@ -277,14 +281,14 @@ public class Event(
 
     override fun toString(): String = "Event(kind=$kind, encoding=$encoding, span=$span)"
 
-    public companion object {
+    companion object {
         /** An event built by hand, not checked against any input. */
-        public fun newUnchecked(kind: EventKind, encoding: Encoding?, span: Span): Event = Event(kind, encoding, span)
+        fun newUnchecked(kind: EventKind, encoding: Encoding?, span: Span): Event = Event(kind, encoding, span)
     }
 }
 
 /** The kinds of [Event]. */
-public enum class EventKind {
+internal enum class EventKind {
     /** `[` of a standard table header. */
     StdTableOpen,
 
@@ -338,7 +342,7 @@ public enum class EventKind {
     ;
 
     /** The kind in words, such as `key-value separator`. */
-    public fun description(): String = when (this) {
+    fun description(): String = when (this) {
         StdTableOpen -> "std-table open"
         StdTableClose -> "std-table close"
         ArrayTableOpen -> "array-table open"
