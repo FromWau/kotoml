@@ -18,12 +18,8 @@ public class TomlArray() : Iterable<Value> {
     private val decor: Decor = Decor()
     internal var span: Span? = null
 
-    // Always values; held as items so indexing an item hands out the same slots.
+    // Slots that refuse anything but a value; held as items so indexing an item hands out the same slots.
     internal val values: MutableList<Item> = mutableListOf()
-
-    internal constructor(values: List<Item>) : this() {
-        this.values.addAll(values)
-    }
 
     /** Drops the formatting of every element and of the end, putting the array on one line. */
     public fun fmt() {
@@ -84,10 +80,7 @@ public class TomlArray() : Iterable<Value> {
 
     override fun iterator(): Iterator<Value> = iter()
 
-    /**
-     * The number of elements. In rare cases a placeholder element is counted too; `iter().asSequence().count()`
-     * counts only values.
-     */
+    /** The number of values. */
     public fun len(): Int = values.size
 
     /** Whether the array has no elements. */
@@ -106,7 +99,7 @@ public class TomlArray() : Iterable<Value> {
 
     /** Appends [value], applying default formatting to it. */
     public fun push(value: Value) {
-        values.add(Item.from(value))
+        values.add(Item.inArray(value))
     }
 
     /** Appends a string. */
@@ -136,7 +129,7 @@ public class TomlArray() : Iterable<Value> {
 
     /** Appends an already formatted value, keeping its formatting. */
     public fun pushFormatted(value: Value) {
-        values.add(Item.from(value))
+        values.add(Item.inArray(value))
     }
 
     /**
@@ -145,7 +138,7 @@ public class TomlArray() : Iterable<Value> {
      */
     public fun insert(index: Int, value: Value): EmptyResult<TomlEditError> {
         if (index < 0 || index > values.size) return Err(TomlEditError.IndexOutOfBounds(index, values.size))
-        values.add(index, Item.from(value))
+        values.add(index, Item.inArray(value))
         return Ok(Unit)
     }
 
@@ -166,7 +159,7 @@ public class TomlArray() : Iterable<Value> {
     public fun replaceFormatted(index: Int, value: Value): Result<Value, TomlEditError> {
         if (index < 0 || index >= values.size) return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         val old = values[index]
-        values[index] = Item.from(value)
+        values[index] = Item.inArray(value)
         return old.asValue()?.let { Ok(it) } ?: Err(TomlEditError.NotAValue(old.type))
     }
 
@@ -213,7 +206,7 @@ public class TomlArray() : Iterable<Value> {
         copy.trailingComma = trailingComma
         copy.decor.assign(decor)
         copy.span = span
-        for (item in values) copy.values.add(item.clone())
+        for (value in iter()) copy.values.add(Item.inArray(value.clone()))
         return copy
     }
 
@@ -224,7 +217,7 @@ public class TomlArray() : Iterable<Value> {
         /** An array of [values], keeping their formatting. */
         public fun fromIter(values: Iterable<Value>): TomlArray {
             val array = TomlArray()
-            for (value in values) array.values.add(Item.from(value))
+            for (value in values) array.values.add(Item.inArray(value))
             return array
         }
     }

@@ -12,7 +12,8 @@ import com.fromwau.kotoml.parser.Span
  * `a` in `a.b = 1`, is dotted.
  *
  * Indexing reads and writes slots: `table["key"]` returns the [Item] stored there, or an empty one that
- * joins the table when it is written to; `table["key"] = item` stores [item], keeping the key's formatting.
+ * joins the table when it is written to; `table["key"] = item` stores a copy of [item], keeping the key's
+ * formatting.
  */
 public class Table() : TableLike, Iterable<Pair<String, Item>> {
     // Comments and whitespace before and after the header.
@@ -226,10 +227,10 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
         Ok(Unit)
     }
 
-    /** Stores [item] at [key], keeping the key's position and formatting when it is already there. */
+    /** Stores a copy of [item] at [key], keeping the key's position and formatting when it is already there. */
     public operator fun set(key: String, item: Item) {
         val existing = items.getEntry(key)
-        if (existing != null) existing.item = item else items.insert(Key(key), item)
+        if (existing != null) existing.item = item.clone() else items.insert(Key(key), item.clone())
     }
 
     /** The key and item at [key], unless it holds no item. */
@@ -253,7 +254,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     public fun containsArrayOfTables(key: String): Boolean = items.get(key)?.isArrayOfTables() ?: false
 
     /**
-     * Sets [key] to [item], returning the item it replaces. A replaced key loses its formatting; use
+     * Sets [key] to a copy of [item], returning the item it replaces. A replaced key loses its formatting; use
      * [insertFormatted] to keep a key's spelling.
      */
     public fun insert(key: String, item: Item): Item? {
@@ -261,23 +262,23 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
         if (existing != null) {
             existing.key.fmt()
             val old = existing.item
-            existing.item = item
+            existing.item = item.clone()
             return old
         }
-        items.insert(Key(key), item)
+        items.insert(Key(key), item.clone())
         return null
     }
 
-    /** Sets [key], with its formatting, to [item], returning the item it replaces. */
+    /** Sets [key], with its formatting, to a copy of [item], returning the item it replaces. */
     public fun insertFormatted(key: Key, item: Item): Item? {
         val existing = items.getEntry(key.get())
         if (existing != null) {
             existing.key = key.clone()
             val old = existing.item
-            existing.item = item
+            existing.item = item.clone()
             return old
         }
-        items.insert(key.clone(), item)
+        items.insert(key.clone(), item.clone())
         return null
     }
 
@@ -292,9 +293,9 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
         items.retain { keep(it.key.get(), it.item) }
     }
 
-    /** Adds every pair of [pairs]. */
+    /** Adds a copy of every pair of [pairs]. */
     public fun extend(pairs: Iterable<Pair<String, Item>>) {
-        for ((key, item) in pairs) items.insert(Key(key), item)
+        for ((key, item) in pairs) items.insert(Key(key), item.clone())
     }
 
     /** A deep copy of this table. */
@@ -330,7 +331,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     override fun removeItem(key: String): Item? = remove(key)
 
     public companion object {
-        /** A table of [pairs]. */
+        /** A table of copies of [pairs]. */
         public fun fromIter(pairs: Iterable<Pair<String, Item>>): Table {
             val table = Table()
             table.extend(pairs)
@@ -413,8 +414,8 @@ public interface TableLike {
     public fun containsKey(key: String): Boolean
 
     /**
-     * Sets [key] to [item], returning the item it replaces. An inline table holds only values, so giving it
-     * anything else fails; upstream panics there.
+     * Sets [key] to a copy of [item], returning the item it replaces. An inline table holds only values, so
+     * giving it anything else fails; upstream panics there.
      */
     public fun insertItem(key: String, item: Item): Result<Item?, TomlEditError>
 
@@ -448,13 +449,13 @@ public sealed interface Entry {
     /** The entry's key. */
     public fun key(): String
 
-    /** The item in the entry, inserting [default] first when it is vacant. */
+    /** The item in the entry, inserting a copy of [default] first when it is vacant. */
     public fun orInsert(default: Item): Item = when (this) {
         is OccupiedEntry -> intoMut()
         is VacantEntry -> insert(default)
     }
 
-    /** The item in the entry, inserting what [default] makes first when it is vacant. */
+    /** The item in the entry, inserting a copy of what [default] makes first when it is vacant. */
     public fun orInsertWith(default: () -> Item): Item = when (this) {
         is OccupiedEntry -> intoMut()
         is VacantEntry -> insert(default())
@@ -481,10 +482,10 @@ public class OccupiedEntry internal constructor(
     /** The item, to change in place, upstream's `into_mut`. */
     public fun intoMut(): Item = entry.item
 
-    /** Replaces the item, returning the old one. */
+    /** Replaces the item with a copy of [value], returning the old one. */
     public fun insert(value: Item): Item {
         val old = entry.item
-        entry.item = value
+        entry.item = value.clone()
         return old
     }
 
@@ -503,10 +504,11 @@ public class VacantEntry internal constructor(
 
     override fun key(): String = key.get()
 
-    /** Inserts [value] under the entry's key and returns it. */
+    /** Inserts a copy of [value] under the entry's key and returns the stored item. */
     public fun insert(value: Item): Item {
-        items.insert(key, value)
-        return value
+        val stored = value.clone()
+        items.insert(key, stored)
+        return stored
     }
 }
 

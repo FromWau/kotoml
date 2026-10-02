@@ -322,7 +322,7 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
     override fun getItem(key: String): Item? = items.get(key)
 
     override fun insertItem(key: String, item: Item): Result<Item?, TomlEditError> {
-        val value = item.intoValue() ?: return Err(TomlEditError.NotAValue(item.type))
+        val value = item.clone().intoValue() ?: return Err(TomlEditError.NotAValue(item.type))
         return Ok(insert(key, value)?.let { Item.from(it) })
     }
 

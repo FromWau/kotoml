@@ -10,13 +10,12 @@ import com.fromwau.kotoml.parser.Span
 public class ArrayOfTables() : Iterable<Table> {
     internal var span: Span? = null
 
-    // Always tables; held as items so indexing an item hands out the same slots.
+    // Slots that refuse anything but a table; held as items so indexing an item hands out the same slots.
     internal val values: MutableList<Item> = mutableListOf()
 
     /** Turns this into an inline array of inline tables, formatted anew. Its tables move to the result. */
     public fun intoArray(): TomlArray {
-        for (value in values) value.makeValue()
-        val array = TomlArray(values.toList())
+        val array = TomlArray.fromIter(values.mapNotNull { it.intoValue() })
         values.clear()
         array.fmt()
         return array
@@ -38,7 +37,7 @@ public class ArrayOfTables() : Iterable<Table> {
 
     override fun iterator(): Iterator<Table> = iter()
 
-    /** The number of elements; `iter().asSequence().count()` counts only tables. */
+    /** The number of tables. */
     public fun len(): Int = values.size
 
     /** Whether there are no elements. */
@@ -57,13 +56,13 @@ public class ArrayOfTables() : Iterable<Table> {
 
     /** Appends [table]. */
     public fun push(table: Table) {
-        values.add(Item.from(table))
+        values.add(Item.inArrayOfTables(table))
     }
 
     /** Inserts [table] at [index]. Fails when [index] is greater than [len]; upstream panics there. */
     public fun insert(index: Int, table: Table): EmptyResult<TomlEditError> {
         if (index < 0 || index > values.size) return Err(TomlEditError.IndexOutOfBounds(index, values.size))
-        values.add(index, Item.from(table))
+        values.add(index, Item.inArrayOfTables(table))
         return Ok(Unit)
     }
 
@@ -71,7 +70,7 @@ public class ArrayOfTables() : Iterable<Table> {
     public fun replace(index: Int, table: Table): Result<Table, TomlEditError> {
         if (index < 0 || index >= values.size) return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         val old = values[index]
-        values[index] = Item.from(table)
+        values[index] = Item.inArrayOfTables(table)
         return old.asTable()?.let { Ok(it) } ?: Err(TomlEditError.NotAValue(old.type))
     }
 
@@ -96,7 +95,7 @@ public class ArrayOfTables() : Iterable<Table> {
     public fun clone(): ArrayOfTables {
         val copy = ArrayOfTables()
         copy.span = span
-        for (value in values) copy.values.add(value.clone())
+        for (table in iter()) copy.values.add(Item.inArrayOfTables(table.clone()))
         return copy
     }
 

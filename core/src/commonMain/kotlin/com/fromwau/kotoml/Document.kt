@@ -106,7 +106,7 @@ public class DocumentMut internal constructor(
      * The root table. Should the root item have been made to hold anything else, it is reset to an empty
      * table here, where upstream panics.
      */
-    public fun asTable(): Table = root.asTable() ?: Table().also { root.assign(Item.from(it)) }
+    public fun asTable(): Table = root.asTable() ?: Table().also { root.holdTable(it) }
 
     /** The root table, to change in place. */
     public fun asTableMut(): Table = asTable()

@@ -58,14 +58,20 @@ Rust hands out `&mut Item` and `&mut Value` and lets a caller overwrite the plac
 references, not places, so the port makes the difference explicit:
 
 - `Item` is a mutable slot. Tables and arrays store items, indexing hands out the stored item, and
-  `item.assign(other)` is `*item = other`. Indexing a missing key returns an empty item that joins its parent at
-  the first write, so `doc["a"]["b"] = value(...)` works as in Rust, and reading never adds a key.
+  `item.assign(other)` is `*item = other.clone()`. Indexing a missing key returns an empty item that joins its
+  parent at the first write, so `doc["a"]["b"] = value(...)` works as in Rust, and reading never adds a key.
 - `Value` is a sealed type whose parts (`Formatted`, `TomlArray`, `InlineTable`, `Decor`) are mutable in place.
   A whole value is replaced through its container (`TomlArray.replace`, `InlineTable.insert`, `Item.assign`).
   `VisitMut.visitValueMut` returns the value to keep in place, which is how a visitor replaces one.
 - `Decor.assign(other)` is `*decor = other`.
-- Content is shared, not copied: putting one `Item`, `Table` or `Value` in two places makes both places change
-  together. `clone()` copies, as Rust's `Clone` does.
+- Storing an item stores a copy of its content (`assign`, `table[key] = item`, `insert`, `extend`, an entry's
+  `insert`), so two places never share a slot, a table or a value. Rust moves the value into its place; Kotlin
+  cannot empty the caller's variable, and moving out of an array element would leave a hole in the array.
+- A `Value` or `Table` handed to a container directly (`TomlArray.push`, `InlineTable.insert`,
+  `ArrayOfTables.push`) is stored as is, as Rust moves it: keep using it only through the document, or hand over
+  its `clone()`.
+- An array element is always a value and an array-of-tables element always a table. Writing anything else
+  into one fails, so upstream's placeholder elements cannot occur and `len()` counts what iteration yields.
 - `into_*` conversions move the content into the result and leave the source empty, as Rust's move does.
 
 ### Beyond upstream: the whole toml-test suite
@@ -669,6 +675,8 @@ commands of [`:app`](../app/README.md) and compares their output by its own rule
 | Duplicate key and dotted key over a value | no key named | `DuplicateKey(key)`, `DottedKeyExtendsValue(key, type)` | the reason says which key |
 | `Index` on a missing key | panics (`index not found`) | returns an empty item, or null for `InlineTable` | reading through a missing key never fails, and the empty item joins the table when written to |
 | `IndexMut` before a write | inserts an empty slot (or turns an empty item into an inline table) at access time | joins the parent at the first write | reading in Kotlin cannot be told from writing; the document only changes when written |
+| Storing an `Item` | moves it | stores a copy | see "Items are slots, values are not" |
+| Writing a non-value into an `Array` element or a non-table into an `ArrayOfTables` element (`*item = other`, `Item::make_value`) | stores it as a placeholder that `len` counts and printing skips | `TomlEditError.NotAValue` / `NotATableElement`, nothing written; `makeValue()` returns the result | an element of the wrong kind would vanish from the printed document |
 | `Array::insert / replace / remove`, `ArrayOfTables::insert / replace / remove`, `IndexMut` on a scalar or a missing inline-table key, `TableLike::insert` of a non-value into an inline table | panic | `TomlEditError` | nothing throws |
 | `DocumentMut::as_table` when the root item was made a non-table | panics | resets the root to an empty table | nothing throws |
 | `Document` | immutable by borrow rules | editable through its items | Kotlin cannot hand out read-only views of mutable classes; documented as read-only |

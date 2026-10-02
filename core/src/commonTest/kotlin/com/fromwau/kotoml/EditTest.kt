@@ -1186,7 +1186,7 @@ inline = { "1" = 1, "2" = 2 }
 other = "world"
 """
         val doc = DocumentMut.parse(toml).unwrap()
-        doc.getOrNull("table")!!.makeValue()
+        doc.getOrNull("table")!!.makeValue().unwrap()
         val actual = doc.toString()
         // `table=` is because the table key was not re-formatted, only the value.
         assertData(
@@ -1235,7 +1235,7 @@ inline = { "1" = 1, "2" = 2 }
 other = "world"
 """
         val doc = DocumentMut.parse(toml).unwrap()
-        doc.getOrNull("table")!!.makeValue()
+        doc.getOrNull("table")!!.makeValue().unwrap()
         val actual = doc.toString()
         // `table=` is because the table key was not re-formatted, only the value.
         assertData(

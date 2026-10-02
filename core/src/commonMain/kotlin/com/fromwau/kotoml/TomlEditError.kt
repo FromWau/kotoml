@@ -33,4 +33,9 @@ public sealed interface TomlEditError : IError {
     @Serializable
     @SerialName("NotAValue")
     public data class NotAValue(val itemType: TomlType) : TomlEditError
+
+    /** An array of tables can only hold tables; an item of type [itemType] was given. */
+    @Serializable
+    @SerialName("NotATableElement")
+    public data class NotATableElement(val itemType: TomlType) : TomlEditError
 }
