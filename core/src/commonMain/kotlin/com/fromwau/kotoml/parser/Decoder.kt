@@ -91,31 +91,6 @@ internal fun appendCodePoint(builder: StringBuilder, codePoint: Int) {
     }
 }
 
-/** The form in words, such as `literal string`, as error messages name it. */
-internal fun Encoding.description(): String = when (this) {
-    Encoding.LiteralString -> TokenKind.LiteralString.description()
-    Encoding.BasicString -> TokenKind.BasicString.description()
-    Encoding.MlLiteralString -> TokenKind.MlLiteralString.description()
-    Encoding.MlBasicString -> TokenKind.MlBasicString.description()
-}
-
-/** The kind in words, such as `float` or `hexadecimal`. */
-internal fun ScalarKind.description(): String = when (this) {
-    ScalarKind.String -> "string"
-    is ScalarKind.Boolean -> "boolean"
-    ScalarKind.DateTime -> "date-time"
-    ScalarKind.Float -> "float"
-    is ScalarKind.Integer -> radix.description()
-}
-
-/** The base in words, such as `hexadecimal`. */
-internal fun IntegerRadix.description(): String = when (this) {
-    IntegerRadix.Dec -> "integer"
-    IntegerRadix.Hex -> "hexadecimal"
-    IntegerRadix.Oct -> "octal"
-    IntegerRadix.Bin -> "binary"
-}
-
 internal fun IntegerRadix.isValid(byte: Int): Boolean = when (this) {
     IntegerRadix.Dec -> byte in '0'.code..'9'.code
     IntegerRadix.Hex -> byte in '0'.code..'9'.code || byte in 'a'.code..'f'.code || byte in 'A'.code..'F'.code

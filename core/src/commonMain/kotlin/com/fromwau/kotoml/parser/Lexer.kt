@@ -287,26 +287,6 @@ internal enum class TokenKind {
     RightCurlyBracket,
     ;
 
-    /** The kind in words, as error messages name it. */
-    fun description(): String = when (this) {
-        Dot -> "`.`"
-        Equals -> "`=`"
-        Comma -> "`,`"
-        LeftSquareBracket -> "`[`"
-        RightSquareBracket -> "`]`"
-        LeftCurlyBracket -> "`{`"
-        RightCurlyBracket -> "`}`"
-        Whitespace -> "whitespace"
-        Comment -> "comment"
-        Newline -> "newline"
-        LiteralString -> "literal string"
-        BasicString -> "basic string"
-        MlLiteralString -> "multi-line literal string"
-        MlBasicString -> "multi-line basic string"
-        Atom -> "token"
-        Eof -> "end-of-input"
-    }
-
     /** The string encoding a token of this kind is written in, or null when it is not a string. */
     fun encoding(): Encoding? = when (this) {
         LiteralString -> Encoding.LiteralString

@@ -150,7 +150,7 @@ section 1.
 | `Expected::Literal`, `Expected::Description` | `Expected.Literal`, `Expected.Token(ExpectedToken)` | done | `DecoderStringTest` |
 | `lexer::Lexer` (`Iterator<Item = Token>`), `into_vec` | `Lexer : Iterator<Token>`, `intoVec()` | done | `LexerTest` |
 | `lexer::Token::kind / span` | same names | done | `LexerTest` |
-| `lexer::TokenKind` (16 kinds), `description`, `encoding` | `TokenKind`, same names | done | `LexerTest` |
+| `lexer::TokenKind` (16 kinds), `description`, `encoding` | `TokenKind`, `encoding`; `description` n/a, `TomlParseError.render` words the kinds | done | `LexerTest` |
 | `parser::parse_document / parse_key / parse_simple_key / parse_value` | `parseDocument`, `parseKey`, `parseSimpleKey`, `parseValue` | done | `ParseDocumentTest`, `ParseValueTest`, `ParseSimpleKeyTest` |
 | `parser::EventReceiver` (17 callbacks with defaults) | `interface EventReceiver` | done | all parser tests |
 | `impl EventReceiver for FnMut(Event)` / `Vec<Event>` | `eventReceiver { ... }`, e.g. `eventReceiver(events::add)` | done | all parser tests |
@@ -158,14 +158,14 @@ section 1.
 | `parser::ValidateWhitespace::new` | `ValidateWhitespace(EventReceiver, TomlSource)` | done | toml_edit's parser |
 | `parser::RecursionGuard::new(_, u32)` | `RecursionGuard(EventReceiver, UInt)` | done | `ParseDocumentTest.*RecursionLimit` |
 | `parser::Event::new_unchecked / kind / encoding / span` | `Event(...)`, `Event.newUnchecked`, same names | done | all parser tests |
-| `parser::EventKind` (17 kinds), `description` | `EventKind`, same names | done | |
-| `decoder::Encoding`, `description` | `Encoding`; `description` internal | done | |
+| `parser::EventKind` (17 kinds), `description` | `EventKind`; `description` n/a, as for `TokenKind` | done | |
+| `decoder::Encoding`, `description` | `Encoding`; `description` n/a, as for `TokenKind` | done | |
 | `decoder::StringBuilder` | `DecodedStringBuilder` | done | `DecoderStringTest` |
 | `impl StringBuilder for String` / `Cow<str>` | `StringOutput` | done | `DecoderStringTest`, `ParseValueTest` |
 | `impl StringBuilder for &str` | `BorrowedOutput` | done | |
 | `impl StringBuilder for ()` | `DecodedStringBuilder.DISCARD` | done | `ParseDocumentTest` (keys) |
-| `decoder::ScalarKind` (`String`, `Boolean`, `DateTime`, `Float`, `Integer`), `description`, `invalid_description` | `ScalarKind` sealed interface; `description` internal; `invalid_description` is `ParseErrorReason.InvalidScalar(kind)` | done | `ParseValueTest` |
-| `decoder::IntegerRadix`, `description`, `value`, `invalid_description`, `Default` | `IntegerRadix`, `value`; `description` internal; `Default` is `IntegerRadix.Dec`; `invalid_description` as for `ScalarKind` | done | `ParseValueTest` |
+| `decoder::ScalarKind` (`String`, `Boolean`, `DateTime`, `Float`, `Integer`), `description`, `invalid_description` | `ScalarKind` sealed interface; `description` n/a, as for `TokenKind`; `invalid_description` is `ParseErrorReason.InvalidScalar(kind)` | done | `ParseValueTest` |
+| `decoder::IntegerRadix`, `description`, `value`, `invalid_description`, `Default` | `IntegerRadix`, `value`; `description` n/a, as for `TokenKind`; `Default` is `IntegerRadix.Dec`; `invalid_description` as for `ScalarKind` | done | `ParseValueTest` |
 | derived `Ord` / `Hash` / `Eq` on `Span`, `Token`, `TokenKind`, `Event`, `EventKind`, `Encoding`, `ScalarKind`, `IntegerRadix`, `ParseError` | `Comparable` / `equals` / `hashCode` | done | |
 
 ### `toml_writer`
@@ -674,7 +674,7 @@ commands of [`:app`](../app/README.md) and compares their output by its own rule
 | `Item::into_value` and friends | `Result<_, Item>` returning the item | nullable | the Kotlin item still exists after a failed conversion |
 | `*place = value` through `&mut` | assignment | `Item.assign`, `Decor.assign`, container `replace` / `insert` | see "Items are slots, values are not" |
 | Errors | text: `ParseError::description`, `TomlError::message`, `DatetimeParseError`'s `what` / `expected` | typed reasons (`ParseErrorReason`, `TomlParseError.Reason`, `DatetimeExpected`); upstream's text comes from `TomlParseError.render(source)` | a caller branches on what went wrong without matching text, and the wording is decided where it is shown |
-| `description` on `Encoding`, `ScalarKind`, `IntegerRadix`, `TokenKind`, `EventKind` | public, English text | internal | the public API carries typed values; `TomlParseError.render(source)` is the one place that words them |
+| `description` on `Encoding`, `ScalarKind`, `IntegerRadix`, `TokenKind`, `EventKind` | public, English text | not ported | the public API carries typed values; `TomlParseError.render(source)` is the one place that words them |
 | `toml_parser`, `toml_writer` | public crates | internal packages, except the payload types of `TomlParseError` | a caller reads, edits and prints TOML through the document model, so the lexer, event parser and writer stay free to change |
 | `ParseError`, `ErrorSink` | public | internal; a parse failure reaches a caller as `TomlParseError`, whose `Syntax` reason carries the `ParseErrorReason` | the document parser is the only reporter |
 | `Span` accessors | `start()`, `end()`, `len()`, `is_empty()` | `start`, `end` and `length` properties of a data class | Kotlin reads a field as a property; an empty span is one whose `length` is zero or less |

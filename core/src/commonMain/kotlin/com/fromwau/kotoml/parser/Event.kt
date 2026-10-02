@@ -339,26 +339,4 @@ internal enum class EventKind {
 
     /** Input skipped while recovering from a reported error. */
     Error,
-    ;
-
-    /** The kind in words, such as `key-value separator`. */
-    fun description(): String = when (this) {
-        StdTableOpen -> "std-table open"
-        StdTableClose -> "std-table close"
-        ArrayTableOpen -> "array-table open"
-        ArrayTableClose -> "array-table close"
-        InlineTableOpen -> "inline-table open"
-        InlineTableClose -> "inline-table close"
-        ArrayOpen -> "array open"
-        ArrayClose -> "array close"
-        SimpleKey -> "key"
-        KeySep -> "key separator"
-        KeyValSep -> "key-value separator"
-        Scalar -> "value"
-        ValueSep -> "value separator"
-        Whitespace -> "whitespace"
-        Comment -> "comment"
-        Newline -> "newline"
-        Error -> "error"
-    }
 }
