@@ -102,7 +102,10 @@ public class TomlDocument internal constructor(
         item: Item,
     ): Item? = root.put(key, item)
 
-    /** Removes [key] from the root table; see [Table.remove]. */
+    /**
+     * Removes [key] from the root table and returns its item, or null when it held none. The comment and blank
+     * lines above the key stay where they print; see [Table.remove].
+     */
     public fun remove(key: String): Item? = root.remove(key)
 
     /** The item at [key] of the root table, first storing what [default] makes; see [Table.getOrPut]. */

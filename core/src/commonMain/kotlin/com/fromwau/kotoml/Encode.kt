@@ -77,18 +77,33 @@ internal fun encodeInlineTable(buf: StringBuilder, table: InlineTable, defaultPr
     decor.prefixEncode(buf, defaultPrefix)
     buf.append('{')
 
-    val children = table.visualValues()
-    for ((index, child) in children.withIndex()) {
+    val lines = table.bodyLines()
+    val lastValue = lines.indexOfLast { it is VisualValue }
+    // Kept lines print after the comma that ends the entry before them.
+    val kept = StringBuilder()
+    var first = true
+    for ((index, line) in lines.withIndex()) {
+        val child = when (line) {
+            is KeptLines -> {
+                kept.append(line.text)
+                continue
+            }
+            is VisualValue -> line
+        }
         val keyPath = child.spelledPath()
         val value = child.value
-        if (index != 0) buf.append(',')
-        val inner = if (index == children.size - 1) DEFAULT_TRAILING_VALUE_DECOR else DEFAULT_VALUE_DECOR
+        if (!first) buf.append(',')
+        first = false
+        buf.append(kept)
+        kept.clear()
+        val inner = if (index == lastValue) DEFAULT_TRAILING_VALUE_DECOR else DEFAULT_VALUE_DECOR
         val leafDecor = keyPath.last().rawLeafDecor
         encodeKeyPath(buf, keyPath, DEFAULT_INLINE_KEY_DECOR.first, DEFAULT_INLINE_KEY_DECOR.second, leafDecor)
         buf.append('=')
         encodeValue(buf, value, inner.first, inner.second)
     }
     if (table.trailingComma && !table.isEmpty()) buf.append(',')
+    buf.append(kept)
 
     encodeRaw(buf, table.rawTrailing.toStrWithDefault(""))
     buf.append('}')
@@ -125,13 +140,36 @@ private fun encodeKeyValueLine(writer: LineWriter, visual: VisualValue) {
     writer.endLine(visual.entry.lineEnding)
 }
 
-/** A table's own key/value pairs, one per line: upstream's `Display for Table`. */
-internal fun encodeTableBody(buf: StringBuilder, table: Table) {
-    val writer = LineWriter(buf, "\n")
-    for (visual in table.visualValues()) encodeKeyValueLine(writer, visual)
+private fun encodeBodyLines(writer: LineWriter, table: Table) {
+    for (line in table.bodyLines()) {
+        when (line) {
+            is VisualValue -> encodeKeyValueLine(writer, line)
+            is KeptLines -> writer.buf.append(line.text)
+        }
+    }
 }
 
-private class TableToVisit(val position: Long, val table: Table, val path: List<Key>, val isArray: Boolean)
+/** A table's own key/value pairs, one per line: upstream's `Display for Table`. */
+internal fun encodeTableBody(buf: StringBuilder, table: Table) {
+    encodeBodyLines(LineWriter(buf, "\n"), table)
+}
+
+/** What prints among a document's tables, in the order of [position]. */
+private sealed interface DocumentPart {
+    val position: Long
+}
+
+private class TableToVisit(
+    override val position: Long,
+    val table: Table,
+    val path: List<Key>,
+    val isArray: Boolean,
+) : DocumentPart
+
+private class KeptHeaderLines(
+    override val position: Long,
+    val text: String,
+) : DocumentPart
 
 /** A whole document, tables in their original order: upstream's `Display for DocumentMut`. */
 internal fun encodeDocument(buf: StringBuilder, document: TomlDocument) {
@@ -141,16 +179,25 @@ internal fun encodeDocument(buf: StringBuilder, document: TomlDocument) {
     val writer = LineWriter(buf, document.lineEnding)
 
     var lastPosition = 0L
-    val tables = mutableListOf<TableToVisit>()
-    visitNestedTables(root, mutableListOf(), false) { table, path, isArray ->
-        table.position?.let { lastPosition = it }
-        tables += TableToVisit(lastPosition, table, path.toList(), isArray)
-    }
+    val parts = mutableListOf<DocumentPart>()
+    visitNestedTables(
+        table = root,
+        path = mutableListOf(),
+        isArrayOfTables = false,
+        onTable = { table, path, isArray ->
+            table.position?.let { lastPosition = it }
+            parts += TableToVisit(lastPosition, table, path.toList(), isArray)
+        },
+        onKeptLines = { kept -> parts += KeptHeaderLines(kept.order ?: lastPosition, kept.text) },
+    )
 
-    val ordered = tables.sortedWith(compareBy({ it.path.isNotEmpty() }, { it.position }))
+    val ordered = parts.sortedWith(compareBy({ it !is TableToVisit || it.path.isNotEmpty() }, { it.position }))
     var firstTable = true
-    for (visit in ordered) {
-        firstTable = visitTable(writer, visit.table, visit.path, visit.isArray, firstTable)
+    for (part in ordered) {
+        when (part) {
+            is TableToVisit -> firstTable = visitTable(writer, part.table, part.path, part.isArray, firstTable)
+            is KeptHeaderLines -> buf.append(part.text)
+        }
     }
     decor.suffixEncode(buf, DEFAULT_ROOT_DECOR.second)
     encodeRaw(buf, document.rawTrailing.toStrWithDefault(""))
@@ -160,24 +207,27 @@ private fun visitNestedTables(
     table: Table,
     path: MutableList<Key>,
     isArrayOfTables: Boolean,
-    callback: (Table, List<Key>, Boolean) -> Unit,
+    onTable: (Table, List<Key>, Boolean) -> Unit,
+    onKeptLines: (KeptLines) -> Unit,
 ) {
-    if (!table.isDotted) callback(table, path, isArrayOfTables)
+    if (!table.isDotted) onTable(table, path, isArrayOfTables)
+    table.keptHeaderLines.forEach(onKeptLines)
 
     for (entry in table.items.entries()) {
         val child = entry.item.tableOrNull
         val array = entry.item.arrayOfTablesOrNull
         if (child != null) {
             path.add(entry.key)
-            visitNestedTables(child, path, false, callback)
+            visitNestedTables(child, path, false, onTable, onKeptLines)
             path.removeAt(path.size - 1)
         } else if (array != null) {
             for (element in array.values) {
                 val tableElement = element.tableOrNull ?: continue
                 path.add(entry.key)
-                visitNestedTables(tableElement, path, true, callback)
+                visitNestedTables(tableElement, path, true, onTable, onKeptLines)
                 path.removeAt(path.size - 1)
             }
+            array.keptHeaderLines.forEach(onKeptLines)
         }
     }
 }
@@ -203,13 +253,9 @@ private fun visitTable(
 ): Boolean {
     val buf = writer.buf
     var first = firstTable
-    val children = table.visualValues()
-    // An implicit table with no values of its own is hidden, so deleting every table under it hides it too.
-    val isVisibleStdTable = !(table.isImplicit && children.isEmpty())
-
     if (path.isEmpty()) {
-        if (children.isNotEmpty()) first = false
-    } else if (isArrayOfTables || isVisibleStdTable) {
+        if (table.visualValues().isNotEmpty()) first = false
+    } else if (table.printsHeader(isArrayOfTables)) {
         val defaultDecor = if (first) {
             first = false
             "" to DEFAULT_TABLE_DECOR.second
@@ -226,6 +272,6 @@ private fun visitTable(
         table.rawDecor.suffixEncode(buf, defaultDecor.second)
         writer.endLine(table.headerLineEnding)
     }
-    for (visual in children) encodeKeyValueLine(writer, visual)
+    encodeBodyLines(writer, table)
     return first
 }

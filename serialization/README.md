@@ -96,7 +96,8 @@ document.toString()
 
 - A key whose value changes keeps its place, its spelling (quoted, dotted) and the comment after it. A value
   that reads the same is left as written, so `0x1F90` stays `0x1F90` and `"PT30S"` stays `"PT30S"`.
-- A key the document lacks is appended to its table; a field that is now `null` loses its key.
+- A key the document lacks is appended to its table; a field that is now `null` loses its key, while the comment
+  lines above that key stay.
 - A key no field names stays, whatever `ignoreUnknownKeys` says.
 - A nested class updates its table, recursively. A map accounts for every key of its table, so a key the map
   no longer has is removed.

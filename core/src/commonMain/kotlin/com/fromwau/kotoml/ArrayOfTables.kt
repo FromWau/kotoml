@@ -16,6 +16,9 @@ public class ArrayOfTables() : Iterable<Table> {
     // Slots that refuse anything but a table; held as items so indexing an item hands out the same slots.
     internal val values: MutableList<Item> = mutableListOf()
 
+    // Lines above the headers of tables removed from this array, printed among the tables by their position.
+    internal val keptHeaderLines: MutableList<KeptLines> = mutableListOf()
+
     /** An inline array of inline tables holding copies of these tables, formatted anew; this stays as it is. */
     public fun toArray(): TomlArray = copy().intoArray()
 
@@ -41,9 +44,9 @@ public class ArrayOfTables() : Iterable<Table> {
     /** Whether there are no tables. */
     public fun isEmpty(): Boolean = size == 0
 
-    /** Removes every table. */
+    /** Removes every table, keeping the lines above each header as [removeAt] does. */
     public fun clear() {
-        values.clear()
+        retainAll { false }
     }
 
     /** The table at [index], or null when the index is out of bounds. */
@@ -85,19 +88,28 @@ public class ArrayOfTables() : Iterable<Table> {
     }
 
     /**
-     * Removes the table at [index].
+     * Removes the table at [index]: its `[[header]]` line and its body, with the tables under it. The comment and
+     * blank lines above each header removed stay where they print, now above whatever follows. Upstream drops
+     * those lines with the table.
      *
      * @return the removed table, or [TomlEditError.IndexOutOfBounds] when there is no table at [index].
      */
     public fun removeAt(index: Int): Result<Table, TomlEditError> {
         val removed = get(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
+        keepHeaderLinesOf(removed, isArrayOfTables = true, keptHeaderLines)
         values.removeAt(index)
         return Ok(removed)
     }
 
-    /** Keeps only the tables [predicate] accepts, in order. */
+    /**
+     * Keeps only the tables [predicate] accepts, in order. The lines above a removed table's headers stay, as
+     * [removeAt] keeps them.
+     */
     public fun retainAll(predicate: (Table) -> Boolean) {
-        values.retainAll { item -> item.tableOrNull?.let(predicate) ?: false }
+        val removed = values.filterNot { item -> item.tableOrNull?.let(predicate) ?: false }
+        for (item in removed) item.tableOrNull?.let { keepHeaderLinesOf(it, isArrayOfTables = true, keptHeaderLines) }
+        val removedSlots = removed.toHashSet()
+        values.removeAll { it in removedSlots }
     }
 
     /** Appends every table of [tables]. */
@@ -110,6 +122,7 @@ public class ArrayOfTables() : Iterable<Table> {
         val copy = ArrayOfTables()
         copy.span = span
         for (table in this) copy.values.add(Item.inArrayOfTables(table.copy()))
+        keptHeaderLines.mapTo(copy.keptHeaderLines) { it.copy() }
         return copy
     }
 

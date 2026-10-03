@@ -81,9 +81,10 @@ doc["client"] = tableOf("retries" to Item(Value.Integer(3L)))
 ```
 
 `Table`, `InlineTable`, `TomlArray` and `ArrayOfTables` read like Kotlin collections: `size`, `put`, `getOrPut`,
-`remove`, `add`, `removeAt`, `retainAll` and iteration. An `Item` is a slot that holds a value, a table or an
-array of tables; `valueOrNull`, `tableOrNull` and their siblings read what it holds. Storing an item stores a
-copy, so editing the original afterwards does not change the document.
+`remove`, `add`, `removeAt`, `retainAll` and iteration. Removing takes only the key's own text, its line or a
+table's header and body; the comment and blank lines above it stay where they were. An `Item` is a slot that
+holds a value, a table or an array of tables; `valueOrNull`, `tableOrNull` and their siblings read what it holds.
+Storing an item stores a copy, so editing the original afterwards does not change the document.
 
 A document's top-level keys live in its `root` table. The document itself offers the keyed calls (`get`, `set`,
 `getOrNull`, `contains`, `put`, `getOrPut`, `remove`, `size`) and iterates over the root's pairs; everything else

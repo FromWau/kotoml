@@ -74,9 +74,9 @@ public class TomlArray() : Iterable<Value> {
     /** Whether the array has no elements. */
     public fun isEmpty(): Boolean = size == 0
 
-    /** Removes every element. */
+    /** Removes every element, keeping the lines above each as [removeAt] does. */
     public fun clear() {
-        values.clear()
+        retainAll { false }
     }
 
     /** The value at [index], or null when the index is out of bounds. */
@@ -155,17 +155,48 @@ public class TomlArray() : Iterable<Value> {
     /**
      * Removes the element at [index].
      *
+     * Only the element's own text goes: the value and the comma after it. In an array written over several lines,
+     * the comment and blank lines above the element stay where they print, now above the next element or before
+     * the closing `]`. Upstream drops those lines with the element.
+     *
      * @return the removed element, or [TomlEditError.IndexOutOfBounds] when there is no element at [index].
      */
     public fun removeAt(index: Int): Result<Value, TomlEditError> {
         val removed = get(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
+        keepLinesAbove(listOf(values[index]))
         values.removeAt(index)
         return Ok(removed)
     }
 
-    /** Keeps only the values [predicate] accepts, in order, visiting each once. */
+    /**
+     * Keeps only the values [predicate] accepts, in order, visiting each once. The lines above a removed value
+     * stay, as [removeAt] keeps them.
+     */
     public fun retainAll(predicate: (Value) -> Boolean) {
-        values.retainAll { item -> item.valueOrNull?.let(predicate) ?: false }
+        val removed = values.filterNot { item -> item.valueOrNull?.let(predicate) ?: false }
+        keepLinesAbove(removed)
+        val removedSlots = removed.toHashSet()
+        values.removeAll { it in removedSlots }
+    }
+
+    private fun keepLinesAbove(removed: List<Item>) {
+        val removedSlots = removed.toHashSet()
+        var pending = ""
+        var survivors = 0
+        for (item in values) {
+            val decor = item.valueOrNull?.rawDecor() ?: continue
+            if (item in removedSlots) {
+                pending += linesAboveElement(decor.prefix)
+                continue
+            }
+            if (pending.isNotEmpty()) {
+                val default = if (survivors == 0) DEFAULT_LEADING_VALUE_DECOR.first else DEFAULT_VALUE_DECOR.first
+                decor.prependToPrefix(pending, default)
+                pending = ""
+            }
+            survivors++
+        }
+        if (pending.isNotEmpty()) trailing = pending + trailing
     }
 
     /** Sorts the values with [comparator]. The sort is stable. */

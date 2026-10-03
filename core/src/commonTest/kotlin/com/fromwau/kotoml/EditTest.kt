@@ -609,6 +609,8 @@ name = "dep"
 
         [servers]
 
+        # Indentation (tabs and/or spaces) is allowed but not required
+
         [servers.beta]
         ip = "10.0.0.2"
         dc = "eqdc10"
@@ -657,12 +659,22 @@ name = "dep"
             .producesDisplay("""
 
         title = "not relevant"
+
+        # comment 1
         # comment 2
         [b] # comment 2.1
         key2 = 2 # comment 2.2
 
+        # comment 3
+
+
            # comment on some other table
            [some.other.table]
+
+
+
+
+        # comment 4
 
 
     """)
@@ -696,6 +708,7 @@ name = "dep"
         [dependencies]
         nom = "4.0" # future is here
 
+
 """)
     }
 
@@ -715,8 +728,10 @@ name = "dep"
         name = "hello"
         version = "1.0.0"
 
+
         [dependencies]
         nom = "4.0" # future is here
+
 
 """)
     }
@@ -737,6 +752,7 @@ name = "dep"
             .producesDisplay("""
 
         name = "hello"
+        # delete this
         documentation = "https://docs.rs/hello"
 
 """)

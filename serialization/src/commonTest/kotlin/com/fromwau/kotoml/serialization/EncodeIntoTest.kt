@@ -60,6 +60,8 @@ class EncodeIntoTest {
             """
             # Application settings
             title = "Kotoml 2"   # shown in the window
+
+            # Who to blame
             legacy = true # not in the model
             tags = ["z"] # labels
 
@@ -123,6 +125,25 @@ class EncodeIntoTest {
         val document = TomlDocument.parse("required = \"r\"\nnickname = \"n\" # nick\nnote = \"x\"\n").unwrap()
         Toml.encodeInto(document, Optional("r", nickname = null, note = null)).unwrap()
         assertEquals("required = \"r\"\n", document.toString())
+    }
+
+    @Test
+    fun `a field set to null keeps the comments above its key`() {
+        val text = "required = \"r\"\n\n# what to call them\nnickname = \"n\" # nick\n# a note\nnote = \"x\"\n"
+        val document = TomlDocument.parse(text).unwrap()
+        Toml.encodeInto(document, Optional("r", nickname = null, note = "x")).unwrap()
+        assertEquals("required = \"r\"\n\n# what to call them\n# a note\nnote = \"x\"\n", document.toString())
+    }
+
+    @Test
+    fun `a nested field set to null keeps the comments above its dotted key`() {
+        val text = "title = \"t\"\n[database]\nurl = \"u\"\n# pool size\npool.size = 4\n# idle time\n" +
+            "pool.idle = \"5m\"\n# unknown\ntimeout = 3\n"
+        val result = updated(text) { it.copy(database = it.database.copy(pool = Pool(4, idle = null))) }
+        assertEquals(
+            "title = \"t\"\n[database]\nurl = \"u\"\n# pool size\npool.size = 4\n# idle time\n# unknown\ntimeout = 3\n",
+            result,
+        )
     }
 
     @Test

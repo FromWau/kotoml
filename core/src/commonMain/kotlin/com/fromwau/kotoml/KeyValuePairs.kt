@@ -61,6 +61,9 @@ internal class PathSpelling private constructor(
 internal class KeyValuePairs {
     private val entries = LinkedHashMap<String, KeyValue>()
 
+    /** Lines kept from removed entries, printed among the entries' lines; see [KeptLines]. */
+    val keptLines: MutableList<KeptLines> = mutableListOf()
+
     val size: Int get() = entries.size
 
     fun get(key: String): Item? = entries[key]?.item
@@ -82,10 +85,6 @@ internal class KeyValuePairs {
     }
 
     fun shiftRemove(key: String): KeyValue? = entries.remove(key)
-
-    fun clear() {
-        entries.clear()
-    }
 
     fun entries(): Collection<KeyValue> = entries.values
 
@@ -113,6 +112,7 @@ internal class KeyValuePairs {
             clone.pathSpelling = entry.pathSpelling?.copy()
             copy.entries[entry.key.name] = clone
         }
+        keptLines.mapTo(copy.keptLines) { it.copy() }
         return copy
     }
 

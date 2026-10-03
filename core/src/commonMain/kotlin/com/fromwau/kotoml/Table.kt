@@ -46,6 +46,9 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     internal var span: Span? = null
     internal var items: KeyValuePairs = KeyValuePairs()
 
+    // Lines above the headers of tables removed from this one, printed among the tables by their position.
+    internal val keptHeaderLines: MutableList<KeptLines> = mutableListOf()
+
     // How the header line ended and how its path was spelled, when the table came from text.
     internal var headerLineEnding: String? = null
     internal var headerSpelling: PathSpelling? = null
@@ -70,13 +73,23 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     override fun valuesWithPaths(): List<Pair<List<Key>, Value>> = visualValues().map { it.path to it.value }
 
     /** The values under this header in the order they print: as read from text, new ones after their sibling. */
-    internal fun visualValues(): List<VisualValue> {
-        val values = mutableListOf<VisualValue>()
-        appendValues(mutableListOf(), values)
-        return inPrintOrder(values)
+    internal fun visualValues(): List<VisualValue> = bodyLines().filterIsInstance<VisualValue>()
+
+    /** The lines under this header in the order they print, the lines kept from removed values included. */
+    internal fun bodyLines(): List<BodyLine> {
+        val lines = mutableListOf<BodyLine>()
+        appendValues(mutableListOf(), lines)
+        return inPrintOrder(lines)
     }
 
-    private fun appendValues(path: MutableList<Key>, values: MutableList<VisualValue>) {
+    /**
+     * Whether the table prints a header. An implicit table with no values of its own is hidden, so deleting every
+     * table under it hides it too.
+     */
+    internal fun printsHeader(isArrayOfTables: Boolean): Boolean =
+        isArrayOfTables || !(isImplicit && visualValues().isEmpty())
+
+    private fun appendValues(path: MutableList<Key>, values: MutableList<BodyLine>) {
         for (entry in items.entries()) {
             path.add(entry.key)
             val table = entry.item.tableOrNull
@@ -88,9 +101,10 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
             }
             path.removeAt(path.size - 1)
         }
+        values += items.keptLines
     }
 
-    internal fun appendAllValues(path: MutableList<Key>, values: MutableList<VisualValue>) {
+    internal fun appendAllValues(path: MutableList<Key>, values: MutableList<BodyLine>) {
         for (entry in items.entries()) {
             path.add(entry.key)
             val table = entry.item.tableOrNull
@@ -106,6 +120,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
 
     // Sorting asks for key order, so the order lines were read in no longer applies.
     private fun forgetOrder() {
+        for (kept in items.keptLines) kept.order = null
         for (entry in items.entries()) {
             entry.order = null
             val table = entry.item.tableOrNull
@@ -187,9 +202,9 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     /** Whether no key holds an item. */
     override fun isEmpty(): Boolean = size == 0
 
-    /** Removes every entry. */
+    /** Removes every entry, keeping the lines above each as [remove] does. */
     override fun clear() {
-        items.clear()
+        retainAll { _, _ -> false }
     }
 
     /** The item at [key], or null when there is none. */
@@ -303,14 +318,47 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
         return stored
     }
 
-    /** Removes [key] and returns its item, or null when it held none. */
-    public fun remove(key: String): Item? = items.shiftRemove(key)?.item?.takeIf { !it.isNone }
+    /**
+     * Removes [key] and returns its item, or null when it held none.
+     *
+     * Only the key's own text goes: its line, from the key to the end of its value and the comment after it, or
+     * for a table its header and body. The comment and blank lines above it stay where they print, now above
+     * whatever follows: the next key, the next table header, or the end of the document. Removing a table keeps
+     * the lines above each of its headers, those of the tables under it and of an array of tables included.
+     * Upstream drops those lines with the key.
+     */
+    public fun remove(key: String): Item? {
+        val entry = items.getEntry(key) ?: return null
+        keepLinesAbove(listOf(entry))
+        items.shiftRemove(key)
+        return entry.item.takeIf { !it.isNone }
+    }
 
+    /** Removes [key] and returns its item, or null when it held none; the lines above it stay, as [remove] says. */
     override fun removeItem(key: String): Item? = remove(key)
 
-    /** Keeps only the pairs [predicate] accepts, visiting them in order. */
+    /**
+     * Keeps only the pairs [predicate] accepts, visiting them in order. The lines above a removed pair stay, as
+     * [remove] keeps them.
+     */
     public fun retainAll(predicate: (String, Item) -> Boolean) {
-        items.retain { predicate(it.key.name, it.item) }
+        val removed = items.entries().filterNot { predicate(it.key.name, it.item) }
+        keepLinesAbove(removed)
+        val names = removed.mapTo(HashSet()) { it.key.name }
+        items.retain { it.key.name !in names }
+    }
+
+    private fun keepLinesAbove(removed: Collection<KeyValue>) {
+        if (removed.isEmpty()) return
+        keepLinesAbove(
+            lines = bodyLines(),
+            removed = RemovedLines(removed),
+            isDotted = isDotted,
+            linesAbove = { linesAbove(it.entry.key.rawLeafDecor.prefix) },
+            keyDefault = DEFAULT_KEY_DECOR.first,
+            keep = { items.keptLines += it },
+        )
+        for (entry in removed) keepHeaderLinesOf(entry.item, keptHeaderLines)
     }
 
     /** Stores a copy of every pair of [pairs], in order, as `table[key] = item` does. */
@@ -328,6 +376,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
         copy.span = span
         copy.headerLineEnding = headerLineEnding
         copy.headerSpelling = headerSpelling?.copy()
+        keptHeaderLines.mapTo(copy.keptHeaderLines) { it.copy() }
         return copy
     }
 
@@ -350,7 +399,10 @@ public fun Iterable<Pair<String, Item>>.toTable(): Table {
 }
 
 /** A value as it prints under a header: the key path that reaches it, and the entry that holds it. */
-internal class VisualValue(val path: List<Key>, val value: Value, val entry: KeyValue) {
+internal class VisualValue(val path: List<Key>, val value: Value, val entry: KeyValue) : BodyLine {
+    override val order: Long?
+        get() = entry.order
+
     /** The path's keys as spelled on this value's own line. */
     fun spelledPath(): List<Key> {
         val spelling = entry.pathSpelling ?: return path
@@ -360,16 +412,16 @@ internal class VisualValue(val path: List<Key>, val value: Value, val entry: Key
 }
 
 /**
- * Orders [values] as their lines were read, a value without a recorded place staying right after the one before
- * it. Values read in order are left as they are, so this only moves interleaved dotted keys back into place.
+ * Orders [lines] as they were read, a line without a recorded place staying right after the one before it. Lines
+ * read in order are left as they are, so this only moves interleaved dotted keys back into place.
  */
-internal fun inPrintOrder(values: List<VisualValue>): List<VisualValue> {
-    if (values.none { it.entry.order != null }) return values
+internal fun inPrintOrder(lines: List<BodyLine>): List<BodyLine> {
+    if (lines.none { it.order != null }) return lines
     var previous = Long.MIN_VALUE
-    val keyed = values.map { value ->
-        val order = value.entry.order ?: previous
+    val keyed = lines.map { line ->
+        val order = line.order ?: previous
         previous = order
-        order to value
+        order to line
     }
     return keyed.sortedBy { it.first }.map { it.second }
 }
@@ -406,7 +458,10 @@ public sealed interface TableLike {
         item: Item,
     ): Result<Item?, TomlEditError>
 
-    /** Removes [key] and returns its item, or null when it held none. */
+    /**
+     * Removes [key] and returns its item, or null when it held none. Only the key's own text goes; the comment and
+     * blank lines above it stay where they print, as [Table.remove] and [InlineTable.remove] keep them.
+     */
     public fun removeItem(key: String): Item?
 
     /** The number of keys holding an item. */
@@ -415,7 +470,7 @@ public sealed interface TableLike {
     /** Whether no key holds an item. */
     public fun isEmpty(): Boolean
 
-    /** Removes every entry. */
+    /** Removes every entry, keeping the comment and blank lines above each. */
     public fun clear()
 
     /** Whether [key] holds an item. */

@@ -50,13 +50,16 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
     override fun valuesWithPaths(): List<Pair<List<Key>, Value>> = visualValues().map { it.path to it.value }
 
     /** The values in the order they print: as read from text, new ones after their sibling. */
-    internal fun visualValues(): List<VisualValue> {
-        val values = mutableListOf<VisualValue>()
-        appendValues(mutableListOf(), values)
-        return inPrintOrder(values)
+    internal fun visualValues(): List<VisualValue> = bodyLines().filterIsInstance<VisualValue>()
+
+    /** The entries in the order they print, the lines kept from removed entries included. */
+    internal fun bodyLines(): List<BodyLine> {
+        val lines = mutableListOf<BodyLine>()
+        appendValues(mutableListOf(), lines)
+        return inPrintOrder(lines)
     }
 
-    internal fun appendValues(path: MutableList<Key>, values: MutableList<VisualValue>) {
+    internal fun appendValues(path: MutableList<Key>, values: MutableList<BodyLine>) {
         for (entry in items.entries()) {
             path.add(entry.key)
             val item = entry.item
@@ -69,10 +72,12 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
             }
             path.removeAt(path.size - 1)
         }
+        values += items.keptLines
     }
 
     // Sorting asks for key order, so the order entries were read in no longer applies.
     private fun forgetOrder() {
+        for (kept in items.keptLines) kept.order = null
         for (entry in items.entries()) {
             entry.order = null
             val table = entry.item.inlineTableOrNull
@@ -167,9 +172,9 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
     /** Whether the table has no key/value pairs. */
     override fun isEmpty(): Boolean = size == 0
 
-    /** Removes every entry. */
+    /** Removes every entry, keeping the lines above each as [remove] does. */
     override fun clear() {
-        items.clear()
+        retainAll { _, _ -> false }
     }
 
     /** The value at [key], or null when there is none. */
@@ -252,14 +257,48 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
         return Ok(put(key, value)?.let { Item(it) })
     }
 
-    /** Removes [key] and returns its value, or null when it held none. */
-    public fun remove(key: String): Value? = items.shiftRemove(key)?.item?.valueOrNull
+    /**
+     * Removes [key] and returns its value, or null when it held none.
+     *
+     * Only the entry's own text goes: the key, its value and the comma after it. In a table written over several
+     * lines, the comment and blank lines above the entry stay where they print, now above the next entry or before
+     * the closing `}`. Upstream drops those lines with the key.
+     */
+    public fun remove(key: String): Value? {
+        val entry = items.getEntry(key) ?: return null
+        keepLinesAbove(listOf(entry))
+        items.shiftRemove(key)
+        return entry.item.valueOrNull
+    }
 
+    /** Removes [key] and returns its value as an item, or null when it held none; see [remove]. */
     override fun removeItem(key: String): Item? = remove(key)?.let { Item(it) }
 
-    /** Keeps only the pairs [predicate] accepts, visiting them in order. */
+    /**
+     * Keeps only the pairs [predicate] accepts, visiting them in order. The lines above a removed pair stay, as
+     * [remove] keeps them.
+     */
     public fun retainAll(predicate: (String, Value) -> Boolean) {
-        items.retain { entry -> entry.item.valueOrNull?.let { predicate(entry.key.name, it) } ?: false }
+        val removed = items.entries().filterNot { entry ->
+            entry.item.valueOrNull?.let { predicate(entry.key.name, it) } ?: false
+        }
+        keepLinesAbove(removed)
+        val names = removed.mapTo(HashSet()) { it.key.name }
+        items.retain { it.key.name !in names }
+    }
+
+    private fun keepLinesAbove(removed: Collection<KeyValue>) {
+        if (removed.isEmpty()) return
+        keepLinesAbove(
+            lines = bodyLines(),
+            removed = RemovedLines(removed),
+            isDotted = isDotted,
+            linesAbove = { linesAboveElement(it.entry.key.rawLeafDecor.prefix) },
+            keyDefault = DEFAULT_INLINE_KEY_DECOR.first,
+            keep = { kept ->
+                if (isDotted) items.keptLines += kept else rawTrailing = RawString.from(kept.text + trailing)
+            },
+        )
     }
 
     /** Sets the key of every pair of [pairs] to its value, in order, as `table[key] = value` does. */
