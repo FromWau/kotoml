@@ -88,6 +88,38 @@ missing escaped value, expected `b`, `f`, `n`, `r`, `\`, `"`, `u`, `U`
     }
 
     @Test
+    fun `V1_0 lists only its own escapes after an unknown one in a string`() {
+        val input = "s = \"\\q\"\n"
+        assertData(
+            """
+TOML parse error at line 1, column 7
+  |
+1 | s = "\q"
+  |       ^
+missing escaped value, expected `b`, `f`, `n`, `r`, `\`, `"`, `u`, `U`
+
+""",
+            TomlDocument.parse(input, TomlVersion.V1_0).unwrapErr().render(input),
+        )
+    }
+
+    @Test
+    fun `V1_0 lists only its own escapes after an unknown one in a quoted key`() {
+        val input = "\"a\\q\" = 1\n"
+        assertData(
+            """
+TOML parse error at line 1, column 4
+  |
+1 | "a\q" = 1
+  |    ^
+missing escaped value, expected `b`, `f`, `n`, `r`, `\`, `"`, `u`, `U`
+
+""",
+            TomlDocument.parse(input, TomlVersion.V1_0).unwrapErr().render(input),
+        )
+    }
+
+    @Test
     fun `V1_0 reads an escaped backslash before an x as text`() {
         assertEquals("\\x41", TomlDocument.parse("s = \"\\\\x41\"\n", TomlVersion.V1_0).unwrap()["s"].stringOrNull)
     }

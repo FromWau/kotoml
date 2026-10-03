@@ -36,6 +36,16 @@ private fun collectEvents(
 internal class ParseContext(val source: TomlSource, val errors: TomlSink, val version: TomlVersion) {
     private var nextOrder = 0L
 
+    /** [errors] for decoding strings and keys; the decoder lists TOML 1.1's escapes, so 1.0 swaps in its own. */
+    val decodeErrors: ErrorSink = if (version == TomlVersion.V1_0) {
+        ErrorSink { error ->
+            val escapes = error.reason == ParseErrorReason.MissingEscapedValue
+            errors.reportError(if (escapes) error.copy(expected = EXPECTED_ESCAPES_V1_0) else error)
+        }
+    } else {
+        errors
+    }
+
     fun nextOrder(): Long = nextOrder++
 
     fun text(span: Span): String = source.get(span)?.asStr().orEmpty()
@@ -432,7 +442,7 @@ internal fun onKey(keyEvent: Event, input: EventStream, context: ParseContext): 
 
         val raw = context.source.get(key)
         val decoded = StringOutput()
-        raw?.decodeKey(decoded, errors)
+        raw?.decodeKey(decoded, context.decodeErrors)
         checkEscapes(key, context)
 
         val parsed = Key(decoded.toString())
@@ -480,7 +490,7 @@ private fun moreKey(input: EventStream): Boolean {
 /** `simple-key = quoted-key / unquoted-key`: the key's raw span and its decoded text. */
 private fun onSimpleKey(event: Event, context: ParseContext): Pair<RawString, String> {
     val decoded = StringOutput()
-    context.source.get(event)?.decodeKey(decoded, context.errors)
+    context.source.get(event)?.decodeKey(decoded, context.decodeErrors)
     checkEscapes(event, context)
     return RawString.withSpan(event.span()) to decoded.toString()
 }
@@ -506,7 +516,7 @@ private fun onScalar(event: Event, context: ParseContext): Value {
     val errors = context.errors
     val valueRaw = RawString.withSpan(event.span())
     val decoded = StringOutput()
-    val kind = context.source.get(event)?.decodeScalar(decoded, errors) ?: ScalarKind.String
+    val kind = context.source.get(event)?.decodeScalar(decoded, context.decodeErrors) ?: ScalarKind.String
     val text = decoded.toString()
     return when (kind) {
         ScalarKind.String -> {
