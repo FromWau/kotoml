@@ -20,14 +20,14 @@ internal class NodeEncoder(
     private val settings: EncodeSettings,
     private val path: TomlPath,
     private val isMapKey: Boolean = false,
-    private val emit: (TomlNode?) -> Unit,
+    private val emit: (TomlNode) -> Unit,
 ) : Encoder {
     override val serializersModule: SerializersModule
         get() = settings.toml.serializersModule
 
     private fun scalar(value: Value) = emit(TomlNode.Scalar(value))
 
-    override fun encodeNull() = emit(null)
+    override fun encodeNull() = throw EncodeFailure(TomlEncodeError.NullValue("$path"))
 
     override fun encodeBoolean(value: Boolean) = scalar(Value.Boolean(value))
 
@@ -64,10 +64,16 @@ internal class NodeEncoder(
         else -> ClassEncoder(settings, path, emit)
     }
 
+    override fun <T : Any> encodeNullableSerializableValue(
+        serializer: SerializationStrategy<T>,
+        value: T?,
+    ) = throw EncodeFailure(TomlEncodeError.NullableType("$path"))
+
     override fun <T> encodeSerializableValue(
         serializer: SerializationStrategy<T>,
         value: T,
     ) {
+        if (serializer.descriptor.isNullable) throw EncodeFailure(TomlEncodeError.NullableType("$path"))
         try {
             val serialName = serializer.descriptor.serialName
             val known = knownValueOrNull(serialName, value, path, nativeDatetime = !isMapKey)
@@ -88,7 +94,7 @@ internal class NodeEncoder(
 internal abstract class NodeCompositeEncoder(
     protected val settings: EncodeSettings,
     protected val path: TomlPath,
-    private val emit: (TomlNode?) -> Unit,
+    private val emit: (TomlNode) -> Unit,
 ) : CompositeEncoder {
     override val serializersModule: SerializersModule
         get() = settings.toml.serializersModule
@@ -96,7 +102,7 @@ internal abstract class NodeCompositeEncoder(
     protected abstract fun put(
         descriptor: SerialDescriptor,
         index: Int,
-        node: TomlNode?,
+        node: TomlNode,
     )
 
     protected abstract fun childPath(
@@ -216,10 +222,9 @@ internal abstract class NodeCompositeEncoder(
 private class ClassEncoder(
     settings: EncodeSettings,
     path: TomlPath,
-    emit: (TomlNode?) -> Unit,
+    emit: (TomlNode) -> Unit,
 ) : NodeCompositeEncoder(settings, path, emit) {
     private val entries = linkedMapOf<String, TomlNode>()
-    private val omitted = linkedSetOf<String>()
 
     override fun childPath(
         descriptor: SerialDescriptor,
@@ -229,15 +234,13 @@ private class ClassEncoder(
     override fun put(
         descriptor: SerialDescriptor,
         index: Int,
-        node: TomlNode?,
+        node: TomlNode,
     ) {
-        val name = descriptor.getElementName(index)
-        if (node == null) omitted.add(name) else entries[name] = node
+        entries[descriptor.getElementName(index)] = node
     }
 
     override fun build(): TomlNode = TomlNode.Struct(
         entries = entries,
-        omitted = omitted,
         ownsAllKeys = false,
         defaulted = defaulted,
     )
@@ -246,7 +249,7 @@ private class ClassEncoder(
 private class ListEncoder(
     settings: EncodeSettings,
     path: TomlPath,
-    emit: (TomlNode?) -> Unit,
+    emit: (TomlNode) -> Unit,
 ) : NodeCompositeEncoder(settings, path, emit) {
     private val elements = mutableListOf<TomlNode>()
 
@@ -258,9 +261,8 @@ private class ListEncoder(
     override fun put(
         descriptor: SerialDescriptor,
         index: Int,
-        node: TomlNode?,
+        node: TomlNode,
     ) {
-        if (node == null) throw EncodeFailure(TomlEncodeError.NullElement("${path.index(index)}"))
         elements.add(node)
     }
 
@@ -271,7 +273,7 @@ private class ListEncoder(
 private class MapEncoder(
     settings: EncodeSettings,
     path: TomlPath,
-    emit: (TomlNode?) -> Unit,
+    emit: (TomlNode) -> Unit,
 ) : NodeCompositeEncoder(settings, path, emit) {
     private val entries = linkedMapOf<String, TomlNode>()
     private var key: String = ""
@@ -291,19 +293,18 @@ private class MapEncoder(
     override fun put(
         descriptor: SerialDescriptor,
         index: Int,
-        node: TomlNode?,
+        node: TomlNode,
     ) {
         if (isMapKey(index)) {
             val name = (node as? TomlNode.Scalar)?.value?.stringOrNull
             key = name ?: throw EncodeFailure(TomlEncodeError.NonStringMapKey("$path"))
-        } else if (node != null) {
+        } else {
             entries[key] = node
         }
     }
 
     override fun build(): TomlNode = TomlNode.Struct(
         entries = entries,
-        omitted = emptySet(),
         ownsAllKeys = true,
         defaulted = defaulted,
     )
@@ -313,7 +314,7 @@ private class MapEncoder(
 private class PolymorphicEncoder(
     settings: EncodeSettings,
     path: TomlPath,
-    emit: (TomlNode?) -> Unit,
+    emit: (TomlNode) -> Unit,
 ) : NodeCompositeEncoder(settings, path, emit) {
     private var name: TomlNode? = null
     private var value: TomlNode? = null
@@ -326,7 +327,7 @@ private class PolymorphicEncoder(
     override fun put(
         descriptor: SerialDescriptor,
         index: Int,
-        node: TomlNode?,
+        node: TomlNode,
     ) {
         if (index == 0) name = node else value = node
     }
@@ -335,12 +336,11 @@ private class PolymorphicEncoder(
         val key = settings.toml.classDiscriminator
         val subtype = name
         val struct = value as? TomlNode.Struct
-        if (subtype == null || struct == null || key in struct.entries || key in struct.omitted) {
+        if (subtype == null || struct == null || key in struct.entries) {
             throw EncodeFailure(TomlEncodeError.DiscriminatorConflict("$path", key))
         }
         return TomlNode.Struct(
             entries = linkedMapOf(key to subtype) + struct.entries,
-            omitted = struct.omitted,
             ownsAllKeys = struct.ownsAllKeys,
             defaulted = struct.defaulted,
             discriminator = key,

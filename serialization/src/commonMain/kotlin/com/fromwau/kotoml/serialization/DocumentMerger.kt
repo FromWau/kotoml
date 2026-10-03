@@ -64,7 +64,6 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
         if (full.ownsAllKeys || subtypeChanged) {
             for ((key, _) in table.items()) if (key !in full.entries) table.removeItem(key)
         }
-        for (key in full.omitted) table.removeItem(key)
         for ((key, child) in full.entries) {
             val existing = table.item(key)
             val childDefaults = defaults.child(key)

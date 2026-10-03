@@ -42,10 +42,10 @@ public sealed interface TomlEncodeError : IError {
     @SerialName("NullableType")
     public data class NullableType(override val path: String) : Located
 
-    /** The list at [path] holds a null, which a TOML array cannot hold. */
+    /** A serializer of your own wrote a null at [path], which TOML cannot hold. */
     @Serializable
-    @SerialName("NullElement")
-    public data class NullElement(override val path: String) : Located
+    @SerialName("NullValue")
+    public data class NullValue(override val path: String) : Located
 
     /** The number at [path], [value], is past what a TOML integer holds, as a `ULong` above `Long.MAX_VALUE`. */
     @Serializable

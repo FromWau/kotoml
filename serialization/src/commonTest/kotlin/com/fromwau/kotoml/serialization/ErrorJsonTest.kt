@@ -56,8 +56,8 @@ class ErrorJsonTest {
     @Test
     fun `an encode error encodes with its type and fields`() {
         assertEquals(
-            """{"type":"NullElement","path":"values[1]"}""",
-            json(Toml.encodeToString(MaybeList(listOf(1, null))).unwrapErr()),
+            """{"type":"NonStringMapKey","path":"ports"}""",
+            json(Toml.encodeToString(NumberedPorts(mapOf(1 to "a"))).unwrapErr()),
         )
         assertEquals(
             """{"type":"UnsupportedRoot","serialName":"kotlin.Int"}""",

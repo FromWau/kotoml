@@ -37,6 +37,12 @@ import kotlin.reflect.typeOf
  * The value at the top of a document is a class or a `Map<String, *>`, since a document is a table. Every entry
  * point returns a [Result]: a [TomlDecodeError] or a [TomlEncodeError] says what went wrong and where, and no
  * call throws.
+ *
+ * TOML has no null, and a missing key means the field's default. So every entry point refuses a type that holds a
+ * nullable type anywhere, as a field, a list element, a map value or a nested class, before it reads or writes
+ * anything: [TomlDecodeError.NullableType] or [TomlEncodeError.NullableType] names where. A subclass only a default
+ * polymorphic serializer picks is refused the same way when a value of it is written or read. Model an optional
+ * value with a default instead, such as an empty list or string.
  */
 public sealed class Toml(
     /** Whether a key no field of the class names is skipped when reading, rather than refused. */
@@ -66,7 +72,8 @@ public sealed class Toml(
     /**
      * Parses [text] as TOML and reads it with [deserializer].
      *
-     * @return the value, [TomlDecodeError.Parse] when the text is not TOML, or the error that stopped reading.
+     * @return the value, [TomlDecodeError.Parse] when the text is not TOML, [TomlDecodeError.NullableType] when
+     *   the type holds a nullable type, or the error that stopped reading.
      */
     public fun <T> decodeFromString(
         deserializer: DeserializationStrategy<T>,
@@ -77,14 +84,16 @@ public sealed class Toml(
     }
 
     /**
-     * Reads [document] with [deserializer]. The document is not changed.
+     * Reads [document] with [deserializer]. The document is not changed. A missing key takes its field's default,
+     * and is [TomlDecodeError.MissingKey] for a field without one.
      *
      * ```kotlin
      * val document = TomlDocument.parse(text).getOrNull()!!
      * val config = Toml.decodeFromDocument(Config.serializer(), document)
      * ```
      *
-     * @return the value, or the error that stopped reading.
+     * @return the value, [TomlDecodeError.NullableType] when the type holds a nullable type, or the error that
+     *   stopped reading.
      */
     public fun <T> decodeFromDocument(
         deserializer: DeserializationStrategy<T>,
@@ -92,6 +101,7 @@ public sealed class Toml(
     ): Result<T, TomlDecodeError> {
         val descriptor = deserializer.descriptor
         if (!descriptor.isTableKind()) return Err(TomlDecodeError.UnsupportedRoot(descriptor.serialName))
+        firstNullableType(descriptor, serializersModule)?.let { return Err(TomlDecodeError.NullableType("$it")) }
         val root = TomlInput.Table(document.root.items().toMap(), TomlType.Table)
         return try {
             Ok(NodeDecoder(this, root, TomlPath.Root).decodeSerializableValue(deserializer))
@@ -103,7 +113,8 @@ public sealed class Toml(
     /**
      * Writes [value] with [serializer] as TOML text.
      *
-     * @return the text, or the error that stopped writing.
+     * @return the text, [TomlEncodeError.NullableType] when the type holds a nullable type, or the error that
+     *   stopped writing.
      */
     public fun <T> encodeToString(
         serializer: SerializationStrategy<T>,
@@ -113,7 +124,8 @@ public sealed class Toml(
     /**
      * Writes [value] with [serializer] into a new document, which can be edited further before it is printed.
      *
-     * @return the document, or the error that stopped writing.
+     * @return the document, [TomlEncodeError.NullableType] when the type holds a nullable type, or the error that
+     *   stopped writing.
      */
     public fun <T> encodeToDocument(
         serializer: SerializationStrategy<T>,
@@ -126,13 +138,13 @@ public sealed class Toml(
      * its comments, blank lines, key spelling and key order.
      *
      * A key whose value changes keeps its place, its spelling and the comment after its value; a key the
-     * document lacks is appended to its table. A field that is now null loses its key. A key no field names
-     * stays, whatever [ignoreUnknownKeys] says, while a map removes the keys it no longer has. A nested class
-     * updates its table in place. A list is merged into the document's list, in the form the document wrote it:
-     * an element equal to one there keeps that element's text and comments, even when it moved, and a changed
-     * element updates the old one sharing the most values with it, or the next one left in a list of scalars.
-     * Other new elements are inserted and other old ones removed. A field at its default, with [encodeDefaults]
-     * off, updates a key the document has and adds none. Nothing is written when an error is returned.
+     * document lacks is appended to its table. A key no field names stays, whatever [ignoreUnknownKeys] says,
+     * while a map removes the keys it no longer has. A nested class updates its table in place. A list is merged
+     * into the document's list, in the form the document wrote it: an element equal to one there keeps that
+     * element's text and comments, even when it moved, and a changed element updates the old one sharing the most
+     * values with it, or the next one left in a list of scalars. Other new elements are inserted and other old
+     * ones removed. A field at its default, with [encodeDefaults] off, updates a key the document has and adds
+     * none. Nothing is written when an error is returned, [TomlEncodeError.NullableType] among them.
      *
      * [serializer] runs once. With [encodeDefaults] off, it runs a second time when a field at its default has a
      * key in [document], to get the value that key is updated to.
@@ -175,6 +187,7 @@ public sealed class Toml(
         val descriptor = serializer.descriptor
         val unsupported = TomlEncodeError.UnsupportedRoot(descriptor.serialName)
         if (!descriptor.isTableKind()) return Err(unsupported)
+        firstNullableType(descriptor, serializersModule)?.let { return Err(TomlEncodeError.NullableType("$it")) }
         var node: TomlNode? = null
         return try {
             NodeEncoder(EncodeSettings(this, encodeDefaults), TomlPath.Root) { node = it }

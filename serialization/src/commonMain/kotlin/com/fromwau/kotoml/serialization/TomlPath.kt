@@ -12,6 +12,9 @@ internal class TomlPath private constructor(
 
     fun index(index: Int): TomlPath = TomlPath(this, "[$index]")
 
+    /** Every element of a list, or every value of a map, spelled `ports[]`. */
+    fun element(): TomlPath = TomlPath(this, "[]")
+
     override fun toString(): String {
         val segments = generateSequence(this) { it.parent }
             .toList()

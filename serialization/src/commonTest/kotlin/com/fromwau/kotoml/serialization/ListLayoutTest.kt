@@ -14,7 +14,7 @@ private data class Zone(val zone: String)
 @Serializable
 private data class Machine(
     val name: String,
-    val meta: Zone? = null,
+    val meta: Zone = Zone(""),
 )
 
 @Serializable

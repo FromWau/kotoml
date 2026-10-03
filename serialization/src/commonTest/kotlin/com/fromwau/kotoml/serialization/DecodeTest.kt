@@ -51,14 +51,6 @@ class DecodeTest {
     }
 
     @Test
-    fun `a missing nullable key without a default reads as null`() {
-        assertEquals(
-            Optional("r", nickname = null, note = "none"),
-            Toml.decodeFromString<Optional>("required = \"r\"\n").unwrap(),
-        )
-    }
-
-    @Test
     fun `an unknown key is refused with its path`() {
         val text = "name = \"f\"\n[[servers]]\nhost = \"a\"\n[[servers]]\nhost = \"b\"\nextra = 1\n"
         assertEquals(

@@ -106,7 +106,7 @@ class DefaultsRunTest {
         text = "url = \"u\"\n[pool]\nsize = 8\nidle = \"1m\"\n",
         serializer = Database.serializer(),
         value = Database("u", Pool(size = 8)),
-        expected = "url = \"u\"\n[pool]\nsize = 8\n",
+        expected = "url = \"u\"\n[pool]\nsize = 8\nidle = \"0s\"\n",
         runs = 2,
     )
 
@@ -157,19 +157,10 @@ class DefaultsRunTest {
     )
 
     @Test
-    fun `a field at its default null removes its key in a second run`() = assertEncoded(
-        text = "hostname = \"h\"\nport = 1\nknownServers = []\n",
-        serializer = Config.serializer(),
-        value = Config("h", 1),
-        expected = "hostname = \"h\"\nport = 1\n",
-        runs = 2,
-    )
-
-    @Test
     fun `encodeDefaults set updates a written default key in one run`() = assertEncoded(
         text = "hostname = \"h\"\nport = 1\ntimeout = \"30s\"\n",
-        serializer = Config.serializer(),
-        value = Config("h", 1),
+        serializer = Endpoint.serializer(),
+        value = Endpoint("h", 1),
         expected = "hostname = \"h\"\nport = 1\ntimeout = \"15s\"\nmode = \"TCP\"\n",
         runs = 1,
         toml = Toml { encodeDefaults = true },

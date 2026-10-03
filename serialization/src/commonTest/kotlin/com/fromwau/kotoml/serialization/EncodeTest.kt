@@ -35,17 +35,12 @@ class EncodeTest {
 
     @Test
     fun `defaults are left out unless encodeDefaults is set`() {
-        val config = Config("h", 1)
+        val config = Endpoint("h", 1)
         assertEquals("hostname = \"h\"\nport = 1\n", Toml.encodeToString(config).unwrap())
         assertEquals(
             "hostname = \"h\"\nport = 1\ntimeout = \"15s\"\nmode = \"TCP\"\n",
             Toml { encodeDefaults = true }.encodeToString(config).unwrap(),
         )
-    }
-
-    @Test
-    fun `a null field is left out`() {
-        assertEquals("required = \"r\"\n", Toml.encodeToString(Optional("r", nickname = null, note = null)).unwrap())
     }
 
     @Test
@@ -98,14 +93,6 @@ class EncodeTest {
     @Test
     fun `lists of scalars and lists are inline arrays`() {
         assertEquals("rows = [[1, 2], []]\n", Toml.encodeToString(Grid(listOf(listOf(1, 2), emptyList()))).unwrap())
-    }
-
-    @Test
-    fun `a null inside a list is refused`() {
-        assertEquals(
-            TomlEncodeError.NullElement("values[1]"),
-            Toml.encodeToString(MaybeList(listOf(1, null))).unwrapErr(),
-        )
     }
 
     @Test

@@ -16,7 +16,7 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.modules.SerializersModule
 
 /**
- * Decodes the item [input] at [path]; a null [input] is a key the document does not have.
+ * Decodes the item [input] at [path]; a null [input] is an empty item, which holds no value.
  *
  * @param skippedKey a key of [input] that is not one of the class's fields, the discriminator of a
  *   polymorphic value.
@@ -36,9 +36,10 @@ internal class NodeDecoder(
 
     private fun scalar(): Value? = (input as? TomlInput.Scalar)?.value
 
-    override fun decodeNotNullMark(): Boolean = input != null
+    // TOML holds no null, so a serializer asking whether one is here is always told no.
+    override fun decodeNotNullMark(): Boolean = true
 
-    override fun decodeNull(): Nothing? = null
+    override fun decodeNull(): Nothing? = throw DecodeFailure(TomlDecodeError.NullValue("$path"))
 
     override fun decodeBoolean(): Boolean = scalar()?.booleanOrNull ?: mismatch(TomlType.Boolean)
 
@@ -112,7 +113,11 @@ internal class NodeDecoder(
         }
     }
 
+    override fun <T : Any> decodeNullableSerializableValue(deserializer: DeserializationStrategy<T?>): T? =
+        throw DecodeFailure(TomlDecodeError.NullableType("$path"))
+
     override fun <T> decodeSerializableValue(deserializer: DeserializationStrategy<T>): T {
+        if (deserializer.descriptor.isNullable) throw DecodeFailure(TomlDecodeError.NullableType("$path"))
         try {
             val known = input?.let {
                 knownValueOrNull(deserializer.descriptor.serialName, it, path, nativeDatetime = !isMapKey)
@@ -231,7 +236,7 @@ private class ClassDecoder(
         }
     }
 
-    // A missing key is skipped when its field has a default, and read as null when its field is nullable.
+    // A missing key is skipped when its field has a default.
     override fun decodeElementIndex(descriptor: SerialDescriptor): Int {
         while (next < descriptor.elementsCount) {
             val index = next++
@@ -239,7 +244,6 @@ private class ClassDecoder(
             when {
                 name in entries -> return index
                 descriptor.isElementOptional(index) -> continue
-                descriptor.getElementDescriptor(index).isNullable -> return index
                 else -> throw DecodeFailure(TomlDecodeError.MissingKey("${path.key(name)}"))
             }
         }

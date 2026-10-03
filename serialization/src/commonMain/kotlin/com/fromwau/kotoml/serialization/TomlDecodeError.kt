@@ -48,6 +48,11 @@ public sealed interface TomlDecodeError : IError {
     @SerialName("NullableType")
     public data class NullableType(override val path: String) : Located
 
+    /** A serializer of your own asked for a null at [path], which TOML cannot hold. */
+    @Serializable
+    @SerialName("NullValue")
+    public data class NullValue(override val path: String) : Located
+
     /** A required field has no key at [path] and no default. */
     @Serializable
     @SerialName("MissingKey")

@@ -6,10 +6,30 @@ import com.fromwau.kern.result.getOrNull
 import com.fromwau.kotoml.TomlDocument
 import com.fromwau.kotoml.TomlType
 import com.fromwau.kotoml.render
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.fail
+
+@Serializable
+private data class Account(
+    val name: String,
+    val owner: String? = null,
+)
+
+@Serializable
+private data class Proxy(
+    val enabled: Boolean = false,
+    val host: String = "",
+    val port: Int = 3128,
+)
+
+@Serializable
+private data class Settings(
+    val name: String,
+    val proxy: Proxy = Proxy(),
+)
 
 /** The examples of this module's README, as written there. */
 class ReadmeTest {
@@ -26,7 +46,7 @@ class ReadmeTest {
     @Test
     fun `the README reads TOML into a class`() {
         val text = "hostname = \"example.org\"\nport = 8080\nmode = \"udp\"\n"
-        assertEquals("Config(host=example.org, port=8080, timeout=15s, mode=UDP, knownServers=null)", describe(text))
+        assertEquals("Config(host=example.org, port=8080, timeout=15s, mode=UDP, knownServers=[])", describe(text))
         assertEquals("hostname is required", describe("port = 8080\n"))
     }
 
@@ -81,6 +101,25 @@ class ReadmeTest {
         val derived = Toml(from = toml) { classDiscriminator = "type" }
         assertEquals(true, derived.ignoreUnknownKeys)
         assertEquals("type", derived.classDiscriminator)
+    }
+
+    @Test
+    fun `the README refuses a nullable type`() {
+        assertEquals(Result.Error(TomlEncodeError.NullableType("owner")), Toml.encodeToString(Account("n")))
+        assertEquals(
+            Result.Error(TomlDecodeError.NullableType("owner")),
+            Toml.decodeFromString<Account>("name = \"n\"\n"),
+        )
+    }
+
+    @Test
+    fun `the README writes an optional section without null`() {
+        assertEquals(false, Toml.decodeFromString<Settings>("name = \"app\"\n").getOrNull()?.proxy?.enabled)
+        assertEquals("name = \"app\"\n", Toml.encodeToString(Settings("app")).getOrNull())
+        assertEquals(
+            "name = \"app\"\n\n[proxy]\nenabled = true\nhost = \"proxy.local\"\n",
+            Toml.encodeToString(Settings("app", Proxy(enabled = true, host = "proxy.local"))).getOrNull(),
+        )
     }
 
     @Test

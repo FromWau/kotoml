@@ -50,7 +50,6 @@ class EncodeIntoTest {
         val result = updated(handWritten) { app ->
             app.copy(
                 title = "Kotoml 2",
-                owner = null,
                 database = app.database.copy(pool = Pool(8, 5.minutes)),
                 tags = listOf("z"),
                 servers = app.servers + Server("gamma"),
@@ -62,6 +61,7 @@ class EncodeIntoTest {
             title = "Kotoml 2"   # shown in the window
 
             # Who to blame
+            "owner" = 'someone'
             legacy = true # not in the model
             tags = [ "z" ] # labels
 
@@ -118,32 +118,6 @@ class EncodeIntoTest {
             it.copy(database = it.database.copy(pool = Pool(2)))
         }
         assertEquals("title = \"t\"\n[database]\nurl = \"u\"\n\n[database.pool]\nsize = 2\n", result)
-    }
-
-    @Test
-    fun `a field set to null removes its key`() {
-        val document = TomlDocument.parse("required = \"r\"\nnickname = \"n\" # nick\nnote = \"x\"\n").unwrap()
-        Toml.encodeInto(document, Optional("r", nickname = null, note = null)).unwrap()
-        assertEquals("required = \"r\"\n", document.toString())
-    }
-
-    @Test
-    fun `a field set to null keeps the comments above its key`() {
-        val text = "required = \"r\"\n\n# what to call them\nnickname = \"n\" # nick\n# a note\nnote = \"x\"\n"
-        val document = TomlDocument.parse(text).unwrap()
-        Toml.encodeInto(document, Optional("r", nickname = null, note = "x")).unwrap()
-        assertEquals("required = \"r\"\n\n# what to call them\n# a note\nnote = \"x\"\n", document.toString())
-    }
-
-    @Test
-    fun `a nested field set to null keeps the comments above its dotted key`() {
-        val text = "title = \"t\"\n[database]\nurl = \"u\"\n# pool size\npool.size = 4\n# idle time\n" +
-            "pool.idle = \"5m\"\n# unknown\ntimeout = 3\n"
-        val result = updated(text) { it.copy(database = it.database.copy(pool = Pool(4, idle = null))) }
-        assertEquals(
-            "title = \"t\"\n[database]\nurl = \"u\"\n# pool size\npool.size = 4\n# idle time\n# unknown\ntimeout = 3\n",
-            result,
-        )
     }
 
     @Test
@@ -217,7 +191,7 @@ class EncodeIntoTest {
     @Test
     fun `a field at its default is added when encodeDefaults is set`() {
         val document = TomlDocument.parse("hostname = \"h\"\nport = 1\n").unwrap()
-        Toml { encodeDefaults = true }.encodeInto(document, Config("h", 1)).unwrap()
+        Toml { encodeDefaults = true }.encodeInto(document, Endpoint("h", 1)).unwrap()
         assertEquals("hostname = \"h\"\nport = 1\ntimeout = \"15s\"\nmode = \"TCP\"\n", document.toString())
     }
 
@@ -253,11 +227,11 @@ class EncodeIntoTest {
 
     @Test
     fun `an error leaves the document as it was`() {
-        val text = "values = [1] # one\n"
+        val text = "byte = 1 # one\n"
         val document = TomlDocument.parse(text).unwrap()
         assertEquals(
-            TomlEncodeError.NullElement("values[1]"),
-            Toml.encodeInto(document, MaybeList(listOf(2, null))).unwrapErr(),
+            TomlEncodeError.OutOfRange("long", "${ULong.MAX_VALUE}"),
+            Toml.encodeInto(document, Unsigned(byte = 2u, long = ULong.MAX_VALUE)).unwrapErr(),
         )
         assertEquals(text, document.toString())
     }

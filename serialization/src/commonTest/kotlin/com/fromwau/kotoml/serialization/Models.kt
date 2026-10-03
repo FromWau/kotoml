@@ -32,7 +32,16 @@ data class Config(
     val port: Int,
     val timeout: Duration = 15.seconds,
     val mode: Mode = Mode.TCP,
-    val knownServers: List<Pair<String, Int>>? = null,
+    val knownServers: List<Pair<String, Int>> = emptyList(),
+)
+
+/** The owner's model without its list, for what `encodeDefaults` writes. */
+@Serializable
+data class Endpoint(
+    @SerialName("hostname") val host: String,
+    val port: Int,
+    val timeout: Duration = 15.seconds,
+    val mode: Mode = Mode.TCP,
 )
 
 @Serializable
@@ -56,23 +65,16 @@ data class Database(
 @Serializable
 data class Pool(
     val size: Int = 4,
-    val idle: Duration? = null,
+    val idle: Duration = Duration.ZERO,
 )
 
 @Serializable
 data class App(
     val title: String,
-    val owner: String? = null,
+    val owner: String = "",
     val database: Database,
     val servers: List<Server> = emptyList(),
     val tags: List<String> = emptyList(),
-)
-
-@Serializable
-data class Optional(
-    val required: String,
-    val nickname: String?,
-    val note: String? = "none",
 )
 
 @Serializable
@@ -116,10 +118,10 @@ data class Unsigned(
 
 @Serializable
 data class Times(
-    val date: LocalDate? = null,
-    val time: LocalTime? = null,
-    val local: LocalDateTime? = null,
-    val instant: Instant? = null,
+    val date: LocalDate = LocalDate(1970, 1, 1),
+    val time: LocalTime = LocalTime(0, 0),
+    val local: LocalDateTime = LocalDateTime(1970, 1, 1, 0, 0),
+    val instant: Instant = Instant.fromEpochSeconds(0),
 )
 
 @Serializable
@@ -150,9 +152,6 @@ data class ModePorts(val ports: Map<Mode, Int>)
 
 @Serializable
 data class NumberedPorts(val ports: Map<Int, String>)
-
-@Serializable
-data class MaybeList(val values: List<Int?>)
 
 /** A serializer that fails the way a hand-written one might, with an exception of its own. */
 object RefusingSerializer : KSerializer<Server> {
