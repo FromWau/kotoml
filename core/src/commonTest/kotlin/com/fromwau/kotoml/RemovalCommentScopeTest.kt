@@ -95,4 +95,19 @@ class RemovalCommentScopeTest {
             removing(text) { it["database"].tableOrNull!!.remove("url") },
         )
     }
+
+    @Test
+    fun `removing a table whose sub-table prints first keeps only the comment above the first header`() {
+        val text = "# comment 1\n[a.b.c]\nx = 1\n# comment 3\n[a]\ny = 2\n"
+        assertEquals("# comment 1\n", removing(text) { it.remove("a") })
+    }
+
+    @Test
+    fun `clearing an array of tables keeps the comment above every element`() {
+        val text = "# all servers\n[[server]]\nhost = \"a\"\n# backup\n[[server]]\nhost = \"b\"\n"
+        assertEquals(
+            "# all servers\n# backup\n",
+            removing(text) { it["server"].arrayOfTablesOrNull!!.clear() },
+        )
+    }
 }
