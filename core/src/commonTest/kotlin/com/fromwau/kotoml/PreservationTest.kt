@@ -9,39 +9,39 @@ class PreservationTest {
     private fun parse(text: String): TomlDocument = TomlDocument.parse(text).unwrap()
 
     @Test
-    fun crlfLinesKeepTheirEndings() {
+    fun `CRLF lines keep their endings`() {
         val input = "a = 1\r\n\r\n[t]\r\nb = 2\r\n"
         assertEquals(input, parse(input).toString())
     }
 
     @Test
-    fun anInsertedLineEndsLikeTheLineBeforeIt() {
+    fun `an inserted line ends like the line before it`() {
         val doc = parse("[t]\r\nb = 2\r\n")
         doc["t"]["c"] = 3L
         assertEquals("[t]\r\nb = 2\r\nc = 3\r\n", doc.toString())
     }
 
     @Test
-    fun mixedLineEndingsAreKeptPerLine() {
+    fun `mixed line endings are kept per line`() {
         val input = "a = 1\nb = 2\r\nc = 3\n"
         assertEquals(input, parse(input).toString())
     }
 
     @Test
-    fun aMissingFinalNewlineIsKeptWhileUnchanged() {
+    fun `a missing final newline is kept while the document is unchanged`() {
         assertEquals("a = 1\n[t]", parse("a = 1\n[t]").toString())
         assertEquals("[t]\r\nb = 2", parse("[t]\r\nb = 2").toString())
     }
 
     @Test
-    fun aChangedDocumentEndsWithANewline() {
+    fun `a changed document ends with a newline`() {
         val doc = parse("a = 1\nb = 2")
         doc["a"] = 5L
         assertEquals("a = 5\nb = 2\n", doc.toString())
     }
 
     @Test
-    fun eachDottedKeyKeepsItsOwnSpelling() {
+    fun `each dotted key keeps its own spelling`() {
         val input = "name.first = \"Arthur\"\n\"name\" . 'last' = \"Dent\"\n"
         val doc = parse(input)
         assertEquals(input, doc.toString())
@@ -51,7 +51,7 @@ class PreservationTest {
     }
 
     @Test
-    fun formattingASharedKeyAppliesToEveryLine() {
+    fun `resetting a shared key's formatting applies to every line`() {
         val doc = parse("name.first = \"Arthur\"\n\"name\" . 'last' = \"Dent\"\n")
         doc.root.key("name")!!.resetFormatting()
         // The leaf key `'last'` is the line's own and keeps its spelling and the space before it.
@@ -59,19 +59,19 @@ class PreservationTest {
     }
 
     @Test
-    fun eachHeaderKeepsItsOwnSpelling() {
+    fun `each header keeps its own spelling`() {
         val input = "['a']\n[a.'\"b\"']\n[\"a\".'\"b\"'.c]\nanswer = 42\n"
         assertEquals(input, parse(input).toString())
     }
 
     @Test
-    fun interleavedDottedKeysKeepTheirOrder() {
+    fun `interleaved dotted keys keep their order`() {
         val input = "apple.type = \"fruit\"\norange.type = \"fruit\"\napple.skin = \"thin\"\norange.skin = \"thick\"\n"
         assertEquals(input, parse(input).toString())
     }
 
     @Test
-    fun aValueAddedToADottedTableFollowsItsSibling() {
+    fun `a value added to a dotted table follows its last sibling`() {
         val doc = parse("apple.type = \"fruit\"\norange.type = \"fruit\"\napple.skin = \"thin\"\n")
         doc["apple"]["color"] = "red"
         assertEquals(
@@ -81,14 +81,14 @@ class PreservationTest {
     }
 
     @Test
-    fun sortingReplacesTheReadOrder() {
+    fun `sorting replaces the read order`() {
         val doc = parse("b.x = 1\na.y = 2\nb.z = 3\n")
         doc.root.sortValues()
         assertEquals("a.y = 2\nb.x = 1\nb.z = 3\n", doc.toString())
     }
 
     @Test
-    fun interleavedDottedKeysInAnInlineTableKeepTheirOrder() {
+    fun `interleaved dotted keys in an inline table keep their order`() {
         val input = "t = { a.x = 1, b.y = 2, a.z = 3 }\n"
         assertEquals(input, parse(input).toString())
     }

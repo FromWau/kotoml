@@ -71,26 +71,26 @@ class SuiteTest {
     }
 
     @Test
-    fun decodesValidToml100() = decodes("1.0.0")
+    fun `every valid V1_0 file decodes to its JSON`() = decodes("1.0.0")
 
     @Test
-    fun decodesValidToml110() = decodes("1.1.0")
+    fun `every valid V1_1 file decodes to its JSON`() = decodes("1.1.0")
 
     @Test
-    fun roundTripsValidToml100() = roundTrips("1.0.0")
+    fun `every valid V1_0 file prints back byte for byte`() = roundTrips("1.0.0")
 
     @Test
-    fun roundTripsValidToml110() = roundTrips("1.1.0")
+    fun `every valid V1_1 file prints back byte for byte`() = roundTrips("1.1.0")
 
     @Test
-    fun encodesValidToml100() = encodes("1.0.0")
+    fun `every valid V1_0 file's JSON encodes and decodes to the same values`() = encodes("1.0.0")
 
     @Test
-    fun encodesValidToml110() = encodes("1.1.0")
+    fun `every valid V1_1 file's JSON encodes and decodes to the same values`() = encodes("1.1.0")
 
     @Test
-    fun refusesInvalidToml100() = refuses("1.0.0")
+    fun `every invalid V1_0 file is refused`() = refuses("1.0.0")
 
     @Test
-    fun refusesInvalidToml110() = refuses("1.1.0")
+    fun `every invalid V1_1 file is refused`() = refuses("1.1.0")
 }

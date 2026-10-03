@@ -23,7 +23,7 @@ class WriterIntegerTest {
     }
 
     @Test
-    fun positive() {
+    fun `a positive integer writes in every radix`() {
         t(
             42,
             """
@@ -51,7 +51,7 @@ IntegerResults {
     }
 
     @Test
-    fun negative() {
+    fun `a negative integer writes only in decimal`() {
         t(
             -42,
             """

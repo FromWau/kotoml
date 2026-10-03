@@ -19,22 +19,22 @@ class ParseSimpleKeyTest {
     }
 
     @Test
-    fun simpleKeyEmpty() {
+    fun `an empty input reports an invalid key`() {
         t("", "simple_key_empty")
     }
 
     @Test
-    fun simpleKeyUnquotedAscii() {
+    fun `an unquoted ASCII key is one simple key event`() {
         t("a", "simple_key_unquoted_ascii")
     }
 
     @Test
-    fun simpleKeyString() {
+    fun `a basic string key is one simple key event with its escapes undecoded`() {
         t("\"hello\\n \"", "simple_key_string")
     }
 
     @Test
-    fun simpleKeyStringLiteral() {
+    fun `a literal string key is one simple key event`() {
         t("'hello\\n '", "simple_key_string_literal")
     }
 }

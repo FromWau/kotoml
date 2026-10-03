@@ -11,32 +11,32 @@ class WriterFloatTest {
     }
 
     @Test
-    fun zero() {
+    fun `zero writes with a zero fraction`() {
         t(WriteTomlValue.of(0.0), "0.0")
     }
 
     @Test
-    fun negZero() {
+    fun `negative zero writes its sign and a zero fraction`() {
         t(WriteTomlValue.of(-0.0), "-0.0")
     }
 
     @Test
-    fun inf() {
+    fun `positive infinity writes as inf`() {
         t(WriteTomlValue.of(Double.POSITIVE_INFINITY), "inf")
     }
 
     @Test
-    fun negInf() {
+    fun `negative infinity writes as minus inf`() {
         t(WriteTomlValue.of(Double.NEGATIVE_INFINITY), "-inf")
     }
 
     @Test
-    fun nan() {
+    fun `a positive NaN writes as nan`() {
         t(WriteTomlValue.of(Double.NaN.withSign(1.0)), "nan")
     }
 
     @Test
-    fun negNan() {
+    fun `a negative NaN writes as minus nan`() {
         t(WriteTomlValue.of(Double.NaN.withSign(-1.0)), "-nan")
     }
 }

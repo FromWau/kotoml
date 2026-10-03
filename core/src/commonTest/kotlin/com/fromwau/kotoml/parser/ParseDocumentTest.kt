@@ -20,17 +20,17 @@ class ParseDocumentTest {
     }
 
     @Test
-    fun documentEmpty() {
+    fun `an empty document emits no events`() {
         t("", "document_empty")
     }
 
     @Test
-    fun documentWs() {
+    fun `a document of only spaces emits one whitespace event`() {
         t("  ", "document_ws")
     }
 
     @Test
-    fun documentKeyString() {
+    fun `a dotted key with a basic string value parses without errors`() {
         t(
             """hello.world = "a"
 """,
@@ -39,7 +39,7 @@ class ParseDocumentTest {
     }
 
     @Test
-    fun documentKeyStringComment() {
+    fun `a key value pair followed by a comment parses without errors`() {
         t(
             """ hello = 'darkness' # my old friend
 """,
@@ -48,7 +48,7 @@ class ParseDocumentTest {
     }
 
     @Test
-    fun documentKeyWs() {
+    fun `whitespace around the dots of a dotted key parses without errors`() {
         t(
             """ hello . darkness . my = 'old friend'
 """,
@@ -57,7 +57,7 @@ class ParseDocumentTest {
     }
 
     @Test
-    fun documentTable() {
+    fun `a table header with a spaced dotted key parses without errors`() {
         t(
             """[parent . child]
 key = "value"
@@ -67,7 +67,7 @@ key = "value"
     }
 
     @Test
-    fun documentTableMissingKey() {
+    fun `an empty table header reports an empty key`() {
         t(
             """[]
 key = "value"
@@ -77,7 +77,7 @@ key = "value"
     }
 
     @Test
-    fun documentTableDot() {
+    fun `a table header of a lone dot reports two empty keys`() {
         t(
             """[ . ]
 key = "value"
@@ -87,7 +87,7 @@ key = "value"
     }
 
     @Test
-    fun documentTableDotDot() {
+    fun `a table header of two dots reports three empty keys`() {
         t(
             """[ . . ]
 key = "value"
@@ -97,7 +97,7 @@ key = "value"
     }
 
     @Test
-    fun documentTableDotKey() {
+    fun `a table header starting with a dot reports one empty key`() {
         t(
             """[ . table ]
 key = "value"
@@ -107,7 +107,7 @@ key = "value"
     }
 
     @Test
-    fun documentTableDotDotKey() {
+    fun `a table header starting with a dot reports one empty key in the dot dot key snapshot`() {
         t(
             """[ . table ]
 key = "value"
@@ -117,7 +117,7 @@ key = "value"
     }
 
     @Test
-    fun documentTableKeyDot() {
+    fun `a table header ending in a dot reports one empty key`() {
         t(
             """[ table . ]
 key = "value"
@@ -127,7 +127,7 @@ key = "value"
     }
 
     @Test
-    fun documentTableKeyDotDot() {
+    fun `a table header ending in two dots reports two empty keys`() {
         t(
             """[ table . . ]
 key = "value"
@@ -137,7 +137,7 @@ key = "value"
     }
 
     @Test
-    fun documentTableKeyDotDotKey() {
+    fun `a table header with two dots between keys reports one empty key`() {
         t(
             """[ table . . table ]
 key = "value"
@@ -147,7 +147,7 @@ key = "value"
     }
 
     @Test
-    fun documentMissingKey() {
+    fun `a value with no key reports an empty key`() {
         t(
             """
  = "value"
@@ -157,7 +157,7 @@ key = "value"
     }
 
     @Test
-    fun documentDot() {
+    fun `a key of a lone dot reports two empty keys`() {
         t(
             """
  . = "value"
@@ -167,7 +167,7 @@ key = "value"
     }
 
     @Test
-    fun documentDotDot() {
+    fun `a key of two dots reports three empty keys`() {
         t(
             """
  . . = "value"
@@ -177,7 +177,7 @@ key = "value"
     }
 
     @Test
-    fun documentDotKey() {
+    fun `a key starting with a dot reports one empty key`() {
         t(
             """
  . key = "value"
@@ -187,7 +187,7 @@ key = "value"
     }
 
     @Test
-    fun documentDotDotKey() {
+    fun `a key starting with two dots reports two empty keys`() {
         t(
             """
  . . key = "value"
@@ -197,7 +197,7 @@ key = "value"
     }
 
     @Test
-    fun documentKeyDot() {
+    fun `a key ending in a dot reports one empty key`() {
         t(
             """
 key . = "value"
@@ -207,7 +207,7 @@ key . = "value"
     }
 
     @Test
-    fun documentKeyDotDot() {
+    fun `a key ending in two dots reports two empty keys`() {
         t(
             """
 key . . = "value"
@@ -217,7 +217,7 @@ key . . = "value"
     }
 
     @Test
-    fun documentKeyDotDotKey() {
+    fun `a key with two dots between its parts reports one empty key`() {
         t(
             """
 key . . key = "value"
@@ -227,7 +227,7 @@ key . . key = "value"
     }
 
     @Test
-    fun documentInlineTableMissingKey() {
+    fun `an inline table entry with no key reports an empty key`() {
         t(
             """
 parent = { = "value" }
@@ -237,7 +237,7 @@ parent = { = "value" }
     }
 
     @Test
-    fun documentInlineTableDot() {
+    fun `an inline table key of a lone dot reports two empty keys`() {
         t(
             """
 parent = { . = "value" }
@@ -247,7 +247,7 @@ parent = { . = "value" }
     }
 
     @Test
-    fun documentInlineTableDotDot() {
+    fun `an inline table key of two dots reports three empty keys`() {
         t(
             """
 parent = { . . = "value" }
@@ -257,7 +257,7 @@ parent = { . . = "value" }
     }
 
     @Test
-    fun documentInlineTableDotKey() {
+    fun `an inline table key starting with a dot reports one empty key`() {
         t(
             """
 parent = { . key = "value" }
@@ -267,7 +267,7 @@ parent = { . key = "value" }
     }
 
     @Test
-    fun documentInlineTableDotDotKey() {
+    fun `an inline table key starting with two dots reports two empty keys`() {
         t(
             """
 parent = { . . key = "value" }
@@ -277,7 +277,7 @@ parent = { . . key = "value" }
     }
 
     @Test
-    fun documentInlineTableKeyDot() {
+    fun `an inline table key ending in a dot reports one empty key`() {
         t(
             """
 parent = { key . = "value" }
@@ -287,7 +287,7 @@ parent = { key . = "value" }
     }
 
     @Test
-    fun documentInlineTableKeyDotDot() {
+    fun `an inline table key ending in two dots reports two empty keys`() {
         t(
             """
 parent = { key . . = "value" }
@@ -297,7 +297,7 @@ parent = { key . . = "value" }
     }
 
     @Test
-    fun documentInlineTableKeyDotDotKey() {
+    fun `an inline table key with two dots between its parts reports one empty key`() {
         t(
             """
 parent = { key . . key = "value" }
@@ -307,7 +307,7 @@ parent = { key . . key = "value" }
     }
 
     @Test
-    fun documentKeyDatetime() {
+    fun `a local date value followed by a comment parses without errors`() {
         t(
             """foo = 1979-05-27 # Comment
 """,
@@ -316,7 +316,7 @@ parent = { key . . key = "value" }
     }
 
     @Test
-    fun documentBom() {
+    fun `a leading byte order mark is skipped`() {
         t(
             "\uFEFF\n[package]\nname = \"foo\"\nversion = \"0.0.1\"\nauthors = []\n",
             "document_bom",
@@ -324,7 +324,7 @@ parent = { key . . key = "value" }
     }
 
     @Test
-    fun documentComplex() {
+    fun `the TOML example document with tables arrays and multi-line strings parses without errors`() {
         t(
             "\n# This is a TOML document.\n\ntitle = \"TOML Example\"\n\n    [owner]\n    name = \"Tom Preston-We" +
                 "rner\"\n    dob = 1979-05-27T07:32:00-08:00 # First class dates\n\n    [database]\n    server = \"19" +
@@ -341,7 +341,7 @@ parent = { key . . key = "value" }
     }
 
     @Test
-    fun documentInvalid() {
+    fun `a stray dollar sign line reports an invalid key with no value`() {
         t(
             """ hello = 'darkness' # my old friend
 ${'$'}""",
@@ -350,17 +350,17 @@ ${'$'}""",
     }
 
     @Test
-    fun documentInvalidComment() {
+    fun `a NUL inside a comment reports an invalid comment character`() {
         t(" hello = 'darkness' # my old\u0000 friend\n", "document_invalid_comment")
     }
 
     @Test
-    fun documentInvalidCr() {
+    fun `a carriage return without a newline reports the bare carriage return`() {
         t(" hello = 'darkness' # my old friend\r", "document_invalid_cr")
     }
 
     @Test
-    fun inlineTableWithinRecursionLimit() {
+    fun `inline tables nested to the recursion limit parse without errors`() {
         tRecurse(
             """
 key = { a = { b = 1 } }
@@ -372,7 +372,7 @@ after = [10]
     }
 
     @Test
-    fun inlineTableOutsideRecursionLimit() {
+    fun `inline tables past the recursion limit report it and parsing resumes at the next key`() {
         tRecurse(
             """
 key = { a = { b = { c = { d = 1 } } } }
@@ -384,7 +384,7 @@ after = [10]
     }
 
     @Test
-    fun arrayWithinRecursionLimit() {
+    fun `arrays nested to the recursion limit parse without errors`() {
         tRecurse(
             """
 key = [[1]]
@@ -396,7 +396,7 @@ after = [10]
     }
 
     @Test
-    fun arrayOutsideRecursionLimit() {
+    fun `arrays nested past the recursion limit report it and parsing resumes at the next key`() {
         tRecurse(
             """
 key = [[[[1]]]]
@@ -408,7 +408,7 @@ after = [10]
     }
 
     @Test
-    fun arrayAndInlineTableWithinRecursionLimit() {
+    fun `an inline table in an array within the recursion limit parses without errors`() {
         tRecurse(
             """
 key = [{ a = 1 }]
@@ -420,7 +420,7 @@ after = [10]
     }
 
     @Test
-    fun arrayAndInlineTableOutsideRecursionLimit() {
+    fun `inline tables and arrays nested past the recursion limit report it and parsing resumes`() {
         tRecurse(
             """
 key = [{ a = [{ b = [{ c = 1 }] }] }]
@@ -432,7 +432,7 @@ after = [10]
     }
 
     @Test
-    fun hexWithSpaces() {
+    fun `a hexadecimal prefix followed by a space reports an unquoted string value`() {
         t(
             """
 v=0x _
@@ -442,7 +442,7 @@ v=0x _
     }
 
     @Test
-    fun hexWithBadChars() {
+    fun `a hexadecimal number with a non-hex digit reports an invalid hexadecimal number`() {
         t(
             """
 v=0xz_
@@ -452,7 +452,7 @@ v=0xz_
     }
 
     @Test
-    fun floatWithBadUnderscore() {
+    fun `an underscore before a float's dot reports it may only go between digits`() {
         t(
             """
 v=1_.2
@@ -462,7 +462,7 @@ v=1_.2
     }
 
     @Test
-    fun manyExtraEquals() {
+    fun `thousands of equals signs after a key report an error without overflowing`() {
         val equals = "=".repeat(5_000)
         val input = "v${equals}1\n"
 

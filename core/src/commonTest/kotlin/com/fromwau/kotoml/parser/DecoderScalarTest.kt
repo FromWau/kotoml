@@ -8,7 +8,7 @@ import kotlin.test.assertTrue
 class DecoderScalarTest {
 
     @Test
-    fun manyRedundantSigns() {
+    fun `thousands of leading signs on a number report an error without overflowing`() {
         val signs = "-".repeat(5_000)
         val input = "${signs}1"
 

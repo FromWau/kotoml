@@ -13,7 +13,7 @@ class DatetimeDisplayTest {
     }
 
     @Test
-    fun timeWithoutSeconds() {
+    fun `a time without seconds prints as hours and minutes`() {
         t(
             Datetime(
                 date = null,
@@ -28,7 +28,7 @@ class DatetimeDisplayTest {
     }
 
     @Test
-    fun timeWithoutSecondsWithNanoseconds() {
+    fun `a time with nanoseconds but no seconds prints zero seconds before the fraction`() {
         t(
             Datetime(
                 date = null,
@@ -43,7 +43,7 @@ class DatetimeDisplayTest {
     }
 
     @Test
-    fun timeWithZeroSecondsAndNanoseconds() {
+    fun `a time with zero seconds and zero nanoseconds prints a one digit fraction`() {
         t(
             Datetime(
                 date = null,
@@ -58,7 +58,7 @@ class DatetimeDisplayTest {
     }
 
     @Test
-    fun datetimeWithoutSeconds() {
+    fun `an offset date-time without seconds prints as hours and minutes`() {
         t(
             Datetime(
                 date = Date(year = 1979, month = 5, day = 27),

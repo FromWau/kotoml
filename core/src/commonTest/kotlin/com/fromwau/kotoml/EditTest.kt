@@ -53,7 +53,7 @@ class EditTest {
         assertData(expected, actual)
     }
     @Test
-    fun parsedDocumentOutlivesInput() {
+    fun `a parsed document prints its input unchanged and keeps a value's decor across an edit`() {
         val input =
             "# leading comment\n[ parent . 'child' ] # header\nvalue = { dotted . key = [ 1, 2, ], other = 'text' } #" +
             " value\n\n[[ parent . 'entries' ]] # first\nname = \"first\"\n\n[[ parent . 'entries' ]] # second\nname " +
@@ -69,7 +69,7 @@ class EditTest {
     }
 
     @Test
-    fun parseErrorOutlivesInput() {
+    fun `a parse error renders against the input it came from`() {
         val input = "[table]\nkey = 1\n[table]\nkey = 2\n"
         val error = TomlDocument.parse(input).unwrapErr()
         assertEquals(TomlParseError.Reason.DuplicateKey("table"), error.reason)
@@ -77,7 +77,7 @@ class EditTest {
     }
 
     @Test
-    fun documentDisplayPropagatesWriteErrors() {
+    fun `writing a document fails when the writer refuses any part of its text`() {
         class LimitedWriter(var remaining: Int) : FmtWrite {
             override fun writeStr(text: String): EmptyResult<FmtError> {
                 val length = text.encodeToByteArray().size
@@ -107,7 +107,7 @@ class EditTest {
     }
 
     @Test
-    fun assignWhitespace() {
+    fun `a parsed document keeps the whitespace and comments around every key and value`() {
         val input =
             "\n # top comment\n [ grandparent . parent ]  # table comment\n # table-value sep comment\n key . child =" +
             " 'value' # key comment\n key . inline-empty = { }  # empty inline-table comment\n key . inline = { inlin" +
@@ -364,7 +364,7 @@ class EditTest {
     }
 
     @Test
-    fun testAddRootDecor() {
+    fun `a document's decor and trailing text print around its tables`() {
         given(
             "[package]\nname = \"hello\"\nversion = \"1.0.0\"\n\n[[bin]]\nname = \"world\"\npath = \"src/bin/world/ma" +
             "in.rs\"\n\n[dependencies]\nnom = \"4.0\" # future is here\n\n[[bin]]\nname = \"delete me please\"\npath " +
@@ -397,7 +397,7 @@ trailing...
     }
 
     @Test
-    fun testNoRootDecor() {
+    fun `a parsed document has no decor and prints its trailing text at the end`() {
         given(
             "[package]\nname = \"hello\"\nversion = \"1.0.0\"\n\n[[bin]]\nname = \"world\"\npath = \"src/bin/world/ma" +
             "in.rs\"\n\n[dependencies]\nnom = \"4.0\" # future is here\n\n[[bin]]\nname = \"delete me please\"\npath " +
@@ -429,7 +429,7 @@ trailing...
     }
 
     @Test
-    fun testInsertLeafTable() {
+    fun `a new sub-table prints after its parent's existing sub-tables`() {
         given("""[servers]
 
         [servers.alpha]
@@ -459,7 +459,7 @@ dc = "eqdc10"
     }
 
     @Test
-    fun testInsertedLeafTableGoesAfterLastSibling() {
+    fun `a new sub-table prints after the last sibling table even past other tables`() {
         given("""
         [package]
         [dependencies]
@@ -483,7 +483,7 @@ dc = "eqdc10"
     }
 
     @Test
-    fun testInsertingTablesFromDifferentParsedDocs() {
+    fun `a table copied from another parsed document prints in its new document`() {
         given("[a]")
             .running { root ->
                 val other = TomlDocument.parse("[b]").unwrap()
@@ -497,7 +497,7 @@ dc = "eqdc10"
     }
 
     @Test
-    fun testInsertNonleafTable() {
+    fun `a new table with a sub-table prints both headers after the existing tables`() {
         given("""
         [other.table]""")
             .running { root ->
@@ -520,7 +520,7 @@ dc = "eqdc10"
     }
 
     @Test
-    fun testInsertArray() {
+    fun `a new array of tables prints one header per table after the existing tables`() {
         given("\n        [package]\n        title = \"withoutarray\"")
             .running { root ->
                 root["bin"] = ArrayOfTables()
@@ -547,7 +547,7 @@ hello = "world"
     }
 
     @Test
-    fun testInsertValues() {
+    fun `keys set under an implicit table print in a new header above its sub-table`() {
         given("""
         [tbl.son]""")
             .running { root ->
@@ -567,7 +567,7 @@ key3 = 8.1415926
     }
 
     @Test
-    fun testInsertKeyWithQuotes() {
+    fun `a new table key that needs quoting prints as a literal string in its header`() {
         given("""
         [package]
         name = "foo"
@@ -595,7 +595,7 @@ name = "dep"
     }
 
     @Test
-    fun testRemoveLeafTable() {
+    fun `removing a sub-table keeps the comment above its header`() {
         given(
             "\n        [servers]\n\n        # Indentation (tabs and/or spaces) is allowed but not required\n[servers." +
             "alpha]\n        ip = \"10.0.0.1\"\n        dc = \"eqdc10\"\n\n        [servers.beta]\n        ip = \"10." +
@@ -619,7 +619,7 @@ name = "dep"
     }
 
     @Test
-    fun testRemoveNonleafTable() {
+    fun `removing a table removes its sub-tables and keeps the comments above their headers`() {
         given("""
         title = "not relevant"
 
@@ -681,7 +681,7 @@ name = "dep"
     }
 
     @Test
-    fun testRemoveArrayEntry() {
+    fun `removing an array of tables element removes only its header and body`() {
         given(
             "\n        [package]\n        name = \"hello\"\n        version = \"1.0.0\"\n\n        [[bin]]\n        n" +
             "ame = \"world\"\n        path = \"src/bin/world/main.rs\"\n\n        [dependencies]\n        nom = \"4.0" +
@@ -713,7 +713,7 @@ name = "dep"
     }
 
     @Test
-    fun testRemoveArray() {
+    fun `removing an array of tables removes every header and body it printed`() {
         given(
             "\n        [package]\n        name = \"hello\"\n        version = \"1.0.0\"\n\n        [[bin]]\n        n" +
             "ame = \"world\"\n        path = \"src/bin/world/main.rs\"\n\n        [dependencies]\n        nom = \"4.0" +
@@ -737,7 +737,7 @@ name = "dep"
     }
 
     @Test
-    fun testRemoveValue() {
+    fun `removing a key returns its value and keeps the comment above it`() {
         given(
             "\n        name = \"hello\"\n        # delete this\n        version = \"1.0.0\" # please\n        documen" +
             "tation = \"https://docs.rs/hello\"")
@@ -759,7 +759,7 @@ name = "dep"
     }
 
     @Test
-    fun testRemoveLastValueFromImplicit() {
+    fun `an implicit table left empty prints nothing`() {
         given("""
         [a]
         b = 1""")
@@ -777,7 +777,7 @@ name = "dep"
     }
 
     @Test
-    fun testSortValues() {
+    fun `sorting a table's keys moves each key with its comments`() {
         given("""
         [a.z]
 
@@ -808,7 +808,7 @@ name = "dep"
     }
 
     @Test
-    fun testSortValuesBy() {
+    fun `sorting a table's keys by a comparator orders them by their spelling`() {
         given("""
         [a.z]
 
@@ -841,7 +841,7 @@ name = "dep"
     }
 
     @Test
-    fun testSetPosition() {
+    fun `a table's position sets the order of its header in the document`() {
         given("""
         [package]
         [dependencies]
@@ -868,7 +868,7 @@ name = "dep"
     }
 
     @Test
-    fun testSetPositionNegative() {
+    fun `a table with a negative position prints before the other tables`() {
         given("""
         edition = "2015"
         [dependencies]
@@ -896,7 +896,7 @@ edition = "2024"
     }
 
     @Test
-    fun testMultipleZeroPositions() {
+    fun `tables with the same position keep their document order`() {
         given("""
         [package]
         [dependencies]
@@ -920,7 +920,7 @@ edition = "2024"
     }
 
     @Test
-    fun testMultipleMaxUsizePositions() {
+    fun `tables at the largest position print after the others in document order`() {
         given("""
         [package]
         [dependencies]
@@ -944,7 +944,7 @@ edition = "2024"
     }
 
     @Test
-    fun testInsertReplaceIntoArray() {
+    fun `inserting and setting array elements keeps their decor and replacing resets it`() {
         given("""
         a = [1,2,3]
         b = []""")
@@ -987,7 +987,7 @@ edition = "2024"
     }
 
     @Test
-    fun testRemoveFromArray() {
+    fun `removing array elements returns them and leaves an empty array as brackets`() {
         given("""
         a = [1, 2, 3, 4]
         b = ["hello"]""")
@@ -1012,7 +1012,7 @@ edition = "2024"
     }
 
     @Test
-    fun testFormatArray() {
+    fun `resetting an array's formatting prints it on one line with default spacing`() {
         given("""
     a = [
       1,
@@ -1032,7 +1032,7 @@ edition = "2024"
     }
 
     @Test
-    fun testInsertIntoInlineTable() {
+    fun `getOrPut adds a key to an inline table and resetting prints default spacing`() {
         given("""
         a = {a=2,  c = 3}
         b = {}""")
@@ -1060,7 +1060,7 @@ edition = "2024"
     }
 
     @Test
-    fun testRemoveFromInlineTable() {
+    fun `removing inline table keys keeps the spacing of the ones left`() {
         given("""
         a = {a=2,  c = 3, b = 42}
         b = {'hello' = "world"}""")
@@ -1085,7 +1085,7 @@ edition = "2024"
     }
 
     @Test
-    fun testAsTableLike() {
+    fun `tables and inline tables read as TableLike and an array of tables does not`() {
         given("""
         a = {a=2,  c = 3, b = 42}
         x = {}
@@ -1111,7 +1111,7 @@ edition = "2024"
     }
 
     @Test
-    fun testInlineTableAppend() {
+    fun `putAll copies another inline table's pairs and leaves that table as it was`() {
         val a = Value.InlineTable(
             inlineTableOf("a" to Value.Integer(1L), "b" to Value.Integer(2L), "c" to Value.Integer(3L)),
         )
@@ -1127,7 +1127,7 @@ edition = "2024"
     }
 
     @Test
-    fun testInsertDottedIntoStdTable() {
+    fun `a dotted sub-table set before its keys prints as dotted keys under the table header`() {
         given("")
             .running { root ->
                 root["nixpkgs"] = Table()
@@ -1143,7 +1143,7 @@ src.git = "https://github.com/nixos/nixpkgs"
     }
 
     @Test
-    fun testInsertDottedIntoImplicitTable() {
+    fun `a sub-table made dotted after its keys prints as dotted keys under the table header`() {
         given("")
             .running { root ->
                 root["nixpkgs"] = Table()
@@ -1158,14 +1158,14 @@ src.git = "https://github.com/nixos/nixpkgs"
     }
 
     @Test
-    fun sortingWithReferences() {
+    fun `an array of strings sorts with a comparator over its values`() {
         val values = listOf("foo", "qux", "bar")
         val array = values.map { Value.String(it) }.toTomlArray()
         array.sortWith { lhs, rhs -> compareValues(lhs.stringOrNull, rhs.stringOrNull) }
     }
 
     @Test
-    fun tableStrKeyWhitespace() {
+    fun `an array of tables put at a string key replaces the value there`() {
         val document = TomlDocument.parse("bookmark = 1010").unwrap()
         val key = "bookmark"
         document.put(key, Item(ArrayOfTables()))
@@ -1181,7 +1181,7 @@ name = "test.swf"
     }
 
     @Test
-    fun tableKeyDecorWhitespace() {
+    fun `an array of tables put at a parsed key prints the key's whitespace in its header`() {
         val document = TomlDocument.parse("bookmark = 1010").unwrap()
         val key = Key.parsePath("  bookmark   ").unwrap()[0]
         document.root.put(key, Item(ArrayOfTables()))
@@ -1197,7 +1197,7 @@ name = "test.swf"
     }
 
     @Test
-    fun tableIntoInline() {
+    fun `makeValue turns a table and its sub-tables into one inline table`() {
         val toml = """
 [table]
 string = "value"
@@ -1217,7 +1217,7 @@ other = "world"
     }
 
     @Test
-    fun inlineTableToTable() {
+    fun `an inline table converted to a table prints as a table with a header`() {
         val toml =
             "table = { string = \"value\", array = [1, 2, 3], inline = { \"1\" = 1, \"2\" = 2 }, child = { other = \"" +
             "world\" } }\n"
@@ -1238,7 +1238,7 @@ child = { other = "world" }
     }
 
     @Test
-    fun arrayOfTablesToArray() {
+    fun `makeValue turns an array of tables into an array of inline tables`() {
         val toml = """
 [[table]]
 string = "value"
@@ -1267,7 +1267,7 @@ other = "world"
     }
 
     @Test
-    fun testKeyFromStr() {
+    fun `Key parse reads bare quoted and literal keys to their names`() {
         fun testKey(text: String, expected: String) {
             when (val key = Key.parse(text)) {
                 is Result.Success -> assertEquals(expected, key.value.name, "")
@@ -1287,7 +1287,7 @@ other = "world"
     }
 
     @Test
-    fun despanKeys() {
+    fun `a parsed key put into a document prints after the existing keys`() {
         val doc = TomlDocument.parse("aaaaaa = 1").unwrap()
         val key = Key.parse("bbb").unwrap()
         val table = doc.root
@@ -1296,7 +1296,7 @@ other = "world"
     }
 
     @Test
-    fun keyReprRoundtrip() {
+    fun `a parsed key prints back with its own quoting`() {
         assertKeyReprRoundtrip("\"\"", "\"\"")
         assertKeyReprRoundtrip("\"a\"", "\"a\"")
         assertKeyReprRoundtrip("\"tab \\t tab\"", "\"tab \\t tab\"")
@@ -1323,7 +1323,7 @@ other = "world"
     }
 
     @Test
-    fun keyValueRoundtrip() {
+    fun `a key built from a name prints with the simplest quoting that parses back`() {
         assertKeyValueRoundtrip("\"\"", "\"\"")
         assertKeyValueRoundtrip("\"a\"", "a")
         assertKeyValueRoundtrip("\"tab \\t tab\"", "\"tab \\t tab\"")
@@ -1347,7 +1347,7 @@ other = "world"
     }
 
     @Test
-    fun tableUnderInline() {
+    fun `a key written under a dotted inline table prints as a dotted key inside it`() {
         val doc = TomlDocument()
         // An inline table holds only values, so a dotted inline table stands in for upstream's table here.
         val dotted = InlineTable()
@@ -1361,7 +1361,7 @@ tool = { typst-test.tests = "tests" }
     }
 
     @Test
-    fun arrayOfTablesInsertAtBeginning() {
+    fun `a table added at the start of an array of tables prints first`() {
         given("""[[fruit]]
 name = "apple"
 
@@ -1392,7 +1392,7 @@ name = "banana"
     }
 
     @Test
-    fun arrayOfTablesInsertInMiddle() {
+    fun `a table added in the middle of an array of tables prints between its neighbours`() {
         given("""[[fruit]]
 name = "apple"
 
@@ -1421,7 +1421,7 @@ name = "banana"
     }
 
     @Test
-    fun arrayOfTablesInsertAtEnd() {
+    fun `a table added at the end of an array of tables prints last`() {
         given("""[[fruit]]
 name = "apple"
 
@@ -1450,14 +1450,14 @@ name = "cherry"
     }
 
     @Test
-    fun arrayOfTablesInsertOutOfBounds() {
+    fun `adding a table past the end of an array of tables fails with IndexOutOfBounds`() {
         val array = ArrayOfTables()
         val t = Table()
         assertEquals(TomlEditError.IndexOutOfBounds(1, 0), array.add(1, t).unwrapErr())
     }
 
     @Test
-    fun inlineTableToTableWithComment() {
+    fun `an inline table replaced by a table keeps the comment above its key`() {
         given("""
 # hello i'm a comment
 foo = { bar = 1 }
@@ -1479,7 +1479,7 @@ baz = 2
     }
 
     @Test
-    fun inlineTableToArrayOfTablesWithComment() {
+    fun `an array of inline tables replaced by an array of tables keeps the comment above its key`() {
         given("""
 # hello i'm a comment
 foo = [{ bar = 1 }]
@@ -1503,7 +1503,7 @@ baz = 2
     }
 
     @Test
-    fun arrayOfTablesReplace() {
+    fun `setting an array of tables element returns the old table and prints the new one`() {
         given("""[[fruit]]
 name = "apple"
 
@@ -1529,7 +1529,7 @@ name = "cherry"
     }
 
     @Test
-    fun arrayOfTablesReplaceOutOfBounds() {
+    fun `setting a table past the end of an array of tables fails with IndexOutOfBounds`() {
         val array = ArrayOfTables()
         val t = Table()
         assertEquals(TomlEditError.IndexOutOfBounds(0, 0), array.set(0, t).unwrapErr())

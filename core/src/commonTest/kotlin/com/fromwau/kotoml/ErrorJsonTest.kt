@@ -11,7 +11,7 @@ class ErrorJsonTest {
         Json.encodeToString(TomlParseError.serializer(), TomlDocument.parse(text).unwrapErr())
 
     @Test
-    fun aDuplicateKeyNamesTheKeyAndBothPlaces() {
+    fun `a duplicate key names the key and both places`() {
         assertEquals(
             """{"reason":{"type":"DuplicateKey","key":"a"},"span":{"start":6,"end":7},""" +
                 """"position":{"line":2,"column":1},"context":{"start":0,"end":1}}""",
@@ -20,7 +20,7 @@ class ErrorJsonTest {
     }
 
     @Test
-    fun aSyntaxErrorNestsTheParserReasonAndWhatWasExpected() {
+    fun `a syntax error nests the parser reason and what was expected`() {
         assertEquals(
             """{"reason":{"type":"Syntax","reason":{"type":"InvalidScalar",""" +
                 """"kind":{"type":"Integer","radix":"Hex"}}},""" +
@@ -30,7 +30,7 @@ class ErrorJsonTest {
     }
 
     @Test
-    fun anInvalidDatetimeCarriesItsPartAndExpectation() {
+    fun `an invalid date-time carries its part and expectation`() {
         assertEquals(
             """{"reason":{"type":"InvalidDatetime","error":{"part":"Date","expected":""" +
                 """{"type":"Range","field":"Month","min":1,"max":12}}},"span":{"start":4,"end":14},""" +
@@ -40,7 +40,7 @@ class ErrorJsonTest {
     }
 
     @Test
-    fun anEditErrorEncodesToo() {
+    fun `an edit error encodes with its type and fields`() {
         assertEquals(
             """{"type":"NotATable","key":"k","itemType":"String"}""",
             Json.encodeToString(TomlEditError.serializer(), TomlEditError.NotATable("k", TomlType.String)),

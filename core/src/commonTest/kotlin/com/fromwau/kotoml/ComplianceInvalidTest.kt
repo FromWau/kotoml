@@ -22,7 +22,7 @@ class ComplianceInvalidTest {
     }
 
     @Test
-    fun basicStringEscape() {
+    fun `a control character in a basic string is refused at its column`() {
         t(
             "a = \"\u007F\"",
             "\nTOML parse error at line 1, column 6\n  |\n1 | a = \"\u007F\"\n  |      ^\n" +
@@ -31,7 +31,7 @@ class ComplianceInvalidTest {
     }
 
     @Test
-    fun literalEscape() {
+    fun `a control character in a literal string is refused at its column`() {
         t(
             "a = '\u007F'",
             "\nTOML parse error at line 1, column 6\n  |\n1 | a = '\u007F'\n  |      ^\n" +
@@ -40,7 +40,7 @@ class ComplianceInvalidTest {
     }
 
     @Test
-    fun strayCr() {
+    fun `a carriage return without a newline is refused in every kind of string and array`() {
         t(
             "\r",
             "\nTOML parse error at line 1, column 2\n  |\n1 | \n  |  ^\n" +
@@ -100,7 +100,7 @@ invalid basic string, expected non-double-quote visible characters, `\`
     }
 
     @Test
-    fun duplicateKeyWithCrlf() {
+    fun `a duplicate key under CRLF line endings is reported on its own line`() {
         t(
             "\r\n[t1]\r\n[t2]\r\na = 1\r\na = 2\r\n",
             """
@@ -115,7 +115,7 @@ duplicate key
     }
 
     @Test
-    fun inlineTableMissingKey() {
+    fun `an inline table element without a key is refused`() {
         t(
             "={[]\r].",
             """
@@ -131,7 +131,7 @@ missing key for inline table element, expected key
     }
 
     @Test
-    fun inlineTableMissingKeyInArray() {
+    fun `an inline table element without a key inside an array is refused`() {
         t(
             "a=[{[]-]{\na.",
             """
@@ -146,21 +146,21 @@ missing key for inline table element, expected key
     }
 
     @Test
-    fun emojiErrorSpan() {
+    fun `an error span covers a whole multi-byte character`() {
         val input = "key = 😀"
         val err = TomlDocument.parse(input).unwrapErr()
         assertEquals("😀", spanText(input, err))
     }
 
     @Test
-    fun textErrorSpan() {
+    fun `an error span covers the whole unquoted word`() {
         val input = "key = asdf"
         val err = TomlDocument.parse(input).unwrapErr()
         assertEquals("asdf", spanText(input, err))
     }
 
     @Test
-    fun fuzzed68144ErrorSpan() {
+    fun `a bad escape value reports an empty span where the escape value is missing`() {
         val input = "key = \"\\ᾂr\""
         val err = TomlDocument.parse(input).unwrapErr()
         // Bad escape values are reported as missing escape values.

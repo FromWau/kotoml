@@ -13,7 +13,7 @@ class TomlVersionTest {
     }
 
     @Test
-    fun newlineInInlineTable() {
+    fun `V1_0 refuses a newline in an inline table`() {
         refusedIn10(
             "t = {\n  a = 1 }\n",
             """
@@ -28,7 +28,7 @@ inline tables cannot span lines in TOML 1.0
     }
 
     @Test
-    fun commentInInlineTable() {
+    fun `V1_0 refuses a comment in an inline table`() {
         refusedIn10(
             "t = { a = 1 # one\n}\n",
             """
@@ -43,7 +43,7 @@ inline tables cannot span lines in TOML 1.0
     }
 
     @Test
-    fun trailingCommaInInlineTable() {
+    fun `V1_0 refuses a trailing comma in an inline table`() {
         refusedIn10(
             "t = { a = 1, }\n",
             """
@@ -58,7 +58,7 @@ inline tables cannot end with a comma in TOML 1.0
     }
 
     @Test
-    fun hexEscape() {
+    fun `V1_0 refuses a hex escape`() {
         refusedIn10(
             "s = \"\\x41\"\n",
             """
@@ -73,7 +73,7 @@ missing escaped value, expected `b`, `f`, `n`, `r`, `\`, `"`, `u`, `U`
     }
 
     @Test
-    fun escapeEscapeInKey() {
+    fun `V1_0 refuses the escape character escape in a quoted key`() {
         refusedIn10(
             "\"a\\e\" = 1\n",
             """
@@ -88,12 +88,12 @@ missing escaped value, expected `b`, `f`, `n`, `r`, `\`, `"`, `u`, `U`
     }
 
     @Test
-    fun escapedBackslashBeforeXIsAllowed() {
+    fun `V1_0 reads an escaped backslash before an x as text`() {
         assertEquals("\\x41", TomlDocument.parse("s = \"\\\\x41\"\n", TomlVersion.V1_0).unwrap()["s"].stringOrNull)
     }
 
     @Test
-    fun timeWithoutSeconds() {
+    fun `V1_0 refuses a time without seconds`() {
         refusedIn10(
             "t = 07:32\n",
             """
@@ -108,7 +108,7 @@ times need seconds in TOML 1.0
     }
 
     @Test
-    fun datetimeWithoutSeconds() {
+    fun `V1_0 refuses a date-time without seconds`() {
         refusedIn10(
             "t = 1979-05-27T07:32Z\n",
             """
@@ -123,7 +123,7 @@ times need seconds in TOML 1.0
     }
 
     @Test
-    fun valueAndKeyParsingTakeTheVersion() {
+    fun `parsing a value or key under V1_0 refuses what V1_1 added`() {
         assertTrue(Value.parse("{ a = 1, }").isOk())
         assertTrue(!Value.parse("{ a = 1, }", TomlVersion.V1_0).isOk())
         assertTrue(Key.parse("\"\\x41\"").isOk())

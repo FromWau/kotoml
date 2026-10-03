@@ -9,34 +9,34 @@ import kotlin.test.assertEquals
 class EditUnitTest {
 
     @Test
-    fun valueFromIterFormatting() {
+    fun `an array built from strings prints with default spacing`() {
         val features = listOf("node", "mouth")
         val value = Value.Array(features.map { Value.String(it) }.toTomlArray())
         assertEquals("[\"node\", \"mouth\"]", value.toString())
     }
 
     @Test
-    fun valueStringRoundtrip() {
+    fun `a string value prints as text that parses back`() {
         Value.parse(Value.String("hello").toString()).unwrap()
     }
 
     @Test
-    fun keyStringRoundtrip() {
+    fun `a key prints as text that parses back`() {
         Key.parse(Key("hello").toString()).unwrap()
     }
 
     @Test
-    fun itemStringRoundtrip() {
+    fun `an item prints as text that parses back`() {
         Item(Value.parse(Item(Value.String("hello")).toString()).unwrap())
     }
 
     @Test
-    fun documentDefaultRoundtrip() {
+    fun `an empty document prints as text that parses back`() {
         TomlDocument.parse(TomlDocument().toString()).unwrap()
     }
 
     @Test
-    fun encodeParseableString() {
+    fun `random printable strings print as values that parse back`() {
         val random = Random(0x5354_5249)
         repeat(512) {
             val string = randomPrintableString(random)
@@ -47,7 +47,7 @@ class EditUnitTest {
     }
 
     @Test
-    fun encodeParseableKey() {
+    fun `random printable strings print as keys that parse back`() {
         val random = Random(0x4B45_5953)
         repeat(512) {
             val string = randomPrintableString(random)
@@ -58,44 +58,44 @@ class EditUnitTest {
     }
 
     @Test
-    fun translatePositionEmpty() {
+    fun `an offset in empty input is line 0 column 0`() {
         assertEquals(0 to 0, translatePosition(byteArrayOf(), 0))
     }
 
     @Test
-    fun translatePositionStart() {
+    fun `the first offset is line 0 column 0`() {
         assertEquals(0 to 0, translatePosition("Hello".encodeToByteArray(), 0))
     }
 
     @Test
-    fun translatePositionEnd() {
+    fun `the last byte's offset is its column on the first line`() {
         val input = "Hello".encodeToByteArray()
         assertEquals(0 to input.size - 1, translatePosition(input, input.size - 1))
     }
 
     @Test
-    fun translatePositionAfter() {
+    fun `the offset past the end is the column after the last byte`() {
         val input = "Hello".encodeToByteArray()
         assertEquals(0 to input.size, translatePosition(input, input.size))
     }
 
     @Test
-    fun translatePositionFirstLine() {
+    fun `an offset in the first line is its column`() {
         assertEquals(0 to 2, translatePosition("Hello\nWorld\n".encodeToByteArray(), 2))
     }
 
     @Test
-    fun translatePositionEndOfLine() {
+    fun `the offset of a newline is the column at the end of its line`() {
         assertEquals(0 to 5, translatePosition("Hello\nWorld\n".encodeToByteArray(), 5))
     }
 
     @Test
-    fun translatePositionStartOfSecondLine() {
+    fun `the offset after a newline is column 0 of the next line`() {
         assertEquals(1 to 0, translatePosition("Hello\nWorld\n".encodeToByteArray(), 6))
     }
 
     @Test
-    fun translatePositionSecondLine() {
+    fun `an offset in the second line counts columns from its start`() {
         assertEquals(1 to 2, translatePosition("Hello\nWorld\n".encodeToByteArray(), 8))
     }
 }

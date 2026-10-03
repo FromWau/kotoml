@@ -12,7 +12,7 @@ import kotlin.test.assertEquals
 class FloatFormatTest {
 
     @Test
-    fun matchesRust() {
+    fun `floats print the same digits and text as Rust`() {
         val failures = mutableListOf<String>()
         for (line in readSnapshot("oracle/floats.txt").lines()) {
             if (line.isEmpty()) continue

@@ -24,7 +24,7 @@ class LexerTest {
     }
 
     @Test
-    fun testLexAsciiChar() {
+    fun `lexing one ASCII character emits its token and leaves the rest`() {
         val cases = listOf(
             Triple(
                 ".trailing",
@@ -47,7 +47,7 @@ Token {
     }
 
     @Test
-    fun testLexWhitespace() {
+    fun `whitespace lexes as one token up to the first non-blank character`() {
         val cases = listOf(
             Triple(
                 " ",
@@ -118,7 +118,7 @@ Token {
     }
 
     @Test
-    fun testLexComment() {
+    fun `a comment lexes up to the line ending and keeps control characters in it`() {
         val cases = listOf(
             Triple(
                 "#",
@@ -192,7 +192,7 @@ Token {
     }
 
     @Test
-    fun testLexCrlf() {
+    fun `CRLF and a lone carriage return each lex as one newline`() {
         val cases = listOf(
             Triple(
                 "\r\ntrailing",
@@ -226,7 +226,7 @@ Token {
     }
 
     @Test
-    fun testLexLiteralString() {
+    fun `a literal string lexes to its closing quote or the end of input`() {
         val cases = listOf(
             Triple(
                 "''",
@@ -297,7 +297,7 @@ trailing
     }
 
     @Test
-    fun testLexMlLiteralString() {
+    fun `a multi-line literal string takes up to two extra quotes before its closing delimiter`() {
         val cases = listOf(
             Triple(
                 "''''''",
@@ -453,7 +453,7 @@ Token {
     }
 
     @Test
-    fun testLexBasicString() {
+    fun `a basic string lexes past escaped quotes to its closing quote`() {
         val cases = listOf(
             Triple(
                 "\"\"",
@@ -520,7 +520,7 @@ Token {
     }
 
     @Test
-    fun testLexAtom() {
+    fun `an atom lexes up to whitespace or a dot`() {
         val cases = listOf(
             Triple(
                 "hello",
@@ -587,7 +587,7 @@ Token {
     }
 
     @Test
-    fun literalStrings() {
+    fun `literal strings of every quote count lex into string tokens`() {
         t(
             "''",
             """
@@ -722,7 +722,7 @@ Token {
     }
 
     @Test
-    fun basicStrings() {
+    fun `basic strings of every quote count and escape lex into string tokens`() {
         t(
             "\"\"",
             """
@@ -1214,7 +1214,7 @@ Token {
     }
 
     @Test
-    fun keylike() {
+    fun `keylike text of letters digits dashes and underscores lexes as one atom`() {
         t(
             "foo",
             """
@@ -1346,7 +1346,7 @@ Token {
     }
 
     @Test
-    fun all() {
+    fun `a line using every token kind lexes into each kind with contiguous spans`() {
         t(
             " a ",
             """
@@ -1486,7 +1486,7 @@ Token {
     }
 
     @Test
-    fun bareCrBad() {
+    fun `a bare carriage return or an unterminated string lexes into tokens covering every byte`() {
         t(
             "\r",
             """
@@ -1575,7 +1575,7 @@ Token {
     }
 
     @Test
-    fun badComment() {
+    fun `a NUL inside a comment stays part of the comment token`() {
         t(
             "#\u0000",
             """

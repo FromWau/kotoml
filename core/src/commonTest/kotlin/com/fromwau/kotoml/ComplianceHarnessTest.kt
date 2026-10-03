@@ -71,7 +71,7 @@ class ComplianceHarnessTest {
     }
 
     @Test
-    fun decoderComplianceValid() {
+    fun `every valid suite and upstream fixture decodes to its JSON`() {
         val failures = valid().filter { case ->
             val decoded = outcome(case.fixture)
             decoded !is Outcome.Decoded || !decoded.document.toTagged().sameAs(case.expected())
@@ -80,7 +80,7 @@ class ComplianceHarnessTest {
     }
 
     @Test
-    fun decoderComplianceInvalid() {
+    fun `every invalid suite and upstream fixture is refused with upstream's error text`() {
         val failures = invalid().mapNotNull { case ->
             when (val decoded = outcome(case.fixture)) {
                 is Outcome.Decoded -> "${case.name}: should have failed"
@@ -98,7 +98,7 @@ class ComplianceHarnessTest {
     }
 
     @Test
-    fun encoderCompliance() {
+    fun `every valid fixture's JSON encodes to TOML that decodes to the same values`() {
         val failures = valid().filter { case ->
             val expected = case.expected()
             val encoded = expected.toDocument()?.toString()

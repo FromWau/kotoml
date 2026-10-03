@@ -36,7 +36,7 @@ class WriterStringTest {
     }
 
     @Test
-    fun empty() {
+    fun `an empty string is quoted as a key and as a value`() {
         t(
             "",
             """
@@ -73,7 +73,7 @@ StringResults {
     }
 
     @Test
-    fun alpha() {
+    fun `letters write as a bare key and a basic string`() {
         t(
             "helloworld",
             """
@@ -112,7 +112,7 @@ StringResults {
     }
 
     @Test
-    fun ident() {
+    fun `letters dashes and underscores write as a bare key`() {
         t(
             "_hello-world_",
             """
@@ -151,7 +151,7 @@ StringResults {
     }
 
     @Test
-    fun oneSingleQuote() {
+    fun `a string holding single quotes defaults to basic quotes`() {
         t(
             "'hello'world'",
             """
@@ -184,7 +184,7 @@ StringResults {
     }
 
     @Test
-    fun twoSingleQuote() {
+    fun `a string holding doubled single quotes defaults to basic quotes`() {
         t(
             "''hello''world''",
             """
@@ -217,7 +217,7 @@ StringResults {
     }
 
     @Test
-    fun threeSingleQuote() {
+    fun `a string holding tripled single quotes rules out both literal forms`() {
         t(
             "'''hello'''world'''",
             """
@@ -248,7 +248,7 @@ StringResults {
     }
 
     @Test
-    fun oneDoubleQuote() {
+    fun `a string holding double quotes defaults to literal quotes`() {
         t(
             "\"hello\"world\"",
             """
@@ -281,7 +281,7 @@ StringResults {
     }
 
     @Test
-    fun twoDoubleQuote() {
+    fun `a string holding doubled double quotes defaults to literal quotes`() {
         t(
             "\"\"hello\"\"world\"\"",
             """
@@ -314,7 +314,7 @@ StringResults {
     }
 
     @Test
-    fun threeDoubleQuote() {
+    fun `a string holding tripled double quotes defaults to literal quotes`() {
         t(
             "\"\"\"hello\"\"\"world\"\"\"",
             """
@@ -345,7 +345,7 @@ StringResults {
     }
 
     @Test
-    fun mixedQuote1() {
+    fun `a double quote then a single quote defaults to a multi-line basic string`() {
         t(
             "\"'",
             """
@@ -374,7 +374,7 @@ StringResults {
     }
 
     @Test
-    fun mixedQuote2() {
+    fun `escaped double quotes beside doubled single quotes default to a multi-line literal`() {
         t(
             "mixed quoted \\\"start\\\" 'end'' mixed quote",
             """
@@ -401,7 +401,7 @@ StringResults {
     }
 
     @Test
-    fun escape() {
+    fun `a string holding backslashes defaults to literal quotes`() {
         t(
             "\\windows\\system32\\",
             """
@@ -432,7 +432,7 @@ StringResults {
     }
 
     @Test
-    fun cr() {
+    fun `lone carriage returns are escaped and rule out both literal forms`() {
         t(
             "\rhello\rworld\r",
             """
@@ -457,7 +457,7 @@ StringResults {
     }
 
     @Test
-    fun lf() {
+    fun `a string with newlines defaults to a multi-line basic string`() {
         t(
             """
 hello
@@ -489,7 +489,7 @@ StringResults {
     }
 
     @Test
-    fun crlf() {
+    fun `CRLF breaks write as escaped carriage returns in a multi-line basic string`() {
         t(
             "\r\nhello\r\nworld\r\n",
             """
@@ -514,7 +514,7 @@ StringResults {
     }
 
     @Test
-    fun tab() {
+    fun `tabs are escaped in the default basic string`() {
         t(
             "\thello\tworld\t",
             """
@@ -551,7 +551,7 @@ StringResults {
     }
 
     @Test
-    fun manyQuotes() {
+    fun `a run of 256 double quotes defaults to literal quotes`() {
         t(
             "\"".repeat(256),
             "\nStringResults {\n    decoded: \"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\" +
@@ -680,7 +680,7 @@ StringResults {
     }
 
     @Test
-    fun parseable() {
+    fun `the default key and string encodings of random text parse back`() {
         val random = Random(0x70_6D_6C)
         repeat(512) {
             val decoded = randomPrintableString(random)

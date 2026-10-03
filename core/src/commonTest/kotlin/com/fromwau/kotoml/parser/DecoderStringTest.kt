@@ -10,7 +10,7 @@ import kotlin.test.Test
 class DecoderStringTest {
 
     @Test
-    fun literalString() {
+    fun `a literal string decodes to its content with backslashes kept`() {
         val cases = listOf(
             Triple(
                 "'C:\\Users\\nodejs\\templates'",
@@ -59,7 +59,7 @@ class DecoderStringTest {
     }
 
     @Test
-    fun mlLiteralString() {
+    fun `a multi-line literal string drops its first newline and keeps inner quotes`() {
         val cases = listOf(
             Triple(
                 "'''I [dw]on't need \\d{2} apples'''",
@@ -111,7 +111,7 @@ trimmed in raw strings.
     }
 
     @Test
-    fun basicString() {
+    fun `a basic string decodes its escapes and reports a bad escape or a raw newline`() {
         val cases = listOf(
             Triple(
                 "\"\"",
@@ -235,7 +235,7 @@ trailing
     }
 
     @Test
-    fun mlBasicString() {
+    fun `a multi-line basic string joins lines ending in a backslash and reports bad escapes`() {
         val cases = listOf(
             Triple(
                 "\"\"\"\nRoses are red\nViolets are blue\"\"\"",
@@ -388,7 +388,7 @@ Violets are blue
     }
 
     @Test
-    fun unquotedKeys() {
+    fun `an unquoted key decodes to its own text and an empty one is reported`() {
         val cases = listOf(
             Triple(
                 "a",

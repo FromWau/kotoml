@@ -15,7 +15,7 @@ import kotlin.test.fail
 class EditDocTest {
 
     @Test
-    fun crateExample() {
+    fun `the module example adds an inline table under a dotted header and formats it`() {
         val toml = """
 "hello" = 'toml!' # comment
 ['a'.b]
@@ -35,7 +35,7 @@ c = { d = "hello" }
     }
 
     @Test
-    fun readmeExample() {
+    fun `the README example keeps the text after the last header`() {
         val toml = "\n\"hello\" = 'toml!' # comment\n['a'.b]\n    "
         val doc = TomlDocument.parse(toml).unwrap()
         assertEquals(toml, doc.toString())
@@ -48,14 +48,14 @@ c = { d = "hello" }
     }
 
     @Test
-    fun repositoryReadmeExample() {
+    fun `the repository README example adds a key below a commented one`() {
         val doc = TomlDocument.parse("[package]\nname = \"kotoml\" # the name\n").unwrap()
         doc["package"]["version"] = "0.1.0"
         assertEquals("[package]\nname = \"kotoml\" # the name\nversion = \"0.1.0\"\n", doc.toString())
     }
 
     @Test
-    fun moduleReadmeExample() {
+    fun `the module README example adds an inline table under a quoted header`() {
         val text = "\n\"hello\" = 'toml!' # comment\n['a'.b]\n"
         val doc = TomlDocument.parse(text).unwrap()
         assertEquals(text, doc.toString())
@@ -65,7 +65,7 @@ c = { d = "hello" }
     }
 
     @Test
-    fun moduleReadmeValues() {
+    fun `the module README values example builds decorated values and reads their spelling`() {
         val doc = TomlDocument()
         doc["port"] = Value.Integer(8080L, Decor(prefix = " ", suffix = " # default"))
         doc["when"] = Datetime(date = Date(year = 1979, month = 5, day = 27))
@@ -81,7 +81,7 @@ c = { d = "hello" }
     }
 
     @Test
-    fun moduleReadmeTablesAndArrays() {
+    fun `the module README tables example extends an array and adds a key and a table`() {
         val doc = TomlDocument.parse("[server]\nhosts = [\"alpha\"]\n").unwrap()
         doc["server"]["hosts"].arrayOrNull?.add("beta")
         val server = doc["server"].tableOrNull!!
@@ -94,14 +94,14 @@ c = { d = "hello" }
     }
 
     @Test
-    fun moduleReadmeSetIntoAString() {
+    fun `the module README example of writing a key into a string fails with NotATable`() {
         val doc = TomlDocument.parse("a = 'text'\n").unwrap()
         assertTrue(doc["a"].set("key", 1L).unwrapErr() is TomlEditError.NotATable)
         assertEquals("a = 'text'\n", doc.toString())
     }
 
     @Test
-    fun moduleReadmeReadAndWrite() {
+    fun `the module README example reads a document from a source and writes it to a sink`() {
         val file = Buffer().apply { writeString("[package]\nname = \"kotoml\" # the name\nversion = \"0.1.0\"\n") }
         val read = file.use { TomlDocument.read(it) }
         val doc = when (read) {
@@ -120,7 +120,7 @@ c = { d = "hello" }
     }
 
     @Test
-    fun moduleReadmeError() {
+    fun `the module README error example renders a duplicate key with its line`() {
         val input = "a = 1\na = 2\n"
         val error = TomlDocument.parse(input).unwrapErr()
         assertEquals(TomlParseError.Reason.DuplicateKey("a"), error.reason)
@@ -139,26 +139,26 @@ duplicate key
     }
 
     @Test
-    fun crateDefaultFormatting() {
+    fun `a string set on a new document prints in double quotes`() {
         val doc = TomlDocument()
         doc["foo"] = "bar"
         assertEquals("foo = \"bar\"\n", doc.toString())
     }
 
     @Test
-    fun crateCustomRepresentation() {
+    fun `a parsed value set on a new document prints with its own spelling`() {
         val doc = TomlDocument()
         doc["foo"] = Value.parse("'bar'").unwrap()
         assertEquals("foo = 'bar'\n", doc.toString())
     }
 
     @Test
-    fun arrayNew() {
+    fun `an empty array can be created`() {
         TomlArray()
     }
 
     @Test
-    fun arrayLen() {
+    fun `an array's size counts its elements`() {
         val arr = TomlArray()
         arr.add(1L)
         arr.add("foo")
@@ -166,7 +166,7 @@ duplicate key
     }
 
     @Test
-    fun arrayIsEmpty() {
+    fun `an array is empty until an element is added`() {
         val arr = TomlArray()
         assertTrue(arr.isEmpty())
 
@@ -176,21 +176,21 @@ duplicate key
     }
 
     @Test
-    fun arrayPush() {
+    fun `an array takes elements of different types`() {
         val arr = TomlArray()
         arr.add(1L)
         arr.add("foo")
     }
 
     @Test
-    fun arrayPushFormatted() {
+    fun `an array takes a parsed value with its spelling`() {
         val formattedValue = Value.parse("'literal'").unwrap()
         val arr = TomlArray()
         arr.add(formattedValue)
     }
 
     @Test
-    fun arrayInsert() {
+    fun `an array takes a value inserted at its start`() {
         val arr = TomlArray()
         arr.add(1L)
         arr.add("foo")
@@ -199,7 +199,7 @@ duplicate key
     }
 
     @Test
-    fun arrayInsertFormatted() {
+    fun `an array takes a parsed value inserted at its start`() {
         val arr = TomlArray()
         arr.add(1L)
         arr.add("foo")
@@ -209,7 +209,7 @@ duplicate key
     }
 
     @Test
-    fun arrayReplace() {
+    fun `an array element can be replaced`() {
         val arr = TomlArray()
         arr.add(1L)
         arr.add("foo")
@@ -218,7 +218,7 @@ duplicate key
     }
 
     @Test
-    fun arrayReplaceFormatted() {
+    fun `an array element can be replaced by a parsed value without keeping its decor`() {
         val arr = TomlArray()
         arr.add(1L)
         arr.add("foo")
@@ -228,7 +228,7 @@ duplicate key
     }
 
     @Test
-    fun arrayRemove() {
+    fun `removing an array element shrinks the array`() {
         val arr = TomlArray()
         arr.add(1L)
         arr.add("foo")
@@ -238,7 +238,7 @@ duplicate key
     }
 
     @Test
-    fun arrayOfTablesReplace() {
+    fun `an array of tables element can be set to another table`() {
         val arr = ArrayOfTables()
         arr.add(tableOf("name" to Item(Value.String("apple"))))
 
@@ -246,7 +246,7 @@ duplicate key
     }
 
     @Test
-    fun itemValue() {
+    fun `string values that need escaping print as literal strings`() {
         val table = Table()
         val array = TomlArray()
         array.add("hello")
@@ -259,7 +259,7 @@ duplicate key
     }
 
     @Test
-    fun tableSetImplicit() {
+    fun `an implicit table with a sub-table prints only the sub-table's header`() {
         val doc = TomlDocument.parse("[a]\n[a.b]\n").unwrap()
 
         doc["a"].tableOrNull!!.isImplicit = true
@@ -267,14 +267,14 @@ duplicate key
     }
 
     @Test
-    fun tableEntryKey() {
+    fun `getOrPut on an empty table stores the key under its name`() {
         val map = Table()
         map.getOrPut("hello") { Item(Value.Integer(1L)) }
         assertEquals("hello", map.key("hello")?.name)
     }
 
     @Test
-    fun tableOccupiedEntryKey() {
+    fun `getOrPut on a present key keeps the key under its name`() {
         val map = Table()
         map["foo"] = 1L
         map.getOrPut("foo") { Item(Value.Integer(2L)) }
@@ -282,33 +282,33 @@ duplicate key
     }
 
     @Test
-    fun tableVacantEntryKey() {
+    fun `getOrPut on a missing key stores the key under its name`() {
         val map = Table()
         map.getOrPut("foo") { Item(Value.Integer(1L)) }
         assertEquals("foo", map.key("foo")?.name)
     }
 
     @Test
-    fun inlineEntryKey() {
+    fun `getOrPut on an inline table stores the key under its name`() {
         val map = InlineTable()
         map.getOrPut("hello") { Value.Integer(1L) }
         assertEquals("hello", map.key("hello")?.name)
     }
 
     @Test
-    fun valueDecorMut() {
+    fun `a new value's decor has no suffix`() {
         val v = Value.Boolean(true)
         assertNull(v.decor.suffix)
     }
 
     @Test
-    fun valueDecor() {
+    fun `a new value's decor reads as default`() {
         val v = Value.Boolean(true)
         assertNull(v.decor.suffix)
     }
 
     @Test
-    fun valueDecorated() {
+    fun `a value's decor prints around its text`() {
         val v = Value.Integer(42L)
         assertEquals("42", v.toString())
         v.decor = Decor(" ", " ")
@@ -344,7 +344,7 @@ duplicate key
     }
 
     @Test
-    fun visitStringCollector() {
+    fun `walking a document collects every string in tables and inline tables`() {
         val input = """
 laputa = "sky-castle"
 the-force = { value = "surrounds-you" }
@@ -396,7 +396,7 @@ the-force = { value = "surrounds-you" }
     }
 
     @Test
-    fun visitMutFloatToString() {
+    fun `walking a document replaces each float with a string and keeps its decor`() {
         val input = """
 banana = 3.26
 table = { apple = 4.5 }

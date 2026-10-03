@@ -10,7 +10,7 @@ class DatetimeParseTest {
     }
 
     @Test
-    fun onlyT() {
+    fun `a lone T is refused as missing a year or hour`() {
         t(
             "T",
             """
@@ -28,7 +28,7 @@ Err(
     }
 
     @Test
-    fun onlyTz() {
+    fun `a lone TZ is refused as missing a year or hour`() {
         t(
             "TZ",
             """
@@ -46,7 +46,7 @@ Err(
     }
 
     @Test
-    fun onlyTzDot() {
+    fun `a lone TZ followed by a dot is refused as missing a year or hour`() {
         t(
             "TZ.",
             """
@@ -64,7 +64,7 @@ Err(
     }
 
     @Test
-    fun timeWithoutSeconds() {
+    fun `a time without seconds parses with no seconds`() {
         t(
             "13:37",
             """
@@ -88,7 +88,7 @@ Ok(
     }
 
     @Test
-    fun timeWithoutSecondsWithNanoseconds() {
+    fun `a fraction after minutes without seconds is refused`() {
         t(
             "13:37.0",
             """
@@ -104,7 +104,7 @@ Err(
     }
 
     @Test
-    fun datetimeWithoutSeconds() {
+    fun `an offset date-time without seconds parses with no seconds`() {
         t(
             "1979-05-27 07:32Z",
             """

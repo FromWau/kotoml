@@ -207,7 +207,7 @@ flate2 = { version = "0.4" }
     }
 
     @Test
-    fun visitCorrect() {
+    fun `a recursive walk collects every dependency name of a Cargo manifest`() {
         val document = TomlDocument.parse(input).unwrap()
 
         val names = visitExample(document)
@@ -225,7 +225,7 @@ flate2 = { version = "0.4" }
     }
 
     @Test
-    fun visitMutCorrect() {
+    fun `a recursive edit makes dependency tables regular and each dependency inline`() {
         val document = TomlDocument.parse(input).unwrap()
 
         visitMutExample(document)
