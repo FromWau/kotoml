@@ -137,6 +137,11 @@ public sealed interface Offset : Comparable<Offset> {
         override fun toString(): String = "Z"
     }
 
+    /** `-00:00`: a time in UTC whose local offset is unknown, as RFC 3339 spells it. */
+    public data object Unknown : Offset {
+        override fun toString(): String = "-00:00"
+    }
+
     /** A numeric offset such as `-07:00`, in whole [minutes] east of UTC. */
     public data class Custom(
         /** Minutes east of UTC, within a day either way. */
@@ -151,12 +156,16 @@ public sealed interface Offset : Comparable<Offset> {
         }
     }
 
-    override fun compareTo(other: Offset): Int = when (this) {
-        Z -> if (other == Z) 0 else -1
-        is Custom -> when (other) {
-            Z -> 1
-            is Custom -> minutes.compareTo(other.minutes)
-        }
+    /** Orders [Z] first, then [Unknown], then each [Custom] by its minutes. */
+    override fun compareTo(other: Offset): Int = when {
+        this is Custom && other is Custom -> minutes.compareTo(other.minutes)
+        else -> rank().compareTo(other.rank())
+    }
+
+    private fun rank(): Int = when (this) {
+        Z -> 0
+        Unknown -> 1
+        is Custom -> 2
     }
 }
 

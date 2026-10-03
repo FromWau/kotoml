@@ -226,4 +226,15 @@ class TaggedJsonTest {
     fun `invalid JSON reads as where it broke and nothing more`() {
         assertEquals("invalid JSON at line 2, column 6", AppError.InvalidJson(TextPosition(2, 6)).describe())
     }
+
+    @Test
+    fun `an unknown -00 00 offset decodes and encodes as written`() {
+        val json = decode("d = 1979-05-27T07:32:00-00:00\n")
+        assertEquals("""{"d":{"type":"datetime","value":"1979-05-27T07:32:00-00:00"}}""", json)
+        val document = when (val parsed = parseTaggedJson(json)) {
+            is Result.Success -> parsed.value
+            is Result.Error -> fail("${parsed.error}")
+        }
+        assertEquals("d = 1979-05-27T07:32:00-00:00\n", document.toString().trimEnd() + "\n")
+    }
 }

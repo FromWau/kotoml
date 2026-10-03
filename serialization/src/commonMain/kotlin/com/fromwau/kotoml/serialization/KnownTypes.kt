@@ -171,7 +171,7 @@ private fun Datetime.kind(): DatetimeKind = when {
 }
 
 private fun Offset.minutesEast(): Int = when (this) {
-    Offset.Z -> 0
+    Offset.Z, Offset.Unknown -> 0
     is Offset.Custom -> minutes.toInt()
 }
 

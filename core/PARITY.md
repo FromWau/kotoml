@@ -716,6 +716,7 @@ commands of [`:app`](../app/README.md) and compares their output by its own rule
 | `Datetime` from a date or a time | `From<Date>`, `From<Time>` | `Datetime(date = …)`, `Datetime(time = …)` with the other parts defaulting to `null` | one constructor covers all four kinds |
 | `Value::fmt` | `fmt` | `resetFormatting()` | says what it does to the value |
 | The escapes a bad escape's error lists | `b`, `e`, `f`, `n`, `r`, `\`, `"`, `x`, `u`, `U` | adds `t`; under TOML 1.0 also leaves out `e` and `x` | `\t` is a valid escape; 1.0 has no `\e` or `\x` |
+| A `-00:00` offset | `Offset::Custom { minutes: 0 }`, printed `+00:00` | `Offset.Unknown`, printed `-00:00` | valid TOML stays as written; RFC 3339 gives `-00:00` its own meaning, an unknown local offset |
 | A duplicate key's error | "duplicate key" | names the key as TOML spells it: "duplicate key `a`", "duplicate key `\"\"`" | the reader should not have to find which key |
 | An error that expects nothing more | "…, expected nothing" | the message alone, such as "invalid float" | "expected nothing" says nothing |
 | Bytes that are not UTF-8 | the message alone, with no position | the message under its line, column and caret; the line shows only what comes before the bad bytes | every other parse error points at its place; platforms decode bad bytes differently |

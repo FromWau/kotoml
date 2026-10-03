@@ -17,6 +17,8 @@ internal fun Time.dbg(): Dbg = struct(
 
 internal fun Offset.dbg(): Dbg = when (this) {
     Offset.Z -> lit("Z")
+    // Upstream has no unknown offset; it reads `-00:00` as zero minutes.
+    Offset.Unknown -> struct("Custom", "minutes" to lit(0))
     is Offset.Custom -> struct("Custom", "minutes" to lit(minutes))
 }
 

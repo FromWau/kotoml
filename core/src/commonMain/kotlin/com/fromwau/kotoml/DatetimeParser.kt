@@ -192,7 +192,8 @@ internal class DatetimeParser(private val input: String) {
                     if (hourValue > 23) return offsetError(Range(Hour, 0, 23))
                     if (minuteValue > 59) return offsetError(Range(Minute, 0, 59))
 
-                    offset = Offset.Custom((sign * (hourValue * 60 + minuteValue)).toShort())
+                    val minutesEast = sign * (hourValue * 60 + minuteValue)
+                    offset = if (minutesEast == 0 && sign < 0) Offset.Unknown else Offset.Custom(minutesEast.toShort())
                 }
                 else -> return offsetError(OffsetStart)
             }
