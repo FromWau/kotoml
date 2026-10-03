@@ -4,6 +4,7 @@ import com.fromwau.kern.result.Result
 import com.fromwau.kotoml.TomlDocument
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlin.test.fail
 
 class TaggedJsonTest {
@@ -83,5 +84,33 @@ class TaggedJsonTest {
             }
             assertEquals(json, document.toTaggedJson().toString(), type)
         }
+    }
+
+    private fun nestedArrays(depth: Int): String = "a = " + "[".repeat(depth) + "1" + "]".repeat(depth) + "\n"
+
+    @Test
+    fun `the deepest arrays TOML reads encode back`() {
+        val json = decode(nestedArrays(TomlDocument.NESTING_LIMIT))
+        assertTrue(parseTaggedJson(json) is Result.Success)
+    }
+
+    @Test
+    fun `JSON nested one level deeper than TOML reads is refused`() {
+        val json = "{\"a\":" + "[".repeat(TomlDocument.NESTING_LIMIT + 1) +
+            "{\"type\":\"integer\",\"value\":\"1\"}" + "]".repeat(TomlDocument.NESTING_LIMIT + 1) + "}"
+        assertEquals(Result.Error(AppError.JsonTooDeep(TomlDocument.NESTING_LIMIT + 2)), parseTaggedJson(json))
+    }
+
+    @Test
+    fun `JSON nested far deeper is refused instead of crashing`() {
+        val json = "{\"a\":" + "[".repeat(50_000) + "]".repeat(50_000) + "}"
+        assertEquals(Result.Error(AppError.JsonTooDeep(TomlDocument.NESTING_LIMIT + 2)), parseTaggedJson(json))
+    }
+
+    @Test
+    fun `brackets inside a string do not count as nesting`() {
+        val text = "[".repeat(200) + "\\\""
+        val json = """{"a":{"type":"string","value":"${text.replace("\\", "\\\\").replace("\"", "\\\"")}"}}"""
+        assertTrue(parseTaggedJson(json) is Result.Success)
     }
 }

@@ -47,8 +47,33 @@ private fun Value.tagged(): JsonElement = when (this) {
 private fun scalar(type: String, value: String): JsonElement =
     JsonObject(mapOf("type" to JsonPrimitive(type), "value" to JsonPrimitive(value)))
 
+/** TOML's limit, plus the root object and the object that tags a scalar. */
+private const val MAX_JSON_NESTING = TomlDocument.NESTING_LIMIT + 2
+
+/** The deepest nesting of `[` and `{` in this JSON text, brackets inside strings not counted. */
+private fun String.nesting(): Int {
+    var depth = 0
+    var deepest = 0
+    var inString = false
+    var index = 0
+    while (index < length) {
+        val char = this[index]
+        when {
+            inString && char == '\\' -> index++
+            char == '"' -> inString = !inString
+            inString -> {}
+            char == '[' || char == '{' -> deepest = maxOf(deepest, ++depth)
+            char == ']' || char == '}' -> depth--
+        }
+        index++
+    }
+    return deepest
+}
+
 /** The document toml-test's tagged JSON [text] describes, which its encoder protocol reads. */
 internal fun parseTaggedJson(text: String): Result<TomlDocument, AppError> {
+    // kotlinx's JSON reader recurses once per level, which on Kotlin/Native crashes rather than fails.
+    if (text.nesting() > MAX_JSON_NESTING) return Err(AppError.JsonTooDeep(MAX_JSON_NESTING))
     val json = try {
         Json.parseToJsonElement(text)
     } catch (error: SerializationException) {

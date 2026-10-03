@@ -37,7 +37,8 @@ version = "0.1.0"
   - a value prints as TOML, a missing key as `null`, and `-r` prints strings without quotes.
 - `check [file]` exits 0 when the file is valid TOML, and otherwise prints why it is not, pointing at the line.
 - `decode` and `encode` speak [toml-test](https://github.com/toml-lang/toml-test)'s protocol: TOML in and
-  tagged JSON out, or the reverse, on standard input and output.
+  tagged JSON out, or the reverse, on standard input and output. `encode` refuses JSON nested deeper than the TOML
+  kotoml reads.
 
 Without a file, or with `-`, input is read from standard input. `--toml 1.0` refuses what TOML 1.1 added;
 the default is 1.1. `kotoml completion <shell>` and `kotoml docs man` print a completion script and a man page.

@@ -204,6 +204,9 @@ public class TomlDocument internal constructor(
     }
 
     public companion object {
+        /** How deeply arrays, inline tables and dotted keys may nest; deeper TOML is refused when parsed. */
+        public const val NESTING_LIMIT: Int = 80
+
         /** Parses [text] as TOML of [version] into an editable document, failing at the first error. */
         public fun parse(
             text: String,

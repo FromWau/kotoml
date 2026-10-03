@@ -31,6 +31,11 @@ internal sealed interface AppError : IError {
     @SerialName("NotTaggedJson")
     data class NotTaggedJson(val path: String) : AppError
 
+    /** The JSON nests deeper than [limit] levels. */
+    @Serializable
+    @SerialName("JsonTooDeep")
+    data class JsonTooDeep(val limit: Int) : AppError
+
     /** The filter does not parse: at [position], [expected] would have fitted. */
     @Serializable
     @SerialName("FilterSyntax")
@@ -99,6 +104,7 @@ internal fun AppError.describe(): String = when (this) {
     is AppError.InvalidToml -> error.render(source).trimEnd()
     is AppError.InvalidJson -> "invalid JSON" + (detail?.let { ": $it" } ?: "")
     is AppError.NotTaggedJson -> "not toml-test's tagged JSON at $path"
+    is AppError.JsonTooDeep -> "JSON nests deeper than $limit levels"
     is AppError.FilterSyntax -> buildString {
         append("invalid filter at character ${position + 1}, expected ")
         append(

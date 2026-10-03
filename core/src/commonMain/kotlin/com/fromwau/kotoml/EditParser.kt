@@ -17,8 +17,6 @@ import com.fromwau.kotoml.parser.parseKey as parseKeyEvents
 import com.fromwau.kotoml.parser.parseSimpleKey as parseSimpleKeyEvents
 import com.fromwau.kotoml.parser.parseValue as parseValueEvents
 
-/** How deeply arrays, inline tables and dotted keys may nest, upstream's `LIMIT`. */
-internal const val LIMIT: Int = 80
 
 private fun collectEvents(
     source: TomlSource,
@@ -27,7 +25,7 @@ private fun collectEvents(
 ): List<Event> {
     val tokens = source.lex().intoVec()
     val events = ArrayList<Event>(tokens.size)
-    val receiver = RecursionGuard(ValidateWhitespace(eventReceiver { events += it }, source), LIMIT.toUInt())
+    val receiver = RecursionGuard(ValidateWhitespace(eventReceiver { events += it }, source), TomlDocument.NESTING_LIMIT.toUInt())
     parse(tokens, receiver, errors)
     return events
 }
@@ -473,7 +471,7 @@ internal fun onKey(keyEvent: Event, input: EventStream, context: ParseContext): 
 
     closeKey()
 
-    if (LIMIT <= resultPath.size) {
+    if (TomlDocument.NESTING_LIMIT <= resultPath.size) {
         errors.report(Reason.KeyTooDeep)
         return emptyList<Key>() to null
     }
