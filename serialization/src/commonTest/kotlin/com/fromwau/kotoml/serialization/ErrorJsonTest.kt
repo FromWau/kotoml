@@ -39,7 +39,7 @@ class ErrorJsonTest {
     @Test
     fun `an unknown enum value lists the names`() {
         assertEquals(
-            """{"type":"UnknownEnumValue","path":"mode","value":"tcp","names":["TCP","udp"]}""",
+            """{"type":"UnknownEnumValue","path":"mode","value":"tcp","names":["TCP","udp"],"suggestion":"TCP"}""",
             json(Toml.decodeFromString<Config>("hostname = \"h\"\nport = 1\nmode = \"tcp\"\n").unwrapErr()),
         )
     }

@@ -84,7 +84,7 @@ internal class NodeDecoder(
         val index = enumDescriptor.getElementIndex(name)
         if (index == CompositeDecoder.UNKNOWN_NAME) {
             val names = enumDescriptor.elementNames.toList()
-            throw DecodeFailure(TomlDecodeError.UnknownEnumValue("$path", name, names))
+            throw DecodeFailure(TomlDecodeError.UnknownEnumValue("$path", name, names, closestName(name, names)))
         }
         return index
     }
@@ -340,7 +340,7 @@ private class PolymorphicDecoder(
                 emptyList()
             }
         }
-        throw DecodeFailure(TomlDecodeError.UnknownSubtype("$path", name, known))
+        throw DecodeFailure(TomlDecodeError.UnknownSubtype("$path", name, known, closestName(name, known)))
     }
 
     override fun decodeElementIndex(descriptor: SerialDescriptor): Int =

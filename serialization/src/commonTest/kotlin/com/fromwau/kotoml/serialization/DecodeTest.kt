@@ -86,7 +86,7 @@ class DecodeTest {
     fun `an enum name is case sensitive and the error lists the names`() {
         val text = "hostname = \"h\"\nport = 1\nmode = \"tcp\"\n"
         assertEquals(
-            TomlDecodeError.UnknownEnumValue("mode", "tcp", listOf("TCP", "udp")),
+            TomlDecodeError.UnknownEnumValue("mode", "tcp", listOf("TCP", "udp"), "TCP"),
             Toml.decodeFromString<Config>(text).unwrapErr(),
         )
     }
@@ -112,7 +112,7 @@ class DecodeTest {
     @Test
     fun `an unknown subtype is a typed error listing the subtypes`() {
         assertEquals(
-            TomlDecodeError.UnknownSubtype("shape", "triangle", listOf("circle", "point", "square")),
+            TomlDecodeError.UnknownSubtype("shape", "triangle", listOf("circle", "point", "square"), null),
             Toml.decodeFromString<Holder>("[shape]\ntype = \"triangle\"\n").unwrapErr(),
         )
     }
@@ -212,7 +212,7 @@ class DecodeTest {
     @Test
     fun `a map with an unknown enum key names the key`() {
         assertEquals(
-            TomlDecodeError.UnknownEnumValue("ports.sctp", "sctp", listOf("TCP", "udp")),
+            TomlDecodeError.UnknownEnumValue("ports.sctp", "sctp", listOf("TCP", "udp"), "TCP"),
             Toml.decodeFromString<ModePorts>("ports = { sctp = 1 }\n").unwrapErr(),
         )
     }

@@ -104,18 +104,23 @@ public sealed interface TomlDecodeError : IError {
         val target: String,
     ) : Located
 
-    /** The string at [path], [value], names no entry of the enum; [names] are the ones it has, case-sensitive. */
+    /**
+     * The string at [path], [value], names no entry of the enum; [names] are the ones it has, case-sensitive.
+     * [suggestion] is the name closest to [value], or null when none is close.
+     */
     @Serializable
     @SerialName("UnknownEnumValue")
     public data class UnknownEnumValue(
         override val path: String,
         val value: String,
         val names: List<String>,
+        val suggestion: String?,
     ) : Located
 
     /**
      * The table at [path] names the subclass [name] in its discriminator key, and there is no such subclass.
-     * [names] lists a sealed class's subclasses, and is empty for an open polymorphic type.
+     * [names] lists a sealed class's subclasses, and is empty for an open polymorphic type. [suggestion] is the
+     * name closest to [name], or null when none is close.
      */
     @Serializable
     @SerialName("UnknownSubtype")
@@ -123,6 +128,7 @@ public sealed interface TomlDecodeError : IError {
         override val path: String,
         val name: String,
         val names: List<String>,
+        val suggestion: String?,
     ) : Located
 
     /** The field at [path] is a map whose keys are neither strings nor enums, which a TOML table cannot hold. */
