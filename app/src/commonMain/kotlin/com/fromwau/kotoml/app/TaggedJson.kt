@@ -36,15 +36,9 @@ private fun Value.tagged(): JsonElement = when (this) {
     is Value.Float -> scalar("float", value.let { if (it.isFinite()) it.toString() else it.tomlName() })
     is Value.Boolean -> scalar("bool", value.toString())
     is Value.Datetime -> {
-        val type = when {
-            value.date != null && value.time != null && value.offset != null -> "datetime"
-            value.date != null && value.time != null -> "datetime-local"
-            value.date != null -> "date-local"
-            else -> "time-local"
-        }
         // toml-test reads a time with its seconds, which TOML 1.1 lets a document leave out.
         val time = value.time?.let { it.copy(second = it.second ?: 0) }
-        scalar(type, value.copy(time = time).toString())
+        scalar(value.tag(), value.copy(time = time).toString())
     }
     is Value.Array -> JsonArray(array.map { it.tagged() })
     is Value.InlineTable -> JsonObject(table.associate { (key, value) -> key to value.tagged() })
@@ -119,8 +113,16 @@ private fun scalarValue(type: String, text: String): Value? = when (type) {
     }
     "bool" -> text.toBooleanStrictOrNull()?.let { Value.Boolean(it) }
     "datetime", "datetime-local", "date-local", "time-local" -> when (val parsed = Datetime.parse(text)) {
-        is Result.Success -> Value.Datetime(parsed.value)
+        is Result.Success -> parsed.value.takeIf { it.tag() == type }?.let { Value.Datetime(it) }
         is Result.Error -> null
     }
     else -> null
+}
+
+/** toml-test's tag for the kind of date-time this is. */
+private fun Datetime.tag(): String = when {
+    date != null && time != null && offset != null -> "datetime"
+    date != null && time != null -> "datetime-local"
+    date != null -> "date-local"
+    else -> "time-local"
 }
