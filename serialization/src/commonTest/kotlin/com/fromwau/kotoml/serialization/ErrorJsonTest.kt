@@ -29,6 +29,14 @@ class ErrorJsonTest {
     }
 
     @Test
+    fun `a type mismatch with nothing there names the found type Missing`() {
+        assertEquals(
+            """{"type":"TypeMismatch","path":"port","expected":"Integer","found":"Missing"}""",
+            json(TomlDecodeError.TypeMismatch("port", TomlType.Integer, TomlType.Missing)),
+        )
+    }
+
+    @Test
     fun `an unknown enum value lists the names`() {
         assertEquals(
             """{"type":"UnknownEnumValue","path":"mode","value":"tcp","names":["TCP","udp"]}""",
