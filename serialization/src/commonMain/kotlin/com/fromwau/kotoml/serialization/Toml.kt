@@ -128,9 +128,11 @@ public sealed class Toml(
      * A key whose value changes keeps its place, its spelling and the comment after its value; a key the
      * document lacks is appended to its table. A field that is now null loses its key. A key no field names
      * stays, whatever [ignoreUnknownKeys] says, while a map removes the keys it no longer has. A nested class
-     * updates its table in place, and a list replaces its array whole, in the form the document wrote it. A
-     * field at its default, with [encodeDefaults] off, updates a key the document has and adds none. Nothing
-     * is written when an error is returned.
+     * updates its table in place. A list is merged into the document's list, in the form the document wrote it:
+     * an element equal to one there keeps that element's text and comments, even when it moved, and a changed
+     * element updates the old one sharing the most values with it, or the next one left in a list of scalars.
+     * Other new elements are inserted and other old ones removed. A field at its default, with [encodeDefaults]
+     * off, updates a key the document has and adds none. Nothing is written when an error is returned.
      *
      * ```kotlin
      * val document = TomlDocument.parse("host = 'a'\nport = 8080 # the default\n").getOrNull()!!

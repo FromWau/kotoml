@@ -63,7 +63,7 @@ class EncodeIntoTest {
 
             # Who to blame
             legacy = true # not in the model
-            tags = ["z"] # labels
+            tags = [ "z" ] # labels
 
             [database]
             url = "postgres://localhost"  # local only
@@ -176,10 +176,13 @@ class EncodeIntoTest {
     }
 
     @Test
-    fun `a list replaces its array but keeps the array's decor`() {
+    fun `a list keeps the layout and comments of its array`() {
         val text = "title = \"t\"\ntags = [\n  \"x\", # first\n  \"y\",\n] # labels\n[database]\nurl = \"u\"\n"
         val result = updated(text) { it.copy(tags = listOf("x", "z")) }
-        assertEquals("title = \"t\"\ntags = [\"x\", \"z\"] # labels\n[database]\nurl = \"u\"\n", result)
+        assertEquals(
+            "title = \"t\"\ntags = [\n  \"x\", # first\n  \"z\",\n] # labels\n[database]\nurl = \"u\"\n",
+            result,
+        )
     }
 
     @Test
@@ -193,7 +196,7 @@ class EncodeIntoTest {
         val tables = "name = \"f\"\n\n[[servers]] # first\nhost = \"a\"\n"
         val tablesDocument = TomlDocument.parse(tables).unwrap()
         Toml { tableListStyle = TableListStyle.InlineArray }.encodeInto(tablesDocument, fleet).unwrap()
-        assertEquals("name = \"f\"\n\n[[servers]] # first\nhost = \"b\"\n", tablesDocument.toString())
+        assertEquals("name = \"f\"\n\n[[servers]]\nhost = \"b\"\n", tablesDocument.toString())
     }
 
     @Test

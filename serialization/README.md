@@ -101,10 +101,44 @@ document.toString()
 - A key no field names stays, whatever `ignoreUnknownKeys` says.
 - A nested class updates its table, recursively. A map accounts for every key of its table, so a key the map
   no longer has is removed.
-- A list replaces its array whole, in the form the document wrote it: an array of tables stays one, each table
-  keeping the comments above its header, and an inline array keeps the comment after it.
+- A list is merged into the document's list element by element, in the form the document wrote it: an array of
+  tables stays one, and an inline array keeps its layout and the comment after it. An element equal to one the
+  document holds keeps that element's text and comments, even when it moved. A changed element updates the old
+  element sharing the most values with it, as a nested class updates its table; in a list of scalars, it takes
+  the next old element left over. A new element is inserted at its place. Where an old element was removed
+  there, it takes over the lines above that element; elsewhere a table gets default formatting and an element
+  of an inline array a line like its neighbours'. Any other old element no new one takes is removed, while the
+  comment lines above it stay.
 - A field at its default, with `encodeDefaults` off, updates a key the document has and adds none.
 - When a polymorphic value changes subclass, the keys of the old subclass are removed.
+
+A list of servers, one of them given a port and a new one added in front:
+
+```kotlin
+@Serializable
+data class Server(val host: String, val port: Int = 8080)
+
+@Serializable
+data class Fleet(val name: String, val servers: List<Server> = emptyList())
+
+val document = TomlDocument.parse(
+    "name = \"f\"\n\n[[servers]]\nhost = \"a\" # primary\n# fallback box\n[[servers]]\nhost = \"b\"\n",
+).getOrNull()!!
+val fleet = Toml.decodeFromDocument<Fleet>(document).getOrNull()!!
+Toml.encodeInto(document, fleet.copy(servers = listOf(Server("z"), Server("a", 80), Server("b"))))
+document.toString()
+// name = "f"
+//
+// [[servers]]
+// host = "z"
+//
+// [[servers]]
+// host = "a" # primary
+// port = 80
+// # fallback box
+// [[servers]]
+// host = "b"
+```
 
 When `encodeInto` returns an error, the document is unchanged. To read and write the file itself, use core's
 `TomlDocument.read` and `writeTo` (see [core's README](../core/README.md#read-and-write-files)).
@@ -138,8 +172,8 @@ the defaults, so `Toml.decodeFromString<T>(text)` uses them.
 | class, object                              | table; the value at the top of a document must be a class or a map                                       |
 | `Map<String, T>`, `Map<Enum, T>`           | table, an enum key written as its name; any other key type is `NonStringMapKey`                          |
 | `null`                                     | no key. A missing key reads as the default, as `null` without one, and is `MissingKey` otherwise         |
-| list of scalars, list of lists             | inline array                                                                                             |
-| list of classes or maps                    | array of tables, or inline array of inline tables with `InlineArray`; always inline inside an inline value; reading takes both |
+| list of scalars, list of lists             | inline array; `encodeInto` merges into the document's list element by element                            |
+| list of classes or maps                    | array of tables, or inline array of inline tables with `InlineArray`; always inline inside an inline value; reading takes both; `encodeInto` keeps the form the document has |
 | null inside a list                         | `NullElement` when writing                                                                               |
 | enum                                       | string holding its serial name (`@SerialName` honoured), read case-sensitively                           |
 | sealed or polymorphic class                | table with the subclass's serial name under `classDiscriminator`                                         |

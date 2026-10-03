@@ -52,6 +52,20 @@ class ReadmeTest {
     }
 
     @Test
+    fun `the README merges a list into the file`() {
+        val document = TomlDocument.parse(
+            "name = \"f\"\n\n[[servers]]\nhost = \"a\" # primary\n# fallback box\n[[servers]]\nhost = \"b\"\n",
+        ).getOrNull()!!
+        val fleet = Toml.decodeFromDocument<Fleet>(document).getOrNull()!!
+        Toml.encodeInto(document, fleet.copy(servers = listOf(Server("z"), Server("a", 80), Server("b"))))
+        assertEquals(
+            "name = \"f\"\n\n[[servers]]\nhost = \"z\"\n\n[[servers]]\nhost = \"a\" # primary\nport = 80\n" +
+                "# fallback box\n[[servers]]\nhost = \"b\"\n",
+            document.toString(),
+        )
+    }
+
+    @Test
     fun `the README configures the format`() {
         val toml = Toml {
             ignoreUnknownKeys = true

@@ -1,6 +1,7 @@
 package com.fromwau.kotoml.serialization
 
 import com.fromwau.kotoml.Item
+import com.fromwau.kotoml.Table
 import com.fromwau.kotoml.TomlType
 import com.fromwau.kotoml.Value
 
@@ -28,13 +29,14 @@ internal sealed interface TomlInput {
 }
 
 internal fun Item.toInput(): TomlInput? {
-    tableOrNull?.let { return TomlInput.Table(it.items().toMap(), TomlType.Table) }
+    tableOrNull?.let { return it.toInput() }
     arrayOfTablesOrNull?.let { tables ->
-        val elements = tables.map { TomlInput.Table(it.items().toMap(), TomlType.Table) }
-        return TomlInput.Sequence(elements, TomlType.ArrayOfTables)
+        return TomlInput.Sequence(tables.map { it.toInput() }, TomlType.ArrayOfTables)
     }
     return valueOrNull?.toInput()
 }
+
+internal fun Table.toInput(): TomlInput.Table = TomlInput.Table(items().toMap(), TomlType.Table)
 
 internal fun Value.toInput(): TomlInput = when (this) {
     is Value.InlineTable -> TomlInput.Table(table.items().toMap(), TomlType.InlineTable)

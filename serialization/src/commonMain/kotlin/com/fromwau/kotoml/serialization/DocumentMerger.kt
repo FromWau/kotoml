@@ -1,11 +1,14 @@
 package com.fromwau.kotoml.serialization
 
 import com.fromwau.kern.result.getOrNull
+import com.fromwau.kotoml.ArrayOfTables
 import com.fromwau.kotoml.Datetime
+import com.fromwau.kotoml.Decor
 import com.fromwau.kotoml.InlineTable
 import com.fromwau.kotoml.Item
 import com.fromwau.kotoml.Table
 import com.fromwau.kotoml.TableLike
+import com.fromwau.kotoml.TomlArray
 import com.fromwau.kotoml.Value
 
 /**
@@ -83,8 +86,115 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
         when {
             full is TomlNode.Struct && existingTable != null -> mergeTable(existingTable, full, defaults)
             existing.toInput()?.sameAs(full, defaults) == true -> {}
+            full is TomlNode.Sequence && mergeList(existing, full, defaults) -> {}
             else -> put(parent, key, replacement(parent, existing, defaults.written(full)))
         }
+    }
+
+    /** Merges [full] into the list [existing] holds, element by element; false when [existing] holds no list. */
+    private fun mergeList(
+        existing: Item,
+        full: TomlNode.Sequence,
+        defaults: Defaults,
+    ): Boolean {
+        val tables = existing.arrayOfTablesOrNull
+        val array = existing.valueOrNull?.arrayOrNull
+        when {
+            tables != null && full.isTableList() -> mergeArrayOfTables(tables, full, defaults)
+            array != null -> mergeArray(array, full, defaults)
+            else -> return false
+        }
+        return true
+    }
+
+    private fun mergeArrayOfTables(
+        tables: ArrayOfTables,
+        full: TomlNode.Sequence,
+        defaults: Defaults,
+    ) {
+        val old = tables.toList()
+        val oldInputs = old.map { it.toInput() }
+        val plan = planList(
+            oldCount = old.size,
+            newCount = full.elements.size,
+            isSame = { new, index -> oldInputs[index].sameAs(full.elements[new], defaults.element(new)) },
+            similarity = { new, index -> oldInputs[index].sharedValues(full.elements[new], defaults.element(new)) },
+        )
+        for (index in plan.removed.asReversed()) tables.removeAt(index)
+        val merged = plan.sources.mapIndexed { new, source ->
+            val node = full.elements[new] as TomlNode.Struct
+            val elementDefaults = defaults.element(new)
+            when (source) {
+                is ElementSource.Kept -> old[source.index]
+                is ElementSource.Updated -> old[source.index].also { mergeTable(it, node, elementDefaults) }
+                is ElementSource.Replacing -> writer.table(elementDefaults.writtenStruct(node)).apply {
+                    decor = Decor(prefix = old[source.index].decor.prefix)
+                    position = old[source.index].position
+                }
+                ElementSource.Inserted -> writer.table(elementDefaults.writtenStruct(node))
+            }
+        }
+        positionTables(merged, plan)
+        for ((index, table) in merged.withIndex()) {
+            if (index < tables.size) tables[index] = table else tables.add(table)
+        }
+    }
+
+    private fun mergeArray(
+        array: TomlArray,
+        full: TomlNode.Sequence,
+        defaults: Defaults,
+    ) {
+        val old = array.toList()
+        val oldInputs = old.map { it.toInput() }
+        val plan = planList(
+            oldCount = old.size,
+            newCount = full.elements.size,
+            isSame = { new, index -> oldInputs[index].sameAs(full.elements[new], defaults.element(new)) },
+            similarity = if (full.isTableList()) {
+                { new, index -> oldInputs[index].sharedValues(full.elements[new], defaults.element(new)) }
+            } else {
+                null
+            },
+        )
+        val leadingPrefix = old.firstOrNull()?.decor?.prefix
+        for (index in plan.removed.asReversed()) array.removeAt(index)
+        val merged = plan.sources.mapIndexed { new, source ->
+            val node = full.elements[new]
+            val elementDefaults = defaults.element(new)
+            when (source) {
+                is ElementSource.Kept -> old[source.index]
+                is ElementSource.Updated -> updatedElement(old[source.index], node, elementDefaults)
+                is ElementSource.Replacing -> writer.value(elementDefaults.written(node)).apply {
+                    decor = old[source.index].decor
+                }
+                ElementSource.Inserted -> writer.value(elementDefaults.written(node))
+            }
+        }
+        for ((index, value) in merged.withIndex()) {
+            if (index < array.size) array.replace(index, value, keepDecor = false) else array.add(value)
+        }
+        val lead = merged.filterIndexed { new, _ -> plan.sources[new] != ElementSource.Inserted }.firstOrNull()
+        if (lead != null) takeLeadingPlace(lead, old.first(), leadingPrefix)
+        for (new in merged.indices.reversed()) {
+            if (plan.sources[new] == ElementSource.Inserted) array.layOutInserted(new)
+        }
+    }
+
+    /** [old] holding what [node] says, updated in place where it can be, or a new value in its place. */
+    private fun updatedElement(
+        old: Value,
+        node: TomlNode,
+        defaults: Defaults,
+    ): Value {
+        val table = old.inlineTableOrNull
+        val array = old.arrayOrNull
+        when {
+            node is TomlNode.Struct && table != null -> mergeTable(table, node, defaults)
+            node is TomlNode.Sequence && array != null -> mergeArray(array, node, defaults)
+            else -> return writer.value(defaults.written(node)).apply { decor = old.decor }
+        }
+        return old
     }
 
     private fun newItem(
@@ -92,21 +202,12 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
         node: TomlNode,
     ): Item = if (parent is InlineTable) Item(writer.value(node)) else writer.item(node)
 
-    /**
-     * The item replacing [existing], in the form the document wrote it: a list stays an array of tables, its
-     * tables taking over the old ones' decor by position, or an inline array keeping the old array's decor.
-     */
+    /** The item replacing [existing]: a value keeps the old value's decor. */
     private fun replacement(
         parent: TableLike,
         existing: Item,
         node: TomlNode,
     ): Item {
-        val oldTables = existing.arrayOfTablesOrNull
-        if (parent is Table && oldTables != null && node is TomlNode.Sequence && node.isTableList()) {
-            val tables = writer.arrayOfTables(node)
-            for ((old, new) in oldTables.zip(tables)) new.decor = old.decor
-            return Item(tables)
-        }
         val old = existing.valueOrNull ?: return newItem(parent, node)
         val value = writer.value(node)
         value.decor = old.decor
@@ -123,6 +224,108 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
             is InlineTable -> item.valueOrNull?.let { table[key] = it }
         }
     }
+}
+
+/** What to write for the list element [full]: a class stays a class without the fields at their default. */
+private fun Defaults.writtenStruct(full: TomlNode.Struct): TomlNode.Struct = written(full) as? TomlNode.Struct ?: full
+
+/**
+ * Positions the [merged] elements of an array of tables so they print in their new order: moved elements trade
+ * positions, and an inserted one takes the position of the element after it, printing just before that one.
+ */
+private fun positionTables(
+    merged: List<Table>,
+    plan: ListPlan,
+) {
+    val isInserted = plan.sources.map { it == ElementSource.Inserted }
+    if (plan.movesElements) renumber(merged.filterIndexed { new, _ -> !isInserted[new] })
+    var nextPosition: Long? = null
+    for (new in merged.indices.reversed()) {
+        if (isInserted[new]) merged[new].position = nextPosition else nextPosition = merged[new].position
+    }
+}
+
+/**
+ * Hands the positions [elements] hold among the document's tables out again in the order of [elements], each
+ * element keeping the tables under it right after it.
+ */
+private fun renumber(elements: List<Table>) {
+    val blocks = elements.map { element -> element.headerTables().sortedBy { it.position } }
+    val positions = blocks
+        .flatten()
+        .mapNotNull { it.position }
+        .sorted()
+        .iterator()
+    for (table in blocks.flatten()) table.position = positions.next()
+}
+
+/** This table and the tables nested in it that print a header and hold a position. */
+private fun Table.headerTables(): List<Table> {
+    val tables = mutableListOf<Table>()
+    fun collect(table: Table) {
+        if (table.position != null) tables += table
+        for ((_, item) in table.items()) {
+            item.tableOrNull?.let(::collect)
+            item.arrayOfTablesOrNull?.forEach(::collect)
+        }
+    }
+    collect(this)
+    return tables
+}
+
+/**
+ * Prints the value inserted at [index] in the line layout of its neighbours: it takes over the text in front of the
+ * element after it, which gets the separator that text ends with, so a comment ending the line before stays on it.
+ */
+private fun TomlArray.layOutInserted(index: Int) {
+    val value = this[index] ?: return
+    val next = this[index + 1]
+    if (next != null) {
+        val nextPrefix = next.decor.prefix
+        value.decor = Decor(prefix = nextPrefix)
+        next.decor = next.decor.copy(prefix = nextPrefix?.let(::elementSeparator))
+        return
+    }
+    val lineBreak = trailing.lastIndexOf('\n')
+    if (lineBreak < 0) return
+    val indent = this[index - 1]
+        ?.decor
+        ?.prefix
+        ?.takeIf { '\n' in it }
+        ?.substringAfterLast('\n')
+        .orEmpty()
+    value.decor = Decor(prefix = trailing.substring(0, lineBreak) + "\n" + indent)
+    trailing = trailing.substring(lineBreak)
+}
+
+/**
+ * Gives [lead], now the first element, the prefix [formerLead] had there, when neither breaks a line: on one line the
+ * first element's prefix sets the spacing after `[`, which belongs to the place, not to the element.
+ */
+private fun takeLeadingPlace(
+    lead: Value,
+    formerLead: Value,
+    leadingPrefix: String?,
+) {
+    val leadPrefix = lead.decor.prefix
+    if (lead === formerLead || leadingPrefix.breaksLine() || leadPrefix.breaksLine()) return
+    lead.decor = lead.decor.copy(prefix = leadingPrefix)
+    formerLead.decor = formerLead.decor.copy(prefix = leadPrefix)
+}
+
+private fun String?.breaksLine(): Boolean = this != null && '\n' in this
+
+/** The text between two elements laid out as [prefix] lays out its element: a fresh line or a space. */
+private fun elementSeparator(prefix: String): String =
+    if ('\n' in prefix) "\n" + prefix.substringAfterLast('\n') else " "
+
+/** How many of the keys [new] writes this table holds with the same value; 0 for anything but two tables. */
+private fun TomlInput.sharedValues(
+    new: TomlNode,
+    defaults: Defaults,
+): Int {
+    if (this !is TomlInput.Table || new !is TomlNode.Struct) return 0
+    return new.entries.count { (key, child) -> entries[key]?.toInput()?.sameAs(child, defaults.child(key)) == true }
 }
 
 /** Whether the document already holds what [full] would write, a missing key counting when it holds a default. */

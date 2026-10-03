@@ -28,8 +28,7 @@ internal class DocumentWriter(private val tableListStyle: TableListStyle) {
         is TomlNode.Scalar -> Item(value(node))
     }
 
-    /** The tables of a list for which [isTableList] holds. */
-    fun arrayOfTables(node: TomlNode.Sequence): ArrayOfTables = node.elements
+    private fun arrayOfTables(node: TomlNode.Sequence): ArrayOfTables = node.elements
         .map { table(it as TomlNode.Struct) }
         .toArrayOfTables()
 
