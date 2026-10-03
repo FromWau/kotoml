@@ -107,12 +107,12 @@ private fun daysFromCivil(year: Long, month: Long, day: Long): Long {
 internal fun DocumentMut.toTagged(): Tagged = asTable().toTagged()
 
 private fun Table.toTagged(): Tagged =
-    Tagged.Table(iter().asSequence().associate { (key, item) -> key to item.toTagged() })
+    Tagged.Table(associate { (key, item) -> key to item.toTagged() })
 
 private fun Item.toTagged(): Tagged {
-    asValue()?.let { return it.toTagged() }
-    asTable()?.let { return it.toTagged() }
-    asArrayOfTables()?.let { tables -> return Tagged.Array(tables.iter().asSequence().map { it.toTagged() }.toList()) }
+    valueOrNull?.let { return it.toTagged() }
+    tableOrNull?.let { return it.toTagged() }
+    arrayOfTablesOrNull?.let { tables -> return Tagged.Array(tables.map { it.toTagged() }) }
     error("no empty items")
 }
 
@@ -132,10 +132,8 @@ private fun Value.toTagged(): Tagged = when (this) {
         }
         Tagged.Scalar(type, normalized.toString())
     }
-    is Value.Array -> Tagged.Array(array.iter().asSequence().map { it.toTagged() }.toList())
-    is Value.InlineTable -> Tagged.Table(
-        table.iter().asSequence().associate { (key, value) -> key to value.toTagged() },
-    )
+    is Value.Array -> Tagged.Array(array.map { it.toTagged() })
+    is Value.InlineTable -> Tagged.Table(table.associate { (key, value) -> key to value.toTagged() })
 }
 
 private fun taggedFloat(value: Double): String = when {
@@ -148,7 +146,7 @@ private fun taggedFloat(value: Double): String = when {
 internal fun Tagged.toDocument(): DocumentMut? {
     if (this !is Tagged.Table) return null
     val table = Table()
-    for ((key, value) in entries) table[key] = Item.from(value.toValue() ?: return null)
+    for ((key, value) in entries) table[key] = Item(value.toValue() ?: return null)
     return DocumentMut(table)
 }
 
@@ -169,12 +167,12 @@ private fun Tagged.toValue(): Value? = when (this) {
     }
     is Tagged.Table -> {
         val table = InlineTable()
-        for ((key, value) in entries) table.insert(key, value.toValue() ?: return null)
+        for ((key, value) in entries) table[key] = value.toValue() ?: return null
         Value.InlineTable(table)
     }
     is Tagged.Array -> {
         val array = TomlArray()
-        for (item in items) array.pushFormatted(item.toValue() ?: return null)
+        for (item in items) array.add(item.toValue() ?: return null)
         Value.Array(array)
     }
 }

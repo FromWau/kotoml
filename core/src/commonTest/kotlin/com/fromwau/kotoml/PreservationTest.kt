@@ -17,7 +17,7 @@ class PreservationTest {
     @Test
     fun anInsertedLineEndsLikeTheLineBeforeIt() {
         val doc = parse("[t]\r\nb = 2\r\n")
-        doc["t"]["c"] = value(3L)
+        doc["t"]["c"] = 3L
         assertEquals("[t]\r\nb = 2\r\nc = 3\r\n", doc.toString())
     }
 
@@ -36,7 +36,7 @@ class PreservationTest {
     @Test
     fun aChangedDocumentEndsWithANewline() {
         val doc = parse("a = 1\nb = 2")
-        doc["a"] = value(5L)
+        doc["a"] = 5L
         assertEquals("a = 5\nb = 2\n", doc.toString())
     }
 
@@ -46,14 +46,14 @@ class PreservationTest {
         val doc = parse(input)
         assertEquals(input, doc.toString())
 
-        doc["other"] = value(1L)
+        doc["other"] = 1L
         assertEquals("$input" + "other = 1\n", doc.toString())
     }
 
     @Test
     fun formattingASharedKeyAppliesToEveryLine() {
         val doc = parse("name.first = \"Arthur\"\n\"name\" . 'last' = \"Dent\"\n")
-        doc.asTable().keyMut("name")!!.fmt()
+        doc.asTable().key("name")!!.resetFormatting()
         // The leaf key `'last'` is the line's own and keeps its spelling and the space before it.
         assertEquals("name.first = \"Arthur\"\nname. 'last' = \"Dent\"\n", doc.toString())
     }
@@ -73,7 +73,7 @@ class PreservationTest {
     @Test
     fun aValueAddedToADottedTableFollowsItsSibling() {
         val doc = parse("apple.type = \"fruit\"\norange.type = \"fruit\"\napple.skin = \"thin\"\n")
-        doc["apple"]["color"] = value("red")
+        doc["apple"]["color"] = "red"
         assertEquals(
             "apple.type = \"fruit\"\norange.type = \"fruit\"\napple.skin = \"thin\"\napple.color = \"red\"\n",
             doc.toString(),

@@ -281,8 +281,8 @@ public sealed interface Value {
             is Float -> formatted.repr = null
             is Boolean -> formatted.repr = null
             is Datetime -> formatted.repr = null
-            is Array -> array.fmt()
-            is InlineTable -> table.fmt()
+            is Array -> array.resetFormatting()
+            is InlineTable -> table.resetFormatting()
         }
     }
 
@@ -293,8 +293,8 @@ public sealed interface Value {
         is Float -> Float(formatted.copy())
         is Boolean -> Boolean(formatted.copy())
         is Datetime -> Datetime(formatted.copy())
-        is Array -> Array(array.clone())
-        is InlineTable -> InlineTable(table.clone())
+        is Array -> Array(array.copy())
+        is InlineTable -> InlineTable(table.copy())
     }
 
     public companion object {

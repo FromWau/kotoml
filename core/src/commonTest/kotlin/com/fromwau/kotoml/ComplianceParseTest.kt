@@ -124,14 +124,14 @@ string'''""",
 #...
 """,
         )
-        assertTrue(table["foo"][0]["bar"].asTable() != null)
-        assertTrue(table["foo"][1]["bar"].asTable() != null)
+        assertTrue(table["foo"][0]["bar"].tableOrNull != null)
+        assertTrue(table["foo"][1]["bar"].tableOrNull != null)
     }
 
     @Test
     fun emptyTable() {
         val table = parseDocument("\n[foo]")
-        assertTrue(table["foo"].asTable() != null)
+        assertTrue(table["foo"].tableOrNull != null)
     }
 
     @Test
@@ -266,11 +266,11 @@ name = "plantain"
         ['""']
     """,
         )
-        assertTrue(a["a"]["b"].isTable())
-        assertTrue(a["f f"].isTable())
-        assertTrue(a["f.f"].isTable())
-        assertTrue(a["\""].isTable())
-        assertTrue(a["\"\""].isTable())
+        assertTrue(a["a"]["b"].tableOrNull != null)
+        assertTrue(a["f f"].tableOrNull != null)
+        assertTrue(a["f.f"].tableOrNull != null)
+        assertTrue(a["\""].tableOrNull != null)
+        assertTrue(a["\"\""].tableOrNull != null)
     }
 
     @Test

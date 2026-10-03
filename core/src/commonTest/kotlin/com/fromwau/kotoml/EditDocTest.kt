@@ -18,9 +18,9 @@ class EditDocTest {
         val doc = DocumentMut.parse(toml).unwrap()
         assertEquals(toml, doc.toString())
         // Add a new key/value pair inside a.b: c = {d = "hello"}
-        doc["a"]["b"]["c"]["d"] = value("hello")
+        doc["a"]["b"]["c"]["d"] = "hello"
         // Autoformat inline table a.b.c: { d = "hello" }
-        doc["a"]["b"]["c"].inlineTableOrNull?.fmt()
+        doc["a"]["b"]["c"].inlineTableOrNull?.resetFormatting()
         val expected = """
 "hello" = 'toml!' # comment
 ['a'.b]
@@ -35,9 +35,9 @@ c = { d = "hello" }
         val doc = DocumentMut.parse(toml).unwrap()
         assertEquals(toml, doc.toString())
         // Add a new key/value pair inside a.b: c = {d = "hello"}
-        doc["a"]["b"]["c"]["d"] = value("hello")
+        doc["a"]["b"]["c"]["d"] = "hello"
         // Autoformat inline table a.b.c: { d = "hello" }
-        doc["a"]["b"]["c"].inlineTableOrNull?.fmt()
+        doc["a"]["b"]["c"].inlineTableOrNull?.resetFormatting()
         val expected = "\n\"hello\" = 'toml!' # comment\n['a'.b]\nc = { d = \"hello\" }\n    "
         assertEquals(expected, doc.toString())
     }
@@ -45,7 +45,7 @@ c = { d = "hello" }
     @Test
     fun repositoryReadmeExample() {
         val doc = DocumentMut.parse("[package]\nname = \"kotoml\" # the name\n").unwrap()
-        doc["package"]["version"] = value("0.1.0")
+        doc["package"]["version"] = "0.1.0"
         assertEquals("[package]\nname = \"kotoml\" # the name\nversion = \"0.1.0\"\n", doc.toString())
     }
 
@@ -54,21 +54,21 @@ c = { d = "hello" }
         val text = "\n\"hello\" = 'toml!' # comment\n['a'.b]\n"
         val doc = DocumentMut.parse(text).unwrap()
         assertEquals(text, doc.toString())
-        doc["a"]["b"]["c"]["d"] = value("hello")
-        doc["a"]["b"]["c"].inlineTableOrNull?.fmt()
+        doc["a"]["b"]["c"]["d"] = "hello"
+        doc["a"]["b"]["c"].inlineTableOrNull?.resetFormatting()
         assertEquals("\n\"hello\" = 'toml!' # comment\n['a'.b]\nc = { d = \"hello\" }\n", doc.toString())
     }
 
     @Test
     fun moduleReadmeValues() {
         val doc = DocumentMut()
-        doc["port"] = value(Value.Integer(8080L, Decor(prefix = " ", suffix = " # default")))
-        doc["when"] = value(Datetime(date = Date(year = 1979, month = 5, day = 27)))
+        doc["port"] = Value.Integer(8080L, Decor(prefix = " ", suffix = " # default"))
+        doc["when"] = Datetime(date = Date(year = 1979, month = 5, day = 27))
         assertEquals("port = 8080 # default\nwhen = 1979-05-27\n", doc.toString())
 
         assertEquals(8080L, doc["port"].longOrNull)
         val parsed = DocumentMut.parse("n = 0x10\n").unwrap()
-        val spelled = parsed["n"].asValue() as Value.Integer
+        val spelled = parsed["n"].valueOrNull as Value.Integer
         assertEquals(16L, spelled.value)
         assertEquals("0x10", spelled.spelling)
         spelled.resetFormatting()
@@ -76,9 +76,22 @@ c = { d = "hello" }
     }
 
     @Test
+    fun moduleReadmeTablesAndArrays() {
+        val doc = DocumentMut.parse("[server]\nhosts = [\"alpha\"]\n").unwrap()
+        doc["server"]["hosts"].arrayOrNull?.add("beta")
+        val server = doc["server"].tableOrNull!!
+        server.getOrPut("port") { Item(Value.Integer(8080L)) }
+        doc["client"] = tableOf("retries" to Item(Value.Integer(3L)))
+        assertEquals(
+            "[server]\nhosts = [\"alpha\", \"beta\"]\nport = 8080\n\n[client]\nretries = 3\n",
+            doc.toString(),
+        )
+    }
+
+    @Test
     fun moduleReadmeSetIntoAString() {
         val doc = DocumentMut.parse("a = 'text'\n").unwrap()
-        assertTrue(doc["a"].set("key", value(1L)).unwrapErr() is TomlEditError.NotATable)
+        assertTrue(doc["a"].set("key", 1L).unwrapErr() is TomlEditError.NotATable)
         assertEquals("a = 'text'\n", doc.toString())
     }
 
@@ -104,14 +117,14 @@ duplicate key
     @Test
     fun crateDefaultFormatting() {
         val doc = DocumentMut()
-        doc["foo"] = value("bar")
+        doc["foo"] = "bar"
         assertEquals("foo = \"bar\"\n", doc.toString())
     }
 
     @Test
     fun crateCustomRepresentation() {
         val doc = DocumentMut()
-        doc["foo"] = Item.parse("'bar'").unwrap()
+        doc["foo"] = Value.parse("'bar'").unwrap()
         assertEquals("foo = 'bar'\n", doc.toString())
     }
 
@@ -123,9 +136,9 @@ duplicate key
     @Test
     fun arrayLen() {
         val arr = TomlArray()
-        arr.push(1L)
-        arr.push("foo")
-        assertEquals(2, arr.len())
+        arr.add(1L)
+        arr.add("foo")
+        assertEquals(2, arr.size)
     }
 
     @Test
@@ -133,49 +146,49 @@ duplicate key
         val arr = TomlArray()
         assertTrue(arr.isEmpty())
 
-        arr.push(1L)
-        arr.push("foo")
+        arr.add(1L)
+        arr.add("foo")
         assertTrue(!arr.isEmpty())
     }
 
     @Test
     fun arrayPush() {
         val arr = TomlArray()
-        arr.push(1L)
-        arr.push("foo")
+        arr.add(1L)
+        arr.add("foo")
     }
 
     @Test
     fun arrayPushFormatted() {
         val formattedValue = Value.parse("'literal'").unwrap()
         val arr = TomlArray()
-        arr.pushFormatted(formattedValue)
+        arr.add(formattedValue)
     }
 
     @Test
     fun arrayInsert() {
         val arr = TomlArray()
-        arr.push(1L)
-        arr.push("foo")
+        arr.add(1L)
+        arr.add("foo")
 
-        arr.insert(0, Value.String("start")).unwrap()
+        arr.add(0, Value.String("start")).unwrap()
     }
 
     @Test
     fun arrayInsertFormatted() {
         val arr = TomlArray()
-        arr.push(1L)
-        arr.push("foo")
+        arr.add(1L)
+        arr.add("foo")
 
         val formattedValue = Value.parse("'start'").unwrap()
-        arr.insertFormatted(0, formattedValue).unwrap()
+        arr.add(0, formattedValue).unwrap()
     }
 
     @Test
     fun arrayReplace() {
         val arr = TomlArray()
-        arr.push(1L)
-        arr.push("foo")
+        arr.add(1L)
+        arr.add("foo")
 
         arr.replace(0, Value.String("start")).unwrap()
     }
@@ -183,41 +196,41 @@ duplicate key
     @Test
     fun arrayReplaceFormatted() {
         val arr = TomlArray()
-        arr.push(1L)
-        arr.push("foo")
+        arr.add(1L)
+        arr.add("foo")
 
         val formattedValue = Value.parse("'start'").unwrap()
-        arr.replaceFormatted(0, formattedValue).unwrap()
+        arr.replace(0, formattedValue, keepDecor = false).unwrap()
     }
 
     @Test
     fun arrayRemove() {
         val arr = TomlArray()
-        arr.push(1L)
-        arr.push("foo")
+        arr.add(1L)
+        arr.add("foo")
 
-        arr.remove(0).unwrap()
-        assertEquals(1, arr.len())
+        arr.removeAt(0).unwrap()
+        assertEquals(1, arr.size)
     }
 
     @Test
     fun arrayOfTablesReplace() {
         val arr = ArrayOfTables()
-        arr.push(Table.fromIter(listOf("name" to value("apple"))))
+        arr.add(tableOf("name" to Item(Value.String("apple"))))
 
-        arr.replace(0, Table.fromIter(listOf("name" to value("banana")))).unwrap()
+        arr.set(0, tableOf("name" to Item(Value.String("banana")))).unwrap()
     }
 
     @Test
     fun itemValue() {
         val table = Table()
         val array = TomlArray()
-        array.push("hello")
+        array.add("hello")
         // A backslash is only allowed in a literal string.
-        array.push("\\, world")
-        table["key1"] = value("value1")
-        table["key2"] = value(42L)
-        table["key3"] = value(array)
+        array.add("\\, world")
+        table["key1"] = "value1"
+        table["key2"] = 42L
+        table["key3"] = Value.Array(array)
         assertEquals("key1 = \"value1\"\nkey2 = 42\nkey3 = [\"hello\", '\\, world']\n", table.toString())
     }
 
@@ -225,32 +238,37 @@ duplicate key
     fun tableSetImplicit() {
         val doc = DocumentMut.parse("[a]\n[a.b]\n").unwrap()
 
-        doc["a"].asTableMut()!!.setImplicit(true)
+        doc["a"].tableOrNull!!.isImplicit = true
         assertEquals("[a.b]\n", doc.toString())
     }
 
     @Test
     fun tableEntryKey() {
         val map = Table()
-        assertEquals("hello", map.entry("hello").key())
+        map.getOrPut("hello") { Item(Value.Integer(1L)) }
+        assertEquals("hello", map.key("hello")?.name)
     }
 
     @Test
     fun tableOccupiedEntryKey() {
         val map = Table()
-        assertEquals("foo", map.entry("foo").key())
+        map["foo"] = 1L
+        map.getOrPut("foo") { Item(Value.Integer(2L)) }
+        assertEquals("foo", map.key("foo")?.name)
     }
 
     @Test
     fun tableVacantEntryKey() {
         val map = Table()
-        assertEquals("foo", map.entry("foo").key())
+        map.getOrPut("foo") { Item(Value.Integer(1L)) }
+        assertEquals("foo", map.key("foo")?.name)
     }
 
     @Test
     fun inlineEntryKey() {
-        val map = Table()
-        assertEquals("hello", map.entry("hello").key())
+        val map = InlineTable()
+        map.getOrPut("hello") { Value.Integer(1L) }
+        assertEquals("hello", map.key("hello")?.name)
     }
 
     @Test
@@ -277,16 +295,16 @@ duplicate key
         table: TableLike,
         strings: MutableList<String>,
     ) {
-        for ((_, item) in table.iterItems()) collectStrings(item, strings)
+        for ((_, item) in table.items()) collectStrings(item, strings)
     }
 
     private fun collectStrings(
         item: Item,
         strings: MutableList<String>,
     ) {
-        item.asValue()?.let { collectStrings(it, strings) }
-        item.asTable()?.let { collectStrings(it, strings) }
-        item.asArrayOfTables()?.forEach { collectStrings(it, strings) }
+        item.valueOrNull?.let { collectStrings(it, strings) }
+        item.tableOrNull?.let { collectStrings(it, strings) }
+        item.arrayOfTablesOrNull?.forEach { collectStrings(it, strings) }
     }
 
     private fun collectStrings(
@@ -316,17 +334,17 @@ the-force = { value = "surrounds-you" }
     }
 
     private fun floatsToStrings(table: TableLike) {
-        for ((_, item) in table.iterItemsMut()) floatsToStrings(item)
+        for ((_, item) in table.items()) floatsToStrings(item)
     }
 
     private fun floatsToStrings(item: Item) {
-        val value = item.asValueMut()
+        val value = item.valueOrNull
         if (value != null) {
             val kept = floatsToStrings(value)
-            if (kept !== value) item.assign(Item.from(kept))
+            if (kept !== value) item.assign(Item(kept))
         }
-        item.asTableMut()?.let { floatsToStrings(it) }
-        item.asArrayOfTablesMut()?.forEach { floatsToStrings(it) }
+        item.tableOrNull?.let { floatsToStrings(it) }
+        item.arrayOfTablesOrNull?.forEach { floatsToStrings(it) }
     }
 
     /** Returns the value to keep in [value]'s place, since a [Value] cannot replace itself. */
@@ -339,10 +357,10 @@ the-force = { value = "surrounds-you" }
             Value.String(text, value.decor)
         }
         is Value.Array -> {
-            for (index in 0 until value.array.len()) {
-                val element = value.array.getMut(index) ?: continue
+            for (index in 0 until value.array.size) {
+                val element = value.array[index] ?: continue
                 val kept = floatsToStrings(element)
-                if (kept !== element) value.array.replaceFormatted(index, kept)
+                if (kept !== element) value.array.replace(index, kept, keepDecor = false)
             }
             value
         }
@@ -361,7 +379,7 @@ table = { apple = 4.5 }
 """
 
         val document = DocumentMut.parse(input).unwrap()
-        floatsToStrings(document.asTableMut())
+        floatsToStrings(document.asTable())
 
         val output = """
 banana = "3.26"

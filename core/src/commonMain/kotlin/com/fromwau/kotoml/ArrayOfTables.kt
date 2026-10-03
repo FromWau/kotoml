@@ -5,18 +5,25 @@ import com.fromwau.kern.result.Err
 import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
 
-/** A sequence of tables, each under its own `[[header]]`. */
+/**
+ * A sequence of tables, each under its own `[[header]]`.
+ *
+ * A table added here is stored as is, not copied: keep using it only through the array, or add its `copy()`.
+ */
 public class ArrayOfTables() : Iterable<Table> {
     internal var span: Span? = null
 
     // Slots that refuse anything but a table; held as items so indexing an item hands out the same slots.
     internal val values: MutableList<Item> = mutableListOf()
 
-    /** Turns this into an inline array of inline tables, formatted anew. Its tables move to the result. */
-    public fun intoArray(): TomlArray {
-        val array = TomlArray.fromIter(values.mapNotNull { it.intoValue() })
+    /** An inline array of inline tables holding copies of these tables, formatted anew; this stays as it is. */
+    public fun toArray(): TomlArray = copy().intoArray()
+
+    /** Moves the tables into a new inline array of inline tables, formatted anew, leaving this empty. */
+    internal fun intoArray(): TomlArray {
+        val array = values.mapNotNull { it.intoValue() }.toTomlArray()
         values.clear()
-        array.fmt()
+        array.resetFormatting()
         return array
     }
 
@@ -25,19 +32,14 @@ public class ArrayOfTables() : Iterable<Table> {
         for (value in values) value.despan(input)
     }
 
-    /** The tables, in order. */
-    public fun iter(): Iterator<Table> = values.mapNotNull { it.asTable() }.iterator()
-
-    /** The tables, in order, to change in place. */
-    public fun iterMut(): Iterator<Table> = iter()
-
-    override fun iterator(): Iterator<Table> = iter()
+    override fun iterator(): Iterator<Table> = values.mapNotNull { it.tableOrNull }.iterator()
 
     /** The number of tables. */
-    public fun len(): Int = values.size
+    public val size: Int
+        get() = values.size
 
-    /** Whether there are no elements. */
-    public fun isEmpty(): Boolean = len() == 0
+    /** Whether there are no tables. */
+    public fun isEmpty(): Boolean = size == 0
 
     /** Removes every table. */
     public fun clear() {
@@ -45,65 +47,82 @@ public class ArrayOfTables() : Iterable<Table> {
     }
 
     /** The table at [index], or null when the index is out of bounds. */
-    public operator fun get(index: Int): Table? = values.getOrNull(index)?.asTable()
-
-    /** The table at [index] to change in place, or null when the index is out of bounds. */
-    public fun getMut(index: Int): Table? = get(index)
+    public operator fun get(index: Int): Table? = values.getOrNull(index)?.tableOrNull
 
     /** Appends [table]. */
-    public fun push(table: Table) {
+    public fun add(table: Table) {
         values.add(Item.inArrayOfTables(table))
     }
 
-    /** Inserts [table] at [index]. Fails when [index] is greater than [len]; upstream panics there. */
-    public fun insert(index: Int, table: Table): EmptyResult<TomlEditError> {
+    /**
+     * Inserts [table] at [index], shifting later tables right.
+     *
+     * @return [TomlEditError.IndexOutOfBounds], with nothing inserted, when [index] is negative or greater
+     *   than [size].
+     */
+    public fun add(
+        index: Int,
+        table: Table,
+    ): EmptyResult<TomlEditError> {
         if (index < 0 || index > values.size) return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         values.add(index, Item.inArrayOfTables(table))
         return Ok(Unit)
     }
 
-    /** Replaces the table at [index], returning the old one. Fails when [index] is out of bounds. */
-    public fun replace(index: Int, table: Table): Result<Table, TomlEditError> {
-        if (index < 0 || index >= values.size) return Err(TomlEditError.IndexOutOfBounds(index, values.size))
-        val old = values[index]
+    /**
+     * Replaces the table at [index] with [table].
+     *
+     * @return the old table, or [TomlEditError.IndexOutOfBounds], with nothing replaced, when there is no table
+     *   at [index].
+     */
+    public operator fun set(
+        index: Int,
+        table: Table,
+    ): Result<Table, TomlEditError> {
+        val old = get(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         values[index] = Item.inArrayOfTables(table)
-        return old.asTable()?.let { Ok(it) } ?: Err(TomlEditError.NotAValue(old.type))
+        return Ok(old)
     }
 
-    /** Removes and returns the table at [index]. Fails when [index] is out of bounds; upstream panics. */
-    public fun remove(index: Int): Result<Table, TomlEditError> {
-        if (index < 0 || index >= values.size) return Err(TomlEditError.IndexOutOfBounds(index, values.size))
-        val removed = values.removeAt(index)
-        return removed.intoTable()?.let { Ok(it) } ?: Err(TomlEditError.NotAValue(removed.type))
+    /**
+     * Removes the table at [index].
+     *
+     * @return the removed table, or [TomlEditError.IndexOutOfBounds] when there is no table at [index].
+     */
+    public fun removeAt(index: Int): Result<Table, TomlEditError> {
+        val removed = get(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
+        values.removeAt(index)
+        return Ok(removed)
     }
 
-    /** Keeps only the tables [keep] accepts, in order. */
-    public fun retain(keep: (Table) -> Boolean) {
-        values.retainAll { item -> item.asTable()?.let(keep) ?: false }
+    /** Keeps only the tables [predicate] accepts, in order. */
+    public fun retainAll(predicate: (Table) -> Boolean) {
+        values.retainAll { item -> item.tableOrNull?.let(predicate) ?: false }
     }
 
     /** Appends every table of [tables]. */
-    public fun extend(tables: Iterable<Table>) {
-        for (table in tables) push(table)
+    public fun addAll(tables: Iterable<Table>) {
+        for (table in tables) add(table)
     }
 
     /** A deep copy. */
-    public fun clone(): ArrayOfTables {
+    public fun copy(): ArrayOfTables {
         val copy = ArrayOfTables()
         copy.span = span
-        for (table in iter()) copy.values.add(Item.inArrayOfTables(table.clone()))
+        for (table in this) copy.values.add(Item.inArrayOfTables(table.copy()))
         return copy
     }
 
     /** The tables as an inline array; without a header there is no better way to print them. */
-    override fun toString(): String = clone().intoArray().toString()
+    override fun toString(): String = toArray().toString()
+}
 
-    public companion object {
-        /** An array of [tables]. */
-        public fun fromIter(tables: Iterable<Table>): ArrayOfTables {
-            val array = ArrayOfTables()
-            array.extend(tables)
-            return array
-        }
-    }
+/** An array of [tables], in order. */
+public fun arrayOfTablesOf(vararg tables: Table): ArrayOfTables = tables.asIterable().toArrayOfTables()
+
+/** An array of these tables, in order. */
+public fun Iterable<Table>.toArrayOfTables(): ArrayOfTables {
+    val array = ArrayOfTables()
+    array.addAll(this)
+    return array
 }

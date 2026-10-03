@@ -16,7 +16,7 @@ class EditTest {
 
     private class Given(val doc: DocumentMut) {
         fun running(func: (Table) -> Unit): Given {
-            func(doc.asTableMut())
+            func(doc.asTable())
             return this
         }
 
@@ -38,18 +38,18 @@ class EditTest {
     }
 
     private fun assertKeyReprRoundtrip(input: String, expected: String) {
-        val value = Key.parseSimple(input).unwrap()
+        val value = Key.parse(input).unwrap()
         val actual = value.toString()
-        if (!Key.parseSimple(actual).isOk()) fail("invalid `Key`:\n```\n$actual\n```\n")
+        if (!Key.parse(actual).isOk()) fail("invalid `Key`:\n```\n$actual\n```\n")
         assertData(expected, actual)
     }
 
     private fun assertKeyValueRoundtrip(input: String, expected: String) {
-        val parsed = Key.parseSimple(input).unwrap()
+        val parsed = Key.parse(input).unwrap()
         // Drops the repr.
-        val value = Key(parsed.get())
+        val value = Key(parsed.name)
         val actual = value.toString()
-        if (!Key.parseSimple(actual).isOk()) fail("invalid `Key`:\n```\n$actual\n```\n")
+        if (!Key.parse(actual).isOk()) fail("invalid `Key`:\n```\n$actual\n```\n")
         assertData(expected, actual)
     }
     @Test
@@ -62,9 +62,9 @@ class EditTest {
         assertEquals(input, document.toString())
 
         val name = document["parent"]["entries"][1]["name"]
-        val decor = name.asValue()!!.decor
-        name.assign(value("updated"))
-        name.asValueMut()!!.decor = decor
+        val decor = name.valueOrNull!!.decor
+        name.assign(Item(Value.String("updated")))
+        name.valueOrNull!!.decor = decor
         assertEquals(input.replace("\"second\"", "\"updated\""), document.toString())
     }
 
@@ -88,7 +88,7 @@ class EditTest {
         }
 
         val document = DocumentMut.parse("# comment\r\n[table]\r\nvalue = { dotted.key = [1, 2] }\r\n").unwrap()
-        document["table"]["new key"] = value("new value")
+        document["table"]["new key"] = "new value"
         val output = document.toString()
         // Upstream prints CRLF input with LF line endings; this port keeps each line's ending, which the toml-test
         // round trip requires (valid/newline-crlf), and an inserted line ends like the line before it.
@@ -438,9 +438,9 @@ trailing...
 
         [other.table]""")
             .running { root ->
-                    root["servers"]["beta"] = table()
-                    root["servers"]["beta"]["ip"] = value("10.0.0.2")
-                    root["servers"]["beta"]["dc"] = value("eqdc10")
+                    root["servers"]["beta"] = Table()
+                    root["servers"]["beta"]["ip"] = "10.0.0.2"
+                    root["servers"]["beta"]["dc"] = "eqdc10"
             }
             .producesDisplay("""
 [servers]
@@ -467,7 +467,7 @@ dc = "eqdc10"
         [dependencies.opencl]
         [dev-dependencies]""")
             .running { root ->
-                    root["dependencies"]["newthing"] = table()
+                    root["dependencies"]["newthing"] = Table()
             }
             .producesDisplay("""
 
@@ -487,7 +487,7 @@ dc = "eqdc10"
         given("[a]")
             .running { root ->
                 val other = DocumentMut.parse("[b]").unwrap()
-                root["b"] = other["b"].clone()
+                root["b"] = other["b"].copy()
             }
             .producesDisplay("""
 [a]
@@ -501,10 +501,10 @@ dc = "eqdc10"
         given("""
         [other.table]""")
             .running { root ->
-                    root["servers"] = table()
-                    root["servers"]["alpha"] = table()
-                    root["servers"]["alpha"]["ip"] = value("10.0.0.1")
-                    root["servers"]["alpha"]["dc"] = value("eqdc10")
+                    root["servers"] = Table()
+                    root["servers"]["alpha"] = Table()
+                    root["servers"]["alpha"]["ip"] = "10.0.0.1"
+                    root["servers"]["alpha"]["dc"] = "eqdc10"
             }
             .producesDisplay("""
 
@@ -523,15 +523,15 @@ dc = "eqdc10"
     fun testInsertArray() {
         given("\n        [package]\n        title = \"withoutarray\"")
             .running { root ->
-                root["bin"] = array()
-                assertTrue(root["bin"].isArrayOfTables())
-                val array = root["bin"].asArrayOfTablesMut()!!
+                root["bin"] = ArrayOfTables()
+                assertTrue(root["bin"].arrayOfTablesOrNull != null)
+                val array = root["bin"].arrayOfTablesOrNull!!
                 run {
                     val table = Table()
-                    table["hello"] = value("world")
-                    array.push(table)
+                    table["hello"] = "world"
+                    array.add(table)
                 }
-                array.push(Table())
+                array.add(Table())
             }
             .producesDisplay("""
 
@@ -551,9 +551,9 @@ hello = "world"
         given("""
         [tbl.son]""")
             .running { root ->
-                    root["tbl"]["key1"] = value("value1")
-                    root["tbl"]["key2"] = value(42L)
-                    root["tbl"]["key3"] = value(8.1415926)
+                    root["tbl"]["key1"] = "value1"
+                    root["tbl"]["key2"] = 42L
+                    root["tbl"]["key3"] = 8.1415926
             }
             .producesDisplay("""
 [tbl]
@@ -575,9 +575,9 @@ key3 = 8.1415926
         [target]
         """)
             .running { root ->
-                    root["target"]["cfg(target_os = \"linux\")"] = table()
-                    root["target"]["cfg(target_os = \"linux\")"]["dependencies"] = table()
-                    root["target"]["cfg(target_os = \"linux\")"]["dependencies"]["name"] = value("dep")
+                    root["target"]["cfg(target_os = \"linux\")"] = Table()
+                    root["target"]["cfg(target_os = \"linux\")"]["dependencies"] = Table()
+                    root["target"]["cfg(target_os = \"linux\")"]["dependencies"]["name"] = "dep"
             }
             .producesDisplay("""
 
@@ -601,8 +601,8 @@ name = "dep"
             "alpha]\n        ip = \"10.0.0.1\"\n        dc = \"eqdc10\"\n\n        [servers.beta]\n        ip = \"10." +
             "0.0.2\"\n        dc = \"eqdc10\"")
             .running { root ->
-                val servers = root.getMut("servers")!!
-                val serversTable = servers.asTableMut()!!
+                val servers = root.getOrNull("servers")!!
+                val serversTable = servers.tableOrNull!!
                 assertTrue(serversTable.remove("alpha") != null)
             }
             .producesDisplay("""
@@ -676,12 +676,12 @@ name = "dep"
             "\" # future is here\n\n        [[bin]]\n        name = \"delete me please\"\n        path = \"src/bin/dm" +
             "p/main.rs\"")
             .running { root ->
-                val dmp = root.getMut("bin")!!
-                assertTrue(dmp.isArrayOfTables())
-                val dmpArray = dmp.asArrayOfTablesMut()!!
-                assertEquals(2, dmpArray.len())
-                dmpArray.remove(1)
-                assertEquals(1, dmpArray.len())
+                val dmp = root.getOrNull("bin")!!
+                assertTrue(dmp.arrayOfTablesOrNull != null)
+                val dmpArray = dmp.arrayOfTablesOrNull!!
+                assertEquals(2, dmpArray.size)
+                dmpArray.removeAt(1)
+                assertEquals(1, dmpArray.size)
             }
             .producesDisplay("""
 
@@ -729,8 +729,8 @@ name = "dep"
             .running { root ->
                 val value = root.remove("version")
                 assertTrue(value != null)
-                assertTrue(value.isValue())
-                val version = value.asValue()!!
+                assertTrue(value.valueOrNull != null)
+                val version = value.valueOrNull!!
                 assertTrue(version is Value.String)
                 assertData("1.0.0", version.stringOrNull!!)
             }
@@ -748,14 +748,14 @@ name = "dep"
         [a]
         b = 1""")
             .running { root ->
-                val a = root.getMut("a")!!
-                assertTrue(a.isTable())
-                val aTable = a.asTableMut()!!
-                aTable.setImplicit(true)
+                val a = root.getOrNull("a")!!
+                assertTrue(a.tableOrNull != null)
+                val aTable = a.tableOrNull!!
+                aTable.isImplicit = true
                 val value = aTable.remove("b")
                 assertTrue(value != null)
-                assertTrue(value.isValue())
-                assertEquals(1L, value.asValue()!!.longOrNull)
+                assertTrue(value.valueOrNull != null)
+                assertEquals(1L, value.valueOrNull!!.longOrNull)
             }
             .producesDisplay("")
     }
@@ -773,8 +773,8 @@ name = "dep"
 
         [a.y]""")
             .running { root ->
-                val a = root.getMut("a")!!
-                a.asTableMut()!!.sortValues()
+                val a = root.getOrNull("a")!!
+                a.tableOrNull!!.sortValues()
             }
             .producesDisplay("""
 
@@ -804,10 +804,10 @@ name = "dep"
 
         [a.y]""")
             .running { root ->
-                val a = root.getMut("a")!!.asTableMut()!!
+                val a = root.getOrNull("a")!!.tableOrNull!!
                 // Sort by the representation, not the value. So "\"c\"" sorts before "a" because '"' sorts
                 // before 'a'.
-                a.sortValuesBy { k1, _, k2, _ -> compareRustStr(k1.displaySpelling, k2.displaySpelling) }
+                a.sortValuesWith { (k1, _), (k2, _) -> compareRustStr(k1.displaySpelling, k2.displaySpelling) }
             }
             .producesDisplay("""
 
@@ -832,12 +832,12 @@ name = "dep"
         [dependencies.opencl]
         [dev-dependencies]""")
             .running { root ->
-                for ((header, table) in root.iterMut()) {
-                    if (header.get() == "dependencies") {
-                        val tab = table.asTableMut()!!
-                        tab.setPosition(0)
-                        val (_, segmented) = tab.iterMut().next()
-                        segmented.asTableMut()!!.setPosition(5)
+                for ((header, table) in root) {
+                    if (header == "dependencies") {
+                        val tab = table.tableOrNull!!
+                        tab.position = 0
+                        val (_, segmented) = tab.first()
+                        segmented.tableOrNull!!.position = 5
                     }
                 }
             }
@@ -859,12 +859,12 @@ name = "dep"
         [dependencies.opencl]
         [dev-dependencies]""")
             .running { root ->
-                val pkg = root.entry("package").orInsertWith {
+                val pkg = root.getOrPut("package") {
                     val t = Table()
-                    t.setPosition(-1)
-                    Item.from(t)
-                }.unwrap()
-                pkg["edition"] = value("2024")
+                    t.position = -1
+                    Item(t)
+                }
+                pkg["edition"] = "2024"
             }
             .producesDisplay("""
 
@@ -888,8 +888,8 @@ edition = "2024"
         a=""
         [dev-dependencies]""")
             .running { root ->
-                for ((_, table) in root.iterMut()) {
-                    table.asTableMut()!!.setPosition(0)
+                for ((_, table) in root) {
+                    table.tableOrNull!!.position = 0
                 }
             }
             .producesDisplay("""
@@ -912,8 +912,8 @@ edition = "2024"
         a=""
         [dev-dependencies]""")
             .running { root ->
-                for ((_, table) in root.iterMut()) {
-                    table.asTableMut()!!.setPosition(Long.MAX_VALUE)
+                for ((_, table) in root) {
+                    table.tableOrNull!!.position = Long.MAX_VALUE
                 }
             }
             .producesDisplay("""
@@ -934,27 +934,30 @@ edition = "2024"
         b = []""")
             .running { root ->
                 run {
-                    val a = root.getMut("a")!!.arrayOrNull!!
-                    assertEquals(3, a.len())
+                    val a = root.getOrNull("a")!!.arrayOrNull!!
+                    assertEquals(3, a.size)
                     assertTrue(a.get(2) != null)
-                    a.push(4L)
-                    assertEquals(4, a.len())
-                    a.fmt()
+                    a.add(4L)
+                    assertEquals(4, a.size)
+                    a.resetFormatting()
                 }
-                val b = root.getMut("b")!!.arrayOrNull!!
+                val b = root.getOrNull("b")!!.arrayOrNull!!
                 assertTrue(b.isEmpty())
-                b.push("hello")
-                assertEquals(1, b.len())
-                b.pushFormatted(Value.String("world", Decor("\n", "\n")))
-                b.pushFormatted(Value.String("test", Decor("", "")))
-                b.insert(1, Value.String("beep")).unwrap()
-                b.insertFormatted(2, Value.String("boop", Decor("   ", "   "))).unwrap()
+                b.add("hello")
+                assertEquals(1, b.size)
+                b.add(Value.String("world", Decor("\n", "\n")))
+                b.add(Value.String("test", Decor("", "")))
+                b.add(1, Value.String("beep")).unwrap()
+                b.add(2, Value.String("boop", Decor("   ", "   "))).unwrap()
                 // This should preserve formatting.
-                assertEquals("boop", b.replace(2, Value.String("zoink")).unwrap().stringOrNull)
+                assertEquals("boop", b.set(2, Value.String("zoink")).unwrap().stringOrNull)
                 // This should replace formatting.
                 assertEquals(
                     "test",
-                    b.replaceFormatted(4, Value.String("yikes", Decor("  ", ""))).unwrap().stringOrNull,
+                    b
+                        .replace(4, Value.String("yikes", Decor("  ", "")), keepDecor = false)
+                        .unwrap()
+                        .stringOrNull,
                 )
             }
             .producesDisplay("""
@@ -974,14 +977,14 @@ edition = "2024"
         b = ["hello"]""")
             .running { root ->
                 run {
-                    val a = root.getMut("a")!!.arrayOrNull!!
-                    assertEquals(4, a.len())
-                    assertTrue(a.remove(3).unwrap() is Value.Integer)
-                    assertEquals(3, a.len())
+                    val a = root.getOrNull("a")!!.arrayOrNull!!
+                    assertEquals(4, a.size)
+                    assertTrue(a.removeAt(3).unwrap() is Value.Integer)
+                    assertEquals(3, a.size)
                 }
-                val b = root.getMut("b")!!.arrayOrNull!!
-                assertEquals(1, b.len())
-                assertTrue(b.remove(0).unwrap() is Value.String)
+                val b = root.getOrNull("b")!!.arrayOrNull!!
+                assertEquals(1, b.size)
+                assertTrue(b.removeAt(0).unwrap() is Value.String)
                 assertTrue(b.isEmpty())
             }
             .producesDisplay("""
@@ -1002,8 +1005,8 @@ edition = "2024"
     ]
     """)
             .running { root ->
-                for ((_, v) in root.iterMut()) {
-                    v.arrayOrNull?.fmt()
+                for ((_, v) in root) {
+                    v.arrayOrNull?.resetFormatting()
                 }
             }
             .producesDisplay("""
@@ -1019,18 +1022,18 @@ edition = "2024"
         b = {}""")
             .running { root ->
                 run {
-                    val a = root.getMut("a")!!.inlineTableOrNull!!
-                    assertEquals(2, a.len())
-                    assertTrue(a.containsKey("a") && a.get("c") != null && a.getMut("c") != null)
-                    a.getOrInsert("b", Value.Integer(42L))
-                    assertEquals(3, a.len())
-                    a.fmt()
+                    val a = root.getOrNull("a")!!.inlineTableOrNull!!
+                    assertEquals(2, a.size)
+                    assertTrue(a.containsKey("a") && "a" in a && a["c"] != null)
+                    a.getOrPut("b") { Value.Integer(42L) }
+                    assertEquals(3, a.size)
+                    a.resetFormatting()
                 }
-                val b = root.getMut("b")!!.inlineTableOrNull!!
+                val b = root.getOrNull("b")!!.inlineTableOrNull!!
                 assertTrue(b.isEmpty())
-                b.getOrInsert("hello", Value.String("world"))
-                assertEquals(1, b.len())
-                b.fmt()
+                b.getOrPut("hello") { Value.String("world") }
+                assertEquals(1, b.size)
+                b.resetFormatting()
             }
             .producesDisplay("""
 
@@ -1047,13 +1050,13 @@ edition = "2024"
         b = {'hello' = "world"}""")
             .running { root ->
                 run {
-                    val a = root.getMut("a")!!.inlineTableOrNull!!
-                    assertEquals(3, a.len())
+                    val a = root.getOrNull("a")!!.inlineTableOrNull!!
+                    assertEquals(3, a.size)
                     assertTrue(a.remove("c") != null)
-                    assertEquals(2, a.len())
+                    assertEquals(2, a.size)
                 }
-                val b = root.getMut("b")!!.inlineTableOrNull!!
-                assertEquals(1, b.len())
+                val b = root.getOrNull("b")!!.inlineTableOrNull!!
+                assertEquals(1, b.size)
                 assertTrue(b.remove("hello") != null)
                 assertTrue(b.isEmpty())
             }
@@ -1075,52 +1078,46 @@ edition = "2024"
         x = "y"
         [empty]""")
             .running { root ->
-                val a = root["a"].asTableLike()
+                val a = root["a"].tableLikeOrNull
                 assertTrue(a != null)
-                assertEquals(3, a.iterItems().asSequence().count())
-                assertEquals(3, a.len())
-                assertEquals(2L, a.getItem("a")?.longOrNull)
-                val b = root["b"].asTableLike()
+                assertEquals(3, a.items().size)
+                assertEquals(3, a.size)
+                assertEquals(2L, a.item("a")?.longOrNull)
+                val b = root["b"].tableLikeOrNull
                 assertTrue(b != null)
-                assertEquals(1, b.iterItems().asSequence().count())
-                assertEquals(1, b.len())
-                assertEquals("y", b.getItem("x")?.stringOrNull)
-                assertEquals(0, root["x"].asTableLike()?.iterItems()?.asSequence()?.count())
-                assertEquals(true, root["empty"].asTableLike()?.isEmpty())
-                assertTrue(root["bin"].asTableLike() == null)
+                assertEquals(1, b.items().size)
+                assertEquals(1, b.size)
+                assertEquals("y", b.item("x")?.stringOrNull)
+                assertEquals(0, root["x"].tableLikeOrNull?.items()?.size)
+                assertEquals(true, root["empty"].tableLikeOrNull?.isEmpty())
+                assertTrue(root["bin"].tableLikeOrNull == null)
             }
     }
 
     @Test
     fun testInlineTableAppend() {
         val a = Value.InlineTable(
-            InlineTable.fromIter(listOf("a" to Value.Integer(1L), "b" to Value.Integer(2L), "c" to Value.Integer(3L))),
+            inlineTableOf("a" to Value.Integer(1L), "b" to Value.Integer(2L), "c" to Value.Integer(3L)),
         )
         val aTable = a.inlineTableOrNull!!
         val b = Value.InlineTable(
-            InlineTable.fromIter(listOf("c" to Value.Integer(4L), "d" to Value.Integer(5L), "e" to Value.Integer(6L))),
+            inlineTableOf("c" to Value.Integer(4L), "d" to Value.Integer(5L), "e" to Value.Integer(6L)),
         )
         val bTable = b.inlineTableOrNull!!
-        aTable.extend(
-            bTable
-                .iter()
-                .asSequence()
-                .map { (key, value) -> key to value.copy() }
-                .asIterable(),
-        )
-        assertEquals(5, aTable.len())
+        aTable.putAll(bTable.map { (key, value) -> key to value.copy() })
+        assertEquals(5, aTable.size)
         assertTrue(aTable.containsKey("e"))
-        assertEquals(3, bTable.len())
+        assertEquals(3, bTable.size)
     }
 
     @Test
     fun testInsertDottedIntoStdTable() {
         given("")
             .running { root ->
-                root["nixpkgs"] = table()
-                root["nixpkgs"]["src"] = table()
-                root["nixpkgs"]["src"].asTableLikeMut()!!.setDotted(true)
-                root["nixpkgs"]["src"]["git"] = value("https://github.com/nixos/nixpkgs")
+                root["nixpkgs"] = Table()
+                root["nixpkgs"]["src"] = Table()
+                root["nixpkgs"]["src"].tableLikeOrNull!!.isDotted = true
+                root["nixpkgs"]["src"]["git"] = "https://github.com/nixos/nixpkgs"
             }
             .producesDisplay("""
 [nixpkgs]
@@ -1133,9 +1130,9 @@ src.git = "https://github.com/nixos/nixpkgs"
     fun testInsertDottedIntoImplicitTable() {
         given("")
             .running { root ->
-                root["nixpkgs"] = table()
-                root["nixpkgs"]["src"]["git"] = value("https://github.com/nixos/nixpkgs")
-                root["nixpkgs"]["src"].asTableLikeMut()!!.setDotted(true)
+                root["nixpkgs"] = Table()
+                root["nixpkgs"]["src"]["git"] = "https://github.com/nixos/nixpkgs"
+                root["nixpkgs"]["src"].tableLikeOrNull!!.isDotted = true
             }
             .producesDisplay("""
 [nixpkgs]
@@ -1147,19 +1144,19 @@ src.git = "https://github.com/nixos/nixpkgs"
     @Test
     fun sortingWithReferences() {
         val values = listOf("foo", "qux", "bar")
-        val array = TomlArray.fromIter(values.map { Value.String(it) })
-        array.sortBy { lhs, rhs -> compareValues(lhs.stringOrNull, rhs.stringOrNull) }
+        val array = values.map { Value.String(it) }.toTomlArray()
+        array.sortWith { lhs, rhs -> compareValues(lhs.stringOrNull, rhs.stringOrNull) }
     }
 
     @Test
     fun tableStrKeyWhitespace() {
         val document = DocumentMut.parse("bookmark = 1010").unwrap()
         val key = "bookmark"
-        document.insert(key, array())
-        val table = document[key].asArrayOfTablesMut()!!
+        document.put(key, Item(ArrayOfTables()))
+        val table = document[key].arrayOfTablesOrNull!!
         val bookmarkTable = Table()
-        bookmarkTable["name"] = value("test.swf")
-        table.push(bookmarkTable)
+        bookmarkTable["name"] = "test.swf"
+        table.add(bookmarkTable)
         assertData("""
 [[bookmark]]
 name = "test.swf"
@@ -1170,12 +1167,12 @@ name = "test.swf"
     @Test
     fun tableKeyDecorWhitespace() {
         val document = DocumentMut.parse("bookmark = 1010").unwrap()
-        val key = Key.parse("  bookmark   ").unwrap()[0]
-        document.asTable().insertFormatted(key, array())
-        val table = document[key.get()].asArrayOfTablesMut()!!
+        val key = Key.parsePath("  bookmark   ").unwrap()[0]
+        document.asTable().put(key, Item(ArrayOfTables()))
+        val table = document[key.name].arrayOfTablesOrNull!!
         val bookmarkTable = Table()
-        bookmarkTable["name"] = value("test.swf")
-        table.push(bookmarkTable)
+        bookmarkTable["name"] = "test.swf"
+        table.add(bookmarkTable)
         assertData("""
 [[  bookmark   ]]
 name = "test.swf"
@@ -1211,8 +1208,8 @@ other = "world"
         val doc = DocumentMut.parse(toml).unwrap()
         val t = doc.remove("table")!!
         val inline = t.inlineTableOrNull ?: fail("Unexpected $t")
-        val table = inline.intoTable()
-        doc.insert("table", Item.from(table))
+        val table = inline.toTable()
+        doc.put("table", Item(table))
         val actual = doc.toString()
         assertData("""
 [table]
@@ -1256,8 +1253,8 @@ other = "world"
     @Test
     fun testKeyFromStr() {
         fun testKey(text: String, expected: String) {
-            when (val key = Key.parseSimple(text)) {
-                is Result.Success -> assertEquals(expected, key.value.get(), "")
+            when (val key = Key.parse(text)) {
+                is Result.Success -> assertEquals(expected, key.value.name, "")
                 is Result.Error -> fail("failed with ${key.error}")
             }
         }
@@ -1276,9 +1273,9 @@ other = "world"
     @Test
     fun despanKeys() {
         val doc = DocumentMut.parse("aaaaaa = 1").unwrap()
-        val key = Key.parseSimple("bbb").unwrap()
-        val table = doc.asTableMut()
-        table.insertFormatted(key, Item.from(Value.Integer(2L)))
+        val key = Key.parse("bbb").unwrap()
+        val table = doc.asTable()
+        table.put(key, Item(Value.Integer(2L)))
         assertEquals("aaaaaa = 1\nbbb = 2\n", doc.toString())
     }
 
@@ -1338,9 +1335,9 @@ other = "world"
         val doc = DocumentMut()
         // An inline table holds only values, so a dotted inline table stands in for upstream's table here.
         val dotted = InlineTable()
-        dotted.setDotted(true)
-        doc["tool"]["typst-test"] = value(dotted)
-        doc["tool"]["typst-test"]["tests"] = value("tests")
+        dotted.isDotted = true
+        doc["tool"]["typst-test"] = Value.InlineTable(dotted)
+        doc["tool"]["typst-test"]["tests"] = "tests"
         assertData("""
 tool = { typst-test.tests = "tests" }
 
@@ -1356,13 +1353,13 @@ name = "apple"
 name = "banana"
 """)
             .running { root ->
-                    val array = root["fruit"].asArrayOfTablesMut()!!
+                    val array = root["fruit"].arrayOfTablesOrNull!!
                     val newTable = Table()
-                    newTable.insert("name", value("cherry"))
-                    array.insert(0, newTable)
+                    newTable.put("name", Item(Value.String("cherry")))
+                    array.add(0, newTable)
                     // The previously-first table (now at index 1) had no leading blank line
                     // from parsing; fix it up so it separates properly.
-                    val moved = array.getMut(1)!!
+                    val moved = array[1]!!
                     moved.decor = moved.decor.copy(prefix = "\n")
             }
             .producesDisplay("""
@@ -1387,12 +1384,12 @@ name = "apple"
 name = "banana"
 """)
             .running { root ->
-                    val array = root["fruit"].asArrayOfTablesMut()!!
+                    val array = root["fruit"].arrayOfTablesOrNull!!
                     val newTable = Table()
-                    newTable.insert("name", value("cherry"))
+                    newTable.put("name", Item(Value.String("cherry")))
                     // Give the new table a leading blank line to match the existing style.
                     newTable.decor = newTable.decor.copy(prefix = "\n")
-                    array.insert(1, newTable)
+                    array.add(1, newTable)
             }
             .producesDisplay("""
 [[fruit]]
@@ -1416,12 +1413,12 @@ name = "apple"
 name = "banana"
 """)
             .running { root ->
-                    val array = root["fruit"].asArrayOfTablesMut()!!
+                    val array = root["fruit"].arrayOfTablesOrNull!!
                     val newTable = Table()
-                    newTable.insert("name", value("cherry"))
+                    newTable.put("name", Item(Value.String("cherry")))
                     // Give the new table a leading blank line to match the existing style.
                     newTable.decor = newTable.decor.copy(prefix = "\n")
-                    array.insert(2, newTable)
+                    array.add(2, newTable)
             }
             .producesDisplay("""
 [[fruit]]
@@ -1440,7 +1437,7 @@ name = "cherry"
     fun arrayOfTablesInsertOutOfBounds() {
         val array = ArrayOfTables()
         val t = Table()
-        assertEquals(TomlEditError.IndexOutOfBounds(1, 0), array.insert(1, t).unwrapErr())
+        assertEquals(TomlEditError.IndexOutOfBounds(1, 0), array.add(1, t).unwrapErr())
     }
 
     @Test
@@ -1451,9 +1448,9 @@ foo = { bar = 1 }
 """)
             .running { root ->
                 val newFoo = Table()
-                newFoo.insert("bar", value(1L))
-                newFoo.insert("baz", value(2L))
-                root.getMut("foo")!!.assign(Item.from(newFoo))
+                newFoo.put("bar", Item(Value.Integer(1L)))
+                newFoo.put("baz", Item(Value.Integer(2L)))
+                root.getOrNull("foo")!!.assign(Item(newFoo))
             }
             .producesDisplay("""
 
@@ -1473,11 +1470,11 @@ foo = [{ bar = 1 }]
 """)
             .running { root ->
                 val newFooEntry = Table()
-                newFooEntry.insert("bar", value(1L))
-                newFooEntry.insert("baz", value(2L))
+                newFooEntry.put("bar", Item(Value.Integer(1L)))
+                newFooEntry.put("baz", Item(Value.Integer(2L)))
                 val arr = ArrayOfTables()
-                arr.push(newFooEntry)
-                root.getMut("foo")!!.assign(Item.from(arr))
+                arr.add(newFooEntry)
+                root.getOrNull("foo")!!.assign(Item(arr))
             }
             .producesDisplay("""
 
@@ -1499,10 +1496,10 @@ name = "apple"
 name = "banana"
 """)
             .running { root ->
-                val array = root["fruit"].asArrayOfTablesMut()!!
+                val array = root["fruit"].arrayOfTablesOrNull!!
                 val newTable = Table()
-                newTable.insert("name", value("cherry"))
-                val old = array.replace(1, newTable).unwrap()
+                newTable.put("name", Item(Value.String("cherry")))
+                val old = array.set(1, newTable).unwrap()
                 assertEquals("banana", old["name"].stringOrNull)
             }
             .producesDisplay("""
@@ -1519,6 +1516,6 @@ name = "cherry"
     fun arrayOfTablesReplaceOutOfBounds() {
         val array = ArrayOfTables()
         val t = Table()
-        assertEquals(TomlEditError.IndexOutOfBounds(0, 0), array.replace(0, t).unwrapErr())
+        assertEquals(TomlEditError.IndexOutOfBounds(0, 0), array.set(0, t).unwrapErr())
     }
 }

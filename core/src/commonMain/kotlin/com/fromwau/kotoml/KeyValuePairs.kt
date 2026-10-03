@@ -27,7 +27,7 @@ internal class PathSpelling private constructor(
     fun resolve(current: List<Key>): List<Key> {
         if (current.size != keys.size) return current
         for (index in current.indices) {
-            if (current[index].get() != keys[index].get() || looks(current[index]) != sharedLooks[index]) {
+            if (current[index].name != keys[index].name || looks(current[index]) != sharedLooks[index]) {
                 return current
             }
         }
@@ -41,11 +41,11 @@ internal class PathSpelling private constructor(
         shared = null
     }
 
-    fun clone(): PathSpelling = PathSpelling(keys.map { it.clone() }, shared, sharedLooks)
+    fun copy(): PathSpelling = PathSpelling(keys.map { it.copy() }, shared, sharedLooks)
 
     companion object {
         fun of(spelled: List<Key>, shared: List<Key>): PathSpelling =
-            PathSpelling(spelled.map { it.clone() }, shared, shared.map(::looks))
+            PathSpelling(spelled.map { it.copy() }, shared, shared.map(::looks))
 
         /** Everything about a key that printing a path uses. */
         private fun looks(key: Key): String =
@@ -71,13 +71,13 @@ internal class KeyValuePairs {
 
     /** Inserts or replaces the item under [key]'s text; a replaced entry keeps its own key and position. */
     fun insert(key: Key, item: Item): Item? {
-        val existing = entries[key.get()]
+        val existing = entries[key.name]
         if (existing != null) {
             val old = existing.item
             existing.item = item
             return old
         }
-        entries[key.get()] = KeyValue(key, item)
+        entries[key.name] = KeyValue(key, item)
         return null
     }
 
@@ -101,17 +101,17 @@ internal class KeyValuePairs {
     fun sortBy(comparator: Comparator<KeyValue>) {
         val sorted = entries.values.sortedWith(comparator)
         entries.clear()
-        for (entry in sorted) entries[entry.key.get()] = entry
+        for (entry in sorted) entries[entry.key.name] = entry
     }
 
     fun deepClone(): KeyValuePairs {
         val copy = KeyValuePairs()
         for (entry in entries.values) {
-            val clone = KeyValue(entry.key.clone(), entry.item.copySlot())
+            val clone = KeyValue(entry.key.copy(), entry.item.copySlot())
             clone.lineEnding = entry.lineEnding
             clone.order = entry.order
-            clone.pathSpelling = entry.pathSpelling?.clone()
-            copy.entries[entry.key.get()] = clone
+            clone.pathSpelling = entry.pathSpelling?.copy()
+            copy.entries[entry.key.name] = clone
         }
         return copy
     }

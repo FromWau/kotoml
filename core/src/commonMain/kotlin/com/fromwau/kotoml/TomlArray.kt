@@ -9,11 +9,21 @@ import com.fromwau.kern.result.Result
  * An array value, `[1, 2, 3]`, with its formatting: the decor around it, a trailing comma, and the text
  * after the last element.
  *
- * Upstream calls it `Array`; the Kotlin name keeps it from shadowing `kotlin.Array`.
+ * A value added to the array is stored as is, not copied: keep using it only through the array, or add its
+ * `copy()`.
+ *
+ * ```kotlin
+ * val array = tomlArrayOf(Value.Integer(1L))
+ * array.add("two")
+ * array.toString() // "[1, \"two\"]"
+ * ```
  */
 public class TomlArray() : Iterable<Value> {
     internal var rawTrailing: RawString = RawString()
-    private var trailingComma: Boolean = false
+
+    /** Whether the array ends with a comma after its last element. */
+    public var trailingComma: Boolean = false
+
     internal val rawDecor: RawDecor = RawDecor()
     internal var span: Span? = null
 
@@ -21,34 +31,25 @@ public class TomlArray() : Iterable<Value> {
     internal val values: MutableList<Item> = mutableListOf()
 
     /** Drops the formatting of every element and of the end, putting the array on one line. */
-    public fun fmt() {
+    public fun resetFormatting() {
         var index = 0
         for (item in values) {
-            val value = item.asValue() ?: continue
+            val value = item.valueOrNull ?: continue
             val (prefix, suffix) = if (index == 0) DEFAULT_LEADING_VALUE_DECOR else DEFAULT_VALUE_DECOR
             value.decorate(prefix, suffix)
             index++
         }
         // Everything is on one line now, so a trailing comma and trailing text go too.
-        setTrailingComma(false)
-        setTrailing("")
+        trailingComma = false
+        trailing = ""
     }
 
-    /** Sets whether the array ends with a comma after its last element. */
-    public fun setTrailingComma(yes: Boolean) {
-        trailingComma = yes
-    }
-
-    /** Whether the array ends with a comma after its last element. */
-    public fun trailingComma(): Boolean = trailingComma
-
-    /** Sets the text after the last element: whitespace, comments, newlines. */
-    public fun setTrailing(trailing: String) {
-        rawTrailing = RawString.from(trailing)
-    }
-
-    /** The text after the last element. */
-    public fun trailing(): String = rawTrailing.toStrWithDefault("")
+    /** The text after the last element: whitespace, comments, newlines. */
+    public var trailing: String
+        get() = rawTrailing.toStrWithDefault("")
+        set(value) {
+            rawTrailing = RawString.from(value)
+        }
 
     /** The text around the array, such as the whitespace between it and the `=` before it. */
     public var decor: Decor
@@ -64,19 +65,14 @@ public class TomlArray() : Iterable<Value> {
         for (value in values) value.despan(input)
     }
 
-    /** The values, in order. */
-    public fun iter(): Iterator<Value> = values.mapNotNull { it.asValue() }.iterator()
-
-    /** The values, in order, to change in place. */
-    public fun iterMut(): Iterator<Value> = iter()
-
-    override fun iterator(): Iterator<Value> = iter()
+    override fun iterator(): Iterator<Value> = values.mapNotNull { it.valueOrNull }.iterator()
 
     /** The number of values. */
-    public fun len(): Int = values.size
+    public val size: Int
+        get() = values.size
 
     /** Whether the array has no elements. */
-    public fun isEmpty(): Boolean = len() == 0
+    public fun isEmpty(): Boolean = size == 0
 
     /** Removes every element. */
     public fun clear() {
@@ -84,133 +80,130 @@ public class TomlArray() : Iterable<Value> {
     }
 
     /** The value at [index], or null when the index is out of bounds. */
-    public operator fun get(index: Int): Value? = values.getOrNull(index)?.asValue()
+    public operator fun get(index: Int): Value? = values.getOrNull(index)?.valueOrNull
 
-    /** The value at [index] to change in place, or null when the index is out of bounds. */
-    public fun getMut(index: Int): Value? = get(index)
-
-    /** Appends [value], applying default formatting to it. */
-    public fun push(value: Value) {
+    /** Appends [value], keeping its formatting; a value without decor gets the default spacing. */
+    public fun add(value: Value) {
         values.add(Item.inArray(value))
     }
 
     /** Appends a string. */
-    public fun push(value: String) {
-        push(Value.String(value))
+    public fun add(value: String) {
+        add(Value.String(value))
     }
 
     /** Appends an integer. */
-    public fun push(value: Long) {
-        push(Value.Integer(value))
+    public fun add(value: Long) {
+        add(Value.Integer(value))
     }
 
     /** Appends a float. */
-    public fun push(value: Double) {
-        push(Value.Float(value))
+    public fun add(value: Double) {
+        add(Value.Float(value))
     }
 
     /** Appends a boolean. */
-    public fun push(value: Boolean) {
-        push(Value.Boolean(value))
+    public fun add(value: Boolean) {
+        add(Value.Boolean(value))
     }
 
     /** Appends a date-time. */
-    public fun push(value: Datetime) {
-        push(Value.Datetime(value))
-    }
-
-    /** Appends an already formatted value, keeping its formatting. */
-    public fun pushFormatted(value: Value) {
-        values.add(Item.inArray(value))
+    public fun add(value: Datetime) {
+        add(Value.Datetime(value))
     }
 
     /**
-     * Inserts [value] at [index], shifting later elements right. Fails when [index] is greater than
-     * [len]; upstream panics there.
+     * Inserts [value] at [index], keeping its formatting and shifting later elements right.
+     *
+     * @return [TomlEditError.IndexOutOfBounds], with nothing inserted, when [index] is negative or greater
+     *   than [size].
      */
-    public fun insert(index: Int, value: Value): EmptyResult<TomlEditError> {
+    public fun add(
+        index: Int,
+        value: Value,
+    ): EmptyResult<TomlEditError> {
         if (index < 0 || index > values.size) return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         values.add(index, Item.inArray(value))
         return Ok(Unit)
     }
 
-    /** Inserts an already formatted value at [index]; fails as [insert] does. */
-    public fun insertFormatted(index: Int, value: Value): EmptyResult<TomlEditError> = insert(index, value)
+    /** Replaces the element at [index] with [value], which takes over the old element's decor; see [replace]. */
+    public operator fun set(
+        index: Int,
+        value: Value,
+    ): Result<Value, TomlEditError> = replace(index, value)
 
     /**
-     * Replaces the element at [index] with [value], keeping the old element's decor, and returns the old
-     * element. Fails when [index] is not less than [len]; upstream panics there.
+     * Replaces the element at [index] with [value].
+     *
+     * @param keepDecor whether [value] takes over the old element's decor, so it sits where the old one did;
+     *   false keeps [value]'s own decor.
+     * @return the old element, or [TomlEditError.IndexOutOfBounds], with nothing replaced, when there is no
+     *   element at [index].
      */
-    public fun replace(index: Int, value: Value): Result<Value, TomlEditError> {
-        val existing = get(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
-        value.rawDecor().assign(existing.rawDecor())
-        return replaceFormatted(index, value)
-    }
-
-    /** Replaces the element at [index] with an already formatted value; fails as [replace] does. */
-    public fun replaceFormatted(index: Int, value: Value): Result<Value, TomlEditError> {
-        if (index < 0 || index >= values.size) return Err(TomlEditError.IndexOutOfBounds(index, values.size))
-        val old = values[index]
+    public fun replace(
+        index: Int,
+        value: Value,
+        keepDecor: Boolean = true,
+    ): Result<Value, TomlEditError> {
+        val old = get(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
+        if (keepDecor) value.rawDecor().assign(old.rawDecor())
         values[index] = Item.inArray(value)
-        return old.asValue()?.let { Ok(it) } ?: Err(TomlEditError.NotAValue(old.type))
+        return Ok(old)
     }
 
-    /** Removes and returns the element at [index]. Fails when [index] is out of bounds; upstream panics. */
-    public fun remove(index: Int): Result<Value, TomlEditError> {
-        if (index < 0 || index >= values.size) return Err(TomlEditError.IndexOutOfBounds(index, values.size))
-        val removed = values.removeAt(index)
-        return removed.asValue()?.let { Ok(it) } ?: Err(TomlEditError.NotAValue(removed.type))
+    /**
+     * Removes the element at [index].
+     *
+     * @return the removed element, or [TomlEditError.IndexOutOfBounds] when there is no element at [index].
+     */
+    public fun removeAt(index: Int): Result<Value, TomlEditError> {
+        val removed = get(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
+        values.removeAt(index)
+        return Ok(removed)
     }
 
-    /** Keeps only the values [keep] accepts, in order, visiting each once. */
-    public fun retain(keep: (Value) -> Boolean) {
-        values.retainAll { item -> item.asValue()?.let(keep) ?: false }
+    /** Keeps only the values [predicate] accepts, in order, visiting each once. */
+    public fun retainAll(predicate: (Value) -> Boolean) {
+        values.retainAll { item -> item.valueOrNull?.let(predicate) ?: false }
     }
 
-    /** Sorts the values with [compare]. The sort is stable. */
-    public fun sortBy(compare: (Value, Value) -> Int) {
-        values.sortWith { left, right ->
-            val leftValue = left.asValue()
-            val rightValue = right.asValue()
-            when {
-                leftValue == null && rightValue == null -> 0
-                leftValue == null -> -1
-                rightValue == null -> 1
-                else -> compare(leftValue, rightValue)
-            }
-        }
+    /** Sorts the values with [comparator]. The sort is stable. */
+    public fun sortWith(comparator: Comparator<Value>) {
+        values.sortWith(compareBy(nullsFirst(comparator)) { item: Item -> item.valueOrNull })
     }
 
     /** Sorts the values by the key [selector] gives each. The sort is stable. */
-    public fun <K : Comparable<K>> sortByKey(selector: (Value) -> K) {
-        values.sortWith(compareBy(nullsFirst()) { item: Item -> item.asValue()?.let(selector) })
+    public fun <K : Comparable<K>> sortBy(selector: (Value) -> K) {
+        values.sortWith(compareBy(nullsFirst()) { item: Item -> item.valueOrNull?.let(selector) })
     }
 
     /** Appends every value of [values], keeping their formatting. */
-    public fun extend(values: Iterable<Value>) {
-        for (value in values) pushFormatted(value)
+    public fun addAll(values: Iterable<Value>) {
+        for (value in values) add(value)
     }
 
     /** A deep copy of this array. */
-    public fun clone(): TomlArray {
+    public fun copy(): TomlArray {
         val copy = TomlArray()
         copy.rawTrailing = rawTrailing
         copy.trailingComma = trailingComma
         copy.rawDecor.assign(rawDecor)
         copy.span = span
-        for (value in iter()) copy.values.add(Item.inArray(value.copy()))
+        for (value in this) copy.values.add(Item.inArray(value.copy()))
         return copy
     }
 
     /** The array as TOML, with its decor. */
     override fun toString(): String = buildString { encodeArray(this, this@TomlArray, "", "") }
+}
 
-    public companion object {
-        /** An array of [values], keeping their formatting. */
-        public fun fromIter(values: Iterable<Value>): TomlArray {
-            val array = TomlArray()
-            for (value in values) array.values.add(Item.inArray(value))
-            return array
-        }
-    }
+/** An array of [values], in order, keeping their formatting. */
+public fun tomlArrayOf(vararg values: Value): TomlArray = values.asIterable().toTomlArray()
+
+/** An array of these values, in order, keeping their formatting. */
+public fun Iterable<Value>.toTomlArray(): TomlArray {
+    val array = TomlArray()
+    array.addAll(this)
+    return array
 }

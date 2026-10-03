@@ -126,9 +126,9 @@ times need seconds in TOML 1.0
     fun valueAndKeyParsingTakeTheVersion() {
         assertTrue(Value.parse("{ a = 1, }").isOk())
         assertTrue(!Value.parse("{ a = 1, }", TomlVersion.V1_0).isOk())
-        assertTrue(Key.parseSimple("\"\\x41\"").isOk())
-        assertTrue(!Key.parseSimple("\"\\x41\"", TomlVersion.V1_0).isOk())
-        assertTrue(!Key.parse("a.\"\\e\"", TomlVersion.V1_0).isOk())
-        assertTrue(!Item.parse("07:32", TomlVersion.V1_0).isOk())
+        assertTrue(Key.parse("\"\\x41\"").isOk())
+        assertTrue(!Key.parse("\"\\x41\"", TomlVersion.V1_0).isOk())
+        assertTrue(!Key.parsePath("a.\"\\e\"", TomlVersion.V1_0).isOk())
+        assertTrue(!Value.parse("07:32", TomlVersion.V1_0).isOk())
     }
 }

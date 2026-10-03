@@ -26,7 +26,7 @@ internal fun RawDecor.dbg(): Dbg = struct(
 
 internal fun Key.dbg(): Dbg = struct(
     "Key",
-    "key" to str(get()),
+    "key" to str(name),
     "repr" to option(repr) { it.dbg() },
     "leaf_decor" to rawLeafDecor.dbg(),
     "dotted_decor" to rawDottedDecor.dbg(),
@@ -52,7 +52,7 @@ internal fun Value.dbg(): Dbg = when (this) {
 internal fun TomlArray.dbg(): Dbg = struct(
     "Array",
     "trailing" to rawTrailing.dbg(),
-    "trailing_comma" to lit(trailingComma()),
+    "trailing_comma" to lit(trailingComma),
     "decor" to rawDecor.dbg(),
     "span" to span.dbgOption(),
     "values" to seq(values.map { it.dbg() }),
@@ -63,20 +63,20 @@ private fun KeyValuePairs.dbg(): Dbg = Dbg.MapOf(entries().map { it.key.dbg() to
 internal fun InlineTable.dbg(): Dbg = struct(
     "InlineTable",
     "trailing" to rawTrailing.dbg(),
-    "trailing_comma" to lit(trailingComma()),
-    "implicit" to lit(isImplicit()),
+    "trailing_comma" to lit(trailingComma),
+    "implicit" to lit(isImplicit),
     "decor" to rawDecor.dbg(),
     "span" to span.dbgOption(),
-    "dotted" to lit(isDotted()),
+    "dotted" to lit(isDotted),
     "items" to items.dbg(),
 )
 
 internal fun Table.dbg(): Dbg = struct(
     "Table",
     "decor" to rawDecor.dbg(),
-    "implicit" to lit(isImplicit()),
-    "dotted" to lit(isDotted()),
-    "doc_position" to option(position()) { lit(it) },
+    "implicit" to lit(isImplicit),
+    "dotted" to lit(isDotted),
+    "doc_position" to option(position) { lit(it) },
     "span" to span.dbgOption(),
     "items" to items.dbg(),
 )
@@ -88,9 +88,9 @@ internal fun ArrayOfTables.dbg(): Dbg = struct(
 )
 
 internal fun Item.dbg(): Dbg {
-    asValue()?.let { return tuple("Value", it.dbg()) }
-    asTable()?.let { return tuple("Table", it.dbg()) }
-    asArrayOfTables()?.let { return tuple("ArrayOfTables", it.dbg()) }
+    valueOrNull?.let { return tuple("Value", it.dbg()) }
+    tableOrNull?.let { return tuple("Table", it.dbg()) }
+    arrayOfTablesOrNull?.let { return tuple("ArrayOfTables", it.dbg()) }
     return lit("None")
 }
 

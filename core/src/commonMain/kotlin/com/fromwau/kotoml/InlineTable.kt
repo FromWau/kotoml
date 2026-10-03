@@ -1,6 +1,5 @@
 package com.fromwau.kotoml
 
-import com.fromwau.kern.result.EmptyResult
 import com.fromwau.kern.result.Err
 import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
@@ -10,14 +9,26 @@ import com.fromwau.kern.result.Result
  *
  * Its entries are values. A dotted key such as `b.c` is held as a nested inline table marked dotted, so it
  * prints back as a dotted key rather than as `b = { c = 2 }`.
+ *
+ * ```kotlin
+ * val table = inlineTableOf("a" to Value.Integer(1L))
+ * table["b"] = "two"
+ * table.toString() // "{ a = 1, b = \"two\" }"
+ * ```
  */
 public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
     internal var rawTrailing: RawString = RawString()
-    private var trailingComma: Boolean = false
-    private var implicit: Boolean = false
+
+    /** Whether the table ends with a comma after its last entry. */
+    public var trailingComma: Boolean = false
+
+    internal var isImplicit: Boolean = false
     internal val rawDecor: RawDecor = RawDecor()
     internal var span: Span? = null
-    private var dotted: Boolean = false
+
+    /** Whether this table stands for the parts of a dotted key rather than for `{ ... }`. */
+    override var isDotted: Boolean = false
+
     internal var items: KeyValuePairs = KeyValuePairs()
 
     internal constructor(items: KeyValuePairs) : this() {
@@ -25,15 +36,18 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
         this.items = items
     }
 
-    /** Turns this inline table into a standard table, moving its entries there and formatting it anew. */
-    public fun intoTable(): Table {
+    /** A standard table holding copies of this table's entries, formatted anew; this table stays as it is. */
+    public fun toTable(): Table = copy().intoTable()
+
+    /** Moves the entries into a new standard table, formatted anew, leaving this table empty. */
+    internal fun intoTable(): Table {
         val table = Table(items.takeAll())
-        table.fmt()
+        table.resetFormatting()
         return table
     }
 
     /** The values visually under this table with the key path that reaches each, dotted keys followed. */
-    override fun getValues(): List<Pair<List<Key>, Value>> = visualValues().map { it.path to it.value }
+    override fun valuesWithPaths(): List<Pair<List<Key>, Value>> = visualValues().map { it.path to it.value }
 
     /** The values in the order they print: as read from text, new ones after their sibling. */
     internal fun visualValues(): List<VisualValue> {
@@ -46,10 +60,10 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
         for (entry in items.entries()) {
             path.add(entry.key)
             val item = entry.item
-            val value = item.asValue()
-            val table = item.asTable()
+            val value = item.valueOrNull
+            val table = item.tableOrNull
             when {
-                value is Value.InlineTable && value.table.isDotted() -> value.table.appendValues(path, values)
+                value is Value.InlineTable && value.table.isDotted -> value.table.appendValues(path, values)
                 value != null -> values.add(VisualValue(path.toList(), value, entry))
                 table != null -> table.appendAllValues(path, values)
             }
@@ -62,57 +76,49 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
         for (entry in items.entries()) {
             entry.order = null
             val table = entry.item.inlineTableOrNull
-            if (table != null && table.isDotted()) table.forgetOrder()
+            if (table != null && table.isDotted) table.forgetOrder()
         }
     }
 
     /** Drops the formatting of every key and value, for the default `{ a = 1, b = 2 }` layout. */
-    override fun fmt() {
+    override fun resetFormatting() {
         for (entry in items.entries()) {
-            val value = entry.item.asValue() ?: continue
+            val value = entry.item.valueOrNull ?: continue
             entry.key.rawLeafDecor.clear()
             entry.key.rawDottedDecor.clear()
             value.rawDecor().clear()
         }
     }
 
-    /** Sets whether the table ends with a comma after its last entry. */
-    public fun setTrailingComma(yes: Boolean) {
-        trailingComma = yes
-    }
-
-    /** Whether the table ends with a comma after its last entry. */
-    public fun trailingComma(): Boolean = trailingComma
-
-    /** Sets the text after the last entry. */
-    public fun setTrailing(trailing: String) {
-        rawTrailing = RawString.from(trailing)
-    }
-
     /** The text after the last entry. */
-    public fun trailing(): String = rawTrailing.toStrWithDefault("")
+    public var trailing: String
+        get() = rawTrailing.toStrWithDefault("")
+        set(value) {
+            rawTrailing = RawString.from(value)
+        }
 
     /** Sorts the entries by key, dotted sub-tables included. The sort is stable and not recursive. */
     override fun sortValues() {
-        forgetOrder()
-        items.sortBy { left, right -> left.key.compareTo(right.key) }
-        for (entry in items.entries()) {
-            val table = entry.item.inlineTableOrNull
-            if (table != null && table.isDotted()) table.sortValues()
-        }
+        sortValuesWith { left, right -> left.first.compareTo(right.first) }
     }
 
     /**
-     * Sorts the entries with [compare], given two keys and their values; dotted sub-tables are sorted the same
-     * way. The sort is stable and not recursive otherwise.
+     * Sorts the entries with [comparator], given each key with its formatting and its value. Dotted sub-tables
+     * are sorted the same way; the sort is stable and not recursive otherwise.
      */
-    public fun sortValuesBy(compare: (Key, Value, Key, Value) -> Int) {
+    public fun sortValuesWith(comparator: Comparator<Pair<Key, Value>>) {
         forgetOrder()
+        sortEntriesWith(comparator)
+    }
+
+    private fun sortEntriesWith(comparator: Comparator<Pair<Key, Value>>) {
         items.sortBy { left, right ->
-            val leftValue = left.item.asValue()
-            val rightValue = right.item.asValue()
+            val leftValue = left.item.valueOrNull
+            val rightValue = right.item.valueOrNull
             when {
-                leftValue != null && rightValue != null -> compare(left.key, leftValue, right.key, rightValue)
+                leftValue != null && rightValue != null -> {
+                    comparator.compare(left.key to leftValue, right.key to rightValue)
+                }
                 leftValue != null -> 1
                 rightValue != null -> -1
                 else -> 0
@@ -120,23 +126,9 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
         }
         for (entry in items.entries()) {
             val table = entry.item.inlineTableOrNull
-            if (table != null && table.isDotted()) table.sortValuesBy(compare)
+            if (table != null && table.isDotted) table.sortEntriesWith(comparator)
         }
     }
-
-    internal fun setImplicit(implicit: Boolean) {
-        this.implicit = implicit
-    }
-
-    internal fun isImplicit(): Boolean = implicit
-
-    /** Marks this table as standing for the parts of a dotted key, or not. */
-    override fun setDotted(yes: Boolean) {
-        dotted = yes
-    }
-
-    /** Whether this table stands for the parts of a dotted key rather than for `{ ... }`. */
-    override fun isDotted(): Boolean = dotted
 
     /** The text around the table, such as the whitespace between it and the `=` before it. */
     public var decor: Decor
@@ -145,11 +137,8 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
             rawDecor.set(value)
         }
 
-    /** The key [key] as stored, with its formatting. */
-    override fun key(key: String): Key? = items.getEntry(key)?.key
-
-    /** A view of the key [key] that can change its formatting. */
-    override fun keyMut(key: String): KeyMut? = key(key)?.asMut()
+    /** The key [name] as stored, whose formatting can be changed in place; null when there is none. */
+    override fun key(name: String): Key? = items.getEntry(name)?.key
 
     internal fun despan(input: SourceText) {
         span = null
@@ -162,241 +151,150 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
         }
     }
 
-    /** The key/value pairs, in order. */
-    public fun iter(): Iterator<Pair<String, Value>> = items.snapshot()
-        .mapNotNull { entry -> entry.item.asValue()?.let { entry.key.get() to it } }
+    override fun iterator(): Iterator<Pair<String, Value>> = items.entries()
+        .mapNotNull { entry -> entry.item.valueOrNull?.let { entry.key.name to it } }
         .iterator()
 
-    /** The key/value pairs, in order, with the keys' formatting open to change. */
-    public fun iterMut(): Iterator<Pair<KeyMut, Value>> = items.snapshot()
-        .mapNotNull { entry -> entry.item.asValue()?.let { entry.key.asMut() to it } }
-        .iterator()
-
-    override fun iterator(): Iterator<Pair<String, Value>> = iter()
+    /** The key/item pairs, in order; each item holds a value. */
+    override fun items(): List<Pair<String, Item>> = items.entries()
+        .filter { !it.item.isNone }
+        .map { it.key.name to it.item }
 
     /** The number of key/value pairs. */
-    override fun len(): Int = items.entries().count { it.item.isValue() }
+    override val size: Int
+        get() = items.entries().count { it.item.valueOrNull != null }
 
     /** Whether the table has no key/value pairs. */
-    override fun isEmpty(): Boolean = len() == 0
+    override fun isEmpty(): Boolean = size == 0
 
     /** Removes every entry. */
     override fun clear() {
         items.clear()
     }
 
-    /** The entry for [key], to read, insert or change in place. */
-    public fun entry(key: String): InlineEntry = entryFor(Key(key))
-
-    /** The entry for [key], keeping the key's formatting if it is inserted. */
-    public fun entryFormat(key: Key): InlineEntry = entryFor(key.clone())
-
-    private fun entryFor(key: Key): InlineEntry {
-        val existing = items.getEntry(key.get()) ?: return InlineVacantEntry(this, key)
-        // An occupied entry always holds a value, which keeps the occupied entry simple.
-        if (!existing.item.isValue()) {
-            val value = existing.item.intoValue() ?: Value.InlineTable(InlineTable())
-            existing.item = Item.inInlineTable(value)
-        }
-        return InlineOccupiedEntry(this, existing)
-    }
-
     /** The value at [key], or null when there is none. */
-    public operator fun get(key: String): Value? = items.get(key)?.asValue()
+    public operator fun get(key: String): Value? = items.get(key)?.valueOrNull
 
-    /** The value at [key] to change in place, or null when there is none. */
-    public fun getMut(key: String): Value? = get(key)
+    /** The slot at [key], or null when there is none. */
+    override fun item(key: String): Item? = items.get(key)?.takeIf { !it.isNone }
 
-    /**
-     * Replaces the value at an existing [key], keeping the key's formatting: upstream's `table[key] = value`.
-     * Fails when the key is not there, where upstream panics; use [insert] to add one.
-     */
-    public operator fun set(key: String, value: Value): EmptyResult<TomlEditError> {
-        val entry = items.getEntry(key)
-        if (entry == null || !entry.item.isValue()) return Err(TomlEditError.KeyNotFound(key))
-        entry.item = Item.inInlineTable(value)
-        return Ok(Unit)
+    /** Sets [key] to [value], keeping the key's position and formatting when it is already there. */
+    public operator fun set(
+        key: String,
+        value: Value,
+    ) {
+        items.insert(Key(key), Item.inInlineTable(value))
     }
-
-    /** The key and item at [key], unless the slot is empty. */
-    override fun getKeyValue(key: String): Pair<Key, Item>? =
-        items.getEntry(key)?.takeIf { !it.item.isNone() }?.let { it.key to it.item }
-
-    /** The key, open to formatting changes, and item at [key], unless the slot is empty. */
-    override fun getKeyValueMut(key: String): Pair<KeyMut, Item>? =
-        items.getEntry(key)?.takeIf { !it.item.isNone() }?.let { it.key.asMut() to it.item }
 
     /** Whether there is a value at [key]. */
-    override fun containsKey(key: String): Boolean = items.get(key)?.isValue() ?: false
+    override fun containsKey(key: String): Boolean = items.get(key)?.valueOrNull != null
 
-    /** The value at [key], inserting [value] first when there is none. */
-    public fun getOrInsert(key: String, value: Value): Value {
-        val existing = items.get(key)
-        if (existing != null) return existing.asValue() ?: value
-        items.insert(Key(key), Item.inInlineTable(value))
+    /** Whether there is a value at [key], for `key in table`. */
+    public operator fun contains(key: String): Boolean = containsKey(key)
+
+    /**
+     * The value at [key], first storing what [default] makes when there is none. [default] is called only then.
+     *
+     * @return the stored value, to change in place.
+     */
+    public fun getOrPut(
+        key: String,
+        default: () -> Value,
+    ): Value = getOrPut(Key(key), default)
+
+    /** As [getOrPut], an inserted key keeping the spelling and decor of [key]. */
+    public fun getOrPut(
+        key: Key,
+        default: () -> Value,
+    ): Value {
+        get(key.name)?.let { return it }
+        val value = default()
+        items.insert(key.copy(), Item.inInlineTable(value))
         return value
     }
 
     /**
-     * Sets [key] to [value], returning the value it replaces. A replaced key loses its formatting; use
-     * [insertFormatted] to keep a key's spelling.
+     * Sets [key] to [value]. A key already there keeps its position but loses its formatting; pass a [Key] to
+     * choose it.
+     *
+     * @return the value [key] held before, or null when it held none.
      */
-    public fun insert(key: String, value: Value): Value? {
-        val existing = items.getEntry(key)
+    public fun put(
+        key: String,
+        value: Value,
+    ): Value? = put(Key(key), value)
+
+    /**
+     * Sets [key], with its spelling and decor, to [value]. A key already there keeps its position.
+     *
+     * @return the value the key held before, or null when it held none.
+     */
+    public fun put(
+        key: Key,
+        value: Value,
+    ): Value? {
+        val existing = items.getEntry(key.name)
         if (existing != null) {
-            existing.key.fmt()
+            existing.key = key.copy()
             val old = existing.item
             existing.item = Item.inInlineTable(value)
-            return old.intoValue()
+            return old.valueOrNull
         }
-        items.insert(Key(key), Item.inInlineTable(value))
+        items.insert(key.copy(), Item.inInlineTable(value))
         return null
     }
 
-    /** Sets [key], with its formatting, to [value], returning the value it replaces. */
-    public fun insertFormatted(key: Key, value: Value): Value? {
-        val existing = items.getEntry(key.get())
-        if (existing != null) {
-            existing.key = key.clone()
-            val old = existing.item
-            existing.item = Item.inInlineTable(value)
-            return old.intoValue()
-        }
-        items.insert(key.clone(), Item.inInlineTable(value))
-        return null
+    override fun putItem(
+        key: String,
+        item: Item,
+    ): Result<Item?, TomlEditError> {
+        val value = item.copy().intoValue() ?: return Err(TomlEditError.NotAValue(item.type))
+        return Ok(put(key, value)?.let { Item(it) })
     }
 
-    /** Removes [key] and returns its value. */
-    public fun remove(key: String): Value? = items.shiftRemove(key)?.item?.intoValue()
+    /** Removes [key] and returns its value, or null when it held none. */
+    public fun remove(key: String): Value? = items.shiftRemove(key)?.item?.valueOrNull
 
-    /** Removes [key] and returns it, with its formatting, and its value. */
-    public fun removeEntry(key: String): Pair<Key, Value>? {
-        val removed = items.shiftRemove(key) ?: return null
-        val value = removed.item.intoValue() ?: return null
-        return removed.key to value
+    override fun removeItem(key: String): Item? = remove(key)?.let { Item(it) }
+
+    /** Keeps only the pairs [predicate] accepts, visiting them in order. */
+    public fun retainAll(predicate: (String, Value) -> Boolean) {
+        items.retain { entry -> entry.item.valueOrNull?.let { predicate(entry.key.name, it) } ?: false }
     }
 
-    /** Keeps only the pairs [keep] accepts, visiting them in order. */
-    public fun retain(keep: (String, Value) -> Boolean) {
-        items.retain { entry -> entry.item.asValue()?.let { keep(entry.key.get(), it) } ?: false }
-    }
-
-    /** Adds every pair of [pairs], keeping the values' formatting. */
-    public fun extend(pairs: Iterable<Pair<String, Value>>) {
-        for ((key, value) in pairs) items.insert(Key(key), Item.inInlineTable(value))
+    /** Sets the key of every pair of [pairs] to its value, in order, as `table[key] = value` does. */
+    public fun putAll(pairs: Iterable<Pair<String, Value>>) {
+        for ((key, value) in pairs) set(key, value)
     }
 
     /** A deep copy of this table. */
-    public fun clone(): InlineTable {
+    public fun copy(): InlineTable {
         val copy = InlineTable(items.deepClone())
         copy.rawTrailing = rawTrailing
         copy.trailingComma = trailingComma
-        copy.implicit = implicit
+        copy.isImplicit = isImplicit
         copy.rawDecor.assign(rawDecor)
         copy.span = span
-        copy.dotted = dotted
+        copy.isDotted = isDotted
         return copy
     }
 
     /** The table as TOML, with its decor. */
     override fun toString(): String = buildString { encodeInlineTable(this, this@InlineTable, "", "") }
+}
 
-    // TableLike, over items rather than values. An inline table's slots may be empty here.
+/** An inline table of [pairs], in order, keeping the values' formatting. */
+public fun inlineTableOf(vararg pairs: Pair<String, Value>): InlineTable = pairs.asIterable().toInlineTable()
 
-    override fun iterItems(): Iterator<Pair<String, Item>> = items.snapshot().map { it.key.get() to it.item }.iterator()
-
-    override fun iterItemsMut(): Iterator<Pair<KeyMut, Item>> =
-        items.snapshot().map { it.key.asMut() to it.item }.iterator()
-
-    override fun itemEntry(key: String): Entry = tableEntry(items, Key(key), Item.Holds.Value)
-
-    override fun itemEntryFormat(key: Key): Entry = tableEntry(items, Key(key.get()), Item.Holds.Value)
-
-    override fun getItem(key: String): Item? = items.get(key)
-
-    override fun insertItem(key: String, item: Item): Result<Item?, TomlEditError> {
-        val value = item.clone().intoValue() ?: return Err(TomlEditError.NotAValue(item.type))
-        return Ok(insert(key, value)?.let { Item.from(it) })
-    }
-
-    override fun removeItem(key: String): Item? = remove(key)?.let { Item.from(it) }
-
-    public companion object {
-        /** An inline table of [pairs], keeping the values' formatting. */
-        public fun fromIter(pairs: Iterable<Pair<String, Value>>): InlineTable {
-            val table = InlineTable()
-            table.extend(pairs)
-            return table
-        }
-    }
+/**
+ * An inline table of these pairs, in order, keeping the values' formatting; a later pair for the same key
+ * replaces an earlier one.
+ */
+public fun Iterable<Pair<String, Value>>.toInlineTable(): InlineTable {
+    val table = InlineTable()
+    table.putAll(this)
+    return table
 }
 
 // `{ key1 = value1, ... }`
 internal val DEFAULT_INLINE_KEY_DECOR: Pair<String, String> = " " to " "
-
-/** An entry of an [InlineTable], from [InlineTable.entry]: either occupied or vacant. */
-public sealed interface InlineEntry {
-    /** The entry's key. */
-    public fun key(): String
-
-    /** The value in the entry, inserting [default] first when it is vacant. */
-    public fun orInsert(default: Value): Value = when (this) {
-        is InlineOccupiedEntry -> intoMut()
-        is InlineVacantEntry -> insert(default)
-    }
-
-    /** The value in the entry, inserting what [default] makes first when it is vacant. */
-    public fun orInsertWith(default: () -> Value): Value = when (this) {
-        is InlineOccupiedEntry -> intoMut()
-        is InlineVacantEntry -> insert(default())
-    }
-}
-
-/** An [InlineEntry] that holds a value. */
-public class InlineOccupiedEntry internal constructor(
-    private val table: InlineTable,
-    private val entry: KeyValue,
-) : InlineEntry {
-
-    override fun key(): String = entry.key.get()
-
-    /** A view of the key that can change its formatting. */
-    public fun keyMut(): KeyMut = entry.key.asMut()
-
-    /** The value. */
-    public fun get(): Value = entry.item.asValue() ?: Value.InlineTable(InlineTable())
-
-    /** The value, to change in place. */
-    public fun getMut(): Value = get()
-
-    /** The value, to change in place, upstream's `into_mut`. */
-    public fun intoMut(): Value = get()
-
-    /** Replaces the value, returning the old one. */
-    public fun insert(value: Value): Value {
-        val old = get()
-        entry.item = Item.inInlineTable(value)
-        return old
-    }
-
-    /** Removes the entry from its table and returns its value. */
-    public fun remove(): Value {
-        table.items.shiftRemove(entry.key.get())
-        return get()
-    }
-}
-
-/** An [InlineEntry] with no value yet. */
-public class InlineVacantEntry internal constructor(
-    private val table: InlineTable,
-    private val key: Key,
-) : InlineEntry {
-
-    override fun key(): String = key.get()
-
-    /** Inserts [value] under the entry's key and returns it. */
-    public fun insert(value: Value): Value {
-        table.items.insert(key, Item.inInlineTable(value))
-        return value
-    }
-}

@@ -24,11 +24,6 @@ public sealed interface TomlEditError : IError {
     @SerialName("NotAnArray")
     public data class NotAnArray(val index: Int, val itemType: TomlType) : TomlEditError
 
-    /** [key] is not in the inline table being assigned to through its index. */
-    @Serializable
-    @SerialName("KeyNotFound")
-    public data class KeyNotFound(val key: String) : TomlEditError
-
     /** An inline table or array can only hold values; an item of type [itemType] was given. */
     @Serializable
     @SerialName("NotAValue")

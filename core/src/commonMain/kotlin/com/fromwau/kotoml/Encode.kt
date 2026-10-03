@@ -56,7 +56,7 @@ internal fun encodeArray(buf: StringBuilder, array: TomlArray, defaultPrefix: St
 
     var index = 0
     for (item in array.values) {
-        val value = item.asValue() ?: continue
+        val value = item.valueOrNull ?: continue
         if (index == 0) {
             encodeValue(buf, value, DEFAULT_LEADING_VALUE_DECOR.first, DEFAULT_LEADING_VALUE_DECOR.second)
         } else {
@@ -65,7 +65,7 @@ internal fun encodeArray(buf: StringBuilder, array: TomlArray, defaultPrefix: St
         }
         index++
     }
-    if (array.trailingComma() && !array.isEmpty()) buf.append(',')
+    if (array.trailingComma && !array.isEmpty()) buf.append(',')
 
     encodeRaw(buf, array.rawTrailing.toStrWithDefault(""))
     buf.append(']')
@@ -88,7 +88,7 @@ internal fun encodeInlineTable(buf: StringBuilder, table: InlineTable, defaultPr
         buf.append('=')
         encodeValue(buf, value, inner.first, inner.second)
     }
-    if (table.trailingComma() && !table.isEmpty()) buf.append(',')
+    if (table.trailingComma && !table.isEmpty()) buf.append(',')
 
     encodeRaw(buf, table.rawTrailing.toStrWithDefault(""))
     buf.append('}')
@@ -143,7 +143,7 @@ internal fun encodeDocument(buf: StringBuilder, document: DocumentMut) {
     var lastPosition = 0L
     val tables = mutableListOf<TableToVisit>()
     visitNestedTables(root, mutableListOf(), false) { table, path, isArray ->
-        table.position()?.let { lastPosition = it }
+        table.position?.let { lastPosition = it }
         tables += TableToVisit(lastPosition, table, path.toList(), isArray)
     }
 
@@ -162,18 +162,18 @@ private fun visitNestedTables(
     isArrayOfTables: Boolean,
     callback: (Table, List<Key>, Boolean) -> Unit,
 ) {
-    if (!table.isDotted()) callback(table, path, isArrayOfTables)
+    if (!table.isDotted) callback(table, path, isArrayOfTables)
 
     for (entry in table.items.entries()) {
-        val child = entry.item.asTable()
-        val array = entry.item.asArrayOfTables()
+        val child = entry.item.tableOrNull
+        val array = entry.item.arrayOfTablesOrNull
         if (child != null) {
             path.add(entry.key)
             visitNestedTables(child, path, false, callback)
             path.removeAt(path.size - 1)
         } else if (array != null) {
             for (element in array.values) {
-                val tableElement = element.asTable() ?: continue
+                val tableElement = element.tableOrNull ?: continue
                 path.add(entry.key)
                 visitNestedTables(tableElement, path, true, callback)
                 path.removeAt(path.size - 1)
@@ -205,7 +205,7 @@ private fun visitTable(
     var first = firstTable
     val children = table.visualValues()
     // An implicit table with no values of its own is hidden, so deleting every table under it hides it too.
-    val isVisibleStdTable = !(table.implicit && children.isEmpty())
+    val isVisibleStdTable = !(table.isImplicit && children.isEmpty())
 
     if (path.isEmpty()) {
         if (children.isNotEmpty()) first = false

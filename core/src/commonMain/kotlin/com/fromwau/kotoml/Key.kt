@@ -15,22 +15,29 @@ import com.fromwau.kotoml.writer.toTomlKey
  *
  * The leaf decor is the text around the whole key where it ends a key/value line or a header; the dotted
  * decor is the text around this key's part of a dotted key, between the dots.
+ *
+ * @param leafDecor the text around the whole key; a `null` side prints the default spacing for where it stands.
+ * @param dottedDecor the text around this key's part of a dotted key.
  */
-public class Key(private val key: String) : Comparable<Key> {
+public class Key(
+    /** The key's text, as it reads after unquoting. */
+    public val name: String,
+    leafDecor: Decor = Decor(),
+    dottedDecor: Decor = Decor(),
+) : Comparable<Key> {
     internal var repr: Repr? = null
     internal val rawLeafDecor: RawDecor = RawDecor()
     internal val rawDottedDecor: RawDecor = RawDecor()
+
+    init {
+        rawLeafDecor.set(leafDecor)
+        rawDottedDecor.set(dottedDecor)
+    }
 
     internal fun withReprUnchecked(repr: Repr): Key {
         this.repr = repr
         return this
     }
-
-    /** A view that can change this key's formatting but not its text. */
-    public fun asMut(): KeyMut = KeyMut(this)
-
-    /** The key's text. */
-    public fun get(): String = key
 
     /** The text the key was written as, such as `"a b"` for the key `a b`, or null when it has none of its own. */
     public val spelling: String?
@@ -44,7 +51,7 @@ public class Key(private val key: String) : Comparable<Key> {
             .orEmpty()
 
     internal fun defaultRepr(): Repr = Repr.newUnchecked(
-        TomlKeyBuilder(key)
+        TomlKeyBuilder(name)
             .asDefault()
             .toTomlKey(),
     )
@@ -72,103 +79,63 @@ public class Key(private val key: String) : Comparable<Key> {
     }
 
     /** Drops the key's spelling and decor so it prints in its default form. */
-    public fun fmt() {
+    public fun resetFormatting() {
         repr = null
         rawLeafDecor.clear()
         rawDottedDecor.clear()
     }
 
     /** A copy of this key with its spelling and decor. */
-    public fun clone(): Key = Key(key).also {
+    public fun copy(): Key = Key(name).also {
         it.repr = repr
         it.rawLeafDecor.assign(rawLeafDecor)
         it.rawDottedDecor.assign(rawDottedDecor)
     }
 
-    override fun compareTo(other: Key): Int = compareRustStr(key, other.key)
+    override fun compareTo(other: Key): Int = compareRustStr(name, other.name)
 
-    override fun equals(other: Any?): Boolean = other is Key && key == other.key
+    override fun equals(other: Any?): Boolean = other is Key && name == other.name
 
-    override fun hashCode(): Int = key.hashCode()
+    override fun hashCode(): Int = name.hashCode()
 
     /** The key as TOML, in its own spelling or the default one. */
     override fun toString(): String = buildString { encodeKey(this, this@Key) }
 
     public companion object {
         /**
-         * Parses a key expression, dotted or not, into its parts: `a."b c".d` gives three keys.
+         * Parses one undotted key, bare or quoted, keeping its spelling: `"a b"` gives the key `a b`.
          *
-         * Unlike [parseSimple], whitespace around the parts and dots is allowed and kept as decor.
+         * @return the key, or the parse error when [text] is not exactly one key.
          */
         public fun parse(
-            repr: String,
+            text: String,
+            version: TomlVersion = TomlVersion.V1_1,
+        ): Result<Key, TomlParseError> {
+            val source = TomlSource(text)
+            val sink = TomlSink(text)
+            val key = parseSimpleKeyItem(source, sink, version)
+            sink.error()?.let { return Err(it) }
+            key.despan(SourceText(text))
+            return Ok(key)
+        }
+
+        /**
+         * Parses a key path, dotted or not, into its parts: `a."b c".d` gives three keys. Whitespace around the
+         * parts and dots is allowed and kept as each key's dotted decor.
+         */
+        public fun parsePath(
+            text: String,
             version: TomlVersion = TomlVersion.V1_1,
         ): Result<List<Key>, TomlParseError> {
-            val source = TomlSource(repr)
-            val sink = TomlSink(repr)
+            val source = TomlSource(text)
+            val sink = TomlSink(text)
             val keys = parseKeyPath(source, sink, version)
             sink.error()?.let { return Err(it) }
-            val input = SourceText(repr)
+            val input = SourceText(text)
             for (key in keys) key.despan(input)
             return Ok(keys)
         }
-
-        /** Parses one undotted key, bare or quoted: upstream's `FromStr for Key`. */
-        public fun parseSimple(
-            repr: String,
-            version: TomlVersion = TomlVersion.V1_1,
-        ): Result<Key, TomlParseError> {
-            val source = TomlSource(repr)
-            val sink = TomlSink(repr)
-            val key = parseSimpleKeyItem(source, sink, version)
-            sink.error()?.let { return Err(it) }
-            key.despan(SourceText(repr))
-            return Ok(key)
-        }
     }
-}
-
-/** A view of a [Key] that can change its formatting but not its text. */
-public class KeyMut internal constructor(private val key: Key) : Comparable<KeyMut> {
-
-    /** The key's text. */
-    public fun get(): String = key.get()
-
-    /** The text the key was written as, or null when it has none of its own; see [Key.spelling]. */
-    public val spelling: String?
-        get() = key.spelling
-
-    /** The text the key prints as; see [Key.displaySpelling]. */
-    public val displaySpelling: String
-        get() = key.displaySpelling
-
-    /** The text around the key where it ends a key/value line or a table header. */
-    public var leafDecor: Decor
-        get() = key.leafDecor
-        set(value) {
-            key.leafDecor = value
-        }
-
-    /** The text around this key's part of a dotted key, between the dots. */
-    public var dottedDecor: Decor
-        get() = key.dottedDecor
-        set(value) {
-            key.dottedDecor = value
-        }
-
-    /** Drops the key's spelling and decor so it prints in its default form. */
-    public fun fmt() {
-        key.fmt()
-    }
-
-    override fun compareTo(other: KeyMut): Int = key.compareTo(other.key)
-
-    override fun equals(other: Any?): Boolean = other is KeyMut && key == other.key
-
-    override fun hashCode(): Int = key.hashCode()
-
-    /** The key as TOML, in its own spelling or the default one. */
-    override fun toString(): String = key.toString()
 }
 
 /**

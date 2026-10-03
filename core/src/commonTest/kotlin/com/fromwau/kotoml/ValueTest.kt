@@ -10,8 +10,8 @@ class ValueTest {
     @Test
     fun `a null decor side prints the default and an empty one prints nothing`() {
         val table = Table()
-        table["a"] = value(Value.Integer(1L))
-        table["b"] = value(Value.Integer(2L, Decor(prefix = "", suffix = "")))
+        table["a"] = 1L
+        table["b"] = Value.Integer(2L, Decor(prefix = "", suffix = ""))
         assertEquals("a = 1\nb =2\n", table.toString())
     }
 
@@ -59,8 +59,8 @@ class ValueTest {
         assertNull(integer.datetimeOrNull)
         assertNull(integer.arrayOrNull)
         assertNull(integer.inlineTableOrNull)
-        assertEquals(true, value(true).booleanOrNull)
-        assertEquals(1.5, value(1.5).doubleOrNull)
+        assertEquals(true, Item(Value.Boolean(true)).booleanOrNull)
+        assertEquals(1.5, Item(Value.Float(1.5)).doubleOrNull)
     }
 
     @Test
@@ -74,7 +74,7 @@ class ValueTest {
         val key = Key("a")
         key.leafDecor = Decor(prefix = "", suffix = "  ")
         val table = Table()
-        table.insertFormatted(key, value(1L))
+        table.put(key, Item(Value.Integer(1L)))
         assertEquals("a  = 1\n", table.toString())
     }
 }

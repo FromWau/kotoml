@@ -179,7 +179,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
         finishTable()
 
         val trailing = takeTrailing()
-        return Document(Item.from(root), trailing, source.input(), lineEnding)
+        return Document(Item(root), trailing, source.input(), lineEnding)
     }
 
     private fun onTable(openEvent: Event): TableHeader {
@@ -232,15 +232,15 @@ private class DocumentBuilder(private val input: EventStream, private val contex
         val shared = mutableListOf<Key>()
         val parentTable = descendPath(currentTable, path, dotted, errors, shared) ?: return null
         // "Likewise, using dotted keys to redefine tables already defined in [table] form is not allowed"
-        val mixedTableTypes = dotted && !parentTable.isImplicit()
+        val mixedTableTypes = dotted && !parentTable.isImplicit
         if (mixedTableTypes) {
-            errors.report(Reason.DuplicateKey(key.get()), unexpected = keySpan(key))
+            errors.report(Reason.DuplicateKey(key.name), unexpected = keySpan(key))
             return null
         }
-        val existing = parentTable.items.getEntry(key.get())
+        val existing = parentTable.items.getEntry(key.name)
         if (existing == null) {
-            parentTable.items.insert(key, Item.from(value))
-            val entry = parentTable.items.getEntry(key.get())
+            parentTable.items.insert(key, Item(value))
+            val entry = parentTable.items.getEntry(key.name)
             entry?.order = context.nextOrder()
             if (dotted) entry?.pathSpelling = PathSpelling.of(path, shared)
             return entry
@@ -248,7 +248,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
             // "Since tables cannot be defined more than once, redefining such tables using a [table] header is
             // not allowed"
             errors.report(
-                Reason.DuplicateKey(key.get()),
+                Reason.DuplicateKey(key.name),
                 unexpected = keySpan(key),
                 context = existing.key.span(),
             )
@@ -274,23 +274,23 @@ private class DocumentBuilder(private val input: EventStream, private val contex
         if (header.path.isNotEmpty()) previousTable.headerSpelling = PathSpelling.of(header.path, shared)
         if (header.isArray) {
             val keySpan = keySpan(key)
-            val entry = parentTable.items.getEntry(key.get())
-                ?: KeyValue(key, Item.from(ArrayOfTables())).also { parentTable.items.insert(key, it.item) }
-            val array = entry.item.asArrayOfTables()
+            val entry = parentTable.items.getEntry(key.name)
+                ?: KeyValue(key, Item(ArrayOfTables())).also { parentTable.items.insert(key, it.item) }
+            val array = entry.item.arrayOfTablesOrNull
             if (array == null) {
                 errors.report(
-                    Reason.DuplicateKey(key.get()),
+                    Reason.DuplicateKey(key.name),
                     unexpected = keySpan,
                     context = entry.item.span(),
                 )
                 return
             }
-            array.push(previousTable)
-            val first = array.values.firstOrNull()?.asTable()?.span
-            val last = array.values.lastOrNull()?.asTable()?.span
+            array.add(previousTable)
+            val first = array.values.firstOrNull()?.tableOrNull?.span
+            val last = array.values.lastOrNull()?.tableOrNull?.span
             array.span = if (first != null && last != null) Span(first.start, last.end) else null
         } else {
-            parentTable.items.insert(key, Item.from(previousTable))
+            parentTable.items.insert(key, Item(previousTable))
         }
     }
 
@@ -300,14 +300,14 @@ private class DocumentBuilder(private val input: EventStream, private val contex
             // tables an implicit table already has.
             val parentTable = descendPath(root, header.path, false, errors)
             val key = header.key
-            val old = if (key != null) parentTable?.items?.shiftRemove(key.get()) else null
+            val old = if (key != null) parentTable?.items?.shiftRemove(key.name) else null
             if (old != null && key != null) {
-                val oldTable = old.item.asTable()
-                if (oldTable != null && oldTable.implicit && !oldTable.isDotted()) {
+                val oldTable = old.item.tableOrNull
+                if (oldTable != null && oldTable.isImplicit && !oldTable.isDotted) {
                     currentTable = oldTable
                 } else {
                     errors.report(
-                        Reason.DuplicateKey(key.get()),
+                        Reason.DuplicateKey(key.name),
                         unexpected = keySpan(key),
                         context = old.key.span(),
                     )
@@ -318,9 +318,9 @@ private class DocumentBuilder(private val input: EventStream, private val contex
 
         currentPosition += 1
         currentTable.rawDecor.assign(decor)
-        currentTable.setImplicit(false)
-        currentTable.setDotted(false)
-        currentTable.setPosition(currentPosition)
+        currentTable.isImplicit = false
+        currentTable.isDotted = false
+        currentTable.position = currentPosition
         currentTable.span = header.span
         currentHeader = header
     }
@@ -345,41 +345,41 @@ private fun descendPath(
 ): Table? {
     var table = start
     for (key in path) {
-        val existing = table.items.getEntry(key.get())
+        val existing = table.items.getEntry(key.name)
         if (existing == null) {
             val newTable = Table()
             newTable.span = key.span()
-            newTable.setImplicit(true)
-            newTable.setDotted(dotted)
-            val held = key.clone()
-            table.items.insert(held, Item.from(newTable))
+            newTable.isImplicit = true
+            newTable.isDotted = dotted
+            val held = key.copy()
+            table.items.insert(held, Item(newTable))
             shared += held
             table = newTable
             continue
         }
         shared += existing.key
         val item = existing.item
-        val array = item.asArrayOfTables()
-        val child = item.asTable()
-        val value = item.asValue()
+        val array = item.arrayOfTablesOrNull
+        val child = item.tableOrNull
+        val value = item.valueOrNull
         table = when {
-            array != null -> array.values.lastOrNull()?.asTable() ?: return null
+            array != null -> array.values.lastOrNull()?.tableOrNull ?: return null
             child != null -> {
-                if (dotted && child.isImplicit()) {
+                if (dotted && child.isImplicit) {
                     // A dotted key extends an implicit table, so it becomes part of the dotted key.
-                    child.setDotted(true)
+                    child.isDotted = true
                 }
                 // Tables cannot be defined more than once, and dotted keys cannot extend a table defined
                 // with a header.
-                if (dotted && !child.isImplicit()) {
-                    errors.report(Reason.DuplicateKey(key.get()), unexpected = keySpan(key))
+                if (dotted && !child.isImplicit) {
+                    errors.report(Reason.DuplicateKey(key.name), unexpected = keySpan(key))
                     return null
                 }
                 child
             }
             value != null -> {
                 errors.report(
-                    Reason.DottedKeyExtendsValue(key.get(), value.type),
+                    Reason.DottedKeyExtendsValue(key.name, value.type),
                     unexpected = keySpan(key),
                     context = value.span(),
                 )
@@ -625,7 +625,7 @@ private fun onArray(openEvent: Event, input: EventStream, context: ParseContext)
         val decor = value.rawDecor()
         decor.prefix = RawString.withSpan(prefix)
         decor.suffix = RawString.withSpan(suffix)
-        result.pushFormatted(value)
+        result.add(value)
     }
 
     while (true) {
@@ -660,7 +660,7 @@ private fun onArray(openEvent: Event, input: EventStream, context: ParseContext)
                 finishValue(event)
                 val trailingComma = trailingStart != null && !result.isEmpty()
                 val start = trailingStart ?: event.span().start
-                result.setTrailingComma(trailingComma)
+                result.trailingComma = trailingComma
                 result.rawTrailing = RawString.withSpan(start, event.span().start)
                 result.span = openEvent.span().append(event.span())
                 break
@@ -708,20 +708,20 @@ private fun onInlineTable(openEvent: Event, input: EventStream, context: ParseCo
         decor.suffix = RawString.withSpan(suffix)
 
         // "Likewise, using dotted keys to redefine tables already defined in [table] form is not allowed"
-        val mixedTableTypes = table.isDotted() == path.isEmpty()
+        val mixedTableTypes = table.isDotted == path.isEmpty()
         val keySpan = key.repr?.span() ?: event.span()
         if (mixedTableTypes) {
-            errors.report(Reason.DuplicateKey(key.get()), unexpected = keySpan)
+            errors.report(Reason.DuplicateKey(key.name), unexpected = keySpan)
         } else {
-            val existing = table.items.getEntry(key.get())
+            val existing = table.items.getEntry(key.name)
             if (existing == null) {
                 table.items.insert(key, Item.inInlineTable(value))
-                val entry = table.items.getEntry(key.get())
+                val entry = table.items.getEntry(key.name)
                 entry?.order = context.nextOrder()
                 if (path.isNotEmpty()) entry?.pathSpelling = PathSpelling.of(path, shared)
             } else {
                 val oldSpan = existing.key.repr?.span() ?: event.span()
-                errors.report(Reason.DuplicateKey(key.get()), unexpected = keySpan, context = oldSpan)
+                errors.report(Reason.DuplicateKey(key.name), unexpected = keySpan, context = oldSpan)
             }
         }
     }
@@ -800,7 +800,7 @@ private fun onInlineTable(openEvent: Event, input: EventStream, context: ParseCo
                     )
                 }
                 val start = trailingStart ?: event.span().start
-                result.setTrailingComma(trailingComma)
+                result.trailingComma = trailingComma
                 result.rawTrailing = RawString.withSpan(start, event.span().start)
                 result.span = openEvent.span().append(event.span())
                 break
@@ -821,13 +821,13 @@ private fun descendInlinePath(
 ): InlineTable? {
     var table = start
     for (key in path) {
-        val existing = table.items.getEntry(key.get())
+        val existing = table.items.getEntry(key.name)
         if (existing == null) {
             val newTable = InlineTable()
             newTable.span = key.span()
-            newTable.setImplicit(true)
-            newTable.setDotted(dotted)
-            val held = key.clone()
+            newTable.isImplicit = true
+            newTable.isDotted = dotted
+            val held = key.copy()
             table.items.insert(held, Item.inInlineTable(Value.InlineTable(newTable)))
             shared += held
             table = newTable
@@ -840,14 +840,14 @@ private fun descendInlinePath(
         table = when (value) {
             is Value.InlineTable -> {
                 // Tables cannot be defined more than once, and dotted keys cannot extend an inline table.
-                if (dotted && !value.table.isImplicit()) {
-                    errors.report(Reason.DuplicateKey(key.get()), unexpected = keySpan(key))
+                if (dotted && !value.table.isImplicit) {
+                    errors.report(Reason.DuplicateKey(key.name), unexpected = keySpan(key))
                     return null
                 }
                 value.table
             }
             else -> {
-                errors.report(Reason.DottedKeyExtendsValue(key.get(), value.type), unexpected = keySpan(key))
+                errors.report(Reason.DottedKeyExtendsValue(key.name, value.type), unexpected = keySpan(key))
                 return null
             }
         }

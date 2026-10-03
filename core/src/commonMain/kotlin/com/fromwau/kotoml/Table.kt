@@ -2,8 +2,6 @@ package com.fromwau.kotoml
 
 import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
-import com.fromwau.kern.result.map
-import com.fromwau.kern.result.onSuccess
 
 /**
  * A standard table: the key/value pairs under a `[header]`, and the tables nested in it.
@@ -13,16 +11,38 @@ import com.fromwau.kern.result.onSuccess
  * `a` in `a.b = 1`, is dotted.
  *
  * Indexing reads and writes slots: `table["key"]` returns the [Item] stored there, or an empty one that
- * joins the table when it is written to; `table["key"] = item` stores a copy of [item], keeping the key's
+ * joins the table when it is written to; `table["key"] = item` stores a copy of `item`, keeping the key's
  * formatting.
+ *
+ * ```kotlin
+ * val table = tableOf("name" to Item(Value.String("kotoml")))
+ * table["version"] = "0.1.0"
+ * table.toString() // "name = \"kotoml\"\nversion = \"0.1.0\"\n"
+ * ```
  */
 public class Table() : TableLike, Iterable<Pair<String, Item>> {
     internal val rawDecor: RawDecor = RawDecor()
-    internal var implicit: Boolean = false
-    internal var dotted: Boolean = false
 
-    // Puts tables back in their original order when printing; null for tables made by hand.
-    private var docPosition: Long? = null
+    /**
+     * Whether the table is hidden while it holds no values. Its sub-tables still print.
+     *
+     * ```kotlin
+     * val doc = DocumentMut.parse("[a]\n[a.b]\n").getOrNull()!!
+     * doc["a"].tableOrNull?.isImplicit = true
+     * doc.toString() // "[a.b]\n"
+     * ```
+     */
+    public var isImplicit: Boolean = false
+
+    /** Whether this table stands for the parts of a dotted key rather than for a header. */
+    override var isDotted: Boolean = false
+
+    /**
+     * Where the table prints among the document's tables: tables print in ascending order, and a table with
+     * none follows the table printed before it.
+     */
+    public var position: Long? = null
+
     internal var span: Span? = null
     internal var items: KeyValuePairs = KeyValuePairs()
 
@@ -35,16 +55,19 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
         this.items = items
     }
 
-    /** Turns this table into an inline table, moving its entries there and formatting it anew. */
-    public fun intoInlineTable(): InlineTable {
+    /** An inline table holding copies of this table's values, formatted anew; the table stays as it is. */
+    public fun toInlineTable(): InlineTable = copy().intoInlineTable()
+
+    /** Moves the entries into a new inline table, formatted anew, leaving this table empty. */
+    internal fun intoInlineTable(): InlineTable {
         for (entry in items.entries()) entry.item.makeValue()
         val table = InlineTable(items.takeAll())
-        table.fmt()
+        table.resetFormatting()
         return table
     }
 
     /** The values visually under this table's header, with the key path that reaches each: dotted keys. */
-    override fun getValues(): List<Pair<List<Key>, Value>> = visualValues().map { it.path to it.value }
+    override fun valuesWithPaths(): List<Pair<List<Key>, Value>> = visualValues().map { it.path to it.value }
 
     /** The values under this header in the order they print: as read from text, new ones after their sibling. */
     internal fun visualValues(): List<VisualValue> {
@@ -56,11 +79,11 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     private fun appendValues(path: MutableList<Key>, values: MutableList<VisualValue>) {
         for (entry in items.entries()) {
             path.add(entry.key)
-            val table = entry.item.asTable()
-            val value = entry.item.asValue()
+            val table = entry.item.tableOrNull
+            val value = entry.item.valueOrNull
             when {
-                table != null && table.isDotted() -> table.appendValues(path, values)
-                value is Value.InlineTable && value.table.isDotted() -> value.table.appendValues(path, values)
+                table != null && table.isDotted -> table.appendValues(path, values)
+                value is Value.InlineTable && value.table.isDotted -> value.table.appendValues(path, values)
                 value != null -> values.add(VisualValue(path.toList(), value, entry))
             }
             path.removeAt(path.size - 1)
@@ -70,11 +93,11 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     internal fun appendAllValues(path: MutableList<Key>, values: MutableList<VisualValue>) {
         for (entry in items.entries()) {
             path.add(entry.key)
-            val table = entry.item.asTable()
-            val value = entry.item.asValue()
+            val table = entry.item.tableOrNull
+            val value = entry.item.valueOrNull
             when {
                 table != null -> table.appendAllValues(path, values)
-                value is Value.InlineTable && value.table.isDotted() -> value.table.appendValues(path, values)
+                value is Value.InlineTable && value.table.isDotted -> value.table.appendValues(path, values)
                 value != null -> values.add(VisualValue(path.toList(), value, entry))
             }
             path.removeAt(path.size - 1)
@@ -85,15 +108,15 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     private fun forgetOrder() {
         for (entry in items.entries()) {
             entry.order = null
-            val table = entry.item.asTable()
-            if (table != null && table.isDotted()) table.forgetOrder()
+            val table = entry.item.tableOrNull
+            if (table != null && table.isDotted) table.forgetOrder()
         }
     }
 
     /** Drops the formatting of the keys and values directly in this table. */
-    override fun fmt() {
+    override fun resetFormatting() {
         for (entry in items.entries()) {
-            val value = entry.item.asValue() ?: continue
+            val value = entry.item.valueOrNull ?: continue
             entry.key.rawLeafDecor.clear()
             entry.key.rawDottedDecor.clear()
             value.rawDecor().clear()
@@ -106,55 +129,25 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
      * recursive.
      */
     override fun sortValues() {
-        forgetOrder()
-        items.sortBy { left, right -> left.key.compareTo(right.key) }
-        for (entry in items.entries()) {
-            val table = entry.item.asTable()
-            if (table != null && table.isDotted()) table.sortValues()
-        }
-    }
-
-    /** Sorts the pairs under this header with [compare], given two keys and their items. Stable, not recursive. */
-    public fun sortValuesBy(compare: (Key, Item, Key, Item) -> Int) {
-        forgetOrder()
-        items.sortBy { left, right -> compare(left.key, left.item, right.key, right.item) }
-        for (entry in items.entries()) {
-            val table = entry.item.asTable()
-            if (table != null && table.isDotted()) table.sortValuesBy(compare)
-        }
+        sortValuesWith { left, right -> left.first.compareTo(right.first) }
     }
 
     /**
-     * Marks the table implicit, so it is not printed while it holds no values. Its sub-tables still print.
-     *
-     * ```kotlin
-     * val doc = DocumentMut.parse("[a]\n[a.b]\n").getOrNull()!!
-     * doc["a"].asTableMut()?.setImplicit(true)
-     * doc.toString() // "[a.b]\n"
-     * ```
+     * Sorts the pairs under this header with [comparator], given each key with its formatting and its item.
+     * Dotted keys are sorted the same way; the sort is stable and not recursive otherwise.
      */
-    public fun setImplicit(implicit: Boolean) {
-        this.implicit = implicit
+    public fun sortValuesWith(comparator: Comparator<Pair<Key, Item>>) {
+        forgetOrder()
+        sortEntriesWith(comparator)
     }
 
-    /** Whether the table is hidden while it holds no values. */
-    public fun isImplicit(): Boolean = implicit
-
-    /** Marks this table as standing for the parts of a dotted key, or not. */
-    override fun setDotted(yes: Boolean) {
-        dotted = yes
+    private fun sortEntriesWith(comparator: Comparator<Pair<Key, Item>>) {
+        items.sortBy { left, right -> comparator.compare(left.key to left.item, right.key to right.item) }
+        for (entry in items.entries()) {
+            val table = entry.item.tableOrNull
+            if (table != null && table.isDotted) table.sortEntriesWith(comparator)
+        }
     }
-
-    /** Whether this table stands for the parts of a dotted key rather than for a header. */
-    override fun isDotted(): Boolean = dotted
-
-    /** Sets where the table prints among the document's tables; null leaves it to follow its parent. */
-    public fun setPosition(docPosition: Long?) {
-        this.docPosition = docPosition
-    }
-
-    /** Where the table prints among the document's tables, or null for a table made by hand. */
-    public fun position(): Long? = docPosition
 
     /**
      * The text around the header: comments and blank lines before `[header]`, and what follows it on its line.
@@ -166,11 +159,8 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
             rawDecor.set(value)
         }
 
-    /** The key [key] as stored, with its formatting. */
-    override fun key(key: String): Key? = items.getEntry(key)?.key
-
-    /** A view of the key [key] that can change its formatting. */
-    override fun keyMut(key: String): KeyMut? = key(key)?.asMut()
+    /** The key [name] as stored, whose formatting can be changed in place; null when there is none. */
+    override fun key(name: String): Key? = items.getEntry(name)?.key
 
     internal fun despan(input: SourceText) {
         span = null
@@ -184,41 +174,28 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     }
 
     /** The key/item pairs with an item, in order. */
-    public fun iter(): Iterator<Pair<String, Item>> = items.snapshot()
-        .filter { !it.item.isNone() }
-        .map { it.key.get() to it.item }
-        .iterator()
+    override fun items(): List<Pair<String, Item>> = items.entries()
+        .filter { !it.item.isNone }
+        .map { it.key.name to it.item }
 
-    /** The key/item pairs with an item, in order, with the keys' formatting open to change. */
-    public fun iterMut(): Iterator<Pair<KeyMut, Item>> = items.snapshot()
-        .filter { !it.item.isNone() }
-        .map { it.key.asMut() to it.item }
-        .iterator()
-
-    override fun iterator(): Iterator<Pair<String, Item>> = iter()
+    override fun iterator(): Iterator<Pair<String, Item>> = items().iterator()
 
     /** The number of keys holding an item. */
-    override fun len(): Int = items.entries().count { !it.item.isNone() }
+    override val size: Int
+        get() = items.entries().count { !it.item.isNone }
 
     /** Whether no key holds an item. */
-    override fun isEmpty(): Boolean = len() == 0
+    override fun isEmpty(): Boolean = size == 0
 
     /** Removes every entry. */
     override fun clear() {
         items.clear()
     }
 
-    /** The entry for [key], to read, insert or change in place. */
-    public fun entry(key: String): Entry = tableEntry(items, Key(key), Item.Holds.Anything)
+    /** The item at [key], or null when there is none. */
+    public fun getOrNull(key: String): Item? = items.get(key)?.takeIf { !it.isNone }
 
-    /** The entry for [key], keeping the key's formatting if it is inserted. */
-    public fun entryFormat(key: Key): Entry = tableEntry(items, key.clone(), Item.Holds.Anything)
-
-    /** The item at [key], or null when there is none: upstream's `get`, renamed for the index operator. */
-    public fun getOrNull(key: String): Item? = items.get(key)?.takeIf { !it.isNone() }
-
-    /** The item at [key] to change in place, or null when there is none. */
-    public fun getMut(key: String): Item? = getOrNull(key)
+    override fun item(key: String): Item? = getOrNull(key)
 
     /**
      * The slot at [key]: the item stored there, or an empty item that joins this table under [key] when it
@@ -230,118 +207,146 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     }
 
     /** Stores a copy of [item] at [key], keeping the key's position and formatting when it is already there. */
-    public operator fun set(key: String, item: Item) {
+    public operator fun set(
+        key: String,
+        item: Item,
+    ) {
         val existing = items.getEntry(key)
-        if (existing != null) existing.item = item.clone() else items.insert(Key(key), item.clone())
+        if (existing != null) existing.item = item.copy() else items.insert(Key(key), item.copy())
     }
 
-    /** The key and item at [key], unless it holds no item. */
-    override fun getKeyValue(key: String): Pair<Key, Item>? =
-        items.getEntry(key)?.takeIf { !it.item.isNone() }?.let { it.key to it.item }
+    /** Stores a copy of [value] at [key], as `table[key] = Item(value)` does. */
+    public operator fun set(
+        key: String,
+        value: Value,
+    ) {
+        set(key, Item(value))
+    }
 
-    /** The key, open to formatting changes, and item at [key], unless it holds no item. */
-    override fun getKeyValueMut(key: String): Pair<KeyMut, Item>? =
-        items.getEntry(key)?.takeIf { !it.item.isNone() }?.let { it.key.asMut() to it.item }
+    /** Stores a copy of [table] at [key], as `table[key] = Item(table)` does. */
+    public operator fun set(
+        key: String,
+        table: Table,
+    ) {
+        set(key, Item(table))
+    }
+
+    /** Stores a copy of [arrayOfTables] at [key], as `table[key] = Item(arrayOfTables)` does. */
+    public operator fun set(
+        key: String,
+        arrayOfTables: ArrayOfTables,
+    ) {
+        set(key, Item(arrayOfTables))
+    }
 
     /** Whether [key] holds an item. */
-    override fun containsKey(key: String): Boolean = items.get(key)?.let { !it.isNone() } ?: false
+    override fun containsKey(key: String): Boolean = items.get(key)?.let { !it.isNone } ?: false
 
-    /** Whether [key] holds a table. */
-    public fun containsTable(key: String): Boolean = items.get(key)?.isTable() ?: false
-
-    /** Whether [key] holds a value. */
-    public fun containsValue(key: String): Boolean = items.get(key)?.isValue() ?: false
-
-    /** Whether [key] holds an array of tables. */
-    public fun containsArrayOfTables(key: String): Boolean = items.get(key)?.isArrayOfTables() ?: false
+    /** Whether [key] holds an item, for `key in table`. */
+    public operator fun contains(key: String): Boolean = containsKey(key)
 
     /**
-     * Sets [key] to a copy of [item], returning the item it replaces. A replaced key loses its formatting; use
-     * [insertFormatted] to keep a key's spelling.
+     * Sets [key] to a copy of [item]. A key already there keeps its position but loses its formatting; pass a
+     * [Key] to choose it.
+     *
+     * @return the item [key] held before, or null when it held none.
      */
-    public fun insert(key: String, item: Item): Item? {
-        val existing = items.getEntry(key)
+    public fun put(
+        key: String,
+        item: Item,
+    ): Item? = put(Key(key), item)
+
+    /**
+     * Sets [key], with its spelling and decor, to a copy of [item]. A key already there keeps its position.
+     *
+     * @return the item the key held before, or null when it held none.
+     */
+    public fun put(
+        key: Key,
+        item: Item,
+    ): Item? {
+        val existing = items.getEntry(key.name)
         if (existing != null) {
-            existing.key.fmt()
+            existing.key = key.copy()
             val old = existing.item
-            existing.item = item.clone()
-            return old
+            existing.item = item.copy()
+            return old.takeIf { !it.isNone }
         }
-        items.insert(Key(key), item.clone())
+        items.insert(key.copy(), item.copy())
         return null
     }
 
-    /** Sets [key], with its formatting, to a copy of [item], returning the item it replaces. */
-    public fun insertFormatted(key: Key, item: Item): Item? {
-        val existing = items.getEntry(key.get())
-        if (existing != null) {
-            existing.key = key.clone()
-            val old = existing.item
-            existing.item = item.clone()
-            return old
-        }
-        items.insert(key.clone(), item.clone())
-        return null
+    override fun putItem(
+        key: String,
+        item: Item,
+    ): Result<Item?, TomlEditError> = Ok(put(key, item))
+
+    /**
+     * The item at [key], first storing a copy of what [default] makes when the key holds none. [default] is
+     * called only then.
+     *
+     * @return the stored item, to change in place.
+     */
+    public fun getOrPut(
+        key: String,
+        default: () -> Item,
+    ): Item = getOrPut(Key(key), default)
+
+    /** As [getOrPut], an inserted key keeping the spelling and decor of [key]. */
+    public fun getOrPut(
+        key: Key,
+        default: () -> Item,
+    ): Item {
+        getOrNull(key.name)?.let { return it }
+        val stored = default().copy()
+        items.insert(key.copy(), stored)
+        return stored
     }
 
-    /** Removes [key] and returns its item. */
-    public fun remove(key: String): Item? = items.shiftRemove(key)?.item
+    /** Removes [key] and returns its item, or null when it held none. */
+    public fun remove(key: String): Item? = items.shiftRemove(key)?.item?.takeIf { !it.isNone }
 
-    /** Removes [key] and returns it, with its formatting, and its item. */
-    public fun removeEntry(key: String): Pair<Key, Item>? = items.shiftRemove(key)?.let { it.key to it.item }
+    override fun removeItem(key: String): Item? = remove(key)
 
-    /** Keeps only the pairs [keep] accepts, visiting them in order. */
-    public fun retain(keep: (String, Item) -> Boolean) {
-        items.retain { keep(it.key.get(), it.item) }
+    /** Keeps only the pairs [predicate] accepts, visiting them in order. */
+    public fun retainAll(predicate: (String, Item) -> Boolean) {
+        items.retain { predicate(it.key.name, it.item) }
     }
 
-    /** Adds a copy of every pair of [pairs]. */
-    public fun extend(pairs: Iterable<Pair<String, Item>>) {
-        for ((key, item) in pairs) items.insert(Key(key), item.clone())
+    /** Stores a copy of every pair of [pairs], in order, as `table[key] = item` does. */
+    public fun putAll(pairs: Iterable<Pair<String, Item>>) {
+        for ((key, item) in pairs) set(key, item)
     }
 
     /** A deep copy of this table. */
-    public fun clone(): Table {
+    public fun copy(): Table {
         val copy = Table(items.deepClone())
         copy.rawDecor.assign(rawDecor)
-        copy.implicit = implicit
-        copy.dotted = dotted
-        copy.docPosition = docPosition
+        copy.isImplicit = isImplicit
+        copy.isDotted = isDotted
+        copy.position = position
         copy.span = span
         copy.headerLineEnding = headerLineEnding
-        copy.headerSpelling = headerSpelling?.clone()
+        copy.headerSpelling = headerSpelling?.copy()
         return copy
     }
 
     /** The key/value pairs under this table, one per line, without its header or sub-tables. */
     override fun toString(): String = buildString { encodeTableBody(this, this@Table) }
 
-    // TableLike
-
-    override fun iterItems(): Iterator<Pair<String, Item>> = iter()
-
-    override fun iterItemsMut(): Iterator<Pair<KeyMut, Item>> = iterMut()
-
-    override fun itemEntry(key: String): Entry = entry(key)
-
-    override fun itemEntryFormat(key: Key): Entry = entryFormat(key)
-
-    override fun getItem(key: String): Item? = getOrNull(key)
-
-    override fun insertItem(key: String, item: Item): Result<Item?, TomlEditError> = Ok(insert(key, item))
-
-    override fun removeItem(key: String): Item? = remove(key)
-
-    public companion object {
-        /** A table of copies of [pairs]. */
-        public fun fromIter(pairs: Iterable<Pair<String, Item>>): Table {
-            val table = Table()
-            table.extend(pairs)
-            return table
-        }
-
-        internal fun withPosition(position: Long?): Table = Table().also { it.docPosition = position }
+    internal companion object {
+        fun withPosition(position: Long?): Table = Table().also { it.position = position }
     }
+}
+
+/** A table holding copies of [pairs], in order. */
+public fun tableOf(vararg pairs: Pair<String, Item>): Table = pairs.asIterable().toTable()
+
+/** A table holding copies of these pairs, in order; a later pair for the same key replaces an earlier one. */
+public fun Iterable<Pair<String, Item>>.toTable(): Table {
+    val table = Table()
+    table.putAll(this)
+    return table
 }
 
 /** A value as it prints under a header: the key path that reaches it, and the entry that holds it. */
@@ -378,18 +383,34 @@ internal val DEFAULT_KEY_PATH_DECOR: Pair<String, String> = "" to ""
 /**
  * A [Table] or an [InlineTable], seen as key/item pairs.
  *
- * Upstream's trait gives some of these functions the names an inline table already uses for values; here
- * the item-based ones say so: [iterItems], [itemEntry], [getItem], [insertItem], [removeItem].
+ * ```kotlin
+ * fun names(table: TableLike): List<String> = table.items().map { it.first }
+ * ```
  */
-public interface TableLike {
-    /** The key/item pairs, in order. An inline table also lists keys whose slot is empty. */
-    public fun iterItems(): Iterator<Pair<String, Item>>
+public sealed interface TableLike {
+    /** The key/item pairs, in order. */
+    public fun items(): List<Pair<String, Item>>
 
-    /** The key/item pairs with the keys' formatting open to change. */
-    public fun iterItemsMut(): Iterator<Pair<KeyMut, Item>>
+    /** The item at [key], or null when there is none. */
+    public fun item(key: String): Item?
+
+    /**
+     * Sets [key] to a copy of [item]. An inline table holds only values, so it stores a table as an inline table
+     * and an array of tables as an array of inline tables.
+     *
+     * @return the item [key] held before, or null when it held none; or [TomlEditError.NotAValue], with nothing
+     *   written, when this is an inline table and [item] is empty.
+     */
+    public fun putItem(
+        key: String,
+        item: Item,
+    ): Result<Item?, TomlEditError>
+
+    /** Removes [key] and returns its item, or null when it held none. */
+    public fun removeItem(key: String): Item?
 
     /** The number of keys holding an item. */
-    public fun len(): Int
+    public val size: Int
 
     /** Whether no key holds an item. */
     public fun isEmpty(): Boolean
@@ -397,138 +418,21 @@ public interface TableLike {
     /** Removes every entry. */
     public fun clear()
 
-    /** The entry for [key]. */
-    public fun itemEntry(key: String): Entry
-
-    /** The entry for [key], keeping the key's formatting if it is inserted. */
-    public fun itemEntryFormat(key: Key): Entry
-
-    /** The item at [key]. */
-    public fun getItem(key: String): Item?
-
-    /** The key and item at [key]. */
-    public fun getKeyValue(key: String): Pair<Key, Item>?
-
-    /** The key, open to formatting changes, and item at [key]. */
-    public fun getKeyValueMut(key: String): Pair<KeyMut, Item>?
-
     /** Whether [key] holds an item. */
     public fun containsKey(key: String): Boolean
 
-    /**
-     * Sets [key] to a copy of [item], returning the item it replaces. An inline table holds only values, so
-     * giving it anything else fails; upstream panics there.
-     */
-    public fun insertItem(key: String, item: Item): Result<Item?, TomlEditError>
-
-    /** Removes [key] and returns its item. */
-    public fun removeItem(key: String): Item?
-
     /** The values visually under this table, with the key path that reaches each. */
-    public fun getValues(): List<Pair<List<Key>, Value>>
+    public fun valuesWithPaths(): List<Pair<List<Key>, Value>>
 
     /** Drops the formatting of the keys and values in this table. */
-    public fun fmt()
+    public fun resetFormatting()
 
     /** Sorts the pairs by key, dotted keys included. The sort is stable and not recursive. */
     public fun sortValues()
 
-    /** Marks this table as standing for the parts of a dotted key, or not. */
-    public fun setDotted(yes: Boolean)
-
     /** Whether this table stands for the parts of a dotted key. */
-    public fun isDotted(): Boolean
+    public var isDotted: Boolean
 
-    /** The key [key] as stored, with its formatting. */
-    public fun key(key: String): Key?
-
-    /** A view of the key [key] that can change its formatting. */
-    public fun keyMut(key: String): KeyMut?
-}
-
-/**
- * An entry of a table, from [Table.entry] or [TableLike.itemEntry]: either occupied or vacant.
- *
- * An entry of an [InlineTable] holds only values, so putting anything else there fails with
- * [TomlEditError.NotAValue]; an entry of a [Table] takes any item.
- */
-public sealed interface Entry {
-    /** The entry's key. */
-    public fun key(): String
-
-    /** The item in the entry, inserting a copy of [default] first when it is vacant. */
-    public fun orInsert(default: Item): Result<Item, TomlEditError> = when (this) {
-        is OccupiedEntry -> Ok(intoMut())
-        is VacantEntry -> insert(default)
-    }
-
-    /** The item in the entry, inserting a copy of what [default] makes first when it is vacant. */
-    public fun orInsertWith(default: () -> Item): Result<Item, TomlEditError> = when (this) {
-        is OccupiedEntry -> Ok(intoMut())
-        is VacantEntry -> insert(default())
-    }
-}
-
-/** An [Entry] whose key is in the table. */
-public class OccupiedEntry internal constructor(
-    private val items: KeyValuePairs,
-    private val entry: KeyValue,
-    private val holds: Item.Holds,
-) : Entry {
-
-    override fun key(): String = entry.key.get()
-
-    /** A view of the key that can change its formatting. */
-    public fun keyMut(): KeyMut = entry.key.asMut()
-
-    /** The item. */
-    public fun get(): Item = entry.item
-
-    /** The item, to change in place. */
-    public fun getMut(): Item = entry.item
-
-    /** The item, to change in place, upstream's `into_mut`. */
-    public fun intoMut(): Item = entry.item
-
-    /**
-     * Replaces the item with a copy of [value], returning the old one. Fails, changing nothing, when this is an
-     * inline table's entry and [value] holds no value.
-     */
-    public fun insert(value: Item): Result<Item, TomlEditError> = value.copyAsSlot(holds).map { stored ->
-        val old = entry.item
-        entry.item = stored
-        old
-    }
-
-    /** Removes the entry from its table and returns its item. */
-    public fun remove(): Item {
-        items.shiftRemove(entry.key.get())
-        return entry.item
-    }
-}
-
-/** An [Entry] whose key is not in the table yet. */
-public class VacantEntry internal constructor(
-    private val items: KeyValuePairs,
-    private val key: Key,
-    private val holds: Item.Holds,
-) : Entry {
-
-    override fun key(): String = key.get()
-
-    /**
-     * Inserts a copy of [value] under the entry's key and returns the stored item. Fails, inserting nothing, when
-     * this is an inline table's entry and [value] holds no value.
-     */
-    public fun insert(value: Item): Result<Item, TomlEditError> =
-        value.copyAsSlot(holds).onSuccess { stored -> items.insert(key, stored) }
-}
-
-internal fun tableEntry(
-    items: KeyValuePairs,
-    key: Key,
-    holds: Item.Holds,
-): Entry {
-    val existing = items.getEntry(key.get())
-    return if (existing != null) OccupiedEntry(items, existing, holds) else VacantEntry(items, key, holds)
+    /** The key [name] as stored, whose formatting can be changed in place; null when there is none. */
+    public fun key(name: String): Key?
 }

@@ -11,7 +11,7 @@ class EditUnitTest {
     @Test
     fun valueFromIterFormatting() {
         val features = listOf("node", "mouth")
-        val value = Value.Array(TomlArray.fromIter(features.map { Value.String(it) }))
+        val value = Value.Array(features.map { Value.String(it) }.toTomlArray())
         assertEquals("[\"node\", \"mouth\"]", value.toString())
     }
 
@@ -22,12 +22,12 @@ class EditUnitTest {
 
     @Test
     fun keyStringRoundtrip() {
-        Key.parseSimple(Key("hello").toString()).unwrap()
+        Key.parse(Key("hello").toString()).unwrap()
     }
 
     @Test
     fun itemStringRoundtrip() {
-        Item.parse(value("hello").toString()).unwrap()
+        Item(Value.parse(Item(Value.String("hello")).toString()).unwrap())
     }
 
     @Test
@@ -53,7 +53,7 @@ class EditUnitTest {
             val string = randomPrintableString(random)
             val key = Key(string)
             val encoded = key.toString()
-            Key.parseSimple(encoded).unwrap()
+            Key.parse(encoded).unwrap()
         }
     }
 

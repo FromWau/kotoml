@@ -34,7 +34,7 @@ class VisitExampleTest {
         state: VisitState,
         names: MutableSet<String>,
     ) {
-        for ((key, item) in table.iterItems()) {
+        for ((key, item) in table.items()) {
             // Only the keys right under [dependencies] are wanted, so this does not always recurse.
             if (state == VisitState.Dependencies) {
                 names += key
@@ -49,9 +49,9 @@ class VisitExampleTest {
         state: VisitState,
         names: MutableSet<String>,
     ) {
-        item.asValue()?.let { collectDependencyNames(it, state, names) }
-        item.asTable()?.let { collectDependencyNames(it, state, names) }
-        item.asArrayOfTables()?.forEach { collectDependencyNames(it, state, names) }
+        item.valueOrNull?.let { collectDependencyNames(it, state, names) }
+        item.tableOrNull?.let { collectDependencyNames(it, state, names) }
+        item.arrayOfTablesOrNull?.forEach { collectDependencyNames(it, state, names) }
     }
 
     private fun collectDependencyNames(
@@ -76,7 +76,7 @@ class VisitExampleTest {
         // Turning regular tables into inline ones can leave explicit parent tables hanging, so they become
         // implicit.
         if (state == VisitState.Target || state == VisitState.TargetWithSpec) {
-            table.setImplicit(true)
+            table.isImplicit = true
         }
     }
 
@@ -84,11 +84,11 @@ class VisitExampleTest {
         table: TableLike,
         state: VisitState,
     ) {
-        for ((key, item) in table.iterItemsMut()) normalizeDependencyEntry(key, item, state.descend(key.get()))
+        for ((name, item) in table.items()) normalizeDependencyEntry(table.key(name)!!, item, state.descend(name))
     }
 
     private fun normalizeDependencyEntry(
-        key: KeyMut,
+        key: Key,
         item: Item,
         state: VisitState,
     ) {
@@ -97,26 +97,26 @@ class VisitExampleTest {
                 // A top-level dependency row, or above it: inline tables become regular ones.
                 val inlineTable = item.inlineTableOrNull
                 if (inlineTable != null) {
-                    val table = inlineTable.intoTable()
-                    key.fmt()
-                    item.assign(Item.from(table))
+                    val table = inlineTable.toTable()
+                    key.resetFormatting()
+                    item.assign(Item(table))
                 }
             }
             VisitState.SubDependencies -> {
                 // A single dependency: regular tables become inline ones.
-                val table = item.asTable()
+                val table = item.tableOrNull
                 if (table != null) {
-                    val inlineTable = table.intoInlineTable()
-                    key.fmt()
-                    item.assign(Item.from(Value.InlineTable(inlineTable)))
+                    val inlineTable = table.toInlineTable()
+                    key.resetFormatting()
+                    item.assign(Item(Value.InlineTable(inlineTable)))
                 }
             }
             else -> {}
         }
 
-        item.asValueMut()?.let { normalizeDependencyValue(it, state) }
-        item.asTableMut()?.let { normalizeDependencyTables(it, state) }
-        item.asArrayOfTablesMut()?.forEach { normalizeDependencyTables(it, state) }
+        item.valueOrNull?.let { normalizeDependencyValue(it, state) }
+        item.tableOrNull?.let { normalizeDependencyTables(it, state) }
+        item.arrayOfTablesOrNull?.forEach { normalizeDependencyTables(it, state) }
     }
 
     private fun normalizeDependencyValue(
@@ -127,7 +127,7 @@ class VisitExampleTest {
             is Value.Array -> {
                 // Arrays within dependencies go on one line.
                 if (state == VisitState.Dependencies || state == VisitState.SubDependencies) {
-                    value.array.fmt()
+                    value.array.resetFormatting()
                 }
             }
             is Value.InlineTable -> normalizeDependencyEntries(value.table, state)
@@ -203,7 +203,7 @@ flate2 = { version = "0.4" }
     }
 
     private fun visitMutExample(document: DocumentMut) {
-        normalizeDependencyTables(document.asTableMut(), VisitState.Root)
+        normalizeDependencyTables(document.asTable(), VisitState.Root)
     }
 
     @Test
