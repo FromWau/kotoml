@@ -108,17 +108,34 @@ internal abstract class NodeCompositeEncoder(
 
     protected open fun isMapKey(index: Int): Boolean = false
 
+    /** What the element at [index] is called in [defaulted]: its key, in a class or a map. */
+    protected open fun elementName(
+        descriptor: SerialDescriptor,
+        index: Int,
+    ): String = descriptor.getElementName(index)
+
+    private val skipped = mutableMapOf<Int, String>()
+
+    /** The keys of the elements left out because they hold their default. */
+    protected val defaulted: Set<String>
+        get() = skipped.values.toSet()
+
     private fun child(
         descriptor: SerialDescriptor,
         index: Int,
-    ): NodeEncoder = NodeEncoder(settings, childPath(descriptor, index), isMapKey(index)) {
-        put(descriptor, index, it)
+    ): NodeEncoder {
+        skipped.remove(index)
+        return NodeEncoder(settings, childPath(descriptor, index), isMapKey(index)) { put(descriptor, index, it) }
     }
 
+    // Asked before comparing with the default, so an element asked about and then not encoded holds its default.
     override fun shouldEncodeElementDefault(
         descriptor: SerialDescriptor,
         index: Int,
-    ): Boolean = settings.encodeDefaults
+    ): Boolean {
+        if (!settings.encodeDefaults) skipped[index] = elementName(descriptor, index)
+        return settings.encodeDefaults
+    }
 
     override fun endStructure(descriptor: SerialDescriptor) = emit(build())
 
@@ -218,7 +235,12 @@ private class ClassEncoder(
         if (node == null) omitted.add(name) else entries[name] = node
     }
 
-    override fun build(): TomlNode = TomlNode.Struct(entries, omitted, ownsAllKeys = false)
+    override fun build(): TomlNode = TomlNode.Struct(
+        entries = entries,
+        omitted = omitted,
+        ownsAllKeys = false,
+        defaulted = defaulted,
+    )
 }
 
 private class ListEncoder(
@@ -242,7 +264,7 @@ private class ListEncoder(
         elements.add(node)
     }
 
-    override fun build(): TomlNode = TomlNode.Sequence(elements)
+    override fun build(): TomlNode = TomlNode.Sequence(elements, leavesOutDefaults = defaulted.isNotEmpty())
 }
 
 /** A map's elements alternate: a key at each even index, its value at the odd index after it. */
@@ -255,6 +277,11 @@ private class MapEncoder(
     private var key: String = ""
 
     override fun isMapKey(index: Int): Boolean = index % 2 == 0
+
+    override fun elementName(
+        descriptor: SerialDescriptor,
+        index: Int,
+    ): String = key
 
     override fun childPath(
         descriptor: SerialDescriptor,
@@ -274,7 +301,12 @@ private class MapEncoder(
         }
     }
 
-    override fun build(): TomlNode = TomlNode.Struct(entries, emptySet(), ownsAllKeys = true)
+    override fun build(): TomlNode = TomlNode.Struct(
+        entries = entries,
+        omitted = emptySet(),
+        ownsAllKeys = true,
+        defaulted = defaulted,
+    )
 }
 
 /** A polymorphic value is its subclass's serial name at index 0 and the value itself at index 1. */
@@ -310,6 +342,7 @@ private class PolymorphicEncoder(
             entries = linkedMapOf(key to subtype) + struct.entries,
             omitted = struct.omitted,
             ownsAllKeys = struct.ownsAllKeys,
+            defaulted = struct.defaulted,
             discriminator = key,
         )
     }

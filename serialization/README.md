@@ -110,6 +110,8 @@ document.toString()
   of an inline array a line like its neighbours'. Any other old element no new one takes is removed, while the
   comment lines above it stay.
 - A field at its default, with `encodeDefaults` off, updates a key the document has and adds none.
+- The serializer runs once. With `encodeDefaults` off, it runs a second time when a field at its default has a
+  key in the document, to get the value that key is updated to.
 - When a polymorphic value changes subclass, the keys of the old subclass are removed.
 
 A list of servers, one of them given a port and a new one added in front:

@@ -14,19 +14,25 @@ internal sealed interface TomlNode {
         val readsBack: ((Value) -> Boolean)? = null,
     ) : TomlNode
 
-    class Sequence(val elements: List<TomlNode>) : TomlNode
+    /** @param leavesOutDefaults whether an element was left out because it holds its default. */
+    class Sequence(
+        val elements: List<TomlNode>,
+        val leavesOutDefaults: Boolean,
+    ) : TomlNode
 
     /**
      * A class, a map or a polymorphic value, as key/node [entries] in order.
      *
      * @param omitted the fields the class knows that hold null, so a document has no key for them.
      * @param ownsAllKeys whether the value accounts for every key of its table, as a map does.
+     * @param defaulted the keys left out because their field holds its default and defaults are not written.
      * @param discriminator the key naming a polymorphic value's subclass, which leads [entries].
      */
     class Struct(
         val entries: Map<String, TomlNode>,
         val omitted: Set<String>,
         val ownsAllKeys: Boolean,
+        val defaulted: Set<String>,
         val discriminator: String? = null,
     ) : TomlNode
 }

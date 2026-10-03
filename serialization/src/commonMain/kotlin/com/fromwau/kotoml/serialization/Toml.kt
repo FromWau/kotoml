@@ -134,6 +134,9 @@ public sealed class Toml(
      * Other new elements are inserted and other old ones removed. A field at its default, with [encodeDefaults]
      * off, updates a key the document has and adds none. Nothing is written when an error is returned.
      *
+     * [serializer] runs once. With [encodeDefaults] off, it runs a second time when a field at its default has a
+     * key in [document], to get the value that key is updated to.
+     *
      * ```kotlin
      * val document = TomlDocument.parse("host = 'a'\nport = 8080 # the default\n").getOrNull()!!
      * Toml.encodeInto(document, Server.serializer(), Server("a", 9090))
@@ -147,18 +150,19 @@ public sealed class Toml(
         serializer: SerializationStrategy<T>,
         value: T,
     ): EmptyResult<TomlEncodeError> {
-        val full = when (val encoded = encodeNode(serializer, value, encodeDefaults = true)) {
+        val written = when (val encoded = encodeNode(serializer, value, encodeDefaults)) {
             is Result.Success -> encoded.value
             is Result.Error -> return encoded
         }
-        val defaults = if (encodeDefaults) {
-            Defaults.Written
+        val full = if (encodeDefaults || !document.root.toInput().holdsKeyAtDefault(written)) {
+            written
         } else {
-            when (val encoded = encodeNode(serializer, value, encodeDefaults = false)) {
-                is Result.Success -> Defaults.Sparse(encoded.value)
+            when (val encoded = encodeNode(serializer, value, encodeDefaults = true)) {
+                is Result.Success -> encoded.value
                 is Result.Error -> return encoded
             }
         }
+        val defaults = if (encodeDefaults) Defaults.Written else Defaults.Sparse(written)
         DocumentMerger(DocumentWriter(tableListStyle)).mergeTable(document.root, full, defaults)
         return Ok(Unit)
     }

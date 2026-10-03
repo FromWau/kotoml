@@ -23,13 +23,13 @@ internal sealed interface Defaults {
     /** The whole value is its field's default, so every field in it holds its default too. */
     data object All : Defaults
 
-    /** [node] is the value encoded without defaults: a field it lacks holds its default. */
+    /** [node] is the value encoded without defaults, which records the fields it left out at their default. */
     class Sparse(val node: TomlNode) : Defaults
 
     fun isDefault(key: String): Boolean = when (this) {
         Written -> false
         All -> true
-        is Sparse -> node is TomlNode.Struct && key !in node.entries
+        is Sparse -> node is TomlNode.Struct && key in node.defaulted
     }
 
     fun child(key: String): Defaults = when (this) {
@@ -326,6 +326,20 @@ private fun TomlInput.sharedValues(
 ): Int {
     if (this !is TomlInput.Table || new !is TomlNode.Struct) return 0
     return new.entries.count { (key, child) -> entries[key]?.toInput()?.sameAs(child, defaults.child(key)) == true }
+}
+
+/**
+ * Whether merging [sparse], a value encoded without its defaults, into what the document holds here meets a key of a
+ * field left out at its default, which the merge then needs the default value for. A list counts every pairing of a
+ * new element with an old one, since the merge compares each with each.
+ */
+internal fun TomlInput.holdsKeyAtDefault(sparse: TomlNode): Boolean = when {
+    this is TomlInput.Table && sparse is TomlNode.Struct ->
+        sparse.defaulted.any { it in entries } ||
+            sparse.entries.any { (key, child) -> entries[key]?.toInput()?.holdsKeyAtDefault(child) == true }
+    this is TomlInput.Sequence && sparse is TomlNode.Sequence ->
+        sparse.leavesOutDefaults || sparse.elements.any { new -> elements.any { old -> old.holdsKeyAtDefault(new) } }
+    else -> false
 }
 
 /** Whether the document already holds what [full] would write, a missing key counting when it holds a default. */
