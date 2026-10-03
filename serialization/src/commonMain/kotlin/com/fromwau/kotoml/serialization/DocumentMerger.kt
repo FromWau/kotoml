@@ -59,13 +59,11 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
         defaults: Defaults,
     ) {
         val subtypeChanged = full.discriminator?.let { key ->
-            table.item(key)?.stringOrNull != (full.entries[key] as? TomlNode.Scalar)?.value?.stringOrNull
+            table.getItem(key)?.stringOrNull != (full.entries[key] as? TomlNode.Scalar)?.value?.stringOrNull
         } ?: false
-        if (full.ownsAllKeys || subtypeChanged) {
-            for ((key, _) in table.items()) if (key !in full.entries) table.removeItem(key)
-        }
+        if (full.ownsAllKeys || subtypeChanged) table.removeKeysOutside(full.entries.keys)
         for ((key, child) in full.entries) {
-            val existing = table.item(key)
+            val existing = table.getItem(key)
             val childDefaults = defaults.child(key)
             when {
                 existing != null -> mergeItem(table, key, existing, child, childDefaults)
@@ -134,8 +132,9 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
             }
         }
         positionTables(merged, plan)
+        // A kept element may land in another's slot, and must not take that slot's header comments.
         for ((index, table) in merged.withIndex()) {
-            if (index < tables.size) tables[index] = table else tables.add(table)
+            if (index < tables.size) tables.replace(index, table, keepDecor = false) else tables.add(table)
         }
     }
 
@@ -222,6 +221,14 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
             is Table -> table[key] = item
             is InlineTable -> item.valueOrNull?.let { table[key] = it }
         }
+    }
+}
+
+/** Removes the keys outside [kept] in one pass, so the lines above each removed key stay where they print. */
+private fun TableLike.removeKeysOutside(kept: Set<String>) {
+    when (this) {
+        is Table -> removeAll { (key, _) -> key !in kept }
+        is InlineTable -> removeAll { (key, _) -> key !in kept }
     }
 }
 

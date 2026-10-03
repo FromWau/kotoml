@@ -249,7 +249,7 @@ class RemovalKeepsCommentsTest {
     fun `retaining keys keeps the comments above the ones dropped`() {
         val text = "# one\nx = 1\n# two\ny = 2\n# three\nz = 3\n"
         assertEquals("# one\n# two\ny = 2\n# three\n", removing(text) { document ->
-            document.root.retainAll { key, _ -> key == "y" }
+            document.root.retainAll { (key, _) -> key == "y" }
         })
     }
 

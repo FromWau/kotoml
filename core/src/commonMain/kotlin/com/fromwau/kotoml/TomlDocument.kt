@@ -96,11 +96,28 @@ public class TomlDocument internal constructor(
     /** Whether [key] of the root table holds an item, for `key in document`. */
     public operator fun contains(key: String): Boolean = root.containsKey(key)
 
-    /** Sets [key] of the root table to a copy of [item], returning the item it held; see [Table.put]. */
+    /**
+     * Sets [key] of the root table to a copy of [item], keeping the key's formatting, and returns the item it held;
+     * see [Table.put].
+     */
     public fun put(
         key: String,
         item: Item,
     ): Item? = root.put(key, item)
+
+    /**
+     * Sets [key] of the root table, with its spelling and decor, to a copy of [item], and returns the item it held;
+     * see [Table.put].
+     */
+    public fun put(
+        key: Key,
+        item: Item,
+    ): Item? = root.put(key, item)
+
+    /** Stores a copy of every pair of [pairs] in the root table, in order; see [Table.putAll]. */
+    public fun putAll(pairs: Iterable<Pair<String, Item>>) {
+        root.putAll(pairs)
+    }
 
     /**
      * Removes [key] from the root table and returns its item, or null when it held none. The comment and blank
@@ -108,11 +125,35 @@ public class TomlDocument internal constructor(
      */
     public fun remove(key: String): Item? = root.remove(key)
 
+    /**
+     * Keeps only the root table's pairs [predicate] accepts, and returns whether any was removed; see
+     * [Table.retainAll].
+     */
+    public fun retainAll(predicate: (Pair<String, Item>) -> Boolean): Boolean = root.retainAll(predicate)
+
+    /** Removes the root table's pairs [predicate] accepts, and returns whether any was; see [Table.removeAll]. */
+    public fun removeAll(predicate: (Pair<String, Item>) -> Boolean): Boolean = root.removeAll(predicate)
+
+    /** Removes every key of the root table, keeping the lines above each; see [Table.clear]. */
+    public fun clear() {
+        root.clear()
+    }
+
     /** The item at [key] of the root table, first storing what [default] makes; see [Table.getOrPut]. */
     public fun getOrPut(
         key: String,
         default: () -> Item,
     ): Item = root.getOrPut(key, default)
+
+    /** As [getOrPut], an inserted key keeping the spelling and decor of [key]; see [Table.getOrPut]. */
+    public fun getOrPut(
+        key: Key,
+        default: () -> Item,
+    ): Item = root.getOrPut(key, default)
+
+    /** The keys of the root table holding an item, in order, as a copy; see [Table.keys]. */
+    public val keys: Set<String>
+        get() = root.keys
 
     /** The number of keys of the root table holding an item. */
     public val size: Int
@@ -120,6 +161,9 @@ public class TomlDocument internal constructor(
 
     /** Whether the root table holds no items. */
     public fun isEmpty(): Boolean = root.isEmpty()
+
+    /** Whether the root table holds an item. */
+    public fun isNotEmpty(): Boolean = root.isNotEmpty()
 
     /** The text before the document's first line and after its last; see [Table.decor]. */
     public var decor: Decor

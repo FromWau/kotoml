@@ -205,6 +205,10 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
 
     override fun iterator(): Iterator<Pair<String, Item>> = items().iterator()
 
+    /** The keys holding an item, in order, as a copy that later changes to the table leave as it is. */
+    override val keys: Set<String>
+        get() = items().mapTo(LinkedHashSet()) { it.first }
+
     /** The number of keys holding an item. */
     override val size: Int
         get() = items.entries().count { !it.item.isNone }
@@ -212,15 +216,18 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     /** Whether no key holds an item. */
     override fun isEmpty(): Boolean = size == 0
 
+    /** Whether some key holds an item. */
+    override fun isNotEmpty(): Boolean = !isEmpty()
+
     /** Removes every entry, keeping the lines above each as [remove] does. */
     override fun clear() {
-        retainAll { _, _ -> false }
+        removeEntries(items.snapshot())
     }
 
     /** The item at [key], or null when there is none. */
     public fun getOrNull(key: String): Item? = items.get(key)?.takeIf { !it.isNone }
 
-    override fun item(key: String): Item? = getOrNull(key)
+    override fun getItem(key: String): Item? = getOrNull(key)
 
     /**
      * The slot at [key]: the item stored there, or an empty item that joins this table under [key] when it
@@ -236,8 +243,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
         key: String,
         item: Item,
     ) {
-        val existing = items.getEntry(key)
-        if (existing != null) existing.item = item.copy() else items.insert(Key(key), item.copy())
+        put(key, item)
     }
 
     /** Stores a copy of [value] at [key], as `table[key] = Item(value)` does. */
@@ -268,21 +274,22 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     override fun containsKey(key: String): Boolean = items.get(key)?.let { !it.isNone } ?: false
 
     /** Whether [key] holds an item, for `key in table`. */
-    public operator fun contains(key: String): Boolean = containsKey(key)
+    override operator fun contains(key: String): Boolean = containsKey(key)
 
     /**
-     * Sets [key] to a copy of [item]. A key already there keeps its position but loses its formatting; pass a
-     * [Key] to choose it.
+     * Sets [key] to a copy of [item], as `table[key] = item` does: a key already there keeps its position, its
+     * spelling and its decor. Pass a [Key] to replace those.
      *
      * @return the item [key] held before, or null when it held none.
      */
     public fun put(
         key: String,
         item: Item,
-    ): Item? = put(Key(key), item)
+    ): Item? = items.insert(Key(key), item.copy())?.takeIf { !it.isNone }
 
     /**
-     * Sets [key], with its spelling and decor, to a copy of [item]. A key already there keeps its position.
+     * Sets [key], with its spelling and decor, to a copy of [item]. A key already there keeps its position but
+     * takes the spelling and decor of [key].
      *
      * @return the item the key held before, or null when it held none.
      */
@@ -290,15 +297,8 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
         key: Key,
         item: Item,
     ): Item? {
-        val existing = items.getEntry(key.name)
-        if (existing != null) {
-            existing.key = key.copy()
-            val old = existing.item
-            existing.item = item.copy()
-            return old.takeIf { !it.isNone }
-        }
-        items.insert(key.copy(), item.copy())
-        return null
+        items.getEntry(key.name)?.key = key.copy()
+        return items.insert(key.copy(), item.copy())?.takeIf { !it.isNone }
     }
 
     override fun putItem(
@@ -349,18 +349,38 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     override fun removeItem(key: String): Item? = remove(key)
 
     /**
-     * Keeps only the pairs [predicate] accepts, visiting them in order. The lines above a removed pair stay, as
-     * [remove] keeps them.
+     * Keeps only the pairs [predicate] accepts, visiting each pair of key and item once, in order. The lines above
+     * a removed pair stay, as [remove] keeps them.
+     *
+     * ```kotlin
+     * table.retainAll { (key, _) -> key != "debug" }
+     * ```
+     *
+     * @return whether any pair was removed.
      */
-    public fun retainAll(predicate: (String, Item) -> Boolean) {
-        val removed = items.entries().filterNot { predicate(it.key.name, it.item) }
+    public fun retainAll(predicate: (Pair<String, Item>) -> Boolean): Boolean =
+        removeEntries(entriesWhere { !predicate(it) })
+
+    /**
+     * Removes the pairs [predicate] accepts, visiting each pair of key and item once, in order. The lines above a
+     * removed pair stay, as [remove] keeps them.
+     *
+     * @return whether any pair was removed.
+     */
+    public fun removeAll(predicate: (Pair<String, Item>) -> Boolean): Boolean = removeEntries(entriesWhere(predicate))
+
+    private fun entriesWhere(predicate: (Pair<String, Item>) -> Boolean): List<KeyValue> = items.entries()
+        .filter { !it.item.isNone && predicate(it.key.name to it.item) }
+
+    private fun removeEntries(removed: List<KeyValue>): Boolean {
+        if (removed.isEmpty()) return false
         keepLinesAbove(removed)
         val names = removed.mapTo(HashSet()) { it.key.name }
         items.retain { it.key.name !in names }
+        return true
     }
 
     private fun keepLinesAbove(removed: Collection<KeyValue>) {
-        if (removed.isEmpty()) return
         keepLinesAbove(
             lines = bodyLines(),
             removed = RemovedLines(removed),
@@ -455,7 +475,7 @@ public sealed interface TableLike {
     public fun items(): List<Pair<String, Item>>
 
     /** The item at [key], or null when there is none. */
-    public fun item(key: String): Item?
+    public fun getItem(key: String): Item?
 
     /**
      * Sets [key] to a copy of [item]. An inline table holds only values, so it stores a table as an inline table
@@ -478,14 +498,23 @@ public sealed interface TableLike {
     /** The number of keys holding an item. */
     public val size: Int
 
+    /** The keys holding an item, in order, as a copy that later changes to the table leave as it is. */
+    public val keys: Set<String>
+
     /** Whether no key holds an item. */
     public fun isEmpty(): Boolean
+
+    /** Whether some key holds an item. */
+    public fun isNotEmpty(): Boolean
 
     /** Removes every entry, keeping the comment and blank lines above each. */
     public fun clear()
 
     /** Whether [key] holds an item. */
     public fun containsKey(key: String): Boolean
+
+    /** Whether [key] holds an item, for `key in table`. */
+    public operator fun contains(key: String): Boolean
 
     /** The values visually under this table, with the key path that reaches each. */
     public fun valuesWithPaths(): List<Pair<List<Key>, Value>>

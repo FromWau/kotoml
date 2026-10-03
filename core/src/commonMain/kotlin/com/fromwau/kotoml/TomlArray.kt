@@ -12,6 +12,10 @@ import com.fromwau.kern.result.Result
  * A value added to the array is stored as is, not copied: keep using it only through the array, or add its
  * `copy()`.
  *
+ * A [Value] has no content equality, so `contains(value)` and `indexOf(value)` find only that same value
+ * object: `array.contains(Value.String("a"))` is false even when the array holds `"a"`. Compare what the
+ * values hold instead, with `array.any { it.stringOrNull == "a" }` or `array.indexOfFirst { … }`.
+ *
  * ```kotlin
  * val array = tomlArrayOf(Value.Integer(1L))
  * array.add("two")
@@ -74,9 +78,12 @@ public class TomlArray() : Iterable<Value> {
     /** Whether the array has no elements. */
     public fun isEmpty(): Boolean = size == 0
 
+    /** Whether the array has an element. */
+    public fun isNotEmpty(): Boolean = !isEmpty()
+
     /** Removes every element, keeping the lines above each as [removeAt] does. */
     public fun clear() {
-        retainAll { false }
+        removeSlots(values.indices.toList())
     }
 
     /** The value at [index], or null when the index is out of bounds. */
@@ -127,7 +134,12 @@ public class TomlArray() : Iterable<Value> {
         return Ok(Unit)
     }
 
-    /** Replaces the element at [index] with [value], which takes over the old element's decor; see [replace]. */
+    /**
+     * Replaces the element at [index] with [value], which takes over the old element's decor; see [replace].
+     *
+     * In the `array[index] = value` form the result is discarded, so an [index] past the end does nothing; call
+     * `array.set(index, value)` to see the [TomlEditError.IndexOutOfBounds].
+     */
     public operator fun set(
         index: Int,
         value: Value,
@@ -170,10 +182,25 @@ public class TomlArray() : Iterable<Value> {
     /**
      * Keeps only the values [predicate] accepts, in order, visiting each once. A removed value's own text goes and
      * the lines above it stay, as [removeAt] says.
+     *
+     * @return whether any value was removed.
      */
-    public fun retainAll(predicate: (Value) -> Boolean) {
-        val removed = values.indices.filterNot { index -> values[index].valueOrNull?.let(predicate) ?: false }
-        for (index in removed.asReversed()) removeSlot(index)
+    public fun retainAll(predicate: (Value) -> Boolean): Boolean = removeSlots(indicesWhere { !predicate(it) })
+
+    /**
+     * Removes the values [predicate] accepts, in order, visiting each once. A removed value's own text goes and the
+     * lines above it stay, as [removeAt] says.
+     *
+     * @return whether any value was removed.
+     */
+    public fun removeAll(predicate: (Value) -> Boolean): Boolean = removeSlots(indicesWhere(predicate))
+
+    private fun indicesWhere(predicate: (Value) -> Boolean): List<Int> =
+        values.indices.filter { index -> values[index].valueOrNull?.let(predicate) ?: false }
+
+    private fun removeSlots(indices: List<Int>): Boolean {
+        for (index in indices.asReversed()) removeSlot(index)
+        return indices.isNotEmpty()
     }
 
     private fun removeSlot(index: Int) {

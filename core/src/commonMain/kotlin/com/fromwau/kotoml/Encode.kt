@@ -65,7 +65,7 @@ internal fun encodeArray(buf: StringBuilder, array: TomlArray, defaultPrefix: St
         }
         index++
     }
-    if (array.trailingComma && !array.isEmpty()) buf.append(',')
+    if (array.trailingComma && array.isNotEmpty()) buf.append(',')
 
     encodeRaw(buf, array.rawTrailing.toStrWithDefault(""))
     buf.append(']')
@@ -102,7 +102,7 @@ internal fun encodeInlineTable(buf: StringBuilder, table: InlineTable, defaultPr
         buf.append('=')
         encodeValue(buf, value, inner.first, inner.second)
     }
-    if (table.trailingComma && !table.isEmpty()) buf.append(',')
+    if (table.trailingComma && table.isNotEmpty()) buf.append(',')
     buf.append(kept)
 
     encodeRaw(buf, table.rawTrailing.toStrWithDefault(""))

@@ -9,6 +9,9 @@ import com.fromwau.kern.result.Result
  * A sequence of tables, each under its own `[[header]]`.
  *
  * A table added here is stored as is, not copied: keep using it only through the array, or add its `copy()`.
+ *
+ * A [Table] has no content equality, so `contains(table)` and `indexOf(table)` find only that same table object.
+ * Compare what the tables hold instead, as in `tables.indexOfFirst { it["name"].stringOrNull == "a" }`.
  */
 public class ArrayOfTables() : Iterable<Table> {
     internal var span: Span? = null
@@ -20,10 +23,10 @@ public class ArrayOfTables() : Iterable<Table> {
     internal val keptHeaderLines: MutableList<KeptLines> = mutableListOf()
 
     /** An inline array of inline tables holding copies of these tables, formatted anew; this stays as it is. */
-    public fun toArray(): TomlArray = copy().intoArray()
+    public fun toTomlArray(): TomlArray = copy().intoTomlArray()
 
     /** Moves the tables into a new inline array of inline tables, formatted anew, leaving this empty. */
-    internal fun intoArray(): TomlArray {
+    internal fun intoTomlArray(): TomlArray {
         val array = values.mapNotNull { it.intoValue() }.toTomlArray()
         values.clear()
         array.resetFormatting()
@@ -44,9 +47,12 @@ public class ArrayOfTables() : Iterable<Table> {
     /** Whether there are no tables. */
     public fun isEmpty(): Boolean = size == 0
 
+    /** Whether there is a table. */
+    public fun isNotEmpty(): Boolean = !isEmpty()
+
     /** Removes every table, each as [removeAt] removes it, so the lines above each `[[header]]` stay. */
     public fun clear() {
-        retainAll { false }
+        removeSlots(values.toList())
     }
 
     /** The table at [index], or null when the index is out of bounds. */
@@ -73,16 +79,32 @@ public class ArrayOfTables() : Iterable<Table> {
     }
 
     /**
-     * Replaces the table at [index] with [table].
+     * Replaces the table at [index] with [table], which takes over the old table's header decor: the comment and
+     * blank lines above its `[[header]]` and the comment after it on its line. See [replace].
      *
-     * @return the old table, or [TomlEditError.IndexOutOfBounds], with nothing replaced, when there is no table
-     *   at [index].
+     * In the `tables[index] = table` form the result is discarded, so an [index] past the end does nothing; call
+     * `tables.set(index, table)` to see the [TomlEditError.IndexOutOfBounds].
      */
     public operator fun set(
         index: Int,
         table: Table,
+    ): Result<Table, TomlEditError> = replace(index, table)
+
+    /**
+     * Replaces the table at [index] with [table].
+     *
+     * @param keepDecor whether [table] takes over the old table's header decor, the comment and blank lines above
+     *   its `[[header]]` and the comment after it on its line; false keeps [table]'s own decor.
+     * @return the old table, or [TomlEditError.IndexOutOfBounds], with nothing replaced, when there is no table
+     *   at [index].
+     */
+    public fun replace(
+        index: Int,
+        table: Table,
+        keepDecor: Boolean = true,
     ): Result<Table, TomlEditError> {
         val old = get(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
+        if (keepDecor) table.rawDecor.assign(old.rawDecor)
         values[index] = Item.inArrayOfTables(table)
         return Ok(old)
     }
@@ -102,14 +124,29 @@ public class ArrayOfTables() : Iterable<Table> {
     }
 
     /**
-     * Keeps only the tables [predicate] accepts, in order. A removed table goes as [removeAt] removes it, so the
-     * lines above its `[[header]]` stay.
+     * Keeps only the tables [predicate] accepts, in order, visiting each once. A removed table goes as [removeAt]
+     * removes it, so the lines above its `[[header]]` stay.
+     *
+     * @return whether any table was removed.
      */
-    public fun retainAll(predicate: (Table) -> Boolean) {
-        val removed = values.filterNot { item -> item.tableOrNull?.let(predicate) ?: false }
+    public fun retainAll(predicate: (Table) -> Boolean): Boolean = removeSlots(slotsWhere { !predicate(it) })
+
+    /**
+     * Removes the tables [predicate] accepts, in order, visiting each once. A removed table goes as [removeAt]
+     * removes it, so the lines above its `[[header]]` stay.
+     *
+     * @return whether any table was removed.
+     */
+    public fun removeAll(predicate: (Table) -> Boolean): Boolean = removeSlots(slotsWhere(predicate))
+
+    private fun slotsWhere(predicate: (Table) -> Boolean): List<Item> =
+        values.filter { item -> item.tableOrNull?.let(predicate) ?: false }
+
+    private fun removeSlots(removed: List<Item>): Boolean {
         for (item in removed) item.tableOrNull?.let { keepHeaderLinesOf(it, isArrayOfTables = true, keptHeaderLines) }
         val removedSlots = removed.toHashSet()
         values.removeAll { it in removedSlots }
+        return removed.isNotEmpty()
     }
 
     /** Appends every table of [tables]. */
@@ -127,7 +164,7 @@ public class ArrayOfTables() : Iterable<Table> {
     }
 
     /** The tables as an inline array; without a header there is no better way to print them. */
-    override fun toString(): String = toArray().toString()
+    override fun toString(): String = toTomlArray().toString()
 }
 
 /** An array of [tables], in order. */

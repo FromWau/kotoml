@@ -192,7 +192,7 @@ class SlotSemanticsTest {
     fun `an array of tables turned into an array holds only values`() {
         val tables = ArrayOfTables()
         tables.add(Table())
-        val array = tables.toArray()
+        val array = tables.toTomlArray()
         assertIs<TomlEditError.NotAValue>(Item(Value.Array(array))[0].assign(Item(Table())).unwrapErr())
         assertEquals(1, array.size)
     }
@@ -305,7 +305,7 @@ class SlotSemanticsTest {
     @Test
     fun `converting an array of tables to an array leaves the array of tables as it is`() {
         val doc = TomlDocument.parse("[[a]]\nx = 1\n").unwrap()
-        val array = doc["a"].arrayOfTablesOrNull!!.toArray()
+        val array = doc["a"].arrayOfTablesOrNull!!.toTomlArray()
         assertEquals("[{ x = 1 }]", array.toString())
         assertEquals("[[a]]\nx = 1\n", doc.toString())
     }

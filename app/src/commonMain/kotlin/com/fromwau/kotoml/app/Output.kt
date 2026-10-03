@@ -69,7 +69,7 @@ internal fun Item.toToml(): String {
         return TomlDocument(printed).toString().trimEnd()
     }
     arrayOfTablesOrNull?.let { tables ->
-        return Value.Array(tables.toArray())
+        return Value.Array(tables.toTomlArray())
             .toString()
             .trim()
     }

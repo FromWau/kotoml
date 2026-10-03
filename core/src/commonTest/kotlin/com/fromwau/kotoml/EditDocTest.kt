@@ -172,7 +172,7 @@ duplicate key
 
         arr.add(1L)
         arr.add("foo")
-        assertTrue(!arr.isEmpty())
+        assertTrue(arr.isNotEmpty())
     }
 
     @Test

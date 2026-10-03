@@ -120,7 +120,7 @@ public class Item private constructor(
     /** The item at [key] of this table or inline table, or null when there is none or this is not one. */
     public fun getOrNull(key: String): Item? = when (val content = content) {
         is Content.TableContent -> content.table.getOrNull(key)
-        is Content.ValueContent -> content.value.inlineTableOrNull?.item(key)
+        is Content.ValueContent -> content.value.inlineTableOrNull?.getItem(key)
         else -> null
     }
 
@@ -246,7 +246,7 @@ public class Item private constructor(
         Content.None -> null
         is Content.ValueContent -> content.value
         is Content.TableContent -> Value.InlineTable(content.table.intoInlineTable())
-        is Content.ArrayOfTablesContent -> Value.Array(content.array.intoArray())
+        is Content.ArrayOfTablesContent -> Value.Array(content.array.intoTomlArray())
     }
 
     /**

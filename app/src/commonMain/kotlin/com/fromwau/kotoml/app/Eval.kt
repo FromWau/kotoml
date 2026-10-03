@@ -29,7 +29,7 @@ private fun Item.apply(step: Step): Result<List<Item>, AppError.CannotApply> {
     val array = arrayOrNull
     val tables = arrayOfTablesOrNull
     return when (step) {
-        is Step.Key -> table?.let { Ok(listOf(it.item(step.key) ?: Item())) }
+        is Step.Key -> table?.let { Ok(listOf(it.getItem(step.key) ?: Item())) }
         is Step.Index -> {
             val size = array?.size ?: tables?.size
             size?.let {

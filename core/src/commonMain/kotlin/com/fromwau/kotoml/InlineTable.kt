@@ -176,6 +176,10 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
         .filter { !it.item.isNone }
         .map { it.key.name to it.item }
 
+    /** The keys holding a value, in order, as a copy that later changes to the table leave as it is. */
+    override val keys: Set<String>
+        get() = items().mapTo(LinkedHashSet()) { it.first }
+
     /** The number of key/value pairs. */
     override val size: Int
         get() = items.entries().count { it.item.valueOrNull != null }
@@ -183,30 +187,33 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
     /** Whether the table has no key/value pairs. */
     override fun isEmpty(): Boolean = size == 0
 
+    /** Whether the table has a key/value pair. */
+    override fun isNotEmpty(): Boolean = !isEmpty()
+
     /** Removes every entry, keeping the lines above each as [remove] does. */
     override fun clear() {
-        retainAll { _, _ -> false }
+        removeEntries(items.snapshot())
     }
 
     /** The value at [key], or null when there is none. */
     public operator fun get(key: String): Value? = items.get(key)?.valueOrNull
 
     /** The slot at [key], or null when there is none. */
-    override fun item(key: String): Item? = items.get(key)?.takeIf { !it.isNone }
+    override fun getItem(key: String): Item? = items.get(key)?.takeIf { !it.isNone }
 
     /** Sets [key] to [value], keeping the key's position and formatting when it is already there. */
     public operator fun set(
         key: String,
         value: Value,
     ) {
-        items.insert(Key(key), Item.inInlineTable(value))
+        put(key, value)
     }
 
     /** Whether there is a value at [key]. */
     override fun containsKey(key: String): Boolean = items.get(key)?.valueOrNull != null
 
     /** Whether there is a value at [key], for `key in table`. */
-    public operator fun contains(key: String): Boolean = containsKey(key)
+    override operator fun contains(key: String): Boolean = containsKey(key)
 
     /**
      * The value at [key], first storing what [default] makes when there is none. [default] is called only then.
@@ -230,18 +237,19 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
     }
 
     /**
-     * Sets [key] to [value]. A key already there keeps its position but loses its formatting; pass a [Key] to
-     * choose it.
+     * Sets [key] to [value], as `table[key] = value` does: a key already there keeps its position, its spelling
+     * and its decor. Pass a [Key] to replace those.
      *
      * @return the value [key] held before, or null when it held none.
      */
     public fun put(
         key: String,
         value: Value,
-    ): Value? = put(Key(key), value)
+    ): Value? = items.insert(Key(key), Item.inInlineTable(value))?.valueOrNull
 
     /**
-     * Sets [key], with its spelling and decor, to [value]. A key already there keeps its position.
+     * Sets [key], with its spelling and decor, to [value]. A key already there keeps its position but takes the
+     * spelling and decor of [key].
      *
      * @return the value the key held before, or null when it held none.
      */
@@ -249,15 +257,8 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
         key: Key,
         value: Value,
     ): Value? {
-        val existing = items.getEntry(key.name)
-        if (existing != null) {
-            existing.key = key.copy()
-            val old = existing.item
-            existing.item = Item.inInlineTable(value)
-            return old.valueOrNull
-        }
-        items.insert(key.copy(), Item.inInlineTable(value))
-        return null
+        items.getEntry(key.name)?.key = key.copy()
+        return items.insert(key.copy(), Item.inInlineTable(value))?.valueOrNull
     }
 
     override fun putItem(
@@ -286,20 +287,41 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
     override fun removeItem(key: String): Item? = remove(key)?.let { Item(it) }
 
     /**
-     * Keeps only the pairs [predicate] accepts, visiting them in order. A removed pair's own text goes and the
-     * lines above it stay, as [remove] says.
+     * Keeps only the pairs [predicate] accepts, visiting each pair of key and value once, in order. A removed
+     * pair's own text goes and the lines above it stay, as [remove] says.
+     *
+     * ```kotlin
+     * inlineTable.retainAll { (_, value) -> value.stringOrNull != "" }
+     * ```
+     *
+     * @return whether any pair was removed.
      */
-    public fun retainAll(predicate: (String, Value) -> Boolean) {
-        val removed = items.entries().filterNot { entry ->
-            entry.item.valueOrNull?.let { predicate(entry.key.name, it) } ?: false
+    public fun retainAll(predicate: (Pair<String, Value>) -> Boolean): Boolean =
+        removeEntries(entriesWhere { !predicate(it) })
+
+    /**
+     * Removes the pairs [predicate] accepts, visiting each pair of key and value once, in order. A removed pair's
+     * own text goes and the lines above it stay, as [remove] says.
+     *
+     * @return whether any pair was removed.
+     */
+    public fun removeAll(predicate: (Pair<String, Value>) -> Boolean): Boolean =
+        removeEntries(entriesWhere(predicate))
+
+    private fun entriesWhere(predicate: (Pair<String, Value>) -> Boolean): List<KeyValue> =
+        items.entries().filter { entry ->
+            entry.item.valueOrNull?.let { predicate(entry.key.name to it) } ?: false
         }
+
+    private fun removeEntries(removed: List<KeyValue>): Boolean {
+        if (removed.isEmpty()) return false
         keepLinesAbove(removed)
         val names = removed.mapTo(HashSet()) { it.key.name }
         items.retain { it.key.name !in names }
+        return true
     }
 
     private fun keepLinesAbove(removed: Collection<KeyValue>) {
-        if (removed.isEmpty()) return
         if (!isDotted) {
             leaveTextAfterRemoved(bodyLines(), RemovedLines(removed))
             return

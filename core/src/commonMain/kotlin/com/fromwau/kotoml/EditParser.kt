@@ -660,7 +660,7 @@ private fun onArray(openEvent: Event, input: EventStream, context: ParseContext)
             }
             EventKind.ArrayClose -> {
                 finishValue(event)
-                val trailingComma = trailingStart != null && !result.isEmpty()
+                val trailingComma = trailingStart != null && result.isNotEmpty()
                 val start = trailingStart ?: event.span().start
                 result.trailingComma = trailingComma
                 result.rawTrailing = RawString.withSpan(start, event.span().start)
@@ -793,7 +793,7 @@ private fun onInlineTable(openEvent: Event, input: EventStream, context: ParseCo
             }
             EventKind.InlineTableClose -> {
                 finishValue(event)
-                val trailingComma = trailingStart != null && !result.isEmpty()
+                val trailingComma = trailingStart != null && result.isNotEmpty()
                 if (context.version == TomlVersion.V1_0 && trailingComma) {
                     errors.report(
                         Reason.NotInToml10(Toml11Feature.InlineTableTrailingComma),
