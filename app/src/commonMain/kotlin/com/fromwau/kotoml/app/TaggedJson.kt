@@ -8,6 +8,7 @@ import com.fromwau.kotoml.TomlDocument
 import com.fromwau.kotoml.InlineTable
 import com.fromwau.kotoml.Item
 import com.fromwau.kotoml.Table
+import com.fromwau.kotoml.TextPosition
 import com.fromwau.kotoml.TomlArray
 import com.fromwau.kotoml.Value
 import kotlinx.serialization.SerializationException
@@ -53,6 +54,17 @@ private fun tomlNumber(text: String): Value? {
     return (Value.parse(text) as? Result.Success)?.value
 }
 
+// kotlinx names where JSON broke only in its message: "Unexpected JSON token at offset 12: ...".
+private val JSON_OFFSET = Regex("""at offset (\d+)""")
+
+/** The zero-based line and column of the offset kotlinx's [message] names in this text, or null without one. */
+private fun String.positionOrNull(message: String?): TextPosition? {
+    val offset = message?.let { JSON_OFFSET.find(it) }?.groupValues?.get(1)?.toIntOrNull() ?: return null
+    val before = substring(0, minOf(offset, length))
+    val line = before.count { it == '\n' }
+    return TextPosition(line, before.length - (before.lastIndexOf('\n') + 1))
+}
+
 /** TOML's limit, plus the root object and the object that tags a scalar. */
 private const val MAX_JSON_NESTING = TomlDocument.NESTING_LIMIT + 2
 
@@ -83,7 +95,7 @@ internal fun parseTaggedJson(text: String): Result<TomlDocument, AppError> {
     val json = try {
         Json.parseToJsonElement(text)
     } catch (error: SerializationException) {
-        return Err(AppError.InvalidJson(error.message))
+        return Err(AppError.InvalidJson(text.positionOrNull(error.message)))
     }
     if (json !is JsonObject) return notTagged("$", TaggedJsonProblem.RootNotObject)
     val table = Table()

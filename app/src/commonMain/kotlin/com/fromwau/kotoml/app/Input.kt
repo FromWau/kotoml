@@ -22,9 +22,13 @@ internal fun readInput(path: String?): Result<ByteArray, AppError.ReadFailed> {
     }
 }
 
+/** Whether this process may read the file at [path]; kotlinx-io reports a refusal only as a sentence. */
+internal expect fun isReadable(path: String): Boolean
+
 private fun readFile(path: Path): Result<ByteArray, ReadFailure> {
     val metadata = SystemFileSystem.metadataOrNull(path) ?: return Err(ReadFailure.NotFound)
     if (metadata.isDirectory) return Err(ReadFailure.IsADirectory)
+    if (!isReadable(path.toString())) return Err(ReadFailure.PermissionDenied)
     return try {
         Ok(SystemFileSystem.source(path).buffered().use { it.readByteArray() })
     } catch (error: IOException) {

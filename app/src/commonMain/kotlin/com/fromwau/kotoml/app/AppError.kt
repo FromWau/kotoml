@@ -2,6 +2,7 @@ package com.fromwau.kotoml.app
 
 import com.fromwau.kern.result.IError
 import com.fromwau.kotoml.TomlParseError
+import com.fromwau.kotoml.TextPosition
 import com.fromwau.kotoml.TomlType
 import com.fromwau.kotoml.render
 import kotlinx.serialization.SerialName
@@ -24,7 +25,7 @@ internal sealed interface AppError : IError {
     /** The input is not JSON; [detail] is the JSON parser's own account. */
     @Serializable
     @SerialName("InvalidJson")
-    data class InvalidJson(val detail: String?) : AppError
+    data class InvalidJson(val position: TextPosition?) : AppError
 
     /** The JSON is not toml-test's tagged form at [path], for [reason]. */
     @Serializable
@@ -68,6 +69,10 @@ internal sealed interface ReadFailure : IError {
     @SerialName("IsADirectory")
     data object IsADirectory : ReadFailure
 
+    @Serializable
+    @SerialName("PermissionDenied")
+    data object PermissionDenied : ReadFailure
+
     /** The system refused the read; [detail] is its own account, when it gave one. */
     @Serializable
     @SerialName("Io")
@@ -108,11 +113,13 @@ internal fun AppError.describe(): String = when (this) {
         when (failure) {
             ReadFailure.NotFound -> "$name: no such file"
             ReadFailure.IsADirectory -> "$name: is a directory"
+            ReadFailure.PermissionDenied -> "$name: permission denied"
             is ReadFailure.Io -> "$name: cannot read" + (failure.detail?.let { ": $it" } ?: "")
         }
     }
     is AppError.InvalidToml -> error.render(source).trimEnd()
-    is AppError.InvalidJson -> "invalid JSON" + (detail?.let { ": $it" } ?: "")
+    is AppError.InvalidJson ->
+        "invalid JSON" + (position?.let { " at line ${it.line + 1}, column ${it.column + 1}" } ?: "")
     is AppError.NotTaggedJson -> "not toml-test's tagged JSON at $path: ${reason.describe()}"
     is AppError.JsonTooDeep -> "JSON nests deeper than $limit levels"
     is AppError.FilterSyntax -> buildString {

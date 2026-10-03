@@ -1,6 +1,7 @@
 package com.fromwau.kotoml.app
 
 import com.fromwau.kern.result.Result
+import com.fromwau.kotoml.TextPosition
 import com.fromwau.kotoml.TomlDocument
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -213,5 +214,16 @@ class TaggedJsonTest {
     fun `the human text says where and what`() {
         val error = AppError.NotTaggedJson("$.a", TaggedJsonProblem.BadValue("integer", "x"))
         assertEquals("not toml-test's tagged JSON at $.a: \"x\" is not a valid integer", error.describe())
+    }
+
+    @Test
+    fun `invalid JSON is refused with the line and column where it broke`() {
+        assertEquals(Result.Error(AppError.InvalidJson(TextPosition(0, 1))), parseTaggedJson("{bad"))
+        assertEquals(Result.Error(AppError.InvalidJson(TextPosition(1, 6))), parseTaggedJson("{\n  \"a\" 1}"))
+    }
+
+    @Test
+    fun `invalid JSON reads as where it broke and nothing more`() {
+        assertEquals("invalid JSON at line 2, column 6", AppError.InvalidJson(TextPosition(1, 5)).describe())
     }
 }
