@@ -21,6 +21,7 @@ private fun CommandBuilder.specOption() = option("--toml", help = "the TOML vers
 private fun tomlVersion(spec: String): TomlVersion = if (spec == "1.0") TomlVersion.V1_0 else TomlVersion.V1_1
 
 private fun CommandBuilder.fileArgument() = argument("file", "the TOML file; standard input when absent or `-`")
+    .file()
     .optional()
 
 /** [AppError] as klap carries it: the sentence for a person, and the error itself for `--json`. */
