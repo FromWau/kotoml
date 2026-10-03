@@ -1,14 +1,14 @@
 package com.fromwau.kotoml.app
 
 import com.fromwau.kern.result.Result
-import com.fromwau.kotoml.DocumentMut
+import com.fromwau.kotoml.TomlDocument
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.fail
 
 class TaggedJsonTest {
 
-    private fun decode(toml: String): String = when (val parsed = DocumentMut.parse(toml)) {
+    private fun decode(toml: String): String = when (val parsed = TomlDocument.parse(toml)) {
         is Result.Success -> parsed.value.toTaggedJson().toString()
         is Result.Error -> fail("$toml: ${parsed.error}")
     }

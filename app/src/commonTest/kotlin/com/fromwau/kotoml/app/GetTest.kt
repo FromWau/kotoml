@@ -1,7 +1,8 @@
 package com.fromwau.kotoml.app
 
 import com.fromwau.kern.result.Result
-import com.fromwau.kotoml.DocumentMut
+import com.fromwau.kotoml.Item
+import com.fromwau.kotoml.TomlDocument
 import com.fromwau.kotoml.TomlType
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
@@ -26,12 +27,12 @@ class GetTest {
         |""".trimMargin()
 
     private fun select(filter: String): Result<Selection, AppError> {
-        val document = (DocumentMut.parse(sample) as? Result.Success)?.value ?: fail("sample does not parse")
+        val document = (TomlDocument.parse(sample) as? Result.Success)?.value ?: fail("sample does not parse")
         val parsed = when (val parsed = parseFilter(filter)) {
             is Result.Success -> parsed.value
             is Result.Error -> return parsed
         }
-        return when (val selected = parsed.evaluate(document.asItem())) {
+        return when (val selected = parsed.evaluate(Item(document.root))) {
             is Result.Success -> Result.Success(Selection(selected.value, parsed.streams))
             is Result.Error -> selected
         }

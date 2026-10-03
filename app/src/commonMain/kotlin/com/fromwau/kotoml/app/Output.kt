@@ -1,7 +1,7 @@
 package com.fromwau.kotoml.app
 
 import com.fromwau.kotoml.Decor
-import com.fromwau.kotoml.DocumentMut
+import com.fromwau.kotoml.TomlDocument
 import com.fromwau.kotoml.Item
 import com.fromwau.kotoml.Value
 import com.fromwau.kotoml.toInlineTable
@@ -66,7 +66,7 @@ internal fun Item.toToml(): String {
     tableOrNull?.let { table ->
         // The text around a table belongs to its header, which is not printed.
         val printed = table.copy().also { it.decor = Decor() }
-        return DocumentMut(printed).toString().trimEnd()
+        return TomlDocument(printed).toString().trimEnd()
     }
     arrayOfTablesOrNull?.let { tables ->
         return Value.Array(tables.toArray())

@@ -7,7 +7,8 @@ import com.fromwau.klap.CliError
 import com.fromwau.klap.CommandBuilder
 import com.fromwau.klap.cli
 import com.fromwau.klap.main
-import com.fromwau.kotoml.DocumentMut
+import com.fromwau.kotoml.Item
+import com.fromwau.kotoml.TomlDocument
 import com.fromwau.kotoml.TomlVersion
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -32,12 +33,12 @@ private fun <T> Result<T, AppError>.orCliError(): Result<T, CliError> = mapError
     )
 }
 
-private fun parseToml(path: String?, spec: String): Result<DocumentMut, AppError> {
+private fun parseToml(path: String?, spec: String): Result<TomlDocument, AppError> {
     val bytes = when (val read = readInput(path)) {
         is Result.Success -> read.value
         is Result.Error -> return read
     }
-    return DocumentMut.parse(bytes, tomlVersion(spec)).mapError { AppError.InvalidToml(it, bytes.decodeToString()) }
+    return TomlDocument.parse(bytes, tomlVersion(spec)).mapError { AppError.InvalidToml(it, bytes.decodeToString()) }
 }
 
 /** What `get` selects: [filter] run on the TOML in [path]. */
@@ -54,7 +55,7 @@ private fun get(
         is Result.Success -> parsed.value
         is Result.Error -> return parsed
     }
-    return parsedFilter.evaluate(document.asItem()).map { Selection(it, parsedFilter.streams) }
+    return parsedFilter.evaluate(Item(document.root)).map { Selection(it, parsedFilter.streams) }
 }
 
 /** What `check --json` prints for a valid file. */

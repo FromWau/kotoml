@@ -4,7 +4,7 @@ import com.fromwau.kern.result.Err
 import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
 import com.fromwau.kotoml.Datetime
-import com.fromwau.kotoml.DocumentMut
+import com.fromwau.kotoml.TomlDocument
 import com.fromwau.kotoml.InlineTable
 import com.fromwau.kotoml.Item
 import com.fromwau.kotoml.Table
@@ -20,7 +20,7 @@ import kotlinx.serialization.json.JsonPrimitive
 // toml-test's tagged JSON: every scalar is {"type": ..., "value": "<text>"}, tables are objects, arrays arrays.
 
 /** This document in toml-test's tagged JSON, which its decoder protocol prints. */
-internal fun DocumentMut.toTaggedJson(): JsonElement = asItem().tagged()
+internal fun TomlDocument.toTaggedJson(): JsonElement = Item(root).tagged()
 
 private fun Item.tagged(): JsonElement {
     valueOrNull?.let { return it.tagged() }
@@ -54,7 +54,7 @@ private fun scalar(type: String, value: String): JsonElement =
     JsonObject(mapOf("type" to JsonPrimitive(type), "value" to JsonPrimitive(value)))
 
 /** The document toml-test's tagged JSON [text] describes, which its encoder protocol reads. */
-internal fun parseTaggedJson(text: String): Result<DocumentMut, AppError> {
+internal fun parseTaggedJson(text: String): Result<TomlDocument, AppError> {
     val json = try {
         Json.parseToJsonElement(text)
     } catch (error: SerializationException) {
@@ -68,7 +68,7 @@ internal fun parseTaggedJson(text: String): Result<DocumentMut, AppError> {
             is Result.Error -> return value
         }
     }
-    return Ok(DocumentMut(table))
+    return Ok(TomlDocument(table))
 }
 
 private fun JsonElement.toValue(path: String): Result<Value, AppError> {
