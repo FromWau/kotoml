@@ -7,7 +7,7 @@ import kotlin.test.assertEquals
 /**
  * `toml_edit/tests/decoder_compliance.rs` and `encoder_compliance.rs`: toml-test's harness at spec 1.1.0, plus
  * upstream's own fixtures under `tests/fixtures`. Every refusal is checked against upstream's error snapshot
- * under `tests/snapshots`, copied unedited.
+ * under `tests/snapshots`, copied; where kotoml's text differs on purpose, PARITY lists it.
  */
 class ComplianceHarnessTest {
 
@@ -80,7 +80,7 @@ class ComplianceHarnessTest {
     }
 
     @Test
-    fun `every invalid suite and upstream fixture is refused with upstream's error text`() {
+    fun `every invalid suite and upstream fixture is refused with its snapshot's error text`() {
         val failures = invalid().mapNotNull { case ->
             when (val decoded = outcome(case.fixture)) {
                 is Outcome.Decoded -> "${case.name}: should have failed"

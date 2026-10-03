@@ -131,7 +131,7 @@ TOML parse error at line 2, column 1
   |
 2 | a = 2
   | ^
-duplicate key
+duplicate key `a`
 
 """,
             error.render(input),

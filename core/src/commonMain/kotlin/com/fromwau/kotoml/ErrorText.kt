@@ -23,7 +23,9 @@ public fun TomlParseError.render(source: String): String = buildString {
         val lineNum = position.line
         val column = position.column - 1
         val gutter = lineNum.toString().length
-        val content = source.split('\n')[lineNum - 1]
+        val line = source.split('\n')[lineNum - 1]
+        // Platforms decode bytes that are not UTF-8 differently, so the line shows only what comes before them.
+        val content = if (reason is TomlParseError.Reason.InvalidUtf8) line.take(column) else line
         val contentBytes = content.encodeToByteArray().size
         // Allow the highlight to reach one past the line.
         val highlightLength = minOf(span.end - span.start, maxOf(contentBytes - column, 0))
@@ -119,7 +121,7 @@ internal fun ParseErrorReason.describe(): String = when (this) {
 
 internal fun Reason.describe(): String = when (this) {
     is Reason.Syntax -> reason.describe()
-    is Reason.DuplicateKey -> "duplicate key"
+    is Reason.DuplicateKey -> "duplicate key `${Key(key)}`"
     is Reason.DottedKeyExtendsValue -> "cannot extend value of type ${valueType.describe()} with a dotted key"
     is Reason.InvalidDatetime -> error.describe()
     is Reason.MissingDigits -> when (radix) {
@@ -232,12 +234,8 @@ private fun describe(
     expected: List<Expected>?,
 ): String = buildString {
     append(description)
-    if (expected == null) return@buildString
+    if (expected.isNullOrEmpty()) return@buildString
     append(", expected ")
-    if (expected.isEmpty()) {
-        append("nothing")
-        return@buildString
-    }
     expected.forEachIndexed { index, item ->
         if (index != 0) append(", ")
         when (item) {

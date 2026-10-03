@@ -2,4 +2,4 @@ TOML parse error at line 4, column 3
   |
 4 | [[fruit]] # Not allowed
   |   ^^^^^
-duplicate key
+duplicate key `fruit`

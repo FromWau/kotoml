@@ -108,7 +108,7 @@ TOML parse error at line 5, column 1
   |
 5 | a = 2
   | ^
-duplicate key
+duplicate key `a`
 
 """,
         )

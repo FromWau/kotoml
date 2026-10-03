@@ -472,7 +472,7 @@ internal fun onKey(keyEvent: Event, input: EventStream, context: ParseContext): 
     closeKey()
 
     if (TomlDocument.NESTING_LIMIT <= resultPath.size) {
-        errors.report(Reason.KeyTooDeep)
+        errors.report(Reason.KeyTooDeep, unexpected = keyEvent.span())
         return emptyList<Key>() to null
     }
 

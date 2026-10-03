@@ -509,7 +509,7 @@ TOML parse error at line 1, column 2
   |
 1 | ==
   |  ^
-extra `=`, expected nothing
+extra `=`
 
 """,
             err.render(input),

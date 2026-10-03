@@ -316,7 +316,7 @@ copy of Rust's derived `Debug` (`RustDebug.kt`), so the expected text is upstrea
 
 ### `toml_parser`
 
-Snapshot files (`tests/snapshots/*.txt`) are copied unedited to `src/commonTest/snapshots/toml_parser/`.
+Snapshot files (`tests/snapshots/*.txt`) are copied to `src/commonTest/snapshots/toml_parser/`; section 5 lists the texts kotoml changed.
 
 | upstream | Kotlin |
 |---|---|
@@ -669,7 +669,7 @@ Beyond upstream's tests, `FloatFormatTest` compares the shortest digits, `Displa
 | `src/visit_mut.rs` doctest | `` EditDocTest.`walking a document replaces each float with a string and keeps its decor` `` |
 
 | `tests/decoder_compliance.rs` + `tests/decoder.rs` (toml-test harness at 1.1.0 and `tests/fixtures`, valid) | `` ComplianceHarnessTest.`every valid suite and upstream fixture decodes to its JSON` `` |
-| `tests/decoder_compliance.rs` (invalid, each error checked against `tests/snapshots/invalid/**.stderr`) | `` ComplianceHarnessTest.`every invalid suite and upstream fixture is refused with upstream's error text` `` (560 snapshots, copied unedited) |
+| `tests/decoder_compliance.rs` (invalid, each error checked against `tests/snapshots/invalid/**.stderr`) | `` ComplianceHarnessTest.`every invalid suite and upstream fixture is refused with its snapshot's error text` `` (560 snapshots, copied; section 5 lists the texts kotoml changed) |
 | `tests/encoder_compliance.rs` + `tests/encoder.rs` | `` ComplianceHarnessTest.`every valid fixture's JSON encodes to TOML that decodes to the same values` `` |
 
 The harness compares tagged JSON by toml-test's own rules (`TaggedJson.kt`): floats as numbers with `nan` equal
@@ -716,6 +716,10 @@ commands of [`:app`](../app/README.md) and compares their output by its own rule
 | `Datetime` from a date or a time | `From<Date>`, `From<Time>` | `Datetime(date = …)`, `Datetime(time = …)` with the other parts defaulting to `null` | one constructor covers all four kinds |
 | `Value::fmt` | `fmt` | `resetFormatting()` | says what it does to the value |
 | The escapes a bad escape's error lists | `b`, `e`, `f`, `n`, `r`, `\`, `"`, `x`, `u`, `U` | adds `t`; under TOML 1.0 also leaves out `e` and `x` | `\t` is a valid escape; 1.0 has no `\e` or `\x` |
+| A duplicate key's error | "duplicate key" | names the key as TOML spells it: "duplicate key `a`", "duplicate key `\"\"`" | the reader should not have to find which key |
+| An error that expects nothing more | "…, expected nothing" | the message alone, such as "invalid float" | "expected nothing" says nothing |
+| Bytes that are not UTF-8 | the message alone, with no position | the message under its line, column and caret; the line shows only what comes before the bad bytes | every other parse error points at its place; platforms decode bad bytes differently |
+| A dotted key deeper than the nesting limit | "recursion limit", with no position | the same message, pointing at the key | as above |
 | An integer prefix with no digits (`0x`, `0o`, `0b`) | "integer number overflowed" | `TomlParseError.Reason.MissingDigits(radix)`: "expected hexadecimal digits after `0x`", and `0o`, `0b` alike | nothing overflowed; the digits are missing |
 | `Item::into_value`, `into_table`, `into_array_of_tables`, `Table::into_inline_table`, `InlineTable::into_table`, `ArrayOfTables::into_array` | consume the source | `Item`'s are internal; `toInlineTable()`, `toTable()` and `toTomlArray()` convert a copy and leave the source as it is | Kotlin cannot consume a caller's variable, and a moved-out source left empty in the document would vanish from its printout |
 | `*place = value` through `&mut` | assignment | `Item.assign`, `holder.decor = …`, `array[i] = v`, `table[key] = v`, `put` | see "Items are slots, values are not" |

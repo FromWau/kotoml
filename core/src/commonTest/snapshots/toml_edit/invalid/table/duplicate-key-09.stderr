@@ -2,4 +2,4 @@ TOML parse error at line 5, column 2
   |
 5 | [a]
   |  ^
-duplicate key
+duplicate key `a`
