@@ -1,0 +1,1052 @@
+# Friction log: porting toml_edit to Kotlin Multiplatform (`:toml`)
+
+Append-only. Entries are never rewritten, even when a later entry proves one wrong; a
+correction is its own entry that references the earlier one. Written while the context
+is fresh, not at the end of a session.
+
+Target: `toml_edit` 0.25.15 and its crates `toml_parser`, `toml_writer`, `toml_datetime`, at
+toml-rs/toml `342362803e41051e522127ca933a19d12a2711ac`, ported into `toml/` as common code.
+
+Scope decided: default features (`parse`, `display`) only; the lexer works on UTF-8 bytes so
+every span is a byte offset, as upstream's are.
+
+Each entry: **Wanted / Got / Severity / Doing / For <upstream>.**
+
+Severity scale: `paper cut` (seconds lost) / `detour` (minutes, wrong path walked) /
+`blocker` (cannot proceed without a decision or an upstream change).
+
+## Phase 0: reading upstream
+
+### 1. 2026-10-02 20:51 - Upstream itself does not pass goal 2 of the brief on 21 suite files
+
+**Wanted:** confirm upstream is a correct oracle for all four suite checks on both spec lists,
+before porting toward it.
+
+**Got:** built upstream `toml_edit` at the pinned commit as a small binary and ran it over every
+`.toml` in `files-toml-1.0.0` and `files-toml-1.1.0`:
+
+```
+files-toml-1.0.0: invalid accepted=9 rejected=492 valid-failed=0 roundtrip-diff=12
+files-toml-1.1.0: invalid accepted=0 rejected=494 valid-failed=0 roundtrip-diff=12
+```
+
+The 9 accepted are 1.0-only rules that 1.1 relaxed (`inline-table/linebreak-0[1-4]`,
+`inline-table/trailing-comma`, `string/basic-byte-escapes`, `{datetime,local-datetime,local-time}/no-secs`).
+The 12 round-trip differences: CRLF printed as LF (`empty-crlf`, `newline-crlf`,
+`multiline-escaped-crlf`), a final newline added (`table/no-eol-0[12]`), and table-header and
+dotted keys re-quoted (`"name".'last'` printed as `name.'last'`, `["".a]` as `[''.a]`).
+
+**Severity:** blocker for goal 2 as written: parity (goal 1) and "every valid file survives
+byte for byte" / "every 1.0.0 invalid file is refused" (goal 2) cannot both hold.
+
+**Doing:** port for parity first (milestones 1-4 do not depend on this), raise it with the owner,
+decide at milestone 5. MEASURED, not inferred.
+
+**For the brief:** goal 2 assumes upstream passes all four checks; its own harness only runs the
+1.1.0 decoder and encoder checks, never a byte-for-byte round trip.
+
+### 2. 2026-10-02 20:51 - Upstream's bundled toml-test data is byte-identical to the submodule
+
+**Wanted:** know whether upstream's 560 `tests/snapshots/invalid/**.stderr` error snapshots apply
+to our suite.
+
+**Got:** `diff -rq toml-test-data-2.14.1/assets/toml-test/tests toml-test/tests` is empty.
+
+**Severity:** none; a green result that closes a question.
+
+**Doing:** port `decoder_compliance` with those snapshots as exact expectations for the error text.
+
+## Phase 2: toml_parser
+
+### 3. 2026-10-02 21:14 - snapbox's `.raw()` still folds CRLF and lone CR into LF
+
+**Wanted:** compare ported snapshots exactly, since upstream marks them `.raw()`.
+
+**Got:** `LexerTest.testLexComment` failed: expected remaining stream `\ntrailing`, actual `\r\ntrailing`.
+Upstream passes the same case. snapbox 1.2.2 `Data::raw()` is `FilterSet::empty().newlines()`: it keeps the
+newline filter, and `normalize_line_endings` maps both `\r\n` and `\r` to `\n` on actual and expected.
+
+**Severity:** detour, about five minutes.
+
+**Doing:** the Kotlin `assertData` / `assertFileData` helpers apply the same normalization to both sides, and
+nothing else. Only plain-text comparisons can differ; Debug output escapes `\r`.
+
+**For snapbox:** the name `raw` reads as "no filters at all"; its doc says "Remove default filters", which
+is true but does not say newline folding survives.
+
+### 4. 2026-10-02 21:18 - The parser layer matches upstream on all 768 parseable suite files
+
+**Wanted:** a stronger check than upstream's 182 parser tests before building the document model on top.
+
+**Got:** a small Rust binary over upstream `toml_parser` and a throwaway Kotlin test both dumped, for every
+`.toml` under `toml-test/tests` that is valid UTF-8, the testsuite's `EventResults` Debug text (every event,
+every lexer, parser and decoder error). After fixing the test-side imitation of Rust's `Debug` escaping, which
+had passed U+3000, unassigned code points and noncharacters through unescaped, `diff -rq` reports 0
+differences on the JVM. MEASURED.
+
+Early read the brief asked for, the parser alone (no duplicate-key or table semantics): refuses 429 of 501
+invalid files in `files-toml-1.0.0` and 431 of 494 in `files-toml-1.1.0`; files that are not UTF-8 count as
+refused, as upstream's harness refuses them before parsing.
+
+**Severity:** none; a green result.
+
+**Doing:** the differential dump is not committed (it needs the Rust toolchain); upstream's own tests and the
+suite tests are what the gate runs.
+
+## Phase 4: toml_edit
+
+### 5. 2026-10-02 21:44 - Hand-copied snapshots lose trailing spaces upstream relies on
+
+**Wanted:** copy `compliance/invalid.rs` expectations as Kotlin raw strings.
+
+**Got:** `ComplianceInvalidTest.strayCr` failed on `1 |` versus `1 | `: the rendered error line ends with a
+space after the gutter when the source line is empty or ends in a CR, and the space did not survive writing the
+raw string by hand.
+
+**Severity:** paper cut, but silent: a snapshot that drops whitespace still reads right.
+
+**Doing:** every expectation with significant trailing or control whitespace is now written as an escaped string
+generated from the Rust literal by a script, not retyped. Checked the other hand-written test files for the
+same loss: `grep -n ' $'` over the upstream sources, line by line.
+
+### 6. 2026-10-02 21:51 - commonTest code may use JVM-only stdlib and still pass jvmTest
+
+**Wanted:** a green `:toml:jvmTest` to mean the common test code is common.
+
+**Got:** `VisitExampleTest` used `sortedSetOf`, a JVM-only stdlib function. `jvmTest` compiled and passed;
+every native test compile then failed with `Unresolved reference 'sortedSetOf'`.
+
+**Severity:** paper cut; the gate caught it, a JVM-only loop would not have.
+
+**Doing:** `mutableSetOf` / `setOf` (the test compares sets, so order never mattered). Native test compiles stay
+in the gate on every commit, never skipped for speed.
+
+## Phase 5: the suite
+
+### 7. 2026-10-02 21:57 - The port fails goal 2 on exactly upstream's 21 files, and nothing else
+
+**Wanted:** all four suite checks at 100% on both lists.
+
+**Got:** decoding and encoding pass on every valid file of both lists; every invalid file of
+`files-toml-1.1.0` is refused. Failing, and identical file for file to what upstream's own binary does
+(entry 1): round trip, 12 files per list; refusing, the 9 `files-toml-1.0.0` invalid files that TOML 1.1 made
+valid. MEASURED on the JVM.
+
+**Severity:** blocker for goal 2 as written; it needs the owner's call, since meeting it means either leaving
+upstream's behaviour (goal 1) or breaking an upstream test (goal 3: `document_display_propagates_write_errors`
+asserts CRLF input prints without `\r`).
+
+**Doing:** finishing the unblocked work first, then asking with the options laid out.
+
+### 8. 2026-10-02 22:12 - RESOLVES entries 1 and 7: the owner chose the whole suite; 2 upstream tests change, not 16
+
+**Wanted:** pass every file of both lists, as the owner asked ("i want 501/501", "fix").
+
+**Got:** a parse option `TomlVersion.V1_0` refuses the nine 1.1-only files. Per-line endings, per-occurrence key
+spelling and read-order dotted keys make all twelve round-trip files print back. A first attempt that kept a
+missing final newline unconditionally broke 14 upstream `edit.rs` tests, all of which edit text that lacks one and
+expect a newline added. Keeping it only while the document prints exactly as read (render, then compare with the
+source plus one newline) satisfies both, and leaves those 14 untouched. Two upstream expectations do contradict
+the suite and change: `test_key_unification` and the CRLF assertion of `document_display_propagates_write_errors`.
+MEASURED: 8 of 8 suite checks, 388 tests, JVM and linuxX64.
+
+**Severity:** detour, about an hour.
+
+**Doing:** each change is a row under "Intended differences" in PARITY.md, and pinned by `PreservationTest` or
+`TomlVersionTest` as well as by the suite.
+
+**For upstream:** issues 163 (dotted key order) and 1158 (final newline) are what the suite's round trip trips on;
+the approach here (order recorded per line, a per-line spelling used while the shared key is unchanged) is one way
+to close them without changing the model's shape.
+
+### 9. 2026-10-02 22:20 - The parity sweep found an untested README claim and two KDoc examples that did not compile as written
+
+**Wanted:** every claim in the README and every KDoc example to be backed by code that runs.
+
+**Got:** `Table.setImplicit`'s example called `DocumentMut.parse(...)` and used the `Result` as a document. The new
+README said writing a key into a string returns `TomlEditError`, and no test checked that. Upstream's README is
+itself a doctest (`#[doc = include_str!("../README.md")]` in `src/lib.rs`), and PARITY had no row for it.
+
+**Severity:** paper cut. KDoc examples are not compiled, so nothing caught them.
+
+**Doing:** fixed the example; `EditDocTest.readmeExample` ports upstream's README, and `moduleReadme*` tests pin
+this module's README examples and the `set` claim. Gate green, 392 tests on JVM and linuxX64.
+
+### 10. 2026-10-02 22:21 - Corrects entry 9's title: one KDoc example was wrong, not two
+
+**Got:** only `Table.setImplicit`'s example was broken; the `Visit` example already unwraps with `.getOrNull()!!`.
+
+**Severity:** paper cut, my own miscount. No upstream feedback.
+
+## Phase 6: kotoml
+
+### 11. 2026-10-03 00:37 - The log moves with the code: `:toml` is now its own project, kotoml
+
+**Got:** the port left kontext for `~/Projects/kotoml` (packages `com.fromwau.kotoml`, modules `:core` and `:app`, CLI
+`kotoml`). Entries 1 to 10 were written in kontext and name its paths (`toml/`, `:toml`); they stay as written.
+
+**Doing:** `./gradlew check` now runs the official toml-test runner against the native binary, so the suite is judged
+by toml-test itself, not only by the Kotlin port of its rules.
+
+## Next steps
+
+1. **Date-times as kotlinx-datetime types.** Drop the own `Datetime` / `Date` / `Time` / `Offset`: a value is one of an
+   offset date-time (`LocalDateTime` + `UtcOffset`), a local date-time, a local date or a local time. The written
+   spelling stays in the repr, so printing is unchanged. A second of 60 (a leap second) is valid TOML that
+   `LocalTime` cannot hold, so it becomes a typed parse error; no toml-test file uses it. `:core` gains
+   kotlinx-datetime as an `api` dependency, and PARITY records the difference.
+2. **A Kotlin-first API, in slices** (values, then tables and arrays, then the document). Replace the Rust-shaped
+   names (`iter()`, `len()`, `asStr()`, `getMut()`, `clone()`, `fromIter()`, the `description()` strings on
+   `TokenKind`, `Encoding` and `IntegerRadix`) with Kotlin idioms: properties, operators, `List` and `Map` views.
+   Parse from a kotlinx-io `Source` (bytes are already parsed, with a typed `InvalidUtf8`) and write to a `Sink`. The
+   upstream tests are rewritten against the new API, and PARITY becomes a map of behaviour and tests instead of
+   names.
+
+### 12. 2026-10-03 00:47 - Supersedes next step 1: date-times stay hand-rolled in core
+
+**Wanted:** decide whether core should hold date-times as kotlinx-datetime types.
+
+**Got:** core's own `Datetime` / `Date` / `Time` / `Offset` (about 480 lines with the parser) already cover every
+TOML date-time, a leap second and a written offset included, and match upstream, whose `toml_datetime` is hand-rolled
+too, with no date library. kotlinx-datetime would refuse `:60`, still need a wrapper for an offset date-time, and put a
+pre-1.0 library (0.8.0) into core's public API. Its types are `@Serializable` already, as ISO strings.
+
+**Doing:** keep the hand-rolled types in core. Conversions to kotlinx-datetime (`toLocalDate()` and the rest) go into
+the serialization module, which depends on kotlinx-datetime anyway. There, a kotlinx-datetime field reads from a TOML
+date through its own string serializer; writing one as a native TOML date, not a quoted string, means recognising its
+serial name in the encoder. Next step 2, the Kotlin-first API, is now the next step.
+
+### 13. 2026-10-03 01:02 - The Kotlin-first API: what the audit decided, and two bugs it found
+
+**Wanted:** a call on every public declaration before reshaping the API (next step 2).
+
+**Got:** an audit of the whole surface. The four forks were decided by the owner:
+- spans: dropped from the public API; `Document` goes internal, every `span()` member goes, only parse errors carry
+  positions;
+- collections: `Iterable` plus `size` and nullable `get`, no `List` or `Map` (their `get` would throw);
+- writer: the `writer` package goes internal, as does `parser`, once `Span`, the parse-error reasons and
+  `Expected` move to the root package;
+- `Decor`: an immutable `data class Decor(prefix, suffix)` behind `var decor`.
+
+Also planned:
+- the `Mut`, `into` and `clone` duplicates go;
+- `RawString`, `Repr` and `Formatted` go internal behind value constructors and properties;
+- collection vocabulary (`size`, `add`, `put`, `removeAt`, `getOrPut`, `sortWith`/`sortBy`);
+- `set` overloads replace the top-level `value()`, `table()` and `array()`;
+- `xOrNull` properties replace `asX()` and `isX()`;
+- `DocumentMut` becomes `TomlDocument` with `val root`;
+- `visit` and `visitmut` go;
+- date-time fields become `Int`.
+
+The order is values, then tables and arrays, then the document, then the lower layers.
+
+**Bugs found, NOT YET VERIFIED by a test:**
+- `Table.set` stores the caller's `Item` object, so `doc["b"] = doc["a"]` shares one slot between both keys;
+- an array slot accepts a table, and an array-of-tables slot accepts a value.
+
+**Doing:** keep the internal storage and the print path; expose the new API as views over them. Keep the field names
+and `@SerialName`s of the error types, which are the `--json` wire format. Run the round-trip tests after slice 1.
+
+### 14. 2026-10-03 02:22 - Next step 2 is done: the Kotlin-first API is on master
+
+**Got:** four waves of subagents, each on its own branch and worktree, each verified with
+`./gradlew clean build --rerun-tasks` (all tests on JVM and linuxX64, the official toml-test runner for 1.0 and 1.1):
+- `parser` and `writer` internal; `Span` and the parse-error reasons public in the root package; visitors deleted;
+- slot aliasing fixed (storing an item stores a copy), and array, array-of-tables and inline-table slots accept only
+  their kind;
+- values with constructors, `xOrNull` properties, an immutable `Decor`, no public spans, `Int` date-time fields;
+- containers with Kotlin collection vocabulary, `getOrPut`, `Item()` constructors, `doc["a"]["b"] = "x"`;
+- `TomlDocument` with `val root: Table`, and `read(Source)` / `writeTo(Sink)` with typed, serializable errors.
+
+The expected outputs of every upstream and round-trip test, and the `--json` wire format, are unchanged. The one
+upstream test whose input changed is `EditTest.tableUnderInline`: inline tables hold only values.
+
+**Left, undecided:** `Table.sortValuesWith` versus `sortWith`, and `Item.isNone`.
+
+**Next:** the kotlinx.serialization module (`@Serializable` models to and from TOML), including date-time fields as
+native TOML dates; then `:config` in kontext moves onto kotoml.
+
+### 15. 2026-10-03 02:32 - The serialization module's rules, decided before building it
+
+**Wanted:** settle how `@Serializable` models map to TOML before an agent builds `com.fromwau.kotoml:serialization`.
+
+**Decided by the owner:**
+- **Update in place:** besides `encodeToString` / `decodeFromString`, an `encodeInto(document, value)` writes a value
+  into an existing `TomlDocument`: existing keys keep their comments, order and spelling, new keys are appended.
+- **Null:** a null field is left out when writing. A missing key reads as the field's default, as null for a
+  nullable field without one, and is a typed error naming the key path otherwise.
+- **Lists of objects:** configurable per format instance, `[[tables]]` by default. Lists of scalars stay inline
+  arrays. Reading accepts both forms.
+- **Unknown keys:** a typed error by default, `ignoreUnknownKeys = true` to allow them. `encodeInto` never deletes
+  keys the model does not know.
+- **Enums:** the name as a string, honouring `@SerialName`, read case-sensitively.
+- **Sealed classes:** a table with a `type` key holding the serial name; the key name is configurable.
+- **Pair and Triple:** as their own serializers say (`first`, `second`), with no special case.
+- **Duration:** written in Kotlin's short form (`"15s"`); reading also accepts ISO-8601 (`"PT15S"`).
+- **Date-times:** kotlinx-datetime fields are written as native TOML dates, recognised by their serial names. The
+  module depends on kotlinx-datetime; core does not.
+- **Errors:** decoding returns a `Result` with a typed, serializable error. kotlinx's `SerializationException` is
+  caught at the module's edge.
+
+### 16. 2026-10-03 02:59 - The serialization module is on master, with three known gaps
+
+**Got:** `com.fromwau.kotoml:serialization` (`Toml` format, `decodeFromString`, `encodeToString`, `encodeInto`),
+121 tests, core untouched. Every public entry point returns a `Result`.
+
+**Known gaps, open:**
+1. `encodeInto` removing a key (a field set to null) also removes the comment lines above it, because in core
+   they are that key's decor. This matters most for `:config`.
+2. A changed list is replaced whole: comments and unknown keys inside its elements are lost; only each `[[...]]`
+   header's own decor survives.
+3. With `encodeDefaults` off, `encodeInto` runs the serializer twice.
+
+**Next:** `:config` in kontext moves onto kotoml (and off tomlkt), after klap 0.5.0 is released.
+
+### 17. 2026-10-03 03:08 - How upstream handles the bugs and gaps we found, and the open tasks
+
+**Wanted:** know whether Rust's `toml_edit` (pinned commit) has the problems kotoml found, before fixing the rest.
+
+**Got:** checked in upstream's code:
+- **Slot aliasing:** impossible upstream. Assigning moves the value, so `doc["b"] = doc["a"].clone()` is required.
+  kotoml's bug came from porting moves to shared Kotlin references; copy-on-store is the Kotlin equivalent.
+- **Wrong kind in array slots:** upstream has the same bug.
+  - `Array` stores `Vec<Item>` (`array.rs:19`), and `IndexMut<usize>` returns `&mut Item` from it (`index.rs:25`),
+    so a table can be assigned into an array.
+  - Printing skips non-values (`iter_values`, `array.rs:113`), so the table silently vanishes.
+  - Upstream documents it instead (`Array::len`, `array.rs:123`: "placeholder elements will exist").
+  - Arrays of tables take a value the same way (`index.rs:27`).
+  - kotoml refuses both with a typed error.
+- **Inline table holding a Table:** upstream allows it, printing a table as dotted keys and dropping an array of
+  tables. kotoml refuses it, or converts it in `putItem`.
+- **Serialization gaps:** upstream's serde support only builds or reads whole documents; it has no `encodeInto`.
+  - Gaps 2 and 3 exist only because kotoml offers update-in-place.
+  - Gap 1 (removing a key removes the comment above it) happens upstream too whenever a key is removed by hand: the
+    comment lines are the key's `leaf_decor` (`key.rs:36`).
+
+**Open tasks:**
+1. **Removing a key drops the comments above it** (gap 1). It matters for `:config`: setting a field to null deletes
+   its explanatory comment. Decide whether `encodeInto`, or core's removal, should keep the comment lines, for
+   example by moving them to the next key.
+2. **A changed list is replaced whole** (gap 2): comments and unknown keys inside its elements are lost; only each
+   `[[...]]` header's own decor survives. Consider an element-wise merge for arrays of tables.
+3. **`encodeInto` runs the serializer twice** when `encodeDefaults` is off (gap 3). It only matters for serializers
+   with side effects; document it or avoid the second pass.
+4. **Undecided names:** `Table.sortValuesWith` versus `sortWith`, and `Item.isNone`.
+5. **Release klap 0.5.0** (branch `feat/json-error-structure` in `~/Projects/klap-json-error-structure`, uncommitted)
+   before pushing kotoml; until then kotoml builds only where klap 0.5.0 is in mavenLocal.
+6. **Move `:config` in kontext onto kotoml** (off tomlkt), after 1 is settled.
+
+### 18. 2026-10-03 03:34 - RESOLVES open task 1 of entry 17: removing a key keeps the comments above it
+
+**Got:** on master as `6204f1b`. Every removal path in core keeps the comment and blank lines above the removed key or
+header in place (`KeptLines.kt`); `encodeInto` gets it through core. A property test removes every top-level key of
+every commented toml-test valid file and checks that only the key's own bytes disappear. Five ported upstream tests
+changed their expectations to the new rule, as PARITY records. Replacing (`put(String, …)`, replacing a table,
+the `to*` conversions) still drops a key's lines.
+
+**Decided:** test functions are named as backtick sentences everywhere, ported upstream tests included; PARITY's test
+map moves to the sentences.
+
+### 19. 2026-10-03 03:42 - Which comments a removal keeps: what is above stays, what is inside goes
+
+**Decided by the owner:** a comment above a removed key may not be about that key (for example a commented-out
+alternative, `#host = "127.0.0.1"` above `host = "localhost"`), so it stays. What belongs to the removed thing
+goes with it:
+- comments above the removed key, header or element: kept (as `6204f1b` does);
+- the comment on the removed key's own line: removed with it;
+- comments inside a removed table's body, inside a removed multi-line array or inline table value: removed;
+- comments above a nested header inside a removed table (`[a.b]` when removing `[a]`): removed;
+- removing a whole array of tables: the comment above its first `[[x]]` stays, those above later elements go;
+- `removeAt` on one `[[x]]` element: the comment above it stays.
+
+**Open task:** `6204f1b` keeps the comments above nested headers and above every element of a removed array of
+tables; change those two cases to the rule above. Do it after the test-name pass is merged.
+
+### 20. 2026-10-03 03:49 - The owner confirmed every case of entry 19's comment rule
+
+**Got:** the test-name pass is on master (`71e0203`): 543 tests renamed to sentences, counts unchanged.
+The owner answered eleven concrete cases:
+1. keep the comment above a removed key;
+2. remove the comment on its own line;
+3. keep the comment above a removed table's header;
+4. remove comments inside the removed table's body;
+5. remove the comment above a nested header inside it;
+6. for a whole array of tables, keep the comment above the first `[[x]]` and remove those above later elements;
+7. keep the comment above a `removeAt` element of an array of tables;
+8. remove comments inside a removed multi-line array;
+9. remove comments inside a removed inline table;
+10. on `removeAt` in a multi-line array, keep the comment above the element and remove its same-line comment;
+11. keep the comment above the last key of a table, before the next header.
+
+**Doing:** each case becomes a test with the exact example shown to the owner, and the code is changed where it
+differs.
+
+### 21. 2026-10-03 04:09 - The comment rule is pinned in thirteen cases and on master
+
+**Got:** on master: the eleven cases of entry 20, plus two the owner confirmed afterwards:
+- removing a table whose sub-table prints before it keeps only the comment above the first header;
+- `clear()` on an array of tables keeps the comment above every element, as `removeAt` does, while removing the
+  whole key keeps only the first.
+
+All thirteen are in `RemovalCommentScopeTest`. The fix also repaired invalid output from `6204f1b`: removing the
+last element of a multi-line array or inline table printed its closing bracket inside a comment.
+
+**Left alone:** removing through a dotted inline table still uses the older kept-lines path, which can keep the removed
+entry's same-line comment.
+
+### 22. 2026-10-03 04:38 - RESOLVES open task 2 of entry 17: encodeInto merges lists element by element
+
+**Got:** on master as `b82144b`. A changed list is no longer replaced whole:
+- equal elements match first, compared as TOML values, wherever they moved;
+- the rest pair with the old element that shares the most values (scalars by position);
+- what is left is inserted, or removed with the owner's removal rule.
+
+Ten spec tests (`ListMergeTest`) were written first and approved by the owner case by case; the build did not touch
+them. Three older expectations changed and were approved: a commented multi-line list keeps its layout, a one-line
+list keeps its inner spacing, and a table that takes another's place gets none of its comments, header line included.
+
+**Known limit, open:** if one update both reorders tables and removes others, the comment kept from a removed table
+prints at that table's old position, which a moved table may now occupy.
+
+**Open from entry 17:** `encodeInto` running the serializer twice, the two undecided names, the klap 0.5.0 release,
+and moving `:config` onto kotoml.
+
+### 23. 2026-10-03 05:41 - RESOLVES open task 3 of entry 17, and every nullable type is refused
+
+**Got:** on master:
+- `encodeInto` runs the serializer a second time only when a field at its default has a key in the document
+  (`8eebf66`).
+- Every nullable type is refused by type, writing and reading, with `NullableType(path)` (`b5555a1`). This replaces
+  entry 15's null rules: a missing key means the field's default, never null.
+- An intermediate design (null allowed only as a field's default) was built and dropped: the owner found it confusing,
+  and it could not keep both one run and the rule "a field at its default updates its key".
+
+The README's "Nullable types" section shows how to model an optional value or section without null.
+
+**Known limit:** a type known only from a value (a default-polymorphic subclass, a generic contextual serializer) is
+refused only when a value of it is written or read, so a nullable field it leaves out at its default is not refused.
+
+**Open from entry 17:** the two undecided names (`sortValuesWith`, `Item.isNone`), the klap 0.5.0 release, and
+moving `:config` onto kotoml, whose optional sections (`calibration: Calibration? = null` and similar) must then be
+modelled without null.
+
+### 24. 2026-10-03 05:51 - Tables sort like collections; an inline-table sort leaves the spacing behind
+
+**Got:** `chore/table-sort` (`ac2c09e`): `sortBy { }` and `sortWith(comparator)` on `Table` and `InlineTable`
+replace `sortValues()` and `sortValuesWith`; `TableLike` has no sort member. Standing rule from the owner: the
+container API follows Kotlin's collection vocabulary wherever it fits.
+
+**Open tasks:**
+1. **Inline-table sort spacing.** Each entry's spacing moves with it, so sorting `{ c = 3, a = 1, b = 2 }` prints
+   `{ a = 1, b = 2 , c = 3}`. The pre-existing behaviour, older than the rename. Positional spacing (after `{`,
+   between entries, before `}`) should stay where it was while the entries move, as `TomlArray`'s one-line sort
+   already does.
+2. **Collection-API audit:** compare `Table`, `InlineTable`, `TableLike`, `TomlArray`, `ArrayOfTables` and
+   `TomlDocument`'s forwards with Kotlin's `MutableMap` / `MutableList` vocabulary; the owner approves a table of
+   renames and additions before anything is built.
+
+### 25. 2026-10-03 11:22 - The collection-API audit is built; assigning a table through a bare slot keeps the key's spacing
+
+**Got:** `feat/collection-api` (`cd1382d`, `e32a858`, `8c43407`): all thirteen approved audit proposals, plus two
+fixes the owner approved:
+- a key whose value changes kind (value to or from a table) leaves its spacing behind, so `[[bookmark]]` stays
+  clean;
+- a header's default blank line goes above the comments it inherits.
+
+**Open task:** `doc["k"].assign(Item(table))`, calling `assign` directly on a slot, cannot reset the key's spacing,
+because a slot does not know which key holds it. `put`, `set` and `doc["s"]["k"] = table` are covered. Fixing it
+needs a link from a slot back to its entry.
+
+**Still open:** entry 24's inline-table sort spacing; the klap 0.5.0 release; moving `:config` onto kotoml.
+
+### 26. 2026-10-03 11:37 - RESOLVES entry 24's open task 1, and corrects its claim about arrays
+
+**Got:** `fix/inline-sort-spacing` (`25131f7`). Entry 24 said `TomlArray`'s one-line sort already kept positional
+spacing; it did not: `[ 3, 1, 2 ]` sorted to `[ 1, 2 , 3]`, the same bug. Both now keep the spacing at its position
+when the container prints on one line; a multi-line one still moves each element with the comment above it. Four
+tests in `TableSortTest`; clean build green, core 554, serialization 168, app 22, JVM and linuxX64.
+
+**Still open:** entry 25's `assign` leftover; the klap 0.5.0 release; moving `:config` onto kotoml; `Item.isNone`.
+
+### 27. 2026-10-03 11:46 - RESOLVES entry 25's open task: assign through a slot resets the key's spacing
+
+**Got:** `fix/assign-key-spacing` (`60c1c81`). `KeyValue` links its slot back to
+itself (`Item.entry`), and `KeyValue.prepareFor` holds the kind-change spacing rule that `put` and `assign` both
+call. Four tests in `CollectionApiTest`, one nested. My first expectation for the commented case predated `8c43407`
+(spacer above the comments); corrected to match `put`'s. Clean build green: core 558, serialization 168, app 22.
+
+**Still open:** `Item.isNone`; the klap 0.5.0 release; moving `:config` onto kotoml.
+
+### 28. 2026-10-03 11:53 - RESOLVES entry 17's open task 4: `isNone` is now `isMissing`
+
+**Got:** `chore/is-missing` (`b57946b`). The owner picked `isMissing` with `TomlType.Missing` over keeping `isNone`,
+dropping it for `type == TomlType.None`, or `isEmpty` (which reads as a container with no elements). The human
+type name is now "missing"; `--json` errors carry `"Missing"`. No test pins either text. The Rust debug snapshots in
+the ported tests keep upstream's `None`. Clean build green: core 558, serialization 168, app 22.
+
+**Still open:** the klap 0.5.0 release; moving `:config` onto kotoml.
+
+### 29. 2026-10-03 11:57 - Pins entry 28's two unpinned texts
+
+**Got:** `4b26658`, on master with `b57946b`. `TypeNameTest` pins the human name "missing" and `isMissing` on an
+absent key; `ErrorJsonTest` pins `"found":"Missing"` on the wire. Neither text has a public path that reaches it
+today: `TomlType.describe` names only a value a dotted key tried to extend, and a decode with nothing there reports
+`MissingKey`. So both tests build the value directly. Clean build green: core 560, serialization 169, app 22.
+
+### 30. 2026-10-03 12:02 - Corrects entry 29: a decode can report `found = Missing`
+
+**Wanted:** verify entry 29's unmarked claim that a decode with nothing there always reports `MissingKey`.
+
+**Got:** half right. Measured in `MissingValueTest` (`test/missing-value`, `7637e9e`):
+- a generated serializer reports a field with no key and no default as `MissingKey`, at its full path inside a list
+  element (`servers[1].port`);
+- a hand-written serializer that calls `decodeIntElement(descriptor, 0)` without asking `decodeElementIndex` gets
+  `TypeMismatch("port", Integer, Missing)` from an empty document. So `found = Missing` is reachable through the
+  public API, not only by building the error by hand.
+
+**Severity:** paper cut; my own error: I stated something I had only read in the code.
+
+Clean build green: core 560, serialization 172, app 22.
+
+## Phase: the installed app
+
+### 31. 2026-10-03 12:21 - `kotoml check <TAB>` offered no files: the file argument lacked `.file()`
+
+**Wanted:** path completion on `get` and `check`'s file argument after installing with `makepkg -si` (owner report).
+
+**Got:** `kotoml __complete -- check ""` printed nothing. klap completes paths only for an argument marked
+`.file()` (completion metadata only; it does not check the path), and `fileArgument()` never marked it. With it,
+`__complete` prints klap's files directive for both commands. Fixed in `fix/file-completion` (`5bccca1`).
+
+**Severity:** paper cut for users; found only by using the installed binary.
+
+**Not pinned:** no app test drives the klap command tree (`main` builds it inline), so completion has no test.
+
+**Also seen:** `makepkg` prints `libfakeroot internal error: payload not recognized!`. A known, harmless fakeroot
+warning; `!debug` is already set here. The package's files are `root:root` with the right modes, and
+`pacman -Qkk kotoml` finds nothing altered.
+
+### 32. 2026-10-03 12:40 - Three agents played with the installed 0.1.0 binary: what they found
+
+**Wanted:** bugs and surprises from real use of `kotoml` (owner's request), on copies of `lib.versions.toml`.
+
+**Bugs, reproduced by me as well:**
+1. `get` of a table made only of dotted keys prints nothing (`printf 'a.b = 2\n' | kotoml get .a`); `--json` is right.
+2. A quoted filter key decodes `\t` and `\n` to the letters `t` and `n` (`get '."t\tk"'` reads `ttk`).
+3. `get` on a CRLF file prints LF line endings.
+4. `get '.srv[]'` over an array of tables runs the tables together, with no separator.
+5. `check --toml 1.0` on `"\q"` lists the 1.1-only escapes `e` and `x` as expected.
+6. `a = 0x` (and `0b`, `0o`) reports "integer number overflowed". It may be upstream's text: NOT YET CHECKED.
+7. `encode` ignores the date-time tag: `datetime` + `"1979-05-27"` prints a local date, exit 0.
+8. `encode` segfaults (exit 139, no message) on JSON nested 50000 deep.
+9. `encode` accepts number spellings outside TOML/JSON: `0x1p3`, `1f`, `Infinity`, `+5`, `007`, Arabic-Indic digits.
+
+**Surprising, as reported by the agents, NOT YET VERIFIED by me:**
+- `get .srv` prints an array of tables as inline tables and loses its comments.
+- `[tbl.sub]` prints as `[sub]`.
+- `.nope[]` exits 0 with no output.
+- Filter runtime errors exit 1; usage errors exit 2. The README describes 2 only for "filter does not parse".
+- `--color always` colours only help.
+- `--json` prints human text for help, docs and completion.
+- Some `--json` errors put a sentence in `detail`: permission denied, and `encode`'s JSON parser message.
+- `encode` error paths always name `.type`.
+- `encode` output can be refused by `decode` (depth 80) or by `check --toml 1.0` (`07:32Z`).
+- Lone surrogates become U+FFFD silently.
+- Errors with no position: invalid UTF-8 and dotted keys over 80 parts. A 100k-bracket line dumps 200 KB to stderr.
+- **Nits:**
+  - the underline counts bytes;
+  - a leading BOM shifts columns;
+  - "duplicate key" text has no key name;
+  - "expected nothing";
+  - "arrayoftables";
+  - decode prints `1.0E10` and `-00:00` as `+00:00`;
+  - encode output ends with a blank line;
+  - mixed-case help text.
+
+**Worked:**
+- Round trips of every value type.
+- Exit codes for invalid and unreadable input.
+- `--json` streams.
+- Structural conflicts.
+- The 1.0 and 1.1 rules (apart from item 5).
+- Large inputs.
+- All three completion scripts parse.
+- `__complete` gives the files directive.
+
+### 33. 2026-10-03 12:41 - Proposed order for entry 32, and the decisions it needs from the owner
+
+**Order proposed:**
+1. The `get` output bugs (32.1 to 32.4), since they break the tool's main promise.
+2. `encode` (32.7 to 32.9).
+3. 32.5.
+
+**Owner decisions needed:**
+- **32.6:** keep upstream's "integer number overflowed" for `0x`, or move away from upstream's wording.
+- **32.4:** how `.[]` prints tables (a blank line between them, `[[x]]` headers, or something else).
+- **`get .srv`:** whether an array of tables prints as its `[[srv]]` layout instead of inline tables.
+- **Exit codes:** whether runtime filter errors and usage errors keep exit 1 and 2, or whether the README changes.
+
+Nothing from entry 32 is started yet.
+
+### 34. 2026-10-03 12:45 - Roadmap after entry 32's fixes: set, a richer selector, then a formatter
+
+**Wanted (owner):** kotoml as an all-round TOML tool (get, edit, fmt), in this order after entry 32 is fixed:
+1. **A setter in the CLI.** `get` only reads today; there is no way to change a value from the command line. The
+   core edit API (`put`, `assign`, format-preserving printing) already exists, so this is mainly a CLI surface.
+2. **A jq-like selector**, maybe before the formatter. `get` understands only paths (`.a.b`, `.[0]`, `.[]`, `|`);
+   jq's filters (`select`, `map`, comparisons and so on) are not there.
+3. **A `:formatter` module** for `kotoml fmt`.
+
+**Open, for the owner when each one starts:**
+- **Setter:** the command shape (`set <path> <value>`, editing in place, or printing to stdout), and how a value's TOML type is
+  given.
+- **Selector:** how much of jq to support.
+- **Formatter:** what rules it applies, and whether it is its own module.
+
+Nothing started.
+
+### 35. 2026-10-03 12:50 - Owner decisions on entry 34's roadmap, and whether a formatter is worth building
+
+**Decided by the owner:**
+- **Setter:** OK as described in entry 34.
+- **Selector:** jq-like; the scope is still to be decided.
+- **Formatter:** to be decided, after checking what already exists.
+
+**Got (formatter research):**
+- **tombi** (github.com/tombi-toml/tombi, MIT) is a formatter, linter and language server. Checked in a shallow clone:
+  - Its CI runs toml-test for `v1.0.0`, `v1.1.0-preview` and `v1.1.0`, through `cargo xtask toml-test`, and I found
+    no skip list.
+  - Its last commit is 2026-10-02.
+  - Its configuration accepts `toml-version = "v1.0.0" | "v1.1.0"`.
+- **taplo**, the older toolkit, is TOML 1.0 only. Search results call it effectively abandoned and say users are
+  moving to tombi. NOT VERIFIED beyond those search results.
+- **The "tomlfmt" tools** (cargo-tomlfmt, minrk/tomlfmt, a Go package and others) are small single-purpose
+  formatters.
+- **A caveat on test coverage:** toml-test tests parsing and encoding, not formatting. So passing it says nothing
+  about a formatter's output.
+
+**Recommendation:**
+- **No `kotoml fmt` CLI.** tombi already covers it for TOML 1.0 and 1.1, it is maintained, and it ships with an
+  editor integration that a CLI command would not match.
+- **kotoml's own niche** is the Kotlin library (format-preserving edits, kotlinx.serialization) plus a jq-like CLI.
+- **A formatter API inside the library** would only be worth it if a Kotlin user needs to normalise generated TOML;
+  core's `resetFormatting` already covers part of that.
+- Owner to decide.
+
+### 36. 2026-10-03 12:54 - The formatter is a "maybe", for the library and the CLI; no Kotlin TOML formatter exists that I found
+
+**Decided by the owner:** the formatter is a "maybe, if bored" item. If it is built, `fmt` would exist in the library
+as well as in the CLI.
+
+**Got:** I found no Kotlin TOML formatter:
+- **ktoml, tomlkt, 4koma:** parse and serialize; tomlkt can write comments through annotations; none reformats an
+  existing document.
+- **`KotlinMania/toml-kotlin`:** also a KMP port of toml-rs, but line by line.
+  - It is published as `io.github.kotlinmania:toml-kotlin:0.1.0`, but it is in progress: 45 Kotlin files, the port
+    report says "To Do", and it is part of a mass port of Codex.
+  - It has no formatter and does not mention toml-test.
+  - Checked in a shallow clone.
+- Not exhaustive: one web search plus that clone.
+
+### 37. 2026-10-03 12:56 - Corrects entry 35: tombi's `v1.1.0-preview` is not a separate toml-test version
+
+**Got:** tombi's `xtask/src/command/toml_test.rs` maps both `V1_1_0_Preview` (deprecated) and `V1_1_0` to toml-test's
+`1.1`. Its three CI jobs therefore run two test lists, the same two kotoml's `check` runs (`files-toml-1.0.0` and
+`files-toml-1.1.0` in the submodule at `ff49d10`). Nothing to add to kotoml's suite.
+
+### 38. 2026-10-03 13:02 - Owner decisions on entry 33: `.[]` gets blank lines, `get .srv` prints as written, `0x` gets its own typed error
+
+**Decided by the owner, after seeing examples:**
+- **Entry 32.4, `get '.srv[]'`:** one table after another, separated by a blank line. Each prints like `get .package`:
+  its lines, with no header.
+- **`get .srv`:** an array of tables prints as written in the file: `[[srv]]` headers, its comments and its layout. It no
+  longer prints as one inline array.
+- **Entry 32.6, `a = 0x`:** a clear message backed by its own typed reason, moving away from upstream. This changes
+  three upstream snapshots, which pin "integer number overflowed" today: `core/src/commonTest/snapshots/toml_edit/invalid/integer/incomplete-{hex,oct,bin}.stderr`.
+  - Cause: `EditParser.kt:547` reports `Reason.IntegerOverflow` for any failed integer parse, as upstream does, so a
+    prefix with no digits is reported as an overflow.
+
+### 39. 2026-10-03 13:13 - RESOLVES entry 32.1 to 32.4 and 32.6: `get` prints what the file holds; `0x` is MissingDigits
+
+**Got:** `fix/get-output`, docs first (`333cc0d`), then the fixes (`147447c`, `83298d7`).
+- **The evaluator carries each result's key path.** An array of tables prints as written under its full
+  `[[a.srv]]` header, comments included.
+- **`.[]` over tables** sets each table apart with a blank line.
+- **A table of dotted keys** prints its lines.
+- **Quoted filter keys** take jq's escapes. An unknown escape is `FilterExpected.Escape` and exits 2.
+- **A CRLF document prints CRLF.** klap ends output with `\n`, so `get` adds the `\r`.
+- **`0x`, `0o` and `0b`** report `Reason.MissingDigits(radix)`. The JSON radix is `"Hex"` from the existing
+  `IntegerRadix` enum, not the `"Hexadecimal"` shown to the owner. Our three snapshot copies changed; PARITY
+  records it.
+- **Checked on the native binary** with the agents' reproductions.
+- **Clean build green:** core 1126, serialization 344, app 58 (JVM and linuxX64 counted together).
+
+**Left alone:** `get .tbl` prints a sub-table's header relative to the selection (`[sub]` for `[tbl.sub]`), as entry
+32 reported. Not part of the owner's decisions.
+
+**Still open from entry 32:** 32.5 (1.0 escape list); `encode` 32.7 to 32.9.
+
+### 40. 2026-10-03 13:16 - Rust terms left in the code: none public, two groups internal (owner report)
+
+**Wanted:** no Rust vocabulary in kotoml's code. The owner noticed `unwrap`.
+
+**Got:** surveyed on master. No public declaration in core, serialization or app uses one. They remain in:
+1. **Test helpers `unwrap()` and `unwrapErr()`.** Defined twice: `core/src/commonTest/.../ResultAsserts.kt` and
+   `serialization/src/commonTest/.../Models.kt`. 320 uses, tests only. Proposed names: `getOrFail()` and
+   `errorOrFail()` (they call kotlin.test's `fail`).
+2. **Internal names from the port:**
+   - `RawString` (69), `Repr` (30), `despan` (50);
+   - `asStr` (24), `toStrWithDefault` (11), `asRaw` (6), `newUnchecked` (15);
+   - `shiftRemove` (4), `deepClone` (3), `IndexMap` (1, in a doc);
+   - `parseRustI64`, `parseRustF64`, `compareRustStr` (2 each).
+
+**Proposed:** pure renames, no behaviour change. Doc comments that say "the way Rust's X does" stay where they
+explain copied behaviour; PARITY keeps mapping upstream names.
+
+**Open for the owner:**
+- Both groups, or one?
+- A table of new internal names to approve before the rename.
+
+### 41. 2026-10-03 13:23 - RESOLVES entry 32.5; the version option already exists; upstream's escape list lacks `t`
+
+**Got:**
+- **Entry 32.5:** fixed in `fix/escape-list-1-0` (`1a55599`). `ParseContext.decodeErrors` swaps in 1.0's escape list
+  for `MissingEscapedValue` when reading 1.0; it is used for strings and quoted keys. Two tests in
+  `TomlVersionTest`. Clean build green.
+- **The version option:** the owner asked for `--tomlVersion` with completion and 1.1 as the default. It already
+  exists as `--toml <1.0|1.1>` on `get`, `check` and `decode`, with completion and `(default: 1.1)`, checked on the
+  installed binary. The only open point is the name. I proposed `--toml-version`, since CLI options are kebab-case
+  and every other kotoml option is too.
+- **Found while fixing:** neither escape list has `t`, though `\t` is valid in both versions. It is upstream's
+  list: `bad-escape-01.stderr` pins `b, e, f, n, r, \, ", x, u, U`. Adding `t` changes our copies of upstream
+  snapshots, which needs the owner's approval as with `0x`.
+
+**Owner decision (2026-10-03 13:25):** keep \`--toml\`; no rename.
+
+### 42. 2026-10-03 13:35 - The bad-escape hint lists `t` (owner approved)
+
+**Got:** `896f051` on `fix/escape-list-1-0`. Both escape lists now have `t` after `r`.
+- **Copies changed to match:**
+  - 10 `.stderr` snapshots;
+  - 1 Rust-debug snapshot (`toml_parser/...string_confusing_quotes_4.txt`);
+  - 2 expectations in `DecoderStringTest`;
+  - the 1.0 tests in `TomlVersionTest`.
+- **PARITY records the difference.**
+- **My miss:** my first text search found only the `.stderr` form. The clean build caught the Rust-debug form. Clean
+  build green: core 1130, serialization 344, app 58.
+
+### 43. 2026-10-03 13:39 - RESOLVES entry 32.7: `encode` checks a date-time's kind against its tag
+
+**Got:** `fix/encode-datetime-tag` (`8bc50c7`).
+- **One rule for both directions:** `Datetime.tag()` maps each kind to its toml-test tag. `decode` writes with it, and
+  `encode` now refuses a value whose kind is not its tag's, as `NotTaggedJson("$.a")`.
+- **Tests:** two in `TaggedJsonTest` (5 mismatches refused, 4 matches round-trip).
+- **Clean build green, toml-test 1.0 and 1.1 included:** core 1130, serialization 344, app 62.
+
+**Not changed:** `NotTaggedJson` still says only where, not what was wrong (entry 32, "encode's error paths").
+
+### 44. 2026-10-03 13:46 - RESOLVES entry 32.8: `encode` refuses deep JSON instead of crashing
+
+**Got:** `e5af8de` on `fix/encode-datetime-tag`.
+- **The crash is kotlinx.serialization's:** `JsonTreeReader.readArray` and `read` recurse once per level. Measured on
+  the JVM as a `StackOverflowError`; on Kotlin/Native it is a segfault.
+- **The fix:**
+  - `parseTaggedJson` measures bracket nesting (ignoring brackets in strings) before kotlinx sees the text.
+  - Past `TomlDocument.NESTING_LIMIT + 2 = 82` it refuses with `AppError.JsonTooDeep(limit)`, exit 1.
+  - The `+ 2` is the root object and a scalar's tag object. `decode` accepts 80 nested arrays and refuses 81
+    (measured), and the 80-deep JSON still encodes.
+- **The limit is shared:** core's internal `LIMIT` is now the public `TomlDocument.NESTING_LIMIT`, approved by the
+  owner as "reuse LIMIT".
+- **Verified on native:** the 50000-deep input prints `error: JSON nests deeper than 82 levels`, and `--json` prints
+  `{"error":{"type":"JsonTooDeep","limit":82},"code":1}`.
+- **Clean build green:** core 1130, serialization 344, app 70.
+
+**Known gap:** the count matches arrays exactly, not tables. JSON with 80 nested table objects is accepted (82
+levels), but TOML refuses an 80-part key path, so `encode` can still print a table path that `decode` refuses.
+That is not a crash.
+
+### 45. 2026-10-03 13:48 - Open task (owner approved): `encode`'s errors say what is wrong, not only where
+
+**Wanted:** typed `encode` errors that carry the reason, as `JsonTooDeep(limit)` does.
+
+**Got:** today:
+- `NotTaggedJson(path)` names only where, for every wrong tag, bad value, missing `value` or extra key.
+- `JsonTooDeep(limit)` has no path.
+
+**Doing (not started):**
+- Give `NotTaggedJson` a typed reason, for example:
+  - `DatetimeKindMismatch(tag, found)` (from entry 32.7);
+  - `BadValue(type, value)`;
+  - `UnknownType(type)`;
+  - `MissingValue`;
+  - `ExtraKey(key)`.
+- Check entry 32's report that the path wrongly ends in `.type`.
+- Consider a path for `JsonTooDeep`.
+- The owner approves the exact reasons before building.
+
+### 46. 2026-10-03 13:52 - RESOLVES entry 32.9: `encode` reads numbers in JSON's grammar
+
+**Got:** `5c8bd95` on `fix/encode-datetime-tag`.
+- **Evidence:** toml-test's README defines no number grammar, so I measured its valid fixtures instead. They contain
+  44 integers, all shaped `-?digits`, and 40 floats, shaped `-?digits(.digits)?(e[+-]?digits)?` or `inf`, `-inf`, `nan`.
+  That is JSON's grammar.
+- **The rule:**
+  - an integer matches `-?(0|[1-9][0-9]*)` and fits a `Long`;
+  - a float matches JSON's number grammar (`e` or `E`, so decode's `1.0E10` reads back) and stays finite, or is
+    `inf` or `nan` with an optional sign.
+- **Now refused:** every spelling entry 32 reported. Four tests in `TaggedJsonTest`.
+- **Clean build green, toml-test encoders included:** core 1130, serialization 344, app 78.
+
+**Chosen without asking the owner:** the grammar, based on the fixtures above. The errors are still the where-only
+`NotTaggedJson`, which entry 45 covers.
+
+### 47. 2026-10-03 13:57 - Corrects entry 46: `encode` reads TOML's number spellings (owner decision)
+
+**Decided by the owner:** "accept TOML's own spellings, such as +5 or 1_000; this is a toml lib". This replaces entry
+46's JSON grammar. The commit was amended to `b264533`, so master never carries the JSON-only rule.
+
+**Got:**
+- **The rule:** `tomlNumber` reads the text with core's `Value.parse`, refusing surrounding whitespace.
+  - An integer tag needs a TOML integer; every radix and `_` and `+` are accepted.
+  - A float tag takes a TOML float, or an integer spelling converted.
+  - `1e400`, `007`, `1f`, `0x1p3` and `Infinity` are refused, because TOML refuses them.
+  - The value keeps its spelling, so `1_000` prints as written.
+- **Tests:** four in `TaggedJsonTest`.
+- **Clean build green, toml-test encoders included:** core 1130, serialization 344, app 78.
+
+### 48. 2026-10-03 14:30 - RESOLVES entry 45: typed `encode` reasons, and suggestions on unknown names
+
+**Decided by the owner:** positions on errors stay as they are. Suggestions: yes.
+
+**Got:** `feat/typed-encode-errors`.
+- **`f3a55d2`:** `NotTaggedJson(path, reason: TaggedJsonProblem)` with `RootNotObject`, `Untagged`, `UnknownType`,
+  `MissingValue`, `ValueNotString`, `ExtraKey` and `BadValue` (which covers a date-time of the wrong kind).
+  - An object whose `"type"` is a string is a tagged value even when malformed. So the three cases that reported
+    `$.a.type` (entry 32) now report `$.a`. A table's own `type` key holds an object, so tables still read
+    (tested).
+  - Human text: `not toml-test's tagged JSON at $.a: "x" is not a valid integer`.
+- **`a15788c`:** `UnknownEnumValue` and `UnknownSubtype` gain `suggestion`.
+  - It is the name equal ignoring case, else the nearest within max(1, length / 3) edits, else null.
+  - Serialization errors are data, so this is the type hint's place too: `TypeMismatch` already carries
+    `expected` and `found`, and nothing was added there.
+- **My misses:** two of my test expectations had wrong edit distances (`cirkel`, `sctp`); the build caught both.
+- **Clean build green:** core 1130, serialization 354, app 92.
+
+### 49. 2026-10-03 14:38 - Owner decision: kotoml keeps its own closest-name function; no shared dependency
+
+**Got:** klap has a public `suggest(token, candidates, ignoreCase)`, also Levenshtein. It differs from kotoml's
+`closestName` in four ways:
+- a unique prefix wins at any distance;
+- its bound is `1..max(2, candidate.length / 3)`;
+- it never suggests a complete rewrite;
+- it never suggests a case-only match.
+
+So `sctp` gives `TCP` in klap and nothing in kotoml, and `tcp` gives nothing in klap and `TCP` in kotoml.
+
+**Decided by the owner:** a duplicate is fine for something this small. It is not worth moving into kern or making
+serialization depend on klap.
+
+### 50. 2026-10-03 14:41 - `closestName` merges klap's rules with kotoml's case-only match (owner: "best of both worlds")
+
+**Got:** amended into `130c3d8`. The rule, ignoring case:
+1. a name that differs only in case;
+2. else the only name the value begins with;
+3. else the nearest within `max(2, name.length / 3)` edits that is not a complete rewrite.
+
+The written word itself is never suggested.
+
+`sctp` now gives `TCP`, the same as klap; `DecodeTest` was updated. There are 4 new tests in `SuggestionTest`. Clean
+build green: core 1130, serialization 362, app 92.
+
+### 51. 2026-10-03 14:44 - The suggestions are pinned end to end
+
+**Got:** `b4809fd`: `DecodeSuggestionTest` has 9 tests.
+- Each rule (case-only, unique prefix, nearest, none) goes through a real decode for `UnknownEnumValue` (`Mode`) and
+  `UnknownSubtype` (`Shape`).
+- The suggestion is pinned in both errors' JSON, set and null.
+- Clean build green: serialization 380.
+
+### 52. 2026-10-03 14:59 - Entry 32's remaining reports, verified on the installed binary, and the owner's rulings
+
+**Got:** reproduced on the system `kotoml` built from `b4809fd` (`makepkg -sif`). Owner's rulings:
+- **A, colour:** kotoml defines no colour for its output, so only klap's help is coloured. That is correct as is.
+- **B:** `completion` and `docs` print their own output under `--json`. `kotoml --json` with no command becomes a JSON
+  usage error.
+- **C:** permission denied becomes a typed I/O failure, not a sentence.
+- **D:** `encode`'s invalid JSON becomes a typed error with an offset, without kotlinx's dump of the input.
+- **E:** the README's exit codes change to match the code: 1 for errors about data, 2 for usage.
+- **F to I:** core's texts become clearer. Invalid UTF-8 and over-deep dotted keys get a line and column; "duplicate
+  key" names the key; "expected nothing" goes.
+- **J:** `[tbl.sub]` printing as `[sub]` under `get .tbl` stays.
+- **K:** a missing key is an error, not empty or `null`; "more user friendly". Scope to confirm.
+- **L:** "arrayoftables" becomes "array of tables".
+- **M:** a lone surrogate becoming U+FFFD stays; kotlinx does it.
+- **N:** "full TOML support: if it is valid TOML it stays, if not it is a bug". So a `-00:00` offset must survive
+  (today `decode` writes `+00:00`), and `1.0E10` is valid TOML and stays.
+- **O, P:** fine as is.
+
+### 53. 2026-10-03 15:17 - Entry 52's rulings built, except B, which needs klap
+
+**Got:** `fix/playtest-rulings`:
+- **K, L and E** (`f0f1bd6`):
+  - `NoSuchKey(path, key)` and `NoSuchIndex(path, index, size)`, exit 1. Each result carries the jq path that
+    reached it.
+  - Type names are printed in words ("array of tables").
+  - The README's exit codes now match the code.
+- **C and D** (`ea29835`, `7983ae1`):
+  - `ReadFailure.PermissionDenied`, from `Files.isReadable` on the JVM and `access(R_OK)` on native.
+  - `InvalidJson(position)` takes kotlinx's offset (parsed from its message) and counts from 1, as core's
+    `TextPosition` does.
+- **F to I** (`6a52f68`):
+  - The key name is added to "duplicate key", and ", expected nothing" goes.
+  - Invalid UTF-8 and over-deep dotted keys get positions.
+  - 111 snapshot copies were regenerated from the parser through a temporary harness step, and each diff was checked
+    to be one of the three agreed kinds.
+  - Comments that still called the snapshots "copied unedited" were fixed.
+- **N** (`c1248f7`): `Offset.Unknown` prints `-00:00`.
+- **Clean build green:** core 1142, serialization 380, app 107.
+
+**Found on the way:**
+- The JVM and Kotlin/Native decode invalid UTF-8 differently: `ED A0 80` becomes 1 U+FFFD on the JVM and 3 on
+  native. So the UTF-8 error shows its line only up to the bad bytes.
+- The XML test report replaces a vertical tab with `?`. That is why snapshot rewrites came from the parser itself,
+  not the report.
+
+**Open:** B, `kotoml --json` with no command. klap prints help and exits 0 even under `--json`, so the fix belongs
+in klap's unreleased 0.5.0 branch.
+
+### 54. 2026-10-03 15:32 - RESOLVES entry 52's B in klap: a group without a subcommand under `--json` is a usage error
+
+**Decided by the owner:** it is a klap bug; fix it, and leave a TODO that `--help --json` should print real JSON.
+
+**Got:** in `~/Projects/klap-json-error-structure` (branch `feat/json-error-structure`). Left uncommitted, alongside the
+owner's own uncommitted 0.5.0 work there.
+- **The case:** `CliError.MissingSubcommand(parent)`.
+  - JSON `{"type":"MissingSubcommand","parent":"..."}`, exit 2.
+  - Human text "missing subcommand for '...'".
+- **The fix:** `parse` turns the help a group falls back to into that error only under `--json`. An explicit `--help`
+  is untouched, with a TODO in `Parser.kt` above `helpRequested`.
+- **Tests and docs:** three tests in `JsonErrorTest` (root, nested group, help without `--json`); a sentence in
+  `docs/guide.md`'s Structured `--json` section.
+- **Verified:** klap 1116 tests green (JVM, linuxX64). Republished to mavenLocal. kotoml's native binary now prints
+  `{"error":{"type":"MissingSubcommand","parent":"kotoml"},"code":2}` for `kotoml --json`, and still shows help
+  without `--json`. kotoml clean build green.
+
+### 55. 2026-10-03 15:44 - klap: `--help --json` prints the help as data (owner-approved shape)
+
+**Got:** in `~/Projects/klap-json-error-structure`, uncommitted with the rest of klap 0.5.0.
+- **The model:** `internal/render/HelpJson.kt` has `@Serializable` `HelpJson`, `ArgumentHelp`, `OptionHelp`,
+  `CommandHelp` and `ExampleHelp`, encoded with `Json.encodeToString`. Fields that do not apply are left out by
+  default-value omission. `--help-all --json` is an array of `HelpJson`.
+- **One list of built-ins:** `builtinOptions()` in `Help.kt` now builds the built-in global options (help,
+  help-all, json, color, version, completion, docs) for both forms. Text help renders rows from it. All existing
+  text-help tests pass unchanged.
+- **The wiring:** `Invocation.ShowHelp` gains `json`, set by `--help` and `--help-all`, and the runner prints
+  `helpJsonText`. The TODO from entry 54 is gone.
+- **Tests and docs:** four tests in `HelpJsonTest`; `docs/guide.md`'s Structured `--json` section updated.
+- **Verified:** klap 1120 tests green on JVM and linuxX64, and `./gradlew build` green. Republished to mavenLocal.
+  `kotoml get --help --json` prints the structured help.
+
+**Owner ruling (2026-10-03 15:49):** `--toml 1.2` suggesting "Did you mean 1.0?" is fine. No klap fixes are left beyond releasing 0.5.0.
+
+### 56. 2026-10-03 16:27 - One closest-match rule: kern:fuzzy, used by klap and kotoml (supersedes entry 49)
+
+**Decided by the owner:**
+- A shared module, generic enough for a fuzzy finder later: `kern:fuzzy`.
+- kern goes to 0.4.0.
+- klap's public `suggest` is removed; klap exports `kern:fuzzy` instead.
+
+**Got:**
+- **kern** (`~/Projects/kern-wt/fuzzy`, branch `feat/fuzzy`, from a clean master):
+  - `ce0e448` adds `:fuzzy` with `editDistance` and `closestMatch` (the merged rule), 12 tests from both projects,
+    a README and a row in the module table;
+  - `4e0979f` bumps to 0.4.0.
+  - Published to mavenLocal.
+- **klap** (uncommitted, with the rest of 0.5.0):
+  - kern 0.2.0 becomes 0.4.0, and `kern:fuzzy` is an `api` dependency;
+  - `Suggest.kt` (public and internal) is deleted, and 10 call sites use `closestMatch`;
+  - 5 rule tests moved to kern; the parser-agreement test now uses `closestMatch`;
+  - the guide's did-you-mean section is updated.
+  - klap's `settings.gradle.kts` gains a `com.fromwau`-scoped `mavenLocal`, as kotoml's has. Without it, kern 0.4.0
+    could not resolve.
+  - 1115 tests green on JVM and linuxX64; build green; republished.
+- **kotoml** (`chore/kern-fuzzy`, `8fb253d`):
+  - kern 0.4.0, and serialization uses `closestMatch`;
+  - `Suggestion.kt` and `SuggestionTest` are removed; `DecodeSuggestionTest` passes unchanged.
+  - Clean build green: core 1142, serialization 362, app 107.
+
+**My miss:** a `compileKotlinJvm` I reported as clean had failed on resolution. I was grepping only for `e: `. I
+now look for `BUILD` and `What went wrong`.
+
+**Behaviour change in klap:** a case-only miss such as `--Verbose` now suggests `--verbose`.
+
+**Release order:** kern 0.4.0 first, then klap 0.5.0, then kotoml can push.
+
+### 57. 2026-10-03 16:38 - kern:fuzzy after one QA agent: `didYouMean`, swaps cost one edit, and the doc fixes
+
+**Got:** one QA and review agent found no crashes or wrong distances. Its findings, all applied with the owner's
+approval:
+- **Docs:** they described the "complete rewrite" check wrongly ("share a character"). The code checks fewer edits
+  than the longer word has characters.
+- **Duplicates:** they were compared with case, so `"sta"` with `[status, STATUS]` gave no suggestion.
+- **Case folding:** rule 1 compared characters one by one, while rules 2 and 3 lowercased whole strings. Case is now
+  folded once.
+- **Undocumented behaviour:** `editDistance` counts UTF-16 code units, and ties go to the first candidate. Both
+  are now documented.
+- **Swaps:** they cost 2, so `ls`→`sl` gave no suggestion. `editDistance` is now the optimal string alignment
+  distance: a swap of neighbours counts as one edit, and no character is edited twice. `ca`→`abc` is 3, pinned.
+- **Speed:** a candidate whose length alone puts it past the limit is now skipped before measuring. Not re-measured.
+- **Naming:** `closestMatch` is now `didYouMean(written, candidates: Collection<String>)`, leaving "match" for a
+  future fuzzy finder.
+
+**Where:**
+- kern `5c37706` on `feat/fuzzy`: fuzzy has 20 tests on JVM and linuxX64; kern builds; republished.
+- klap: the rename at its call sites, the test and the guide (uncommitted). 1115 tests and the build are green;
+  republished.
+- kotoml: the switch-over amended to `f8e8e75`. Clean build green: core 1142, serialization 362, app 107.
+
+### 58. 2026-10-03 16:43 - kern 0.4.0 released; klap no longer needs mavenLocal
+
+**Got:** the owner squashed the fuzzy work into `f08db46`, tagged `v0.4.0`, pushed it and published it. I checked:
+- The squash has the same tree as the reviewed `5c37706`.
+- `fuzzy`, `result` and `terminal` list 0.4.0 as latest on maven.frommhund.xyz, and `fuzzy-jvm-0.4.0.jar` returns 200.
+
+The `mavenLocal` I had added to klap's `settings.gradle.kts` is removed, so that file is back to the owner's version. klap builds with `--refresh-dependencies` from the release repository.
+
+**Release order now:** klap 0.5.0, then kotoml.
+
+**Open (owner, 2026-10-03 16:44):** remove kotoml's `mavenLocal` from `settings.gradle.kts` once klap 0.5.0 is released. Until then, `app` resolves klap 0.5.0 only from mavenLocal.
+
+### 59. 2026-10-03 16:50 - The cleanup pass over my klap changes
+
+**Changed:**
+- **One tree walk instead of three:** `--help-all`, `--help-all --json` and the man/markdown docs each walked the
+  visible subcommands themselves. `Docs.kt`'s private `docNodes` became `Command.visibleTree(qualifiedName)` in
+  `Help.kt`, and all three use it. They must list the same commands, so this is one rule.
+- **Import order:** `Parser.kt`'s `kern.fuzzy` import sat among the `klap` imports; it is now sorted.
+- **The guide:** the `--json` paragraph is split in two, a line that ran past the wrap is fixed, and
+  "`--version` does honour it" (whose "it" now pointed at the `MissingSubcommand` sentence) became
+  "`--version` honours `--json` too".
+
+**Left alone:**
+- **`words()` and `spellings()` both order spellings.** One renders `--[no-]x` for text and suppresses generated
+  negations; the other lists real tokens. They answer different questions.
+- **`val node = this@builtinOptions`:** inside `buildList`, `this` is the list.
+- **The owner's own 0.5.0 work** in the same files, such as the "Errors follow suit" paragraph and `ErrorJson.kt`.
+
+**Open, a schema question for the owner:** an argument with `absentWhen` or `relaxedWhen` reports
+`required: true` in JSON help, though text help says "absent with" or "optional with". It needs a field, such as
+`requiredUnless`, or `required: false`.
+
+**Verified:** klap 1115 tests green on JVM and linuxX64; `./gradlew build` green; republished.
+
+### 60. 2026-10-03 16:57 - klap JSON help names an argument's condition: `absentWith`, `optionalWith` (owner chose B)
+
+**Got:** `ArgumentHelp` gains `absentWith` and `optionalWith`, from `absentWhen` and `relaxedWhen` via the same
+`constraintToken()` text help uses. So `tool cp` reports `DEST` with `"absentWith":"--target-directory"`, and
+`tool rm` reports `file` with `"optionalWith":"--force"`. `required` stays true, as the base rule. One test in
+`HelpJsonTest`; the guide's field list is updated. klap 1116 tests and the build are green; republished.
+
+### 61. 2026-10-03 17:06 - kotoml resolves kern and klap from the release repository only
+
+**Got:** klap 0.5.0 is released (metadata release 0.5.0; `klap-jvm-0.5.0.jar` returns 200). `chore/no-maven-local` (`6ac31c1`) removes the `com.fromwau` `mavenLocal` from `settings.gradle.kts`. The clean build with `--refresh-dependencies` is green: core 1142, serialization 362, app 107, toml-test included. No docs mentioned mavenLocal. RESOLVES the open item after entry 58.
