@@ -94,8 +94,8 @@ internal fun Item.dbg(): Dbg {
     return lit("None")
 }
 
-internal fun DocumentMut.dbg(): Dbg = struct(
+internal fun TomlDocument.dbg(): Dbg = struct(
     "DocumentMut",
-    "root" to asItem().dbg(),
+    "root" to Item(root).dbg(),
     "trailing" to rawTrailing.dbg(),
 )

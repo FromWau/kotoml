@@ -93,31 +93,31 @@ public operator fun InlineTable.set(
 ): Unit = set(key, Value.Datetime(value))
 
 /** Stores a string at [key] of the root table; see [Table.set]. */
-public operator fun DocumentMut.set(
+public operator fun TomlDocument.set(
     key: String,
     value: String,
 ): Unit = set(key, Value.String(value))
 
 /** Stores an integer at [key] of the root table; see [Table.set]. */
-public operator fun DocumentMut.set(
+public operator fun TomlDocument.set(
     key: String,
     value: Long,
 ): Unit = set(key, Value.Integer(value))
 
 /** Stores a float at [key] of the root table; see [Table.set]. */
-public operator fun DocumentMut.set(
+public operator fun TomlDocument.set(
     key: String,
     value: Double,
 ): Unit = set(key, Value.Float(value))
 
 /** Stores a boolean at [key] of the root table; see [Table.set]. */
-public operator fun DocumentMut.set(
+public operator fun TomlDocument.set(
     key: String,
     value: Boolean,
 ): Unit = set(key, Value.Boolean(value))
 
 /** Stores a date-time at [key] of the root table; see [Table.set]. */
-public operator fun DocumentMut.set(
+public operator fun TomlDocument.set(
     key: String,
     value: Datetime,
 ): Unit = set(key, Value.Datetime(value))

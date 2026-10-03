@@ -9,7 +9,7 @@ import kotlin.test.fail
 class ComplianceInvalidTest {
 
     private fun t(toml: String, expected: String) {
-        when (val parsed = DocumentMut.parse(toml)) {
+        when (val parsed = TomlDocument.parse(toml)) {
             is Result.Success -> fail("parsed to: ${parsed.value}")
             is Result.Error -> assertData(expected, parsed.error.render(toml))
         }
@@ -148,21 +148,21 @@ missing key for inline table element, expected key
     @Test
     fun emojiErrorSpan() {
         val input = "key = 😀"
-        val err = DocumentMut.parse(input).unwrapErr()
+        val err = TomlDocument.parse(input).unwrapErr()
         assertEquals("😀", spanText(input, err))
     }
 
     @Test
     fun textErrorSpan() {
         val input = "key = asdf"
-        val err = DocumentMut.parse(input).unwrapErr()
+        val err = TomlDocument.parse(input).unwrapErr()
         assertEquals("asdf", spanText(input, err))
     }
 
     @Test
     fun fuzzed68144ErrorSpan() {
         val input = "key = \"\\ᾂr\""
-        val err = DocumentMut.parse(input).unwrapErr()
+        val err = TomlDocument.parse(input).unwrapErr()
         // Bad escape values are reported as missing escape values.
         assertEquals("", spanText(input, err))
     }

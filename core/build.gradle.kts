@@ -15,10 +15,11 @@ kotlin {
             api(libs.kern.result)
             // The error types are @Serializable, so a program can hand them on as data.
             api(libs.kotlinx.serialization.core)
+            // Source and Sink appear in TomlDocument's read and write signatures.
+            api(libs.kotlinx.io.core)
         }
 
         commonTest.dependencies {
-            implementation(libs.kotlinx.io.core)
             implementation(libs.kotlinx.serialization.json)
         }
     }

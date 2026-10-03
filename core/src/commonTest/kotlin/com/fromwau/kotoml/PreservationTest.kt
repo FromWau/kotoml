@@ -6,7 +6,7 @@ import kotlin.test.assertEquals
 /** What this port keeps beyond upstream so that unchanged text prints back byte for byte. */
 class PreservationTest {
 
-    private fun parse(text: String): DocumentMut = DocumentMut.parse(text).unwrap()
+    private fun parse(text: String): TomlDocument = TomlDocument.parse(text).unwrap()
 
     @Test
     fun crlfLinesKeepTheirEndings() {
@@ -53,7 +53,7 @@ class PreservationTest {
     @Test
     fun formattingASharedKeyAppliesToEveryLine() {
         val doc = parse("name.first = \"Arthur\"\n\"name\" . 'last' = \"Dent\"\n")
-        doc.asTable().key("name")!!.resetFormatting()
+        doc.root.key("name")!!.resetFormatting()
         // The leaf key `'last'` is the line's own and keeps its spelling and the space before it.
         assertEquals("name.first = \"Arthur\"\nname. 'last' = \"Dent\"\n", doc.toString())
     }
@@ -83,7 +83,7 @@ class PreservationTest {
     @Test
     fun sortingReplacesTheReadOrder() {
         val doc = parse("b.x = 1\na.y = 2\nb.z = 3\n")
-        doc.asTable().sortValues()
+        doc.root.sortValues()
         assertEquals("a.y = 2\nb.x = 1\nb.z = 3\n", doc.toString())
     }
 

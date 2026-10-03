@@ -9,7 +9,7 @@ class ComplianceParseTest {
 
     private fun parseValue(text: String): Value = Value.parse(text).unwrap()
 
-    private fun parseDocument(text: String): DocumentMut = DocumentMut.parse(text).unwrap()
+    private fun parseDocument(text: String): TomlDocument = TomlDocument.parse(text).unwrap()
 
     @Test
     fun testValueFromStr() {
@@ -58,7 +58,7 @@ string'''""",
 [a.b.c.d]
 
 """
-        val doc = DocumentMut.parse(toml)
+        val doc = TomlDocument.parse(toml)
         assertTrue(doc.isOk())
         assertData(expected, doc.unwrap().toString())
     }
@@ -435,7 +435,7 @@ clippy.exhaustive_enums = "warn"
     private fun recursionLimit(input: (Int) -> String) {
         val depths = listOf(1 to true, 20 to true, 300 to false)
         for ((depth, isOk) in depths) {
-            val document = DocumentMut.parse(input(depth))
+            val document = TomlDocument.parse(input(depth))
             assertEquals(isOk, document.isOk(), "depth: $depth")
         }
     }
@@ -468,7 +468,7 @@ clippy.exhaustive_enums = "warn"
     @Test
     fun garbage1() {
         val input = "={=<=u=="
-        val err = DocumentMut.parse(input).unwrapErr()
+        val err = TomlDocument.parse(input).unwrapErr()
         assertData(
             """
 TOML parse error at line 1, column 5
@@ -485,7 +485,7 @@ extra assignment between key-value pairs, expected `,`
     @Test
     fun garbage2() {
         val input = "={=<=u==}"
-        val err = DocumentMut.parse(input).unwrapErr()
+        val err = TomlDocument.parse(input).unwrapErr()
         assertData(
             """
 TOML parse error at line 1, column 5
@@ -502,7 +502,7 @@ extra assignment between key-value pairs, expected `,`
     @Test
     fun garbage3() {
         val input = "==\n[._[._"
-        val err = DocumentMut.parse(input).unwrapErr()
+        val err = TomlDocument.parse(input).unwrapErr()
         assertData(
             """
 TOML parse error at line 1, column 2

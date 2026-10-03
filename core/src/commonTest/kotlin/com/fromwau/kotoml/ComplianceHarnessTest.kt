@@ -53,13 +53,13 @@ class ComplianceHarnessTest {
 
     /** upstream's `Decoder::decode`: refused when the text is not UTF-8, else the parse's outcome. */
     private sealed interface Outcome {
-        data class Decoded(val document: DocumentMut) : Outcome
+        data class Decoded(val document: TomlDocument) : Outcome
 
         data class Refused(val message: String) : Outcome
     }
 
     private fun outcome(fixture: ByteArray): Outcome {
-        return when (val parsed = DocumentMut.parse(fixture)) {
+        return when (val parsed = TomlDocument.parse(fixture)) {
             is Result.Success -> Outcome.Decoded(parsed.value)
             is Result.Error -> {
                 val message = parsed.error.render(fixture.decodeToString())

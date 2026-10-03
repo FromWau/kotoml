@@ -1,10 +1,15 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.Result
+import kotlinx.io.Buffer
+import kotlinx.io.readString
+import kotlinx.io.writeString
 import kotlin.math.round
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.test.fail
 
 /** Upstream's documentation examples for `toml_edit`, which `cargo test` runs as doctests. */
 class EditDocTest {
@@ -15,7 +20,7 @@ class EditDocTest {
 "hello" = 'toml!' # comment
 ['a'.b]
 """
-        val doc = DocumentMut.parse(toml).unwrap()
+        val doc = TomlDocument.parse(toml).unwrap()
         assertEquals(toml, doc.toString())
         // Add a new key/value pair inside a.b: c = {d = "hello"}
         doc["a"]["b"]["c"]["d"] = "hello"
@@ -32,7 +37,7 @@ c = { d = "hello" }
     @Test
     fun readmeExample() {
         val toml = "\n\"hello\" = 'toml!' # comment\n['a'.b]\n    "
-        val doc = DocumentMut.parse(toml).unwrap()
+        val doc = TomlDocument.parse(toml).unwrap()
         assertEquals(toml, doc.toString())
         // Add a new key/value pair inside a.b: c = {d = "hello"}
         doc["a"]["b"]["c"]["d"] = "hello"
@@ -44,7 +49,7 @@ c = { d = "hello" }
 
     @Test
     fun repositoryReadmeExample() {
-        val doc = DocumentMut.parse("[package]\nname = \"kotoml\" # the name\n").unwrap()
+        val doc = TomlDocument.parse("[package]\nname = \"kotoml\" # the name\n").unwrap()
         doc["package"]["version"] = "0.1.0"
         assertEquals("[package]\nname = \"kotoml\" # the name\nversion = \"0.1.0\"\n", doc.toString())
     }
@@ -52,7 +57,7 @@ c = { d = "hello" }
     @Test
     fun moduleReadmeExample() {
         val text = "\n\"hello\" = 'toml!' # comment\n['a'.b]\n"
-        val doc = DocumentMut.parse(text).unwrap()
+        val doc = TomlDocument.parse(text).unwrap()
         assertEquals(text, doc.toString())
         doc["a"]["b"]["c"]["d"] = "hello"
         doc["a"]["b"]["c"].inlineTableOrNull?.resetFormatting()
@@ -61,13 +66,13 @@ c = { d = "hello" }
 
     @Test
     fun moduleReadmeValues() {
-        val doc = DocumentMut()
+        val doc = TomlDocument()
         doc["port"] = Value.Integer(8080L, Decor(prefix = " ", suffix = " # default"))
         doc["when"] = Datetime(date = Date(year = 1979, month = 5, day = 27))
         assertEquals("port = 8080 # default\nwhen = 1979-05-27\n", doc.toString())
 
         assertEquals(8080L, doc["port"].longOrNull)
-        val parsed = DocumentMut.parse("n = 0x10\n").unwrap()
+        val parsed = TomlDocument.parse("n = 0x10\n").unwrap()
         val spelled = parsed["n"].valueOrNull as Value.Integer
         assertEquals(16L, spelled.value)
         assertEquals("0x10", spelled.spelling)
@@ -77,7 +82,7 @@ c = { d = "hello" }
 
     @Test
     fun moduleReadmeTablesAndArrays() {
-        val doc = DocumentMut.parse("[server]\nhosts = [\"alpha\"]\n").unwrap()
+        val doc = TomlDocument.parse("[server]\nhosts = [\"alpha\"]\n").unwrap()
         doc["server"]["hosts"].arrayOrNull?.add("beta")
         val server = doc["server"].tableOrNull!!
         server.getOrPut("port") { Item(Value.Integer(8080L)) }
@@ -90,15 +95,34 @@ c = { d = "hello" }
 
     @Test
     fun moduleReadmeSetIntoAString() {
-        val doc = DocumentMut.parse("a = 'text'\n").unwrap()
+        val doc = TomlDocument.parse("a = 'text'\n").unwrap()
         assertTrue(doc["a"].set("key", 1L).unwrapErr() is TomlEditError.NotATable)
         assertEquals("a = 'text'\n", doc.toString())
     }
 
     @Test
+    fun moduleReadmeReadAndWrite() {
+        val file = Buffer().apply { writeString("[package]\nname = \"kotoml\" # the name\nversion = \"0.1.0\"\n") }
+        val read = file.use { TomlDocument.read(it) }
+        val doc = when (read) {
+            is Result.Success -> read.value
+            is Result.Error -> fail(
+                when (val error = read.error) {
+                    is TomlIoError -> "cannot read: ${error.detail}"
+                    is TomlReadError.Parse -> error.error.render(error.text)
+                },
+            )
+        }
+        doc["package"]["version"] = "0.2.0"
+        val written = Buffer()
+        doc.writeTo(written).unwrap()
+        assertEquals("[package]\nname = \"kotoml\" # the name\nversion = \"0.2.0\"\n", written.readString())
+    }
+
+    @Test
     fun moduleReadmeError() {
         val input = "a = 1\na = 2\n"
-        val error = DocumentMut.parse(input).unwrapErr()
+        val error = TomlDocument.parse(input).unwrapErr()
         assertEquals(TomlParseError.Reason.DuplicateKey("a"), error.reason)
         assertEquals(TextPosition(line = 2, column = 1), error.position)
         assertData(
@@ -116,14 +140,14 @@ duplicate key
 
     @Test
     fun crateDefaultFormatting() {
-        val doc = DocumentMut()
+        val doc = TomlDocument()
         doc["foo"] = "bar"
         assertEquals("foo = \"bar\"\n", doc.toString())
     }
 
     @Test
     fun crateCustomRepresentation() {
-        val doc = DocumentMut()
+        val doc = TomlDocument()
         doc["foo"] = Value.parse("'bar'").unwrap()
         assertEquals("foo = 'bar'\n", doc.toString())
     }
@@ -236,7 +260,7 @@ duplicate key
 
     @Test
     fun tableSetImplicit() {
-        val doc = DocumentMut.parse("[a]\n[a.b]\n").unwrap()
+        val doc = TomlDocument.parse("[a]\n[a.b]\n").unwrap()
 
         doc["a"].tableOrNull!!.isImplicit = true
         assertEquals("[a.b]\n", doc.toString())
@@ -326,9 +350,9 @@ laputa = "sky-castle"
 the-force = { value = "surrounds-you" }
 """
 
-        val document = DocumentMut.parse(input).unwrap()
+        val document = TomlDocument.parse(input).unwrap()
         val strings = mutableListOf<String>()
-        collectStrings(document.asTable(), strings)
+        collectStrings(document.root, strings)
 
         assertEquals(listOf("sky-castle", "surrounds-you"), strings)
     }
@@ -378,8 +402,8 @@ banana = 3.26
 table = { apple = 4.5 }
 """
 
-        val document = DocumentMut.parse(input).unwrap()
-        floatsToStrings(document.asTable())
+        val document = TomlDocument.parse(input).unwrap()
+        floatsToStrings(document.root)
 
         val output = """
 banana = "3.26"

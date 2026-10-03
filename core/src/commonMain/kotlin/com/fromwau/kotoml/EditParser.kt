@@ -41,7 +41,7 @@ internal class ParseContext(val source: TomlSource, val errors: TomlSink, val ve
     fun text(span: Span): String = source.get(span)?.asStr().orEmpty()
 }
 
-internal fun parseDocumentModel(source: TomlSource, errors: TomlSink, version: TomlVersion): Document {
+internal fun parseDocumentModel(source: TomlSource, errors: TomlSink, version: TomlVersion): TomlDocument {
     val events = collectEvents(source, errors, ::parseDocumentEvents)
     val context = ParseContext(source, errors, version)
     val lineEnding = events.firstOrNull { it.kind() == EventKind.Newline }?.let { context.text(it.span()) } ?: "\n"
@@ -107,7 +107,7 @@ internal class EventStream(private val events: List<Event>) {
 
 private class TableHeader(val path: List<Key>, val key: Key?, val span: Span, val isArray: Boolean)
 
-/** Builds a [Document] from the events of a whole document, upstream's `document` and its `State`. */
+/** Builds a [TomlDocument] from the events of a whole document, upstream's `document` and its `State`. */
 private class DocumentBuilder(private val input: EventStream, private val context: ParseContext) {
     private val source = context.source
     private val errors = context.errors
@@ -117,7 +117,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
     private var currentHeader: TableHeader? = null
     private var currentPosition = 0L
 
-    fun document(lineEnding: String): Document {
+    fun document(lineEnding: String): TomlDocument {
         while (true) {
             val event = input.nextToken() ?: break
             when (event.kind()) {
@@ -178,8 +178,10 @@ private class DocumentBuilder(private val input: EventStream, private val contex
 
         finishTable()
 
-        val trailing = takeTrailing()
-        return Document(Item(root), trailing, source.input(), lineEnding)
+        val text = source.input()
+        val input = SourceText(text)
+        root.despan(input)
+        return TomlDocument(root, takeTrailing().despan(input), lineEnding, text)
     }
 
     private fun onTable(openEvent: Event): TableHeader {

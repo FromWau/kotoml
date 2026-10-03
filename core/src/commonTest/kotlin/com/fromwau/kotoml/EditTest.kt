@@ -14,13 +14,13 @@ import kotlin.test.fail
 /** `toml_edit/tests/testsuite/edit.rs` */
 class EditTest {
 
-    private class Given(val doc: DocumentMut) {
+    private class Given(val doc: TomlDocument) {
         fun running(func: (Table) -> Unit): Given {
-            func(doc.asTable())
+            func(doc.root)
             return this
         }
 
-        fun runningOnDoc(func: (DocumentMut) -> Unit): Given {
+        fun runningOnDoc(func: (TomlDocument) -> Unit): Given {
             func(doc)
             return this
         }
@@ -32,7 +32,7 @@ class EditTest {
     }
 
     private fun given(input: String): Given {
-        val doc = DocumentMut.parse(input)
+        val doc = TomlDocument.parse(input)
         assertTrue(doc.isOk())
         return Given(doc.unwrap())
     }
@@ -58,7 +58,7 @@ class EditTest {
             "# leading comment\n[ parent . 'child' ] # header\nvalue = { dotted . key = [ 1, 2, ], other = 'text' } #" +
             " value\n\n[[ parent . 'entries' ]] # first\nname = \"first\"\n\n[[ parent . 'entries' ]] # second\nname " +
             "= \"second\"\n# trailing comment\n"
-        val document = DocumentMut.parse(input.toCharArray().concatToString()).unwrap()
+        val document = TomlDocument.parse(input.toCharArray().concatToString()).unwrap()
         assertEquals(input, document.toString())
 
         val name = document["parent"]["entries"][1]["name"]
@@ -71,7 +71,7 @@ class EditTest {
     @Test
     fun parseErrorOutlivesInput() {
         val input = "[table]\nkey = 1\n[table]\nkey = 2\n"
-        val error = DocumentMut.parse(input).unwrapErr()
+        val error = TomlDocument.parse(input).unwrapErr()
         assertEquals(TomlParseError.Reason.DuplicateKey("table"), error.reason)
         assertTrue(error.render(input).contains("[table]"))
     }
@@ -87,7 +87,7 @@ class EditTest {
             }
         }
 
-        val document = DocumentMut.parse("# comment\r\n[table]\r\nvalue = { dotted.key = [1, 2] }\r\n").unwrap()
+        val document = TomlDocument.parse("# comment\r\n[table]\r\nvalue = { dotted.key = [1, 2] }\r\n").unwrap()
         document["table"]["new key"] = "new value"
         val output = document.toString()
         // Upstream prints CRLF input with LF line endings; this port keeps each line's ending, which the toml-test
@@ -359,7 +359,7 @@ class EditTest {
                 "                             },\n                            ),\n                        },\n       " +
                 "             },\n                ),\n            },\n        },\n    ),\n    trailing: \" # final co" +
                 "mment\\n\",\n}\n\n",
-            DocumentMut.parse(input).unwrap().dbg(),
+            TomlDocument.parse(input).unwrap().dbg(),
         )
     }
 
@@ -371,7 +371,7 @@ class EditTest {
             "= \"src/bin/dmp/main.rs\"")
             .runningOnDoc { document ->
                     document.decor = Decor(prefix = "# Some Header\n\n", suffix = "# Some Footer")
-                    document.setTrailing("\n\ntrailing...")
+                    document.trailing = "\n\ntrailing..."
             }
             .producesDisplay("""
 # Some Header
@@ -405,7 +405,7 @@ trailing...
             .runningOnDoc { document ->
                     assertTrue(document.decor.prefix == null)
                     assertTrue(document.decor.suffix == null)
-                    document.setTrailing("\n\ntrailing...")
+                    document.trailing = "\n\ntrailing..."
             }
             .producesDisplay("""
 [package]
@@ -486,7 +486,7 @@ dc = "eqdc10"
     fun testInsertingTablesFromDifferentParsedDocs() {
         given("[a]")
             .running { root ->
-                val other = DocumentMut.parse("[b]").unwrap()
+                val other = TomlDocument.parse("[b]").unwrap()
                 root["b"] = other["b"].copy()
             }
             .producesDisplay("""
@@ -1150,7 +1150,7 @@ src.git = "https://github.com/nixos/nixpkgs"
 
     @Test
     fun tableStrKeyWhitespace() {
-        val document = DocumentMut.parse("bookmark = 1010").unwrap()
+        val document = TomlDocument.parse("bookmark = 1010").unwrap()
         val key = "bookmark"
         document.put(key, Item(ArrayOfTables()))
         val table = document[key].arrayOfTablesOrNull!!
@@ -1166,9 +1166,9 @@ name = "test.swf"
 
     @Test
     fun tableKeyDecorWhitespace() {
-        val document = DocumentMut.parse("bookmark = 1010").unwrap()
+        val document = TomlDocument.parse("bookmark = 1010").unwrap()
         val key = Key.parsePath("  bookmark   ").unwrap()[0]
-        document.asTable().put(key, Item(ArrayOfTables()))
+        document.root.put(key, Item(ArrayOfTables()))
         val table = document[key.name].arrayOfTablesOrNull!!
         val bookmarkTable = Table()
         bookmarkTable["name"] = "test.swf"
@@ -1191,7 +1191,7 @@ inline = { "1" = 1, "2" = 2 }
 [table.child]
 other = "world"
 """
-        val doc = DocumentMut.parse(toml).unwrap()
+        val doc = TomlDocument.parse(toml).unwrap()
         doc.getOrNull("table")!!.makeValue().unwrap()
         val actual = doc.toString()
         // `table=` is because the table key was not re-formatted, only the value.
@@ -1205,7 +1205,7 @@ other = "world"
         val toml =
             "table = { string = \"value\", array = [1, 2, 3], inline = { \"1\" = 1, \"2\" = 2 }, child = { other = \"" +
             "world\" } }\n"
-        val doc = DocumentMut.parse(toml).unwrap()
+        val doc = TomlDocument.parse(toml).unwrap()
         val t = doc.remove("table")!!
         val inline = t.inlineTableOrNull ?: fail("Unexpected $t")
         val table = inline.toTable()
@@ -1240,7 +1240,7 @@ inline = { "1" = 1, "2" = 2 }
 [table.child]
 other = "world"
 """
-        val doc = DocumentMut.parse(toml).unwrap()
+        val doc = TomlDocument.parse(toml).unwrap()
         doc.getOrNull("table")!!.makeValue().unwrap()
         val actual = doc.toString()
         // `table=` is because the table key was not re-formatted, only the value.
@@ -1272,9 +1272,9 @@ other = "world"
 
     @Test
     fun despanKeys() {
-        val doc = DocumentMut.parse("aaaaaa = 1").unwrap()
+        val doc = TomlDocument.parse("aaaaaa = 1").unwrap()
         val key = Key.parse("bbb").unwrap()
-        val table = doc.asTable()
+        val table = doc.root
         table.put(key, Item(Value.Integer(2L)))
         assertEquals("aaaaaa = 1\nbbb = 2\n", doc.toString())
     }
@@ -1332,7 +1332,7 @@ other = "world"
 
     @Test
     fun tableUnderInline() {
-        val doc = DocumentMut()
+        val doc = TomlDocument()
         // An inline table holds only values, so a dotted inline table stands in for upstream's table here.
         val dotted = InlineTable()
         dotted.isDotted = true

@@ -24,8 +24,8 @@ class SuiteTest {
 
     private fun versionOf(list: String): TomlVersion = if (list == "1.0.0") TomlVersion.V1_0 else TomlVersion.V1_1
 
-    private fun parse(bytes: ByteArray, version: String): Result<DocumentMut, TomlParseError> =
-        DocumentMut.parse(bytes, versionOf(version))
+    private fun parse(bytes: ByteArray, version: String): Result<TomlDocument, TomlParseError> =
+        TomlDocument.parse(bytes, versionOf(version))
 
     private fun expected(file: String): Tagged =
         parseTaggedJson(readBytes("$root/${file.removeSuffix(".toml")}.json").decodeToString())
@@ -58,7 +58,7 @@ class SuiteTest {
         val failures = valid(version).filter { file ->
             val expected = expected(file)
             val document = expected.toDocument()
-            val reparsed = document?.let { DocumentMut.parse(it.toString(), versionOf(version)) }
+            val reparsed = document?.let { TomlDocument.parse(it.toString(), versionOf(version)) }
             reparsed !is Result.Success || !reparsed.value.toTagged().sameAs(expected)
         }
         assertNoFailures(version, "encoding", failures)

@@ -32,7 +32,7 @@ class EditUnitTest {
 
     @Test
     fun documentDefaultRoundtrip() {
-        DocumentMut.parse(DocumentMut().toString()).unwrap()
+        TomlDocument.parse(TomlDocument().toString()).unwrap()
     }
 
     @Test

@@ -196,19 +196,19 @@ cargo-test-macro = { path = "crates/cargo-test-macro" }
 flate2 = { version = "0.4" }
 """
 
-    private fun visitExample(document: DocumentMut): Set<String> {
+    private fun visitExample(document: TomlDocument): Set<String> {
         val names = mutableSetOf<String>()
-        collectDependencyNames(document.asTable(), VisitState.Root, names)
+        collectDependencyNames(document.root, VisitState.Root, names)
         return names
     }
 
-    private fun visitMutExample(document: DocumentMut) {
-        normalizeDependencyTables(document.asTable(), VisitState.Root)
+    private fun visitMutExample(document: TomlDocument) {
+        normalizeDependencyTables(document.root, VisitState.Root)
     }
 
     @Test
     fun visitCorrect() {
-        val document = DocumentMut.parse(input).unwrap()
+        val document = TomlDocument.parse(input).unwrap()
 
         val names = visitExample(document)
         val expected = setOf(
@@ -226,7 +226,7 @@ flate2 = { version = "0.4" }
 
     @Test
     fun visitMutCorrect() {
-        val document = DocumentMut.parse(input).unwrap()
+        val document = TomlDocument.parse(input).unwrap()
 
         visitMutExample(document)
         assertEquals(visitMutOutput, document.toString())

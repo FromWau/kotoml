@@ -8,8 +8,8 @@ import kotlin.test.assertTrue
 class TomlVersionTest {
 
     private fun refusedIn10(input: String, expected: String) {
-        assertTrue(DocumentMut.parse(input).isOk(), "TOML 1.1 accepts:\n$input")
-        assertData(expected, DocumentMut.parse(input, TomlVersion.V1_0).unwrapErr().render(input))
+        assertTrue(TomlDocument.parse(input).isOk(), "TOML 1.1 accepts:\n$input")
+        assertData(expected, TomlDocument.parse(input, TomlVersion.V1_0).unwrapErr().render(input))
     }
 
     @Test
@@ -89,7 +89,7 @@ missing escaped value, expected `b`, `f`, `n`, `r`, `\`, `"`, `u`, `U`
 
     @Test
     fun escapedBackslashBeforeXIsAllowed() {
-        assertEquals("\\x41", DocumentMut.parse("s = \"\\\\x41\"\n", TomlVersion.V1_0).unwrap()["s"].stringOrNull)
+        assertEquals("\\x41", TomlDocument.parse("s = \"\\\\x41\"\n", TomlVersion.V1_0).unwrap()["s"].stringOrNull)
     }
 
     @Test

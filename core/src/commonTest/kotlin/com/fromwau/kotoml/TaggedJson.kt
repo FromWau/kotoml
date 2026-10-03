@@ -104,7 +104,7 @@ private fun daysFromCivil(year: Long, month: Long, day: Long): Long {
 }
 
 /** The tagged JSON of a document, as upstream's `tests/decoder.rs` builds it. */
-internal fun DocumentMut.toTagged(): Tagged = asTable().toTagged()
+internal fun TomlDocument.toTagged(): Tagged = root.toTagged()
 
 private fun Table.toTagged(): Tagged =
     Tagged.Table(associate { (key, item) -> key to item.toTagged() })
@@ -143,11 +143,11 @@ private fun taggedFloat(value: Double): String = when {
 }
 
 /** A document holding [tagged]'s values, as upstream's `tests/encoder.rs` builds it; null when it cannot. */
-internal fun Tagged.toDocument(): DocumentMut? {
+internal fun Tagged.toDocument(): TomlDocument? {
     if (this !is Tagged.Table) return null
     val table = Table()
     for ((key, value) in entries) table[key] = Item(value.toValue() ?: return null)
-    return DocumentMut(table)
+    return TomlDocument(table)
 }
 
 private fun Tagged.toValue(): Value? = when (this) {

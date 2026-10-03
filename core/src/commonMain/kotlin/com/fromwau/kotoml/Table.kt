@@ -27,7 +27,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
      * Whether the table is hidden while it holds no values. Its sub-tables still print.
      *
      * ```kotlin
-     * val doc = DocumentMut.parse("[a]\n[a.b]\n").getOrNull()!!
+     * val doc = TomlDocument.parse("[a]\n[a.b]\n").getOrNull()!!
      * doc["a"].tableOrNull?.isImplicit = true
      * doc.toString() // "[a.b]\n"
      * ```

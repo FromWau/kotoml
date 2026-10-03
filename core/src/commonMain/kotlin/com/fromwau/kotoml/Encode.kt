@@ -134,8 +134,8 @@ internal fun encodeTableBody(buf: StringBuilder, table: Table) {
 private class TableToVisit(val position: Long, val table: Table, val path: List<Key>, val isArray: Boolean)
 
 /** A whole document, tables in their original order: upstream's `Display for DocumentMut`. */
-internal fun encodeDocument(buf: StringBuilder, document: DocumentMut) {
-    val root = document.asTable()
+internal fun encodeDocument(buf: StringBuilder, document: TomlDocument) {
+    val root = document.root
     val decor = root.rawDecor
     decor.prefixEncode(buf, DEFAULT_ROOT_DECOR.first)
     val writer = LineWriter(buf, document.lineEnding)

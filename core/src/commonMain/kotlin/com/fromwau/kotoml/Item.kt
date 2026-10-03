@@ -12,7 +12,7 @@ import com.fromwau.kern.result.Result
  * stored there, so writing through it changes the document.
  *
  * ```kotlin
- * val doc = DocumentMut()
+ * val doc = TomlDocument()
  * doc["a"]["b"] = "c" // a = { b = "c" }
  * ```
  *
@@ -220,10 +220,6 @@ public class Item private constructor(
             is Content.ArrayOfTablesContent -> return Err(TomlEditError.NotATable(key, type))
         }
         return Ok(Unit)
-    }
-
-    internal fun holdTable(table: Table) {
-        content = Content.TableContent(table)
     }
 
     /** The value, or null when this holds none. Changing the value changes this item. */
