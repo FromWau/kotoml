@@ -18,6 +18,7 @@ kotlin {
             api(libs.kotlinx.serialization.core)
             // Read and written natively, but no kotlinx-datetime type appears in this module's signatures.
             implementation(libs.kotlinx.datetime)
+            implementation(libs.kern.fuzzy)
         }
 
         commonTest.dependencies {

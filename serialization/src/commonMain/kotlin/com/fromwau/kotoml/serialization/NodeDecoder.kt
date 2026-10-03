@@ -1,5 +1,6 @@
 package com.fromwau.kotoml.serialization
 
+import com.fromwau.kern.fuzzy.didYouMean
 import com.fromwau.kotoml.Item
 import com.fromwau.kotoml.TomlType
 import com.fromwau.kotoml.Value
@@ -84,7 +85,7 @@ internal class NodeDecoder(
         val index = enumDescriptor.getElementIndex(name)
         if (index == CompositeDecoder.UNKNOWN_NAME) {
             val names = enumDescriptor.elementNames.toList()
-            throw DecodeFailure(TomlDecodeError.UnknownEnumValue("$path", name, names, closestName(name, names)))
+            throw DecodeFailure(TomlDecodeError.UnknownEnumValue("$path", name, names, didYouMean(name, names)))
         }
         return index
     }
@@ -340,7 +341,7 @@ private class PolymorphicDecoder(
                 emptyList()
             }
         }
-        throw DecodeFailure(TomlDecodeError.UnknownSubtype("$path", name, known, closestName(name, known)))
+        throw DecodeFailure(TomlDecodeError.UnknownSubtype("$path", name, known, didYouMean(name, known)))
     }
 
     override fun decodeElementIndex(descriptor: SerialDescriptor): Int =
