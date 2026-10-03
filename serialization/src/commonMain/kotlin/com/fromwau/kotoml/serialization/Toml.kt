@@ -1,0 +1,286 @@
+package com.fromwau.kotoml.serialization
+
+import com.fromwau.kern.result.EmptyResult
+import com.fromwau.kern.result.Err
+import com.fromwau.kern.result.Ok
+import com.fromwau.kern.result.Result
+import com.fromwau.kern.result.map
+import com.fromwau.kotoml.TomlDocument
+import com.fromwau.kotoml.TomlType
+import kotlinx.serialization.DeserializationStrategy
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerialFormat
+import kotlinx.serialization.SerializationStrategy
+import kotlinx.serialization.descriptors.PolymorphicKind
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.descriptors.SerialKind
+import kotlinx.serialization.descriptors.StructureKind
+import kotlinx.serialization.modules.EmptySerializersModule
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.serializerOrNull
+import kotlin.reflect.typeOf
+
+/**
+ * Turns `@Serializable` values into TOML and back, the way `Json` does for JSON.
+ *
+ * Use [Toml.Default], or make a configured instance with the `Toml { }` builder:
+ *
+ * ```kotlin
+ * @Serializable
+ * data class Server(val host: String, val port: Int = 8080)
+ *
+ * val server = Toml.decodeFromString<Server>("host = \"example.org\"\n") // Ok(Server("example.org", 8080))
+ * val text = Toml.encodeToString(Server("example.org", 80)) // Ok("host = \"example.org\"\nport = 80\n")
+ * val lenient = Toml { ignoreUnknownKeys = true }
+ * ```
+ *
+ * The value at the top of a document is a class or a `Map<String, *>`, since a document is a table. Every entry
+ * point returns a [Result]: a [TomlDecodeError] or a [TomlEncodeError] says what went wrong and where, and no
+ * call throws.
+ */
+public sealed class Toml(
+    /** Whether a key no field of the class names is skipped when reading, rather than refused. */
+    public val ignoreUnknownKeys: Boolean,
+    /** Whether a field holding its default value is written; reading always fills a missing key's default. */
+    public val encodeDefaults: Boolean,
+    /** The key that names the subclass of a polymorphic or sealed value, in that value's table. */
+    public val classDiscriminator: String,
+    /** How a list of classes or maps is written in a standard table. */
+    public val tableListStyle: TableListStyle,
+    /** The serializers for polymorphic and contextual types. */
+    override val serializersModule: SerializersModule,
+) : SerialFormat {
+
+    /**
+     * The default configuration: unknown keys refused, defaults left out, `type` as the class discriminator,
+     * lists of classes as arrays of tables.
+     */
+    public companion object Default : Toml(
+        ignoreUnknownKeys = false,
+        encodeDefaults = false,
+        classDiscriminator = "type",
+        tableListStyle = TableListStyle.ArrayOfTables,
+        serializersModule = EmptySerializersModule(),
+    )
+
+    /**
+     * Parses [text] as TOML and reads it with [deserializer].
+     *
+     * @return the value, [TomlDecodeError.Parse] when the text is not TOML, or the error that stopped reading.
+     */
+    public fun <T> decodeFromString(
+        deserializer: DeserializationStrategy<T>,
+        text: String,
+    ): Result<T, TomlDecodeError> = when (val parsed = TomlDocument.parse(text)) {
+        is Result.Success -> decodeFromDocument(deserializer, parsed.value)
+        is Result.Error -> Err(TomlDecodeError.Parse(parsed.error))
+    }
+
+    /**
+     * Reads [document] with [deserializer]. The document is not changed.
+     *
+     * ```kotlin
+     * val document = TomlDocument.parse(text).getOrNull()!!
+     * val config = Toml.decodeFromDocument(Config.serializer(), document)
+     * ```
+     *
+     * @return the value, or the error that stopped reading.
+     */
+    public fun <T> decodeFromDocument(
+        deserializer: DeserializationStrategy<T>,
+        document: TomlDocument,
+    ): Result<T, TomlDecodeError> {
+        val descriptor = deserializer.descriptor
+        if (!descriptor.isTableKind()) return Err(TomlDecodeError.UnsupportedRoot(descriptor.serialName))
+        val root = TomlInput.Table(document.root.items().toMap(), TomlType.Table)
+        return try {
+            Ok(NodeDecoder(this, root, TomlPath.Root).decodeSerializableValue(deserializer))
+        } catch (failure: DecodeFailure) {
+            Err(failure.error)
+        }
+    }
+
+    /**
+     * Writes [value] with [serializer] as TOML text.
+     *
+     * @return the text, or the error that stopped writing.
+     */
+    public fun <T> encodeToString(
+        serializer: SerializationStrategy<T>,
+        value: T,
+    ): Result<String, TomlEncodeError> = encodeToDocument(serializer, value).map { it.toString() }
+
+    /**
+     * Writes [value] with [serializer] into a new document, which can be edited further before it is printed.
+     *
+     * @return the document, or the error that stopped writing.
+     */
+    public fun <T> encodeToDocument(
+        serializer: SerializationStrategy<T>,
+        value: T,
+    ): Result<TomlDocument, TomlEncodeError> = encodeNode(serializer, value, encodeDefaults)
+        .map { TomlDocument(DocumentWriter(tableListStyle).table(it)) }
+
+    /**
+     * Writes [value] with [serializer] into [document], changing only what differs, so a hand-written file keeps
+     * its comments, blank lines, key spelling and key order.
+     *
+     * A key whose value changes keeps its place, its spelling and the comment after its value; a key the
+     * document lacks is appended to its table. A field that is now null loses its key. A key no field names
+     * stays, whatever [ignoreUnknownKeys] says, while a map removes the keys it no longer has. A nested class
+     * updates its table in place, and a list replaces its array whole, in the form the document wrote it. A
+     * field at its default, with [encodeDefaults] off, updates a key the document has and adds none. Nothing
+     * is written when an error is returned.
+     *
+     * ```kotlin
+     * val document = TomlDocument.parse("host = 'a'\nport = 8080 # the default\n").getOrNull()!!
+     * Toml.encodeInto(document, Server.serializer(), Server("a", 9090))
+     * document.toString() // "host = 'a'\nport = 9090 # the default\n"
+     * ```
+     *
+     * @return [Ok] once [document] holds [value], or the error that stopped writing.
+     */
+    public fun <T> encodeInto(
+        document: TomlDocument,
+        serializer: SerializationStrategy<T>,
+        value: T,
+    ): EmptyResult<TomlEncodeError> {
+        val full = when (val encoded = encodeNode(serializer, value, encodeDefaults = true)) {
+            is Result.Success -> encoded.value
+            is Result.Error -> return encoded
+        }
+        val defaults = if (encodeDefaults) {
+            Defaults.Written
+        } else {
+            when (val encoded = encodeNode(serializer, value, encodeDefaults = false)) {
+                is Result.Success -> Defaults.Sparse(encoded.value)
+                is Result.Error -> return encoded
+            }
+        }
+        DocumentMerger(DocumentWriter(tableListStyle)).mergeTable(document.root, full, defaults)
+        return Ok(Unit)
+    }
+
+    private fun <T> encodeNode(
+        serializer: SerializationStrategy<T>,
+        value: T,
+        encodeDefaults: Boolean,
+    ): Result<TomlNode.Struct, TomlEncodeError> {
+        val descriptor = serializer.descriptor
+        val unsupported = TomlEncodeError.UnsupportedRoot(descriptor.serialName)
+        if (!descriptor.isTableKind()) return Err(unsupported)
+        var node: TomlNode? = null
+        return try {
+            NodeEncoder(EncodeSettings(this, encodeDefaults), TomlPath.Root) { node = it }
+                .encodeSerializableValue(serializer, value)
+            (node as? TomlNode.Struct)?.let { Ok(it) } ?: Err(unsupported)
+        } catch (failure: EncodeFailure) {
+            Err(failure.error)
+        }
+    }
+}
+
+/**
+ * Makes a [Toml] that starts from the configuration of [from] and changes what [builderAction] sets.
+ *
+ * ```kotlin
+ * val toml = Toml {
+ *     ignoreUnknownKeys = true
+ *     tableListStyle = TableListStyle.InlineArray
+ * }
+ * ```
+ */
+public fun Toml(
+    from: Toml = Toml.Default,
+    builderAction: TomlBuilder.() -> Unit,
+): Toml {
+    val builder = TomlBuilder(from)
+    builder.builderAction()
+    return TomlImpl(builder)
+}
+
+/** The settings of a [Toml] being made; each starts as the [Toml] it is made from has it. */
+public class TomlBuilder internal constructor(from: Toml) {
+    /** Whether a key no field of the class names is skipped when reading, rather than refused. */
+    public var ignoreUnknownKeys: Boolean = from.ignoreUnknownKeys
+
+    /** Whether a field holding its default value is written; reading always fills a missing key's default. */
+    public var encodeDefaults: Boolean = from.encodeDefaults
+
+    /** The key that names the subclass of a polymorphic or sealed value, in that value's table. */
+    public var classDiscriminator: String = from.classDiscriminator
+
+    /** How a list of classes or maps is written in a standard table. */
+    public var tableListStyle: TableListStyle = from.tableListStyle
+
+    /** The serializers for polymorphic and contextual types. */
+    public var serializersModule: SerializersModule = from.serializersModule
+}
+
+/** How [Toml] writes a list whose elements are classes or maps. */
+public enum class TableListStyle {
+    /** Each element is a table under its own `[[key]]` header. */
+    ArrayOfTables,
+
+    /** The list is an inline array of inline tables, `key = [{ a = 1 }, { a = 2 }]`. */
+    InlineArray,
+}
+
+private class TomlImpl(builder: TomlBuilder) : Toml(
+    ignoreUnknownKeys = builder.ignoreUnknownKeys,
+    encodeDefaults = builder.encodeDefaults,
+    classDiscriminator = builder.classDiscriminator,
+    tableListStyle = builder.tableListStyle,
+    serializersModule = builder.serializersModule,
+)
+
+private fun SerialDescriptor.isTableKind(): Boolean = when (kind) {
+    StructureKind.CLASS, StructureKind.OBJECT, StructureKind.MAP, SerialKind.CONTEXTUAL -> true
+    is PolymorphicKind -> true
+    else -> false
+}
+
+/**
+ * Parses [text] as TOML and reads it as a [T].
+ *
+ * ```kotlin
+ * val config: Result<Config, TomlDecodeError> = Toml.decodeFromString<Config>(text)
+ * ```
+ */
+public inline fun <reified T> Toml.decodeFromString(text: String): Result<T, TomlDecodeError> {
+    val serializer = serializerOrNull<T>() ?: return Err(TomlDecodeError.NoSerializer("${typeOf<T>()}"))
+    return decodeFromString(serializer, text)
+}
+
+/** Reads [document] as a [T]; see [Toml.decodeFromDocument]. */
+public inline fun <reified T> Toml.decodeFromDocument(document: TomlDocument): Result<T, TomlDecodeError> {
+    val serializer = serializerOrNull<T>() ?: return Err(TomlDecodeError.NoSerializer("${typeOf<T>()}"))
+    return decodeFromDocument(serializer, document)
+}
+
+/** Writes [value] as TOML text; see [Toml.encodeToString]. */
+public inline fun <reified T> Toml.encodeToString(value: T): Result<String, TomlEncodeError> {
+    val serializer = serializerOrNull<T>() ?: return Err(TomlEncodeError.NoSerializer("${typeOf<T>()}"))
+    return encodeToString(serializer, value)
+}
+
+/** Writes [value] into a new document; see [Toml.encodeToDocument]. */
+public inline fun <reified T> Toml.encodeToDocument(value: T): Result<TomlDocument, TomlEncodeError> {
+    val serializer = serializerOrNull<T>() ?: return Err(TomlEncodeError.NoSerializer("${typeOf<T>()}"))
+    return encodeToDocument(serializer, value)
+}
+
+/** Writes [value] into [document], changing only what differs; see [Toml.encodeInto]. */
+public inline fun <reified T> Toml.encodeInto(
+    document: TomlDocument,
+    value: T,
+): EmptyResult<TomlEncodeError> {
+    val serializer = serializerOrNull<T>() ?: return Err(TomlEncodeError.NoSerializer("${typeOf<T>()}"))
+    return encodeInto(document, serializer, value)
+}
+
+@PublishedApi
+internal inline fun <reified T> Toml.serializerOrNull(): KSerializer<T>? {
+    @Suppress("UNCHECKED_CAST")
+    return serializersModule.serializerOrNull(typeOf<T>()) as KSerializer<T>?
+}

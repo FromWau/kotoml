@@ -12,6 +12,7 @@ dotenv-gradle = "0.1.0"
 jdk = "25"
 
 kotlin = "2.4.20"
+kotlinx-datetime = "0.8.0"
 kotlinx-io = "0.9.1"
 kotlinx-serialization = "1.11.0"
 
@@ -24,6 +25,7 @@ kern-result = { module = "com.fromwau.kern:result", version.ref = "kern" }
 klap = { module = "com.fromwau:klap", version.ref = "klap" }
 
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
 kotlinx-io-core = { module = "org.jetbrains.kotlinx:kotlinx-io-core", version.ref = "kotlinx-io" }
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialization" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }

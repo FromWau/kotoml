@@ -55,4 +55,5 @@ gradle.lifecycle.beforeProject {
 }
 
 include(":core")
+include(":serialization")
 include(":app")
