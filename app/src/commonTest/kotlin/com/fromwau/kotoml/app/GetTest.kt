@@ -138,16 +138,42 @@ class GetTest {
     }
 
     @Test
-    fun `a missing key or index is null`() {
-        assertEquals("null", get(".nope.deeper"))
-        assertEquals("null", get(".servers[5]"))
+    fun `a key that is not there is an error naming it and where`() {
+        assertEquals(Result.Error(AppError.NoSuchKey(".nope", "nope")), select(".nope.deeper"))
+        assertEquals(Result.Error(AppError.NoSuchKey(".package.nope", "nope")), select(".package.nope"))
+        assertEquals(Result.Error(AppError.NoSuchKey(".\"my key\"", "my key")), select(".\"my key\""))
+        assertEquals(Result.Error(AppError.NoSuchKey(".servers[0].nope", "nope")), select(".servers[] | .nope"))
+    }
+
+    @Test
+    fun `iterating a key that is not there is an error`() {
+        assertEquals(Result.Error(AppError.NoSuchKey(".nope", "nope")), select(".nope[]"))
+    }
+
+    @Test
+    fun `an index past either end is an error naming the size`() {
+        assertEquals(Result.Error(AppError.NoSuchIndex(".servers[5]", 5, 2)), select(".servers[5]"))
+        assertEquals(Result.Error(AppError.NoSuchIndex(".servers[-3]", -3, 2)), select(".servers[-3]"))
+    }
+
+    @Test
+    fun `a missing key or index reads as a sentence`() {
+        assertEquals("no key \"nope\" at .nope", AppError.NoSuchKey(".nope", "nope").describe())
+        assertEquals("no index 5 at .servers[5], it has 2", AppError.NoSuchIndex(".servers[5]", 5, 2).describe())
+    }
+
+    @Test
+    fun `a step a value cannot take names its type in words`() {
+        assertEquals(
+            "cannot apply .\"x\" to array of tables",
+            AppError.CannotApply(Step.Key("x"), TomlType.ArrayOfTables).describe(),
+        )
     }
 
     @Test
     fun `JSON prints one value or a stream as an array`() {
         assertEquals("""{"host":"alpha","port":8080}""", json(".servers[0]"))
         assertEquals("""["alpha","beta"]""", json(".servers[] | .host"))
-        assertEquals("null", json(".nope"))
     }
 
     @Test

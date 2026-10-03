@@ -41,6 +41,16 @@ internal sealed interface AppError : IError {
     @SerialName("FilterSyntax")
     data class FilterSyntax(val filter: String, val position: Int, val expected: FilterExpected) : AppError
 
+    /** The filter looks for [key] at [path], and the table there has no such key. */
+    @Serializable
+    @SerialName("NoSuchKey")
+    data class NoSuchKey(val path: String, val key: String) : AppError
+
+    /** The filter looks for [index] at [path], and the array there has [size] elements. */
+    @Serializable
+    @SerialName("NoSuchIndex")
+    data class NoSuchIndex(val path: String, val index: Int, val size: Int) : AppError
+
     /** A filter step that a value of [itemType] cannot take. */
     @Serializable
     @SerialName("CannotApply")
@@ -123,7 +133,22 @@ internal fun AppError.describe(): String = when (this) {
         repeat(position) { append(' ') }
         append('^')
     }
-    is AppError.CannotApply -> "cannot apply ${step.describe()} to ${itemType.name.lowercase()}"
+    is AppError.NoSuchKey -> "no key \"$key\" at $path"
+    is AppError.NoSuchIndex -> "no index $index at $path, it has $size"
+    is AppError.CannotApply -> "cannot apply ${step.describe()} to ${itemType.words()}"
+}
+
+private fun TomlType.words(): String = when (this) {
+    TomlType.Missing -> "missing"
+    TomlType.String -> "string"
+    TomlType.Integer -> "integer"
+    TomlType.Float -> "float"
+    TomlType.Boolean -> "boolean"
+    TomlType.Datetime -> "datetime"
+    TomlType.Array -> "array"
+    TomlType.InlineTable -> "inline table"
+    TomlType.Table -> "table"
+    TomlType.ArrayOfTables -> "array of tables"
 }
 
 /** Why JSON is not toml-test's tagged form. */

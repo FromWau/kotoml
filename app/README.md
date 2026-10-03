@@ -34,7 +34,8 @@ version = "0.1.0"
   - a table prints as its key/value lines, without its own header;
   - an array of tables prints as written, each element under its `[[name]]` header;
   - `.[]` over tables prints one after another, separated by a blank line;
-  - a value prints as TOML, a missing key as `null`, and `-r` prints strings without quotes.
+  - a value prints as TOML, and `-r` prints strings without quotes;
+  - a key or index that is not there is an error, such as `no key "nope" at .nope`.
 - `check [file]` exits 0 when the file is valid TOML, and otherwise prints why it is not, pointing at the line.
 - `decode` and `encode` speak [toml-test](https://github.com/toml-lang/toml-test)'s protocol: TOML in and
   tagged JSON out, or the reverse, on standard input and output. `encode` refuses JSON nested deeper than the TOML
@@ -52,7 +53,8 @@ $ printf 'a = 1\na = 2\n' | kotoml check --json
 {"error":{"type":"InvalidToml","error":{"reason":{"type":"DuplicateKey","key":"a"},"span":{"start":6,"end":7},"position":{"line":2,"column":1},"context":{"start":0,"end":1}}},"code":1}
 ```
 
-Exit codes: 0 on success, 1 when the input cannot be read or is not TOML, 2 when the filter does not parse.
+Exit codes: 0 on success; 1 when the input cannot be read, is not TOML or tagged JSON, or has nothing where
+the filter looks; 2 for a usage error, such as a filter that does not parse or an unknown option.
 
 ## Build and install
 
