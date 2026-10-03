@@ -11,6 +11,12 @@ $ kotoml get -r .package.version Cargo.toml
 $ kotoml get '.servers[] | .host' config.toml
 "alpha"
 "beta"
+$ kotoml get '.servers[]' config.toml
+host = "alpha"  # primary
+port = 8080
+
+host = "beta"
+port = 8081
 $ kotoml get --json '.servers[0]' config.toml
 {"host":"alpha","port":8080}
 $ kotoml get --json '.servers[] | .port' config.toml
@@ -23,8 +29,12 @@ version = "0.1.0"
 ## Commands
 
 - `get <filter> [file]` prints what a jq path selects: `.`, `.a.b`, `."quoted key"`, `.["quoted key"]`, `.[0]`,
-  `.[-1]`, `.[]`, and `|` between them. A table prints as TOML lines, a value as TOML, a missing key as `null`,
-  and `-r` prints strings without quotes.
+  `.[-1]`, `.[]`, and `|` between them. A quoted key takes jq's escapes, such as `\t`, `\n` and `\u00e9`. What
+  is printed keeps the file's comments, spacing and line endings:
+  - a table prints as its key/value lines, without its own header;
+  - an array of tables prints as written, each element under its `[[name]]` header;
+  - `.[]` over tables prints one after another, separated by a blank line;
+  - a value prints as TOML, a missing key as `null`, and `-r` prints strings without quotes.
 - `check [file]` exits 0 when the file is valid TOML, and otherwise prints why it is not, pointing at the line.
 - `decode` and `encode` speak [toml-test](https://github.com/toml-lang/toml-test)'s protocol: TOML in and
   tagged JSON out, or the reverse, on standard input and output.
