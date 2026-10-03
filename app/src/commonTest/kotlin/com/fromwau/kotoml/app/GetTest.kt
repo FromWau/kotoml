@@ -48,53 +48,53 @@ class GetTest {
     private fun json(filter: String): String = Json.encodeToString(SelectionSerializer, selection(filter))
 
     @Test
-    fun theRootPrintsAsWritten() {
+    fun `the root prints as written`() {
         assertEquals(sample.trimEnd(), get("."))
     }
 
     @Test
-    fun aTablePrintsItsLinesWithoutTheHeaderComment() {
+    fun `a table prints its lines without the header comment`() {
         assertEquals("name = \"kotoml\"   # the name\nversion = \"0.1.0\"", get(".package"))
     }
 
     @Test
-    fun aValuePrintsWithoutItsDecor() {
+    fun `a value prints without its decor`() {
         assertEquals("\"kotoml\"", get(".package.name"))
         assertEquals("kotoml", get(".package.name", raw = true))
     }
 
     @Test
-    fun iterationAndPipesStream() {
+    fun `iteration and pipes stream each result`() {
         assertEquals("\"alpha\"\n\"beta\"", get(".servers[] | .host"))
         assertEquals("8081", get(".servers[-1].port"))
     }
 
     @Test
-    fun anArrayOfTablesPrintsAsAnArrayOfInlineTables() {
+    fun `an array of tables prints as an array of inline tables`() {
         assertEquals("[{ host = \"alpha\", port = 8080 }, { host = \"beta\", port = 8081 }]", get(".servers"))
     }
 
     @Test
-    fun aMissingKeyOrIndexIsNull() {
+    fun `a missing key or index is null`() {
         assertEquals("null", get(".nope.deeper"))
         assertEquals("null", get(".servers[5]"))
     }
 
     @Test
-    fun jsonPrintsOneValueOrAStreamAsAnArray() {
+    fun `JSON prints one value or a stream as an array`() {
         assertEquals("""{"host":"alpha","port":8080}""", json(".servers[0]"))
         assertEquals("""["alpha","beta"]""", json(".servers[] | .host"))
         assertEquals("null", json(".nope"))
     }
 
     @Test
-    fun aSelectionReadsBackFromPlainJson() {
+    fun `a selection reads back from plain JSON`() {
         val read = Json.decodeFromString(SelectionSerializer, """{"a":[1,2.5,"x",true],"n":null}""")
         assertEquals("{ a = [1, 2.5, \"x\", true] }", read.print(raw = false))
     }
 
     @Test
-    fun aStepAScalarCannotTakeIsAnError() {
+    fun `a step a scalar cannot take is an error`() {
         assertEquals(
             Result.Error(AppError.CannotApply(Step.Key("x"), TomlType.String)),
             select(".package.name.x"),

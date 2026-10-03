@@ -14,7 +14,7 @@ class TaggedJsonTest {
     }
 
     @Test
-    fun scalarsAreTagged() {
+    fun `scalars are tagged with their type`() {
         assertEquals(
             """{"a":{"type":"integer","value":"1"},"b":{"type":"float","value":"inf"},""" +
                 """"c":{"type":"time-local","value":"07:32:00"}}""",
@@ -23,7 +23,7 @@ class TaggedJsonTest {
     }
 
     @Test
-    fun tablesAndArraysOfTablesNest() {
+    fun `tables and arrays of tables nest`() {
         assertEquals(
             """{"t":{"x":[{"type":"bool","value":"true"}]},"aot":[{},{"k":{"type":"string","value":"v"}}]}""",
             decode("[t]\nx = [true]\n[[aot]]\n[[aot]]\nk = \"v\"\n"),
@@ -31,7 +31,7 @@ class TaggedJsonTest {
     }
 
     @Test
-    fun encodingReadsWhatDecodingWrites() {
+    fun `encoding reads what decoding writes`() {
         val json = decode("a = 1\n[t]\nd = 1979-05-27T07:32:00Z\nl = [1.5, 'x']\n")
         val document = when (val parsed = parseTaggedJson(json)) {
             is Result.Success -> parsed.value
@@ -41,7 +41,7 @@ class TaggedJsonTest {
     }
 
     @Test
-    fun untaggedJsonIsRefusedWithWhere() {
+    fun `untagged JSON is refused with where it was found`() {
         assertEquals(Result.Error(AppError.NotTaggedJson("$.a")), parseTaggedJson("""{"a": 1}"""))
         assertEquals(
             Result.Error(AppError.NotTaggedJson("$.a[1]")),
