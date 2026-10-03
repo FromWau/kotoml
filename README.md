@@ -7,13 +7,15 @@ official [toml-test](https://github.com/toml-lang/toml-test) suite in full for T
 
 ## Modules
 
-| module                         | what it is                                                                    |
-|--------------------------------|-------------------------------------------------------------------------------|
-| [`core`](core/README.md)       | the parser, the editable document model, and TOML writing                     |
-| [`app`](app/README.md)         | the `kotoml` command line: query TOML like jq, and toml-test's decoder/encoder |
+| module                                     | what it is                                                                     |
+|--------------------------------------------|--------------------------------------------------------------------------------|
+| [`core`](core/README.md)                   | the parser, the editable document model, and TOML writing                      |
+| [`serialization`](serialization/README.md) | `@Serializable` classes to TOML and back, and updating a file in place         |
+| [`app`](app/README.md)                     | the `kotoml` command line: query TOML like jq, and toml-test's decoder/encoder |
 
 ```kotlin
 implementation("com.fromwau.kotoml:core:$kotomlVersion")
+implementation("com.fromwau.kotoml:serialization:$kotomlVersion") // to map classes to TOML
 ```
 
 Published versions are listed at [maven.frommhund.xyz](https://maven.frommhund.xyz/#/releases/com/fromwau/kotoml),

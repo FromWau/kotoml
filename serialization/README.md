@@ -1,0 +1,175 @@
+# kotoml serialization
+
+Turns `@Serializable` Kotlin classes into TOML and back, the way `kotlinx-serialization-json` does for JSON. It
+can also write a value into a TOML file you already have, changing only the values that differ, so the file
+keeps its comments, blank lines, key spelling and key order. Failures come back as typed errors rather than
+exceptions.
+
+**Targets:** JVM, Android, linuxX64, mingwX64, macosArm64, iosArm64, iosSimulatorArm64.
+
+## Add to your build
+
+```kotlin
+plugins {
+    kotlin("plugin.serialization") version "$kotlinVersion"
+}
+
+repositories {
+    mavenCentral()
+    maven("https://maven.frommhund.xyz/releases")
+}
+
+dependencies {
+    implementation("com.fromwau.kotoml:serialization:$kotomlVersion")
+}
+```
+
+KMP consumers put it in `commonMain`. [`core`](../core/README.md) and `kotlinx-serialization-core` come along as
+`api`, since `TomlDocument` and the serializer types appear in this module's signatures. To use kotlinx-datetime
+types in your classes, add `kotlinx-datetime` yourself. The JVM and Android artifacts need a JDK 25 toolchain,
+and Android needs `minSdk` 26. Published versions are listed at
+[maven.frommhund.xyz](https://maven.frommhund.xyz/#/releases/com/fromwau/kotoml).
+
+## Read TOML into a class
+
+```kotlin
+@Serializable
+enum class Mode { TCP, @SerialName("udp") UDP }
+
+@Serializable
+data class Config(
+    @SerialName("hostname") val host: String,
+    val port: Int,
+    val timeout: Duration = 15.seconds,
+    val mode: Mode = Mode.TCP,
+    val knownServers: List<Pair<String, Int>>? = null,
+)
+
+val text = "hostname = \"example.org\"\nport = 8080\nmode = \"udp\"\n"
+when (val decoded = Toml.decodeFromString<Config>(text)) {
+    is Result.Success -> println(decoded.value)
+    // Config(host=example.org, port=8080, timeout=15s, mode=UDP, knownServers=null)
+    is Result.Error -> when (val error = decoded.error) {
+        is TomlDecodeError.Parse -> println(error.error.render(text))
+        is TomlDecodeError.MissingKey -> println("${error.path} is required")
+        else -> println(error)
+    }
+}
+```
+
+A missing key takes its field's default, and reads as `null` for a nullable field without one. Every other
+problem is a `TomlDecodeError`: text that is not TOML, a required key that is missing, a key no field names, a
+value of the wrong type or out of range, an unknown enum name or subclass. Each one that concerns a place in the
+document names it as a `path` such as `servers[1].port`. `Toml.decodeFromDocument` reads a `TomlDocument` you
+already parsed, without changing it.
+
+## Write a value as TOML
+
+```kotlin
+val text = Toml.encodeToString(Config("example.org", 8080, knownServers = listOf("alpha" to 1))).getOrNull()
+// hostname = "example.org"
+// port = 8080
+//
+// [[knownServers]]
+// first = "alpha"
+// second = 1
+```
+
+`Toml.encodeToDocument` gives a `TomlDocument` instead, to edit further before printing it. A value TOML cannot
+hold, such as a null inside a list, is a `TomlEncodeError`.
+
+## Update a file in place
+
+```kotlin
+val document = TomlDocument.parse("# where to listen\nhostname = \"example.org\"\nport = 8080 # the default\n")
+    .getOrNull()!!
+val config = Toml.decodeFromDocument<Config>(document).getOrNull()!!
+Toml.encodeInto(document, config.copy(port = 9090, mode = Mode.UDP))
+document.toString()
+// # where to listen
+// hostname = "example.org"
+// port = 9090 # the default
+// mode = "udp"
+```
+
+`encodeInto` changes only what differs:
+
+- A key whose value changes keeps its place, its spelling (quoted, dotted) and the comment after it. A value
+  that reads the same is left as written, so `0x1F90` stays `0x1F90` and `"PT30S"` stays `"PT30S"`.
+- A key the document lacks is appended to its table; a field that is now `null` loses its key.
+- A key no field names stays, whatever `ignoreUnknownKeys` says.
+- A nested class updates its table, recursively. A map accounts for every key of its table, so a key the map
+  no longer has is removed.
+- A list replaces its array whole, in the form the document wrote it: an array of tables stays one, each table
+  keeping the comments above its header, and an inline array keeps the comment after it.
+- A field at its default, with `encodeDefaults` off, updates a key the document has and adds none.
+- When a polymorphic value changes subclass, the keys of the old subclass are removed.
+
+When `encodeInto` returns an error, the document is unchanged. To read and write the file itself, use core's
+`TomlDocument.read` and `writeTo` (see [core's README](../core/README.md#read-and-write-files)).
+
+## Configure the format
+
+```kotlin
+val toml = Toml {
+    ignoreUnknownKeys = true
+    encodeDefaults = true
+    classDiscriminator = "kind"
+    tableListStyle = TableListStyle.InlineArray
+}
+```
+
+| option               | default         | what it does                                                                   |
+|----------------------|-----------------|--------------------------------------------------------------------------------|
+| `ignoreUnknownKeys`  | `false`         | skip a key no field names, rather than return `TomlDecodeError.UnknownKey`     |
+| `encodeDefaults`     | `false`         | write a field that holds its default value                                     |
+| `classDiscriminator` | `"type"`        | the key holding a polymorphic value's subclass name                            |
+| `tableListStyle`     | `ArrayOfTables` | write a list of classes as `[[key]]` tables, or as `InlineArray` `[{ … }, …]`  |
+| `serializersModule`  | empty           | serializers for polymorphic and contextual types                               |
+
+`Toml(from = other) { … }` starts from another instance's settings. `Toml.Default`, the companion object, holds
+the defaults, so `Toml.decodeFromString<T>(text)` uses them.
+
+## How Kotlin maps to TOML
+
+| Kotlin                                     | TOML                                                                                                     |
+|--------------------------------------------|----------------------------------------------------------------------------------------------------------|
+| class, object                              | table; the value at the top of a document must be a class or a map                                       |
+| `Map<String, T>`, `Map<Enum, T>`           | table, an enum key written as its name; any other key type is `NonStringMapKey`                          |
+| `null`                                     | no key. A missing key reads as the default, as `null` without one, and is `MissingKey` otherwise         |
+| list of scalars, list of lists             | inline array                                                                                             |
+| list of classes or maps                    | array of tables, or inline array of inline tables with `InlineArray`; always inline inside an inline value; reading takes both |
+| null inside a list                         | `NullElement` when writing                                                                               |
+| enum                                       | string holding its serial name (`@SerialName` honoured), read case-sensitively                           |
+| sealed or polymorphic class                | table with the subclass's serial name under `classDiscriminator`                                         |
+| `Pair`, `Triple`, other classes            | as their serializers say: `first`, `second`, …                                                           |
+| `Byte`, `Short`, `Int`, `Long`             | integer; reading checks the range (`OutOfRange`)                                                         |
+| `UByte`, `UShort`, `UInt`, `ULong`         | integer holding the unsigned value; a `ULong` above `Long.MAX_VALUE` is `OutOfRange` when writing        |
+| `Float`, `Double`                          | float, `nan` and `inf` included; reading also takes an integer                                           |
+| `Char`                                     | one-character string                                                                                     |
+| `String`                                   | string; reading a native date-time gives its TOML text                                                   |
+| `kotlin.time.Duration`                     | string in Kotlin's form, `"1m 30s"`; reading also takes ISO-8601, `"PT1M30S"`                            |
+| `kotlinx.datetime.LocalDate`               | local date, `1979-05-27`                                                                                 |
+| `kotlinx.datetime.LocalTime`               | local time, `07:32:00`; reading `07:32` gives seconds 0                                                  |
+| `kotlinx.datetime.LocalDateTime`           | local date-time, `1979-05-27T07:32:00`                                                                   |
+| `kotlin.time.Instant`                      | offset date-time in UTC, `1979-05-27T07:32:00Z`; reading takes any offset                                |
+| `kotlinx.datetime.UtcOffset` and others    | string, as their serializers write it                                                                    |
+
+The date-time types read a quoted string too, such as `"1979-05-27"`. A date-time of the wrong kind is
+`DatetimeKindMismatch`, and a leap second (`23:59:60`), which kotlinx-datetime cannot hold, is `LeapSecond`. A
+date-time, `Duration` or unsigned type is recognised by its default serializer; a field with another serializer,
+such as `LocalDateIso8601Serializer`, is written as that serializer says. A map key is always a string, so a
+`LocalDate` key is written as its text.
+
+## Handle errors
+
+Every error type is `@Serializable`, so a program can pass it on as JSON:
+
+```kotlin
+Json.encodeToString(TomlDecodeError.serializer(), Toml.decodeFromString<Config>("port = 1\n").errorOrNull()!!)
+// {"type":"MissingKey","path":"hostname"}
+```
+
+A `path` is the dotted key path with array indexes, keys spelled as TOML quotes them: `servers[1].port`,
+`ports."a.b"`. The top of the document is the empty path. A custom serializer that throws becomes
+`TomlDecodeError.Serializer` or `TomlEncodeError.Serializer`, carrying its message as `detail`; no call throws.
