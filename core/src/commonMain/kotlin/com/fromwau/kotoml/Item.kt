@@ -85,6 +85,9 @@ public class Item private constructor(
         Holds.Table -> TomlEditError.NotATableElement(content.type).takeUnless { content is Content.TableContent }
     }
 
+    /** The table entry this slot is stored in, if any; its key's spacing depends on what the slot holds. */
+    internal var entry: KeyValue? = null
+
     /** A deep copy that stays the same kind of slot. */
     internal fun copySlot(): Item = Item(content.deepCopy(), null, holds)
 
@@ -111,7 +114,11 @@ public class Item private constructor(
      * Puts a copy of [item]'s content in this slot, Rust's `*item = other.clone()`. Fails when this slot is in an
      * array or an inline table and [item] holds no value, or in an array of tables and [item] holds no table.
      */
-    public fun assign(item: Item): EmptyResult<TomlEditError> = write(item.content.deepCopy())
+    public fun assign(item: Item): EmptyResult<TomlEditError> {
+        refusal(item.content)?.let { return Err(it) }
+        entry?.prepareFor(item)
+        return write(item.content.deepCopy())
+    }
 
     /** The kind of item. */
     public val type: TomlType

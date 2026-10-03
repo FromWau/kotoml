@@ -86,6 +86,34 @@ class CollectionApiTest {
     }
 
     @Test
+    fun `assigning a table to a value key's slot prints a clean header with the comment above it`() {
+        val doc = parse("b = 2\n# about it\n'my key'   =   1\n")
+        doc["my key"].assign(Item(tableOf("x" to Item(Value.Integer(1L)))))
+        assertEquals("b = 2\n\n# about it\n['my key']\nx = 1\n", doc.toString())
+    }
+
+    @Test
+    fun `assigning a value to a table key's slot prints a key and value line with default spacing`() {
+        val doc = parse("a = 1\n[ 'my key' ]\nx = 1\n")
+        doc["my key"].assign(Item(Value.Integer(2L)))
+        assertEquals("a = 1\n'my key' = 2\n", doc.toString())
+    }
+
+    @Test
+    fun `assigning a value to a value key's slot keeps the key's spacing`() {
+        val doc = parse("'my key'   =   1\n")
+        doc["my key"].assign(Item(Value.Integer(2L)))
+        assertEquals("'my key'   = 2\n", doc.toString())
+    }
+
+    @Test
+    fun `assigning a table to a nested value key's slot prints a clean header`() {
+        val doc = parse("[s]\n'my key'   =   1\n")
+        doc["s"]["my key"].assign(Item(tableOf("x" to Item(Value.Integer(1L)))))
+        assertEquals("[s]\n\n[s.'my key']\nx = 1\n", doc.toString())
+    }
+
+    @Test
     fun `put with a string at a new key returns null`() {
         val table = Table()
         assertNull(table.put("a", Item(Value.Integer(1L))))

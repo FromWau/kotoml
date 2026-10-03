@@ -288,10 +288,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
         key: String,
         item: Item,
     ): Item? {
-        val existing = items.getEntry(key)
-        if (existing != null && !existing.item.isNone && existing.item.printsHeader() != item.printsHeader()) {
-            existing.key.dropLeafSpacing()
-        }
+        items.getEntry(key)?.prepareFor(item)
         return items.insert(Key(key), item.copy())?.takeIf { !it.isNone }
     }
 
@@ -425,14 +422,6 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     internal companion object {
         fun withPosition(position: Long?): Table = Table().also { it.position = position }
     }
-}
-
-private fun Item.printsHeader(): Boolean = tableOrNull?.let { !it.isDotted } ?: (arrayOfTablesOrNull != null)
-
-// Spacing around a key belongs to the line it stood on, so only the comments come along to a header or back.
-private fun Key.dropLeafSpacing() {
-    if (rawLeafDecor.prefix?.asStr().isNullOrBlank()) rawLeafDecor.prefix = null
-    if (rawLeafDecor.suffix?.asStr().isNullOrBlank()) rawLeafDecor.suffix = null
 }
 
 /** A table holding copies of [pairs], in order. */

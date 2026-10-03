@@ -7,11 +7,34 @@ package com.fromwau.kotoml
  * of its section ([order]), and how its dotted path was spelled on that line ([pathSpelling]), so it prints
  * back as written even where a table shares one key between lines.
  */
-internal class KeyValue(var key: Key, var item: Item) {
+internal class KeyValue(var key: Key, item: Item) {
+    var item: Item = item
+        set(value) {
+            field = value
+            value.entry = this
+        }
+
     var lineEnding: String? = null
     var order: Long? = null
     var pathSpelling: PathSpelling? = null
+
+    init {
+        item.entry = this
+    }
+
+    /**
+     * Readies the key for [next] replacing its item: moving between a `key = value` line and a header leaves the
+     * key's spacing behind, since it belongs to the line it stood on; the comments above it come along.
+     */
+    fun prepareFor(next: Item) {
+        if (item.isNone || item.printsHeader() == next.printsHeader()) return
+        val decor = key.rawLeafDecor
+        if (decor.prefix?.asStr().isNullOrBlank()) decor.prefix = null
+        if (decor.suffix?.asStr().isNullOrBlank()) decor.suffix = null
+    }
 }
+
+private fun Item.printsHeader(): Boolean = tableOrNull?.let { !it.isDotted } ?: (arrayOfTablesOrNull != null)
 
 /**
  * How one occurrence of a key path was spelled, and what the shared keys it stands for looked like then. It is
