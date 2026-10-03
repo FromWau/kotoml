@@ -75,7 +75,7 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
         values += items.keptLines
     }
 
-    // Sorting asks for key order, so the order entries were read in no longer applies.
+    // A sort sets the order, so the order entries were read in no longer applies.
     private fun forgetOrder() {
         for (kept in items.keptLines) kept.order = null
         for (entry in items.entries()) {
@@ -102,16 +102,27 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
             rawTrailing = RawString.from(value)
         }
 
-    /** Sorts the entries by key, dotted sub-tables included. The sort is stable and not recursive. */
-    override fun sortValues() {
-        sortValuesWith { left, right -> left.first.compareTo(right.first) }
+    /**
+     * Sorts the entries in the natural order of what [selector] returns for each pair of key and value.
+     *
+     * The parts of a dotted key are sorted the same way, and their order replaces the one they were read in. The
+     * sort is stable, and nulls sort first.
+     *
+     * ```kotlin
+     * inlineTable.sortBy { (key, _) -> key }
+     * ```
+     */
+    public fun <R : Comparable<R>> sortBy(selector: (Pair<Key, Value>) -> R?) {
+        sortWith(compareBy(selector))
     }
 
     /**
-     * Sorts the entries with [comparator], given each key with its formatting and its value. Dotted sub-tables
-     * are sorted the same way; the sort is stable and not recursive otherwise.
+     * Sorts the entries with [comparator], given each pair of key and value.
+     *
+     * The parts of a dotted key are sorted the same way, and their order replaces the one they were read in. The
+     * sort is stable.
      */
-    public fun sortValuesWith(comparator: Comparator<Pair<Key, Value>>) {
+    public fun sortWith(comparator: Comparator<Pair<Key, Value>>) {
         forgetOrder()
         sortEntriesWith(comparator)
     }

@@ -118,7 +118,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
         }
     }
 
-    // Sorting asks for key order, so the order lines were read in no longer applies.
+    // A sort sets the order, so the order lines were read in no longer applies.
     private fun forgetOrder() {
         for (kept in items.keptLines) kept.order = null
         for (entry in items.entries()) {
@@ -139,19 +139,29 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     }
 
     /**
-     * Sorts the key/value pairs under this header by key, dotted keys included. Sub-tables and arrays of
-     * tables keep their order, as their position decides where they print. The sort is stable and not
-     * recursive.
+     * Sorts the key/value lines under this header in the natural order of what [selector] returns for each pair of
+     * key and item.
+     *
+     * Only the key/value lines move, each with its comments. Sub-tables and arrays of tables keep their order, since
+     * their position decides where their headers print. The parts of a dotted key are sorted the same way, and their
+     * order replaces the one they were read in. The sort is stable, and nulls sort first.
+     *
+     * ```kotlin
+     * table.sortBy { (key, _) -> key }
+     * ```
      */
-    override fun sortValues() {
-        sortValuesWith { left, right -> left.first.compareTo(right.first) }
+    public fun <R : Comparable<R>> sortBy(selector: (Pair<Key, Item>) -> R?) {
+        sortWith(compareBy(selector))
     }
 
     /**
-     * Sorts the pairs under this header with [comparator], given each key with its formatting and its item.
-     * Dotted keys are sorted the same way; the sort is stable and not recursive otherwise.
+     * Sorts the key/value lines under this header with [comparator], given each pair of key and item.
+     *
+     * Only the key/value lines move, each with its comments. Sub-tables and arrays of tables keep their order, since
+     * their position decides where their headers print. The parts of a dotted key are sorted the same way, and their
+     * order replaces the one they were read in. The sort is stable.
      */
-    public fun sortValuesWith(comparator: Comparator<Pair<Key, Item>>) {
+    public fun sortWith(comparator: Comparator<Pair<Key, Item>>) {
         forgetOrder()
         sortEntriesWith(comparator)
     }
@@ -482,9 +492,6 @@ public sealed interface TableLike {
 
     /** Drops the formatting of the keys and values in this table. */
     public fun resetFormatting()
-
-    /** Sorts the pairs by key, dotted keys included. The sort is stable and not recursive. */
-    public fun sortValues()
 
     /** Whether this table stands for the parts of a dotted key. */
     public var isDotted: Boolean

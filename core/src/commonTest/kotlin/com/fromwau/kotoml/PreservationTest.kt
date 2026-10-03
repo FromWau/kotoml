@@ -83,7 +83,7 @@ class PreservationTest {
     @Test
     fun `sorting replaces the read order`() {
         val doc = parse("b.x = 1\na.y = 2\nb.z = 3\n")
-        doc.root.sortValues()
+        doc.root.sortBy { (key, _) -> key }
         assertEquals("a.y = 2\nb.x = 1\nb.z = 3\n", doc.toString())
     }
 

@@ -204,8 +204,8 @@ public class TomlArray() : Iterable<Value> {
         values.sortWith(compareBy(nullsFirst(comparator)) { item: Item -> item.valueOrNull })
     }
 
-    /** Sorts the values by the key [selector] gives each. The sort is stable. */
-    public fun <K : Comparable<K>> sortBy(selector: (Value) -> K) {
+    /** Sorts the values in the natural order of what [selector] returns for each. The sort is stable, nulls first. */
+    public fun <R : Comparable<R>> sortBy(selector: (Value) -> R?) {
         values.sortWith(compareBy(nullsFirst()) { item: Item -> item.valueOrNull?.let(selector) })
     }
 

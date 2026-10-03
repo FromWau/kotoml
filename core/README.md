@@ -89,7 +89,7 @@ what it holds. Storing an item stores a copy, so editing the original afterwards
 
 A document's top-level keys live in its `root` table. The document itself offers the keyed calls (`get`, `set`,
 `getOrNull`, `contains`, `put`, `getOrPut`, `remove`, `size`) and iterates over the root's pairs; everything else
-a `Table` does, such as `sortValues()` or `key(name)`, goes through `doc.root`.
+a `Table` does, such as `sortBy { (key, _) -> key }` or `key(name)`, goes through `doc.root`.
 
 ## Read and write files
 
