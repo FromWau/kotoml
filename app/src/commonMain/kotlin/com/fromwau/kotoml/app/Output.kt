@@ -2,10 +2,10 @@ package com.fromwau.kotoml.app
 
 import com.fromwau.kotoml.Decor
 import com.fromwau.kotoml.DocumentMut
-import com.fromwau.kotoml.InlineTable
 import com.fromwau.kotoml.Item
-import com.fromwau.kotoml.TomlArray
 import com.fromwau.kotoml.Value
+import com.fromwau.kotoml.toInlineTable
+import com.fromwau.kotoml.toTomlArray
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.SerialDescriptor
@@ -41,7 +41,7 @@ internal object SelectionSerializer : KSerializer<Selection> {
 
     override fun deserialize(decoder: Decoder): Selection {
         val json = decoder.decodeSerializableValue(JsonElement.serializer())
-        return Selection(listOf(Item.from(json.toValue() ?: return Selection(listOf(Item.none()), false))), false)
+        return Selection(listOf(Item(json.toValue() ?: return Selection(listOf(Item()), false))), false)
     }
 }
 
@@ -53,36 +53,38 @@ private fun JsonElement.toValue(): Value? = when (this) {
         content == "true" || content == "false" -> Value.Boolean(content == "true")
         else -> content.toLongOrNull()?.let { Value.Integer(it) } ?: content.toDoubleOrNull()?.let { Value.Float(it) }
     }
-    is JsonArray -> Value.Array(TomlArray.fromIter(mapNotNull { it.toValue() }))
+    is JsonArray -> Value.Array(mapNotNull { it.toValue() }.toTomlArray())
     is JsonObject -> Value.InlineTable(
-        InlineTable.fromIter(entries.mapNotNull { (key, element) -> element.toValue()?.let { key to it } }),
+        entries
+            .mapNotNull { (key, element) -> element.toValue()?.let { key to it } }
+            .toInlineTable(),
     )
 }
 
 /** An empty item prints as `null`, which TOML has no word for, as jq prints a missing key. */
 internal fun Item.toToml(): String {
-    asTable()?.let { table ->
+    tableOrNull?.let { table ->
         // The text around a table belongs to its header, which is not printed.
-        val printed = table.clone().also { it.decor = Decor() }
+        val printed = table.copy().also { it.decor = Decor() }
         return DocumentMut(printed).toString().trimEnd()
     }
-    asArrayOfTables()?.let { tables ->
-        return Value.Array(tables.clone().intoArray())
+    arrayOfTablesOrNull?.let { tables ->
+        return Value.Array(tables.toArray())
             .toString()
             .trim()
     }
-    val value = asValue()?.copy() ?: return "null"
+    val value = valueOrNull?.copy() ?: return "null"
     value.decor = Decor()
     return value.toString()
 }
 
 internal fun Item.toJson(): JsonElement {
-    asValue()?.let { return it.toJson() }
-    asTableLike()?.let { table ->
-        return JsonObject(table.iterItems().asSequence().associate { (key, item) -> key to item.toJson() })
+    valueOrNull?.let { return it.toJson() }
+    tableLikeOrNull?.let { table ->
+        return JsonObject(table.items().associate { (key, item) -> key to item.toJson() })
     }
-    asArrayOfTables()?.let { tables ->
-        return JsonArray(tables.iter().asSequence().map { Item.from(it).toJson() }.toList())
+    arrayOfTablesOrNull?.let { tables ->
+        return JsonArray(tables.map { Item(it).toJson() })
     }
     return JsonNull
 }
@@ -94,8 +96,8 @@ private fun Value.toJson(): JsonElement = when (this) {
     is Value.Float -> value.let { if (it.isFinite()) JsonPrimitive(it) else JsonPrimitive(it.tomlName()) }
     is Value.Boolean -> JsonPrimitive(value)
     is Value.Datetime -> JsonPrimitive(value.toString())
-    is Value.Array -> JsonArray(array.iter().asSequence().map { it.toJson() }.toList())
-    is Value.InlineTable -> JsonObject(table.iter().asSequence().associate { (key, value) -> key to value.toJson() })
+    is Value.Array -> JsonArray(array.map { it.toJson() })
+    is Value.InlineTable -> JsonObject(table.associate { (key, value) -> key to value.toJson() })
 }
 
 internal fun Double.tomlName(): String = when {

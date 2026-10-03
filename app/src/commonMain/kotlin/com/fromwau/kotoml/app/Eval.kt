@@ -24,24 +24,24 @@ internal fun Filter.evaluate(input: Item): Result<List<Item>, AppError.CannotApp
 }
 
 private fun Item.apply(step: Step): Result<List<Item>, AppError.CannotApply> {
-    if (isNone()) return Ok(if (step == Step.Iterate) emptyList() else listOf(Item.none()))
-    val table = asTableLike()
+    if (isNone) return Ok(if (step == Step.Iterate) emptyList() else listOf(Item()))
+    val table = tableLikeOrNull
     val array = arrayOrNull
-    val tables = asArrayOfTables()
+    val tables = arrayOfTablesOrNull
     return when (step) {
-        is Step.Key -> table?.let { Ok(listOf(it.getItem(step.key) ?: Item.none())) }
+        is Step.Key -> table?.let { Ok(listOf(it.item(step.key) ?: Item())) }
         is Step.Index -> {
-            val size = array?.len() ?: tables?.len()
+            val size = array?.size ?: tables?.size
             size?.let {
                 val index = if (step.index < 0) step.index + size else step.index
-                val element = array?.get(index)?.let { Item.from(it) } ?: tables?.get(index)?.let { Item.from(it) }
-                Ok(listOf(element ?: Item.none()))
+                val element = array?.get(index)?.let { Item(it) } ?: tables?.get(index)?.let { Item(it) }
+                Ok(listOf(element ?: Item()))
             }
         }
         Step.Iterate -> when {
-            table != null -> Ok(table.iterItems().asSequence().map { it.second }.toList())
-            array != null -> Ok(array.iter().asSequence().map { Item.from(it) }.toList())
-            tables != null -> Ok(tables.iter().asSequence().map { Item.from(it) }.toList())
+            table != null -> Ok(table.items().map { it.second })
+            array != null -> Ok(array.map { Item(it) })
+            tables != null -> Ok(tables.map { Item(it) })
             else -> null
         }
     } ?: Err(AppError.CannotApply(step, type))

@@ -23,12 +23,11 @@ import kotlinx.serialization.json.JsonPrimitive
 internal fun DocumentMut.toTaggedJson(): JsonElement = asItem().tagged()
 
 private fun Item.tagged(): JsonElement {
-    asValue()?.let { return it.tagged() }
-    asTable()?.let { table ->
-        return JsonObject(table.iterItems().asSequence().associate { (key, item) -> key to item.tagged() })
+    valueOrNull?.let { return it.tagged() }
+    tableOrNull?.let { table ->
+        return JsonObject(table.associate { (key, item) -> key to item.tagged() })
     }
-    val tables = asArrayOfTables()?.iter()?.asSequence().orEmpty()
-    return JsonArray(tables.map { Item.from(it).tagged() }.toList())
+    return JsonArray(arrayOfTablesOrNull?.map { Item(it).tagged() }.orEmpty())
 }
 
 private fun Value.tagged(): JsonElement = when (this) {
@@ -47,8 +46,8 @@ private fun Value.tagged(): JsonElement = when (this) {
         val time = value.time?.let { it.copy(second = it.second ?: 0) }
         scalar(type, value.copy(time = time).toString())
     }
-    is Value.Array -> JsonArray(array.iter().asSequence().map { it.tagged() }.toList())
-    is Value.InlineTable -> JsonObject(table.iter().asSequence().associate { (key, value) -> key to value.tagged() })
+    is Value.Array -> JsonArray(array.map { it.tagged() })
+    is Value.InlineTable -> JsonObject(table.associate { (key, value) -> key to value.tagged() })
 }
 
 private fun scalar(type: String, value: String): JsonElement =
@@ -65,7 +64,7 @@ internal fun parseTaggedJson(text: String): Result<DocumentMut, AppError> {
     val table = Table()
     for ((key, element) in json) {
         when (val value = element.toValue("$.$key")) {
-            is Result.Success -> table.insertItem(key, Item.from(value.value))
+            is Result.Success -> table[key] = value.value
             is Result.Error -> return value
         }
     }
@@ -78,7 +77,7 @@ private fun JsonElement.toValue(path: String): Result<Value, AppError> {
             val array = TomlArray()
             for ((index, element) in withIndex()) {
                 when (val value = element.toValue("$path[$index]")) {
-                    is Result.Success -> array.pushFormatted(value.value)
+                    is Result.Success -> array.add(value.value)
                     is Result.Error -> return value
                 }
             }
@@ -89,7 +88,7 @@ private fun JsonElement.toValue(path: String): Result<Value, AppError> {
             val table = InlineTable()
             for ((key, element) in this) {
                 when (val value = element.toValue("$path.$key")) {
-                    is Result.Success -> table.insert(key, value.value)
+                    is Result.Success -> table[key] = value.value
                     is Result.Error -> return value
                 }
             }
