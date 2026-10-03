@@ -32,12 +32,6 @@ dependencyResolutionManagement {
             }
         }
         mavenCentral()
-        // A kern or klap built here and published locally, ahead of the release repository, so a fix there can
-        // be used from this build before it is released. Limited to com.fromwau, so nothing else can come from a
-        // developer's machine.
-        mavenLocal {
-            mavenContent { includeGroupAndSubgroups("com.fromwau") }
-        }
         maven("https://maven.frommhund.xyz/releases") {
             mavenContent { includeGroupAndSubgroups("com.fromwau") }
         }
