@@ -152,7 +152,7 @@ public class Item private constructor(
     }
 
     /**
-     * Stores a copy of [item] at [key], as `this[key].assign(item)` does.
+     * Stores a copy of [item] at [key]: in a table as [Table.set] does, elsewhere as `this[key].assign(item)` does.
      *
      * @return [TomlEditError.NotATable] when this item holds neither a table nor an inline table, or
      *   [TomlEditError.NotAValue] when this is an inline table, or empty, and [item] holds no value.
@@ -160,7 +160,11 @@ public class Item private constructor(
     public operator fun set(
         key: String,
         item: Item,
-    ): EmptyResult<TomlEditError> = get(key).assign(item)
+    ): EmptyResult<TomlEditError> {
+        val table = tableOrNull ?: return get(key).assign(item)
+        table[key] = item
+        return Ok(Unit)
+    }
 
     /** Stores a copy of [value] at [key]; see [set]. */
     public operator fun set(

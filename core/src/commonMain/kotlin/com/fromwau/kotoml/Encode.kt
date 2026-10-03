@@ -264,8 +264,15 @@ private fun visitTable(
         }
         val spelledPath = table.headerSpelling?.resolve(path.subList(0, path.size - 1))?.plus(path.last()) ?: path
         val (beforeBracket, keyDecor) = leafDecorBeforeBracket(spelledPath)
-        beforeBracket?.prefixEncode(buf, DEFAULT_KEY_PATH_DECOR.first)
-        table.rawDecor.prefixEncode(buf, defaultDecor.first)
+        val keyLines = beforeBracket?.prefix?.asStr().orEmpty()
+        if (table.rawDecor.prefix == null && '#' in keyLines) {
+            // The default spacer goes above the key's comments, so they stay right above the header.
+            if (keyLines.substringBefore('\n').isNotBlank()) buf.append(defaultDecor.first)
+            beforeBracket?.prefixEncode(buf, DEFAULT_KEY_PATH_DECOR.first)
+        } else {
+            beforeBracket?.prefixEncode(buf, DEFAULT_KEY_PATH_DECOR.first)
+            table.rawDecor.prefixEncode(buf, defaultDecor.first)
+        }
         buf.append(if (isArrayOfTables) "[[" else "[")
         encodeKeyPath(buf, spelledPath, DEFAULT_KEY_PATH_DECOR.first, DEFAULT_KEY_PATH_DECOR.second, keyDecor)
         buf.append(if (isArrayOfTables) "]]" else "]")

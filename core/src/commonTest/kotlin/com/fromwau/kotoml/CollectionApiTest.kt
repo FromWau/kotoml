@@ -54,7 +54,21 @@ class CollectionApiTest {
     fun `a value key replaced by a table prints a clean header with its spelling and the comment above it`() {
         val doc = parse("b = 2\n# about it\n'my key'   =   1\n")
         doc.put("my key", Item(tableOf("x" to Item(Value.Integer(1L)))))
-        assertEquals("b = 2\n# about it\n\n['my key']\nx = 1\n", doc.toString())
+        assertEquals("b = 2\n\n# about it\n['my key']\nx = 1\n", doc.toString())
+    }
+
+    @Test
+    fun `a value key replaced by a table without a comment above it prints a blank line and then the header`() {
+        val doc = parse("b = 2\n'my key'   =   1\n")
+        doc.put("my key", Item(tableOf("x" to Item(Value.Integer(1L)))))
+        assertEquals("b = 2\n\n['my key']\nx = 1\n", doc.toString())
+    }
+
+    @Test
+    fun `a value key set to a table through an item prints a clean header keeping the comment above it`() {
+        val doc = parse("[s]\nb = 2\n# about it\n'my key'   =   1\n")
+        doc["s"]["my key"] = tableOf("x" to Item(Value.Integer(1L)))
+        assertEquals("[s]\nb = 2\n\n# about it\n[s.'my key']\nx = 1\n", doc.toString())
     }
 
     @Test
