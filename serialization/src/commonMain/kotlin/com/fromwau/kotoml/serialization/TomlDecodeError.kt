@@ -40,6 +40,14 @@ public sealed interface TomlDecodeError : IError {
     @SerialName("UnsupportedRoot")
     public data class UnsupportedRoot(val serialName: String) : TomlDecodeError
 
+    /**
+     * The type at [path] is nullable. TOML has no null and a missing key means the field's default, so kotoml refuses
+     * nullable types: give the field a non-null type, with a default where the key may be missing.
+     */
+    @Serializable
+    @SerialName("NullableType")
+    public data class NullableType(override val path: String) : Located
+
     /** A required field has no key at [path] and no default. */
     @Serializable
     @SerialName("MissingKey")
