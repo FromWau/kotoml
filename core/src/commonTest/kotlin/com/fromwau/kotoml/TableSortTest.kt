@@ -89,4 +89,32 @@ class TableSortTest {
         table.sortWith { (left, _), (right, _) -> right.compareTo(left) }
         assertEquals(listOf("c", "b", "a"), table.map { (key, _) -> key })
     }
+
+    @Test
+    fun `a one-line inline table keeps its spacing in place while the entries move`() {
+        val doc = parse("t = { c = 3, a = 1, b = 2 }\n")
+        doc["t"].inlineTableOrNull!!.sortBy { (key, _) -> key }
+        assertEquals("t = { a = 1, b = 2, c = 3 }\n", doc.toString())
+    }
+
+    @Test
+    fun `a tight one-line inline table stays tight after a sort`() {
+        val doc = parse("t = {c=3,a=1,b=2}\n")
+        doc["t"].inlineTableOrNull!!.sortBy { (key, _) -> key }
+        assertEquals("t = {a=1,b=2,c=3}\n", doc.toString())
+    }
+
+    @Test
+    fun `a one-line array keeps its spacing in place while the values move`() {
+        val doc = parse("a = [ 3, 1, 2 ]\n")
+        doc["a"].arrayOrNull!!.sortBy { it.longOrNull }
+        assertEquals("a = [ 1, 2, 3 ]\n", doc.toString())
+    }
+
+    @Test
+    fun `a multi-line array moves each value with the comment above it`() {
+        val doc = parse("a = [\n    # three\n    3,\n    # one\n    1,\n]\n")
+        doc["a"].arrayOrNull!!.sortBy { it.longOrNull }
+        assertEquals("a = [\n    # one\n    1,\n    # three\n    3,\n]\n", doc.toString())
+    }
 }

@@ -228,12 +228,27 @@ public class TomlArray() : Iterable<Value> {
 
     /** Sorts the values with [comparator]. The sort is stable. */
     public fun sortWith(comparator: Comparator<Value>) {
-        values.sortWith(compareBy(nullsFirst(comparator)) { item: Item -> item.valueOrNull })
+        sortItemsWith(compareBy(nullsFirst(comparator)) { item: Item -> item.valueOrNull })
     }
 
     /** Sorts the values in the natural order of what [selector] returns for each. The sort is stable, nulls first. */
     public fun <R : Comparable<R>> sortBy(selector: (Value) -> R?) {
-        values.sortWith(compareBy(nullsFirst()) { item: Item -> item.valueOrNull?.let(selector) })
+        sortItemsWith(compareBy(nullsFirst()) { item: Item -> item.valueOrNull?.let(selector) })
+    }
+
+    private fun printedValues(): List<Value> = values.mapNotNull { it.valueOrNull }
+
+    private fun printsOnOneLine(): Boolean = '\n' !in StringBuilder().also { encodeArray(it, this, "", "") }
+
+    private fun sortItemsWith(comparator: Comparator<Item>) {
+        // On one line the spacing belongs to the position, not to the value, so it stays where it was.
+        val spacing = if (printsOnOneLine()) printedValues().map { it.rawDecor().prefix to it.rawDecor().suffix } else null
+        values.sortWith(comparator)
+        if (spacing == null) return
+        for ((value, around) in printedValues().zip(spacing)) {
+            value.rawDecor().prefix = around.first
+            value.rawDecor().suffix = around.second
+        }
     }
 
     /** Appends every value of [values], keeping their formatting. */

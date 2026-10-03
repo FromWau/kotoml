@@ -123,9 +123,22 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
      * sort is stable.
      */
     public fun sortWith(comparator: Comparator<Pair<Key, Value>>) {
+        // On one line the spacing belongs to the position, not to the entry, so it stays where it was.
+        val spacing = if (printsOnOneLine()) {
+            visualValues().map { it.path.last().rawLeafDecor.prefix to it.value.rawDecor().suffix }
+        } else {
+            null
+        }
         forgetOrder()
         sortEntriesWith(comparator)
+        if (spacing == null) return
+        for ((line, around) in visualValues().zip(spacing)) {
+            line.path.last().rawLeafDecor.prefix = around.first
+            line.value.rawDecor().suffix = around.second
+        }
     }
+
+    private fun printsOnOneLine(): Boolean = '\n' !in StringBuilder().also { encodeInlineTable(it, this, "", "") }
 
     private fun sortEntriesWith(comparator: Comparator<Pair<Key, Value>>) {
         items.sortBy { left, right ->
