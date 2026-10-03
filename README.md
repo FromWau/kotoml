@@ -21,7 +21,7 @@ which reads without credentials.
 
 ```kotlin
 val doc = DocumentMut.parse("[package]\nname = \"kotoml\" # the name\n").getOrNull()!!
-doc["package"]["version"] = value("0.1.0")
+doc["package"]["version"] = "0.1.0"
 doc.toString() // "[package]\nname = \"kotoml\" # the name\nversion = \"0.1.0\"\n"
 ```
 

@@ -33,8 +33,8 @@ val text = "\n\"hello\" = 'toml!' # comment\n['a'.b]\n"
 val doc = DocumentMut.parse(text).getOrNull()!!
 check(doc.toString() == text)
 
-doc["a"]["b"]["c"]["d"] = value("hello")
-doc["a"]["b"]["c"].inlineTableOrNull?.fmt()
+doc["a"]["b"]["c"]["d"] = "hello"
+doc["a"]["b"]["c"].inlineTableOrNull?.resetFormatting()
 // "hello" = 'toml!' # comment
 // ['a'.b]
 // c = { d = "hello" }
@@ -48,13 +48,13 @@ instead. The `item["key"] = value` form drops that error; call `item.set("key", 
 
 ```kotlin
 val doc = DocumentMut()
-doc["port"] = value(Value.Integer(8080L, Decor(prefix = " ", suffix = " # default")))
-doc["when"] = value(Datetime(date = Date(year = 1979, month = 5, day = 27)))
+doc["port"] = Value.Integer(8080L, Decor(prefix = " ", suffix = " # default"))
+doc["when"] = Datetime(date = Date(year = 1979, month = 5, day = 27))
 // port = 8080 # default
 // when = 1979-05-27
 
 val port: Long? = doc["port"].longOrNull // 8080
-val spelled = DocumentMut.parse("n = 0x10\n").getOrNull()!!["n"].asValue() as Value.Integer
+val spelled = DocumentMut.parse("n = 0x10\n").getOrNull()!!["n"].valueOrNull as Value.Integer
 // spelled.value == 16, spelled.spelling == "0x10"
 ```
 
@@ -62,6 +62,27 @@ Each kind of value has a constructor, and an optional `Decor` sets the text befo
 `null` prints the default spacing for where the value stands. A parsed value keeps the text it was written as
 in `spelling`, and `resetFormatting()` drops it. The `OrNull` properties read a value of one kind, or `null`
 for any other kind.
+
+## Tables and arrays
+
+```kotlin
+val doc = DocumentMut.parse("[server]\nhosts = [\"alpha\"]\n").getOrNull()!!
+doc["server"]["hosts"].arrayOrNull?.add("beta")
+val server = doc["server"].tableOrNull!!
+server.getOrPut("port") { Item(Value.Integer(8080L)) }
+doc["client"] = tableOf("retries" to Item(Value.Integer(3L)))
+// [server]
+// hosts = ["alpha", "beta"]
+// port = 8080
+//
+// [client]
+// retries = 3
+```
+
+`Table`, `InlineTable`, `TomlArray` and `ArrayOfTables` read like Kotlin collections: `size`, `put`, `getOrPut`,
+`remove`, `add`, `removeAt`, `retainAll` and iteration. An `Item` is a slot that holds a value, a table or an
+array of tables; `valueOrNull`, `tableOrNull` and their siblings read what it holds. Storing an item stores a
+copy, so editing the original afterwards does not change the document.
 
 ## Handle errors
 
@@ -88,8 +109,8 @@ comments and a trailing comma in inline tables, the `\x` and `\e` escapes, and t
 
 ## Differences from `toml_edit`
 
-The API keeps upstream's names in Kotlin casing, with a few renames where a name clashes in Kotlin (`Array`
-is `TomlArray`). Unchanged text prints back byte for byte, which goes past upstream: line endings are kept per
+The types keep upstream's names (`Array` is `TomlArray`), and their members read like Kotlin's collections:
+`size` for `len`, `put` and `getOrPut` for `insert` and the entry API, `add` for `push`. Unchanged text prints back byte for byte, which goes past upstream: line endings are kept per
 line, each dotted key and header keeps its own spelling, and dotted keys keep the order they were read in.
 [PARITY.md](PARITY.md) lists every public item, every ported test, and every intended difference.
 
