@@ -51,6 +51,27 @@ class CollectionApiTest {
     }
 
     @Test
+    fun `a value key replaced by a table prints a clean header with its spelling and the comment above it`() {
+        val doc = parse("b = 2\n# about it\n'my key'   =   1\n")
+        doc.put("my key", Item(tableOf("x" to Item(Value.Integer(1L)))))
+        assertEquals("b = 2\n# about it\n\n['my key']\nx = 1\n", doc.toString())
+    }
+
+    @Test
+    fun `a table key replaced by a value prints a key and value line with default spacing`() {
+        val doc = parse("a = 1\n[ 'my key' ]\nx = 1\n")
+        doc.put("my key", Item(Value.Integer(2L)))
+        assertEquals("a = 1\n'my key' = 2\n", doc.toString())
+    }
+
+    @Test
+    fun `a value replaced by another value keeps the key's spacing`() {
+        val doc = parse("'my key'   =   1\n")
+        doc.put("my key", Item(Value.Integer(2L)))
+        assertEquals("'my key'   = 2\n", doc.toString())
+    }
+
+    @Test
     fun `put with a string at a new key returns null`() {
         val table = Table()
         assertNull(table.put("a", Item(Value.Integer(1L))))

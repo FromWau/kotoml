@@ -278,14 +278,22 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
 
     /**
      * Sets [key] to a copy of [item], as `table[key] = item` does: a key already there keeps its position, its
-     * spelling and its decor. Pass a [Key] to replace those.
+     * spelling and the comments above it. It keeps its spacing too, unless [item] moves it between a `key = value`
+     * line and a `[header]` or `[[header]]`, where it takes the default spacing. Pass a [Key] to replace all of
+     * its formatting.
      *
      * @return the item [key] held before, or null when it held none.
      */
     public fun put(
         key: String,
         item: Item,
-    ): Item? = items.insert(Key(key), item.copy())?.takeIf { !it.isNone }
+    ): Item? {
+        val existing = items.getEntry(key)
+        if (existing != null && !existing.item.isNone && existing.item.printsHeader() != item.printsHeader()) {
+            existing.key.dropLeafSpacing()
+        }
+        return items.insert(Key(key), item.copy())?.takeIf { !it.isNone }
+    }
 
     /**
      * Sets [key], with its spelling and decor, to a copy of [item]. A key already there keeps its position but
@@ -417,6 +425,14 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     internal companion object {
         fun withPosition(position: Long?): Table = Table().also { it.position = position }
     }
+}
+
+private fun Item.printsHeader(): Boolean = tableOrNull?.let { !it.isDotted } ?: (arrayOfTablesOrNull != null)
+
+// Spacing around a key belongs to the line it stood on, so only the comments come along to a header or back.
+private fun Key.dropLeafSpacing() {
+    if (rawLeafDecor.prefix?.asStr().isNullOrBlank()) rawLeafDecor.prefix = null
+    if (rawLeafDecor.suffix?.asStr().isNullOrBlank()) rawLeafDecor.suffix = null
 }
 
 /** A table holding copies of [pairs], in order. */

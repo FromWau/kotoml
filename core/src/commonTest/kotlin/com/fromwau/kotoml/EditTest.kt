@@ -1165,7 +1165,7 @@ src.git = "https://github.com/nixos/nixpkgs"
         bookmarkTable["name"] = "test.swf"
         table.add(bookmarkTable)
         assertData("""
-[[bookmark ]]
+[[bookmark]]
 name = "test.swf"
 
 """, document.toString())
