@@ -57,12 +57,12 @@ private fun tomlNumber(text: String): Value? {
 // kotlinx names where JSON broke only in its message: "Unexpected JSON token at offset 12: ...".
 private val JSON_OFFSET = Regex("""at offset (\d+)""")
 
-/** The zero-based line and column of the offset kotlinx's [message] names in this text, or null without one. */
+/** The line and column, from 1 as in TOML errors, of the offset kotlinx's [message] names; null without one. */
 private fun String.positionOrNull(message: String?): TextPosition? {
     val offset = message?.let { JSON_OFFSET.find(it) }?.groupValues?.get(1)?.toIntOrNull() ?: return null
     val before = substring(0, minOf(offset, length))
     val line = before.count { it == '\n' }
-    return TextPosition(line, before.length - (before.lastIndexOf('\n') + 1))
+    return TextPosition(line + 1, before.length - before.lastIndexOf('\n'))
 }
 
 /** TOML's limit, plus the root object and the object that tags a scalar. */

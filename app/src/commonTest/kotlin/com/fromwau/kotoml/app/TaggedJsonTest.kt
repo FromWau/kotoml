@@ -218,12 +218,12 @@ class TaggedJsonTest {
 
     @Test
     fun `invalid JSON is refused with the line and column where it broke`() {
-        assertEquals(Result.Error(AppError.InvalidJson(TextPosition(0, 1))), parseTaggedJson("{bad"))
-        assertEquals(Result.Error(AppError.InvalidJson(TextPosition(1, 6))), parseTaggedJson("{\n  \"a\" 1}"))
+        assertEquals(Result.Error(AppError.InvalidJson(TextPosition(1, 2))), parseTaggedJson("{bad"))
+        assertEquals(Result.Error(AppError.InvalidJson(TextPosition(2, 7))), parseTaggedJson("{\n  \"a\" 1}"))
     }
 
     @Test
     fun `invalid JSON reads as where it broke and nothing more`() {
-        assertEquals("invalid JSON at line 2, column 6", AppError.InvalidJson(TextPosition(1, 5)).describe())
+        assertEquals("invalid JSON at line 2, column 6", AppError.InvalidJson(TextPosition(2, 6)).describe())
     }
 }

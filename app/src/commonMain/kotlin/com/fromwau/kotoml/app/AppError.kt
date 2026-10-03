@@ -119,7 +119,7 @@ internal fun AppError.describe(): String = when (this) {
     }
     is AppError.InvalidToml -> error.render(source).trimEnd()
     is AppError.InvalidJson ->
-        "invalid JSON" + (position?.let { " at line ${it.line + 1}, column ${it.column + 1}" } ?: "")
+        "invalid JSON" + (position?.let { " at line ${it.line}, column ${it.column}" } ?: "")
     is AppError.NotTaggedJson -> "not toml-test's tagged JSON at $path: ${reason.describe()}"
     is AppError.JsonTooDeep -> "JSON nests deeper than $limit levels"
     is AppError.FilterSyntax -> buildString {
