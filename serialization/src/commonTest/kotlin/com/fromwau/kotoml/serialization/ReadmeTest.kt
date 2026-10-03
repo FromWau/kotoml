@@ -24,14 +24,14 @@ class ReadmeTest {
     }
 
     @Test
-    fun readmeReadTomlIntoAClass() {
+    fun `the README reads TOML into a class`() {
         val text = "hostname = \"example.org\"\nport = 8080\nmode = \"udp\"\n"
         assertEquals("Config(host=example.org, port=8080, timeout=15s, mode=UDP, knownServers=null)", describe(text))
         assertEquals("hostname is required", describe("port = 8080\n"))
     }
 
     @Test
-    fun readmeWriteAValueAsToml() {
+    fun `the README writes a value as TOML`() {
         val text = Toml.encodeToString(Config("example.org", 8080, knownServers = listOf("alpha" to 1))).getOrNull()
         assertEquals(
             "hostname = \"example.org\"\nport = 8080\n\n[[knownServers]]\nfirst = \"alpha\"\nsecond = 1\n",
@@ -40,7 +40,7 @@ class ReadmeTest {
     }
 
     @Test
-    fun readmeUpdateAFileInPlace() {
+    fun `the README updates a file in place`() {
         val document = TomlDocument.parse("# where to listen\nhostname = \"example.org\"\nport = 8080 # the default\n")
             .getOrNull()!!
         val config = Toml.decodeFromDocument<Config>(document).getOrNull()!!
@@ -52,7 +52,7 @@ class ReadmeTest {
     }
 
     @Test
-    fun readmeConfigureTheFormat() {
+    fun `the README configures the format`() {
         val toml = Toml {
             ignoreUnknownKeys = true
             encodeDefaults = true
@@ -70,7 +70,7 @@ class ReadmeTest {
     }
 
     @Test
-    fun readmeHandleErrors() {
+    fun `the README hands an error on as JSON`() {
         val error = Toml.decodeFromString<Config>("port = 1\n").errorOrNull() ?: fail("expected an error")
         assertEquals(
             """{"type":"MissingKey","path":"hostname"}""",
@@ -79,7 +79,7 @@ class ReadmeTest {
     }
 
     @Test
-    fun readmePathsQuoteKeysAsTomlDoes() {
+    fun `the README's paths quote keys as TOML does`() {
         assertEquals(
             TomlDecodeError.TypeMismatch("ports.\"a.b\"", TomlType.Integer, TomlType.String),
             Toml.decodeFromString<Ports>("[ports]\n\"a.b\" = \"x\"\n").unwrapErr(),

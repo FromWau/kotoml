@@ -24,13 +24,13 @@ class RoundTripTest {
     }
 
     @Test
-    fun theOwnersModelRoundTrips() {
+    fun `the owner's model round-trips`() {
         assertRoundTrips(Config("example.org", 8080, 30.seconds, Mode.UDP, listOf("alpha" to 1, "beta" to 2)))
         assertRoundTrips(Config("example.org", 8080))
     }
 
     @Test
-    fun nestedClassesAndListsRoundTripInBothStyles() {
+    fun `nested classes and lists round-trip in both styles`() {
         val app = App(
             title = "t",
             owner = "o",
@@ -44,13 +44,13 @@ class RoundTripTest {
     }
 
     @Test
-    fun sealedValuesRoundTrip() {
+    fun `sealed values round-trip`() {
         assertRoundTrips(Drawing(listOf(Circle(1.5), Square(2.0), Point)))
         assertRoundTrips(Holder(Point), Toml { classDiscriminator = "kind" })
     }
 
     @Test
-    fun scalarsRoundTrip() {
+    fun `scalars round-trip`() {
         assertRoundTrips(Numbers(1, 2, 3, 4, 5.5f, Double.NEGATIVE_INFINITY, 'c'))
         assertRoundTrips(Unsigned(255u, UInt.MAX_VALUE, 1u))
         assertRoundTrips(
@@ -64,7 +64,7 @@ class RoundTripTest {
     }
 
     @Test
-    fun mapsRoundTrip() {
+    fun `maps round-trip`() {
         assertRoundTrips(Ports(mapOf("http" to 80, "a b" to 1)))
         assertRoundTrips(ModePorts(mapOf(Mode.UDP to 53)))
         assertRoundTrips(mapOf("a" to listOf(1, 2), "b" to emptyList()))

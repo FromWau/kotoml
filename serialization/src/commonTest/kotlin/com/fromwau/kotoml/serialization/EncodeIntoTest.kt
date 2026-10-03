@@ -46,7 +46,7 @@ class EncodeIntoTest {
     }
 
     @Test
-    fun aHandFormattedDocumentKeepsItsFormattingWhenValuesChange() {
+    fun `a hand-formatted document keeps its formatting when values change`() {
         val result = updated(handWritten) { app ->
             app.copy(
                 title = "Kotoml 2",
@@ -88,12 +88,12 @@ class EncodeIntoTest {
     }
 
     @Test
-    fun anUnchangedValueLeavesTheDocumentByteForByte() {
+    fun `an unchanged value leaves the document identical byte for byte`() {
         assertEquals(handWritten, updated(handWritten) { it })
     }
 
     @Test
-    fun anUnchangedValueKeepsEverySpelling() {
+    fun `an unchanged value keeps every spelling`() {
         val text = "hostname = 'example.org'  \r\nport = 0x1F90\r\ntimeout = \"PT30S\"\r\nmode = 'udp'\r\n" +
             "knownServers = [ { first = 'a', second = 0o1 } ]\r\n"
         val document = TomlDocument.parse(text).unwrap()
@@ -102,7 +102,7 @@ class EncodeIntoTest {
     }
 
     @Test
-    fun newFieldsAreAppendedToTheirTable() {
+    fun `new fields are appended to their table`() {
         val text = "# server\nhostname = \"h\" # name\nport = 1\n\n[extra]\nkept = true\n"
         val document = TomlDocument.parse(text).unwrap()
         Toml { ignoreUnknownKeys = true }.encodeInto(document, Config("h", 1, mode = Mode.UDP)).unwrap()
@@ -113,7 +113,7 @@ class EncodeIntoTest {
     }
 
     @Test
-    fun aNewNestedClassIsAppendedAsATable() {
+    fun `a new nested class is appended as a table`() {
         val result = updated("title = \"t\"\n[database]\nurl = \"u\"\n") {
             it.copy(database = it.database.copy(pool = Pool(2)))
         }
@@ -121,7 +121,7 @@ class EncodeIntoTest {
     }
 
     @Test
-    fun aFieldSetToNullRemovesItsKey() {
+    fun `a field set to null removes its key`() {
         val document = TomlDocument.parse("required = \"r\"\nnickname = \"n\" # nick\nnote = \"x\"\n").unwrap()
         Toml.encodeInto(document, Optional("r", nickname = null, note = null)).unwrap()
         assertEquals("required = \"r\"\n", document.toString())
@@ -147,7 +147,7 @@ class EncodeIntoTest {
     }
 
     @Test
-    fun unknownKeysSurviveWhateverIgnoreUnknownKeysSays() {
+    fun `unknown keys survive whatever ignoreUnknownKeys says`() {
         val text = "host = \"a\"\nport = 1\nlegacy = true # old\n"
         for (toml in listOf(Toml, lenient)) {
             val document = TomlDocument.parse(text).unwrap()
@@ -157,7 +157,7 @@ class EncodeIntoTest {
     }
 
     @Test
-    fun aNestedClassUpdatesItsTableInPlace() {
+    fun `a nested class updates its table in place`() {
         val text = "title = \"t\"\n\n# where data lives\n[database] # primary\n# the url\nurl = \"u\"\n" +
             "[database.pool]\nsize = 4 # small\n"
         val result = updated(text) { it.copy(database = Database("v", Pool(16))) }
@@ -169,21 +169,21 @@ class EncodeIntoTest {
     }
 
     @Test
-    fun aQuotedOrDottedKeyKeepsItsSpelling() {
+    fun `a quoted or dotted key keeps its spelling`() {
         val text = "\"title\" = \"t\"\ndatabase . url = \"u\" # dotted\ndatabase.\"pool\".size = 1\n"
         val result = updated(text) { it.copy(title = "s", database = Database("v", Pool(2))) }
         assertEquals("\"title\" = \"s\"\ndatabase . url = \"v\" # dotted\ndatabase.\"pool\".size = 2\n", result)
     }
 
     @Test
-    fun aListReplacesItsArrayButKeepsTheArraysDecor() {
+    fun `a list replaces its array but keeps the array's decor`() {
         val text = "title = \"t\"\ntags = [\n  \"x\", # first\n  \"y\",\n] # labels\n[database]\nurl = \"u\"\n"
         val result = updated(text) { it.copy(tags = listOf("x", "z")) }
         assertEquals("title = \"t\"\ntags = [\"x\", \"z\"] # labels\n[database]\nurl = \"u\"\n", result)
     }
 
     @Test
-    fun aListKeepsTheFormTheDocumentWroteIt() {
+    fun `a list keeps the form the document wrote it in`() {
         val inline = "name = \"f\"\nservers = [{ host = \"a\" }]\n"
         val fleet = Fleet("f", listOf(Server("b")))
         val inlineDocument = TomlDocument.parse(inline).unwrap()
@@ -197,14 +197,14 @@ class EncodeIntoTest {
     }
 
     @Test
-    fun aFieldAtItsDefaultUpdatesAKeyButAddsNone() {
+    fun `a field at its default updates a key but adds none`() {
         val document = TomlDocument.parse("hostname = \"h\"\nport = 1\ntimeout = \"30s\" # slow\n").unwrap()
         Toml.encodeInto(document, Config("h", 1, timeout = 15.seconds)).unwrap()
         assertEquals("hostname = \"h\"\nport = 1\ntimeout = \"15s\" # slow\n", document.toString())
     }
 
     @Test
-    fun aNestedClassAtItsDefaultAddsNoKeysToItsTable() {
+    fun `a nested class at its default adds no keys to its table`() {
         val text = "url = \"u\"\n[pool] # defaults\n"
         val document = TomlDocument.parse(text).unwrap()
         Toml.encodeInto(document, Database("u")).unwrap()
@@ -212,28 +212,28 @@ class EncodeIntoTest {
     }
 
     @Test
-    fun aFieldAtItsDefaultIsAddedWhenEncodeDefaultsIsSet() {
+    fun `a field at its default is added when encodeDefaults is set`() {
         val document = TomlDocument.parse("hostname = \"h\"\nport = 1\n").unwrap()
         Toml { encodeDefaults = true }.encodeInto(document, Config("h", 1)).unwrap()
         assertEquals("hostname = \"h\"\nport = 1\ntimeout = \"15s\"\nmode = \"TCP\"\n", document.toString())
     }
 
     @Test
-    fun aMapAccountsForAllOfItsKeys() {
+    fun `a map adds updates and removes keys to match its entries`() {
         val document = TomlDocument.parse("[ports]\nhttp = 80 # web\nftp = 21\n").unwrap()
         Toml.encodeInto(document, Ports(mapOf("http" to 8080, "ssh" to 22))).unwrap()
         assertEquals("[ports]\nhttp = 8080 # web\nssh = 22\n", document.toString())
     }
 
     @Test
-    fun aChangedSubtypeDropsTheOldSubtypesKeys() {
+    fun `a changed subtype drops the old subtype's keys`() {
         val document = TomlDocument.parse("[shape] # the shape\ntype = \"circle\"\nradius = 1.0\n").unwrap()
         Toml.encodeInto(document, Holder(Square(2.0))).unwrap()
         assertEquals("[shape] # the shape\ntype = \"square\"\nside = 2.0\n", document.toString())
     }
 
     @Test
-    fun aDateReadIntoAStringWritesBackUnchanged() {
+    fun `a date read into a string writes back as the date it was`() {
         val text = "text = 1979-05-27\n"
         val document = TomlDocument.parse(text).unwrap()
         Toml.encodeInto(document, Toml.decodeFromDocument<Text>(document).unwrap()).unwrap()
@@ -241,7 +241,7 @@ class EncodeIntoTest {
     }
 
     @Test
-    fun aValueSpelledAnotherWayIsLeftAsItIsWhenItReadsTheSame() {
+    fun `a value spelled another way is left as it is when it reads the same`() {
         val text = "date = \"1979-05-27\"\ninstant = 1979-05-27T07:32:00+02:00\n"
         val document = TomlDocument.parse(text).unwrap()
         Toml.encodeInto(document, Toml.decodeFromDocument<Times>(document).unwrap()).unwrap()
@@ -249,7 +249,7 @@ class EncodeIntoTest {
     }
 
     @Test
-    fun anErrorLeavesTheDocumentUnchanged() {
+    fun `an error leaves the document as it was`() {
         val text = "values = [1] # one\n"
         val document = TomlDocument.parse(text).unwrap()
         assertEquals(

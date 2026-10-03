@@ -13,7 +13,7 @@ class ErrorJsonTest {
     private fun json(error: TomlEncodeError): String = Json.encodeToString(TomlEncodeError.serializer(), error)
 
     @Test
-    fun aMissingKeyIsItsPath() {
+    fun `a missing key encodes as its path`() {
         assertEquals(
             """{"type":"MissingKey","path":"database.url"}""",
             json(Toml.decodeFromString<App>("title = \"t\"\n[database]\n").unwrapErr()),
@@ -21,7 +21,7 @@ class ErrorJsonTest {
     }
 
     @Test
-    fun aTypeMismatchNamesBothTomlTypes() {
+    fun `a type mismatch names both TOML types`() {
         assertEquals(
             """{"type":"TypeMismatch","path":"servers[0].port","expected":"Integer","found":"String"}""",
             json(TomlDecodeError.TypeMismatch("servers[0].port", TomlType.Integer, TomlType.String)),
@@ -29,7 +29,7 @@ class ErrorJsonTest {
     }
 
     @Test
-    fun anUnknownEnumValueListsTheNames() {
+    fun `an unknown enum value lists the names`() {
         assertEquals(
             """{"type":"UnknownEnumValue","path":"mode","value":"tcp","names":["TCP","udp"]}""",
             json(Toml.decodeFromString<Config>("hostname = \"h\"\nport = 1\nmode = \"tcp\"\n").unwrapErr()),
@@ -37,7 +37,7 @@ class ErrorJsonTest {
     }
 
     @Test
-    fun aDatetimeKindMismatchNamesBothKinds() {
+    fun `a datetime kind mismatch names both kinds`() {
         assertEquals(
             """{"type":"DatetimeKindMismatch","path":"date","expected":"LocalDate","found":"LocalTime"}""",
             json(Toml.decodeFromString<Times>("date = 07:32:00\n").unwrapErr()),
@@ -45,7 +45,7 @@ class ErrorJsonTest {
     }
 
     @Test
-    fun aParseErrorNestsCoresError() {
+    fun `a parse error nests the core error`() {
         assertEquals(
             """{"type":"Parse","error":{"reason":{"type":"DuplicateKey","key":"a"},"span":{"start":6,"end":7},""" +
                 """"position":{"line":2,"column":1},"context":{"start":0,"end":1}}}""",
@@ -54,7 +54,7 @@ class ErrorJsonTest {
     }
 
     @Test
-    fun anEncodeErrorEncodesToo() {
+    fun `an encode error encodes with its type and fields`() {
         assertEquals(
             """{"type":"NullElement","path":"values[1]"}""",
             json(Toml.encodeToString(MaybeList(listOf(1, null))).unwrapErr()),
