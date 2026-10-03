@@ -27,7 +27,7 @@ internal class KeyValue(var key: Key, item: Item) {
      * key's spacing behind, since it belongs to the line it stood on; the comments above it come along.
      */
     fun prepareFor(next: Item) {
-        if (item.isNone || item.printsHeader() == next.printsHeader()) return
+        if (item.isMissing || item.printsHeader() == next.printsHeader()) return
         val decor = key.rawLeafDecor
         if (decor.prefix?.asStr().isNullOrBlank()) decor.prefix = null
         if (decor.suffix?.asStr().isNullOrBlank()) decor.suffix = null

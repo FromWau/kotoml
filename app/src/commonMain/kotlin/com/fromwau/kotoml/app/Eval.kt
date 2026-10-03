@@ -24,7 +24,7 @@ internal fun Filter.evaluate(input: Item): Result<List<Item>, AppError.CannotApp
 }
 
 private fun Item.apply(step: Step): Result<List<Item>, AppError.CannotApply> {
-    if (isNone) return Ok(if (step == Step.Iterate) emptyList() else listOf(Item()))
+    if (isMissing) return Ok(if (step == Step.Iterate) emptyList() else listOf(Item()))
     val table = tableLikeOrNull
     val array = arrayOrNull
     val tables = arrayOfTablesOrNull

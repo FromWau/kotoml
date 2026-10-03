@@ -219,8 +219,8 @@ section 1.
 | `Document::new`, `Default`, `parse`, `as_item`, `into_item`, `as_table`, `into_table`, `iter`, `trailing`, `raw`, `into_mut`, `FromStr`, `Deref<Target = Table>` | | n/a | `TomlDocument.parse` gives the editable document directly; see section 5 |
 | `ImDocument` (deprecated alias of `Document`) | | n/a | deprecated upstream since 0.23 |
 | `Item::None / Value / Table / ArrayOfTables`, `Default` | the constructors `Item()`, `Item(Value)`, `Item(Table)`, `Item(ArrayOfTables)` | done | `EditTest` |
-| `Item::or_insert` | | n/a | `Table.getOrPut`, or `if (item.isNone) item.assign(other)` |
-| `Item::type_name` (as `type: TomlType`), `as_value(_mut)`, `as_table(_mut)`, `as_array_of_tables(_mut)`, `as_table_like(_mut)`, `is_none` | `type`, `valueOrNull`, `tableOrNull`, `arrayOfTablesOrNull`, `tableLikeOrNull`, `isNone` | done | `EditTest`, `ComplianceParseTest` |
+| `Item::or_insert` | | n/a | `Table.getOrPut`, or `if (item.isMissing) item.assign(other)` |
+| `Item::type_name` (as `type: TomlType`), `as_value(_mut)`, `as_table(_mut)`, `as_array_of_tables(_mut)`, `as_table_like(_mut)`, `is_none` | `type`, `valueOrNull`, `tableOrNull`, `arrayOfTablesOrNull`, `tableLikeOrNull`, `isMissing` | done | `EditTest`, `ComplianceParseTest` |
 | `Item::is_value`, `is_table`, `is_array_of_tables`, `is_table_like` | | n/a | `type`, or a check that the `OrNull` property is not null |
 | `Item::as_str`, `as_integer`, `as_float`, `as_bool`, `as_datetime`, `as_array(_mut)`, `as_inline_table(_mut)` | `stringOrNull`, `longOrNull`, `doubleOrNull`, `booleanOrNull`, `datetimeOrNull`, `arrayOrNull`, `inlineTableOrNull` | done | `EditTest`, `ComplianceParseTest` |
 | `Item::is_str` … `is_inline_table` | | n/a | `type`, or a check that the `OrNull` property is not null |

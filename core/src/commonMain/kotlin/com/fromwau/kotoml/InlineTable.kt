@@ -186,7 +186,7 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
 
     /** The key/item pairs, in order; each item holds a value. */
     override fun items(): List<Pair<String, Item>> = items.entries()
-        .filter { !it.item.isNone }
+        .filter { !it.item.isMissing }
         .map { it.key.name to it.item }
 
     /** The keys holding a value, in order, as a copy that later changes to the table leave as it is. */
@@ -212,7 +212,7 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
     public operator fun get(key: String): Value? = items.get(key)?.valueOrNull
 
     /** The slot at [key], or null when there is none. */
-    override fun getItem(key: String): Item? = items.get(key)?.takeIf { !it.isNone }
+    override fun getItem(key: String): Item? = items.get(key)?.takeIf { !it.isMissing }
 
     /** Sets [key] to [value], keeping the key's position and formatting when it is already there. */
     public operator fun set(

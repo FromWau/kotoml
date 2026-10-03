@@ -143,7 +143,7 @@ class SlotSemanticsTest {
     fun `an empty item assigned into an array slot fails`() {
         val doc = TomlDocument.parse("a = [1, 2]\n").unwrap()
         val error = doc["a"].set(1, Item()).unwrapErr()
-        assertEquals(TomlEditError.NotAValue(TomlType.None), error)
+        assertEquals(TomlEditError.NotAValue(TomlType.Missing), error)
         assertEquals(2, doc["a"].arrayOrNull!!.size)
     }
 
@@ -224,7 +224,7 @@ class SlotSemanticsTest {
     fun `an inline table refuses an empty item put at a new key`() {
         val inline = InlineTable()
         val error = inline.putItem("a", Item()).unwrapErr()
-        assertEquals(TomlEditError.NotAValue(TomlType.None), error)
+        assertEquals(TomlEditError.NotAValue(TomlType.Missing), error)
         assertEquals(0, inline.size)
     }
 
@@ -233,7 +233,7 @@ class SlotSemanticsTest {
         val inline = InlineTable()
         inline["a"] = 1L
         val error = inline.putItem("a", Item()).unwrapErr()
-        assertEquals(TomlEditError.NotAValue(TomlType.None), error)
+        assertEquals(TomlEditError.NotAValue(TomlType.Missing), error)
         assertEquals(1L, inline["a"]?.longOrNull)
     }
 

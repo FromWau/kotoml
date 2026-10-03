@@ -2,7 +2,7 @@ package com.fromwau.kotoml
 
 /** The kind of an [Item] or [Value]. */
 public enum class TomlType {
-    None,
+    Missing,
     String,
     Integer,
     Float,

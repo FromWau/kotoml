@@ -200,7 +200,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
 
     /** The key/item pairs with an item, in order. */
     override fun items(): List<Pair<String, Item>> = items.entries()
-        .filter { !it.item.isNone }
+        .filter { !it.item.isMissing }
         .map { it.key.name to it.item }
 
     override fun iterator(): Iterator<Pair<String, Item>> = items().iterator()
@@ -211,7 +211,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
 
     /** The number of keys holding an item. */
     override val size: Int
-        get() = items.entries().count { !it.item.isNone }
+        get() = items.entries().count { !it.item.isMissing }
 
     /** Whether no key holds an item. */
     override fun isEmpty(): Boolean = size == 0
@@ -225,7 +225,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     }
 
     /** The item at [key], or null when there is none. */
-    public fun getOrNull(key: String): Item? = items.get(key)?.takeIf { !it.isNone }
+    public fun getOrNull(key: String): Item? = items.get(key)?.takeIf { !it.isMissing }
 
     override fun getItem(key: String): Item? = getOrNull(key)
 
@@ -271,7 +271,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     }
 
     /** Whether [key] holds an item. */
-    override fun containsKey(key: String): Boolean = items.get(key)?.let { !it.isNone } ?: false
+    override fun containsKey(key: String): Boolean = items.get(key)?.let { !it.isMissing } ?: false
 
     /** Whether [key] holds an item, for `key in table`. */
     override operator fun contains(key: String): Boolean = containsKey(key)
@@ -289,7 +289,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
         item: Item,
     ): Item? {
         items.getEntry(key)?.prepareFor(item)
-        return items.insert(Key(key), item.copy())?.takeIf { !it.isNone }
+        return items.insert(Key(key), item.copy())?.takeIf { !it.isMissing }
     }
 
     /**
@@ -303,7 +303,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
         item: Item,
     ): Item? {
         items.getEntry(key.name)?.key = key.copy()
-        return items.insert(key.copy(), item.copy())?.takeIf { !it.isNone }
+        return items.insert(key.copy(), item.copy())?.takeIf { !it.isMissing }
     }
 
     override fun putItem(
@@ -347,7 +347,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
         val entry = items.getEntry(key) ?: return null
         keepLinesAbove(listOf(entry))
         items.shiftRemove(key)
-        return entry.item.takeIf { !it.isNone }
+        return entry.item.takeIf { !it.isMissing }
     }
 
     /** Removes [key] and returns its item, or null when it held none; the lines above it stay, as [remove] says. */
@@ -375,7 +375,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     public fun removeAll(predicate: (Pair<String, Item>) -> Boolean): Boolean = removeEntries(entriesWhere(predicate))
 
     private fun entriesWhere(predicate: (Pair<String, Item>) -> Boolean): List<KeyValue> = items.entries()
-        .filter { !it.item.isNone && predicate(it.key.name to it.item) }
+        .filter { !it.item.isMissing && predicate(it.key.name to it.item) }
 
     private fun removeEntries(removed: List<KeyValue>): Boolean {
         if (removed.isEmpty()) return false

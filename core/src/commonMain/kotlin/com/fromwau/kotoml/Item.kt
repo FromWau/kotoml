@@ -65,7 +65,7 @@ public class Item private constructor(
 
         val type: TomlType
             get() = when (this) {
-                None -> TomlType.None
+                None -> TomlType.Missing
                 is ValueContent -> value.type
                 is TableContent -> TomlType.Table
                 is ArrayOfTablesContent -> TomlType.ArrayOfTables
@@ -297,8 +297,8 @@ public class Item private constructor(
         else -> null
     }
 
-    /** Whether this is empty. */
-    public val isNone: Boolean
+    /** Whether this slot holds nothing, as one indexed at a key or position that is not there does. */
+    public val isMissing: Boolean
         get() = content == Content.None
 
     /** The string, or null when this holds none. */

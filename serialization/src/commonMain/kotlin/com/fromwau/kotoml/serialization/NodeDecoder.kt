@@ -32,7 +32,7 @@ internal class NodeDecoder(
         get() = toml.serializersModule
 
     private fun mismatch(expected: TomlType): Nothing =
-        throw DecodeFailure(TomlDecodeError.TypeMismatch("$path", expected, input?.type ?: TomlType.None))
+        throw DecodeFailure(TomlDecodeError.TypeMismatch("$path", expected, input?.type ?: TomlType.Missing))
 
     private fun scalar(): Value? = (input as? TomlInput.Scalar)?.value
 

@@ -129,7 +129,7 @@ internal fun TomlInput?.integerIn(
     range: LongRange,
 ): Long {
     val integer = (this as? TomlInput.Scalar)?.value?.longOrNull
-        ?: throw DecodeFailure(TomlDecodeError.TypeMismatch("$path", TomlType.Integer, this?.type ?: TomlType.None))
+        ?: throw DecodeFailure(TomlDecodeError.TypeMismatch("$path", TomlType.Integer, this?.type ?: TomlType.Missing))
     if (integer !in range) throw DecodeFailure(TomlDecodeError.OutOfRange("$path", "$integer", serialName))
     return integer
 }
