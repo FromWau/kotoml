@@ -26,24 +26,31 @@ class GetTest {
         |port = 8081
         |""".trimMargin()
 
-    private fun select(filter: String): Result<Selection, AppError> {
-        val document = (TomlDocument.parse(sample) as? Result.Success)?.value ?: fail("sample does not parse")
+    private fun select(
+        filter: String,
+        text: String = sample,
+    ): Result<Selection, AppError> {
+        val document = (TomlDocument.parse(text) as? Result.Success)?.value ?: fail("input does not parse")
         val parsed = when (val parsed = parseFilter(filter)) {
             is Result.Success -> parsed.value
             is Result.Error -> return parsed
         }
-        return when (val selected = parsed.evaluate(Item(document.root))) {
-            is Result.Success -> Result.Success(Selection(selected.value, parsed.streams))
-            is Result.Error -> selected
-        }
+        return parsed.select(document)
     }
 
-    private fun selection(filter: String): Selection = when (val result = select(filter)) {
+    private fun selection(
+        filter: String,
+        text: String = sample,
+    ): Selection = when (val result = select(filter, text)) {
         is Result.Success -> result.value
         is Result.Error -> fail("$filter: ${result.error}")
     }
 
-    private fun get(filter: String, raw: Boolean = false): String = selection(filter).print(raw)
+    private fun get(
+        filter: String,
+        raw: Boolean = false,
+        text: String = sample,
+    ): String = selection(filter, text).print(raw)
 
     private fun json(filter: String): String = Json.encodeToString(SelectionSerializer, selection(filter))
 
@@ -70,8 +77,64 @@ class GetTest {
     }
 
     @Test
-    fun `an array of tables prints as an array of inline tables`() {
-        assertEquals("[{ host = \"alpha\", port = 8080 }, { host = \"beta\", port = 8081 }]", get(".servers"))
+    fun `an array of tables prints as written under its headers`() {
+        assertEquals(
+            "[[servers]]\nhost = \"alpha\"\nport = 8080\n\n[[servers]]\nhost = \"beta\"\nport = 8081",
+            get(".servers"),
+        )
+    }
+
+    @Test
+    fun `an array of tables keeps its comments`() {
+        val text = "# servers\n[[srv]]\nhost = \"a\"  # primary\n"
+        assertEquals("# servers\n[[srv]]\nhost = \"a\"  # primary", get(".srv", text = text))
+    }
+
+    @Test
+    fun `a nested array of tables prints its whole header path`() {
+        val text = "[a]\nx = 1\n\n[[a.srv]]\nh = 1\n"
+        assertEquals("[[a.srv]]\nh = 1", get(".a.srv", text = text))
+        assertEquals("[[a.srv]]\nh = 1", get(".a | .srv", text = text))
+    }
+
+    @Test
+    fun `iterating tables separates them with a blank line`() {
+        assertEquals(
+            "host = \"alpha\"\nport = 8080\n\nhost = \"beta\"\nport = 8081",
+            get(".servers[]"),
+        )
+    }
+
+    @Test
+    fun `a table made only of dotted keys prints its lines`() {
+        assertEquals("b = 2\nc = 3", get(".a", text = "a.b = 2\na.c = 3\n"))
+        assertEquals("y.z = 1", get(".x", text = "x.y.z = 1\n"))
+    }
+
+    @Test
+    fun `a table in a CRLF file prints with CRLF line endings`() {
+        val text = "[t]\r\nc = 2\r\nd = 3\r\n\r\n[[s]]\r\nh = 1\r\n\r\n[[s]]\r\nh = 2\r\n"
+        assertEquals("c = 2\r\nd = 3", get(".t", text = text))
+        assertEquals("h = 1\r\n\r\nh = 2", get(".s[]", text = text))
+        assertEquals("[[s]]\r\nh = 1\r\n\r\n[[s]]\r\nh = 2", get(".s", text = text))
+        assertEquals("\r\n", selection(".t", text = text).lineEnding)
+    }
+
+    @Test
+    fun `a quoted key takes jq escapes`() {
+        val text = "ttk = 1\n\"t\\tk\" = 9\n\"a\\nb\" = 2\n\"\u00e9\" = 3\n\"q\\\"\" = 4\n"
+        assertEquals("9", get(".\"t\\tk\"", text = text))
+        assertEquals("2", get(".[\"a\\nb\"]", text = text))
+        assertEquals("3", get(".\"\\u00e9\"", text = text))
+        assertEquals("4", get(".\"q\\\"\"", text = text))
+    }
+
+    @Test
+    fun `an unknown escape in a quoted key is a filter syntax error`() {
+        assertEquals(
+            Result.Error(AppError.FilterSyntax(".\"t\\zk\"", 3, FilterExpected.Escape)),
+            parseFilter(".\"t\\zk\""),
+        )
     }
 
     @Test

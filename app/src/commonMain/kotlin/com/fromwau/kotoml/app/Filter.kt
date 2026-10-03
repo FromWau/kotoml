@@ -49,18 +49,47 @@ internal fun parseFilter(text: String): Result<Filter, AppError.FilterSyntax> {
         while (position < text.length && text[position].isWhitespace()) position++
     }
 
+    var badEscape = false
+
+    // A quoted key takes jq's escapes, which are JSON's.
     fun quoted(): String? {
         position++
         val key = StringBuilder()
         while (position < text.length && text[position] != '"') {
-            if (text[position] == '\\' && position + 1 < text.length) position++
-            key.append(text[position])
-            position++
+            if (text[position] != '\\') {
+                key.append(text[position++])
+                continue
+            }
+            val escaped = when (text.getOrNull(position + 1)) {
+                '"' -> "\""
+                '\\' -> "\\"
+                '/' -> "/"
+                'b' -> "\b"
+                'f' -> "\u000C"
+                'n' -> "\n"
+                'r' -> "\r"
+                't' -> "\t"
+                'u' -> text
+                    .substring(minOf(position + 2, text.length), minOf(position + 6, text.length))
+                    .takeIf { it.length == 4 }
+                    ?.toIntOrNull(16)
+                    ?.toChar()
+                    ?.toString()
+                else -> null
+            }
+            if (escaped == null) {
+                badEscape = true
+                return null
+            }
+            key.append(escaped)
+            position += if (text[position + 1] == 'u') 6 else 2
         }
         if (position >= text.length) return null
         position++
         return key.toString()
     }
+
+    fun quoteFailure() = fail(if (badEscape) FilterExpected.Escape else FilterExpected.Quote)
 
     while (true) {
         skipSpaces()
@@ -71,14 +100,14 @@ internal fun parseFilter(text: String): Result<Filter, AppError.FilterSyntax> {
         while (position < text.length) {
             val char = text[position]
             when {
-                char == '"' -> steps += Step.Key(quoted() ?: return fail(FilterExpected.Quote))
+                char == '"' -> steps += Step.Key(quoted() ?: return quoteFailure())
                 char == '[' -> {
                     position++
                     skipSpaces()
                     when {
                         position < text.length && text[position] == ']' -> steps += Step.Iterate
                         position < text.length && text[position] == '"' -> {
-                            steps += Step.Key(quoted() ?: return fail(FilterExpected.Quote))
+                            steps += Step.Key(quoted() ?: return quoteFailure())
                             skipSpaces()
                         }
                         else -> {

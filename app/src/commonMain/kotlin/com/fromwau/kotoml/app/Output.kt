@@ -3,6 +3,7 @@ package com.fromwau.kotoml.app
 import com.fromwau.kotoml.Decor
 import com.fromwau.kotoml.TomlDocument
 import com.fromwau.kotoml.Item
+import com.fromwau.kotoml.Table
 import com.fromwau.kotoml.Value
 import com.fromwau.kotoml.toInlineTable
 import com.fromwau.kotoml.toTomlArray
@@ -22,15 +23,31 @@ import kotlinx.serialization.json.JsonPrimitive
  * filter selects exactly one item, which `--json` prints as itself.
  */
 @Serializable(with = SelectionSerializer::class)
-internal data class Selection(val items: List<Item>, val stream: Boolean)
+internal data class Selection(
+    val items: List<Selected>,
+    val stream: Boolean,
+    val lineEnding: String = "\n",
+)
 
-/** [selection] as TOML, one item per line; with [raw], a string is printed bare instead of quoted. */
-internal fun Selection.print(raw: Boolean): String = items.joinToString("\n") { item ->
-    if (raw) item.stringOrNull ?: item.toToml() else item.toToml()
+/**
+ * [selection] as TOML, each item on its own lines, a table set apart from its neighbours by a blank line; with
+ * [raw], a string is printed bare instead of quoted.
+ */
+internal fun Selection.print(raw: Boolean): String {
+    val printed = StringBuilder()
+    var previousIsTable = false
+    for ((index, selected) in items.withIndex()) {
+        val isTable = selected.item.tableOrNull != null || selected.item.arrayOfTablesOrNull != null
+        if (index > 0) printed.append(if (isTable || previousIsTable) lineEnding + lineEnding else lineEnding)
+        val item = selected.item
+        printed.append(if (raw) item.stringOrNull ?: selected.toToml() else selected.toToml())
+        previousIsTable = isTable
+    }
+    return printed.toString()
 }
 
 internal fun Selection.toJson(): JsonElement =
-    if (stream) JsonArray(items.map { it.toJson() }) else items.singleOrNull()?.toJson() ?: JsonNull
+    if (stream) JsonArray(items.map { it.item.toJson() }) else items.singleOrNull()?.item?.toJson() ?: JsonNull
 
 internal object SelectionSerializer : KSerializer<Selection> {
     override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor
@@ -41,7 +58,8 @@ internal object SelectionSerializer : KSerializer<Selection> {
 
     override fun deserialize(decoder: Decoder): Selection {
         val json = decoder.decodeSerializableValue(JsonElement.serializer())
-        return Selection(listOf(Item(json.toValue() ?: return Selection(listOf(Item()), false))), false)
+        val item = json.toValue()?.let { Item(it) } ?: Item()
+        return Selection(listOf(Selected(item, emptyList())), false)
     }
 }
 
@@ -62,18 +80,26 @@ private fun JsonElement.toValue(): Value? = when (this) {
 }
 
 /** An empty item prints as `null`, which TOML has no word for, as jq prints a missing key. */
-internal fun Item.toToml(): String {
-    tableOrNull?.let { table ->
-        // The text around a table belongs to its header, which is not printed.
-        val printed = table.copy().also { it.decor = Decor() }
+internal fun Selected.toToml(): String {
+    item.tableOrNull?.let { table ->
+        // The text around a table belongs to its header, which is not printed, and its lines print as its own.
+        val printed = table.copy().also {
+            it.decor = Decor()
+            it.isDotted = false
+        }
         return TomlDocument(printed).toString().trimEnd()
     }
-    arrayOfTablesOrNull?.let { tables ->
-        return Value.Array(tables.toTomlArray())
-            .toString()
-            .trim()
+    item.arrayOfTablesOrNull?.let { tables ->
+        // Printed under the header path it has in the file, inside parents that print nothing themselves. Only a
+        // key reaches an array of tables, so the path is never empty.
+        val holder = Table().also { it[path.last()] = tables }
+        val root = path.dropLast(1).foldRight(holder) { key, child ->
+            child.isImplicit = true
+            Table().also { it[key] = child }
+        }
+        return TomlDocument(root).toString().trim()
     }
-    val value = valueOrNull?.copy() ?: return "null"
+    val value = item.valueOrNull?.copy() ?: return "null"
     value.decor = Decor()
     return value.toString()
 }

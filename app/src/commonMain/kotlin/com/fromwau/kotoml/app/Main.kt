@@ -56,7 +56,7 @@ private fun get(
         is Result.Success -> parsed.value
         is Result.Error -> return parsed
     }
-    return parsedFilter.evaluate(Item(document.root)).map { Selection(it, parsedFilter.streams) }
+    return parsedFilter.select(document)
 }
 
 /** What `check --json` prints for a valid file. */
@@ -81,7 +81,10 @@ fun main(args: Array<String>) {
             val file = fileArgument()
             val raw = flag("--raw", "-r", help = "print strings without quotes")
             val spec = specOption()
-            action(human = { it.print(raw()) }) { get(filter(), file(), spec()).orCliError() }
+            // klap ends the output with `\n`, so a CRLF document's last line gets its `\r` here.
+            action(human = { it.print(raw()) + it.lineEnding.dropLast(1) }) {
+                get(filter(), file(), spec()).orCliError()
+            }
         }
 
         command("check", "exit 0 when the file is valid TOML, or print why it is not") {

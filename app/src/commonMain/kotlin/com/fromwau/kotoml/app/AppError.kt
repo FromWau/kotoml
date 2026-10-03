@@ -70,6 +70,9 @@ internal enum class FilterExpected {
     /** A closing quote. */
     Quote,
 
+    /** One of jq's escapes after `\\` in a quoted key. */
+    Escape,
+
     /** An index, a quoted key, or `]`. */
     IndexOrKey,
 
@@ -103,6 +106,8 @@ internal fun AppError.describe(): String = when (this) {
                 FilterExpected.Dot -> "`.`"
                 FilterExpected.KeyOrBracket -> "a key or `[`"
                 FilterExpected.Quote -> "a closing `\"`"
+                FilterExpected.Escape ->
+                    "an escape: `\\\"`, `\\\\`, `\\/`, `\\b`, `\\f`, `\\n`, `\\r`, `\\t` or `\\uXXXX`"
                 FilterExpected.IndexOrKey -> "an index, a quoted key or `]`"
                 FilterExpected.CloseBracket -> "`]`"
                 FilterExpected.PipeOrEnd -> "`|` or the end of the filter"
