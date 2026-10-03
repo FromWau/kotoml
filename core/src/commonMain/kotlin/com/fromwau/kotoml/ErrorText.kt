@@ -122,6 +122,12 @@ internal fun Reason.describe(): String = when (this) {
     is Reason.DuplicateKey -> "duplicate key"
     is Reason.DottedKeyExtendsValue -> "cannot extend value of type ${valueType.describe()} with a dotted key"
     is Reason.InvalidDatetime -> error.describe()
+    is Reason.MissingDigits -> when (radix) {
+        IntegerRadix.Dec -> "expected digits"
+        IntegerRadix.Hex -> "expected hexadecimal digits after `0x`"
+        IntegerRadix.Oct -> "expected octal digits after `0o`"
+        IntegerRadix.Bin -> "expected binary digits after `0b`"
+    }
     Reason.IntegerOverflow -> "integer number overflowed"
     Reason.FloatOverflow -> "floating-point number overflowed"
     Reason.KeyTooDeep -> "recursion limit"

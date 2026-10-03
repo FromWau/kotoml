@@ -48,6 +48,11 @@ public data class TomlParseError(
         @SerialName("InvalidDatetime")
         public data class InvalidDatetime(val error: DatetimeParseError) : Reason
 
+        /** A radix prefix such as `0x` with no digits after it. */
+        @Serializable
+        @SerialName("MissingDigits")
+        public data class MissingDigits(val radix: IntegerRadix) : Reason
+
         /** An integer outside the range of [Long]. */
         @Serializable
         @SerialName("IntegerOverflow")

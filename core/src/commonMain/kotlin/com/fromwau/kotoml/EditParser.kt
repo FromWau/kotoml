@@ -542,9 +542,11 @@ private fun onScalar(event: Event, context: ParseContext): Value {
             Value.Float(Formatted.of(float).withRepr(valueRaw))
         }
         is ScalarKind.Integer -> {
-            // The decoder validated the digits, so a failure here can only be overflow.
+            // The decoder validated the digits there are, so a failure here is no digits or overflow.
             val integer = parseRustI64(text, kind.radix.value()) ?: run {
-                errors.report(Reason.IntegerOverflow, unexpected = event.span())
+                val digits = text.removePrefix("-").removePrefix("+")
+                val reason = if (digits.isEmpty()) Reason.MissingDigits(kind.radix) else Reason.IntegerOverflow
+                errors.report(reason, unexpected = event.span())
                 Long.MAX_VALUE
             }
             Value.Integer(Formatted.of(integer).withRepr(valueRaw))
