@@ -26,10 +26,10 @@ internal sealed interface AppError : IError {
     @SerialName("InvalidJson")
     data class InvalidJson(val detail: String?) : AppError
 
-    /** The JSON is not toml-test's tagged form, first noticed at [path]. */
+    /** The JSON is not toml-test's tagged form at [path], for [reason]. */
     @Serializable
     @SerialName("NotTaggedJson")
-    data class NotTaggedJson(val path: String) : AppError
+    data class NotTaggedJson(val path: String, val reason: TaggedJsonProblem) : AppError
 
     /** The JSON nests deeper than [limit] levels. */
     @Serializable
@@ -103,7 +103,7 @@ internal fun AppError.describe(): String = when (this) {
     }
     is AppError.InvalidToml -> error.render(source).trimEnd()
     is AppError.InvalidJson -> "invalid JSON" + (detail?.let { ": $it" } ?: "")
-    is AppError.NotTaggedJson -> "not toml-test's tagged JSON at $path"
+    is AppError.NotTaggedJson -> "not toml-test's tagged JSON at $path: ${reason.describe()}"
     is AppError.JsonTooDeep -> "JSON nests deeper than $limit levels"
     is AppError.FilterSyntax -> buildString {
         append("invalid filter at character ${position + 1}, expected ")
@@ -124,4 +124,53 @@ internal fun AppError.describe(): String = when (this) {
         append('^')
     }
     is AppError.CannotApply -> "cannot apply ${step.describe()} to ${itemType.name.lowercase()}"
+}
+
+/** Why JSON is not toml-test's tagged form. */
+@Serializable
+internal sealed interface TaggedJsonProblem {
+    /** The root is not a JSON object. */
+    @Serializable
+    @SerialName("RootNotObject")
+    data object RootNotObject : TaggedJsonProblem
+
+    /** A bare JSON number, string, boolean or `null` stands where a tagged value, a table or an array belongs. */
+    @Serializable
+    @SerialName("Untagged")
+    data object Untagged : TaggedJsonProblem
+
+    /** [tomlType] is not one of toml-test's types. */
+    @Serializable
+    @SerialName("UnknownType")
+    data class UnknownType(val tomlType: String) : TaggedJsonProblem
+
+    /** A tagged value has no `"value"`. */
+    @Serializable
+    @SerialName("MissingValue")
+    data object MissingValue : TaggedJsonProblem
+
+    /** A tagged value's `"value"` is not a JSON string. */
+    @Serializable
+    @SerialName("ValueNotString")
+    data object ValueNotString : TaggedJsonProblem
+
+    /** A tagged value has [key] besides `"type"` and `"value"`. */
+    @Serializable
+    @SerialName("ExtraKey")
+    data class ExtraKey(val key: String) : TaggedJsonProblem
+
+    /** [value] is not valid TOML for [tomlType], or is a date-time of another kind. */
+    @Serializable
+    @SerialName("BadValue")
+    data class BadValue(val tomlType: String, val value: String) : TaggedJsonProblem
+}
+
+internal fun TaggedJsonProblem.describe(): String = when (this) {
+    TaggedJsonProblem.RootNotObject -> "the root must be a JSON object"
+    TaggedJsonProblem.Untagged -> "expected a {\"type\":…,\"value\":…} object, a table or an array"
+    is TaggedJsonProblem.UnknownType -> "unknown type \"$tomlType\""
+    TaggedJsonProblem.MissingValue -> "\"value\" is missing"
+    TaggedJsonProblem.ValueNotString -> "\"value\" must be a string"
+    is TaggedJsonProblem.ExtraKey -> "unexpected key \"$key\""
+    is TaggedJsonProblem.BadValue -> "\"$value\" is not a valid $tomlType"
 }

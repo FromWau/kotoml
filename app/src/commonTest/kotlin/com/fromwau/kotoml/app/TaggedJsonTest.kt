@@ -43,9 +43,12 @@ class TaggedJsonTest {
 
     @Test
     fun `untagged JSON is refused with where it was found`() {
-        assertEquals(Result.Error(AppError.NotTaggedJson("$.a")), parseTaggedJson("""{"a": 1}"""))
         assertEquals(
-            Result.Error(AppError.NotTaggedJson("$.a[1]")),
+            Result.Error(AppError.NotTaggedJson("$.a", TaggedJsonProblem.Untagged)),
+            parseTaggedJson("""{"a": 1}"""),
+        )
+        assertEquals(
+            Result.Error(AppError.NotTaggedJson("$.a[1]", TaggedJsonProblem.BadValue("integer", "x"))),
             parseTaggedJson("""{"a": [{"type": "integer", "value": "1"}, {"type": "integer", "value": "x"}]}"""),
         )
     }
@@ -61,7 +64,7 @@ class TaggedJsonTest {
         )
         for ((type, value) in mismatches) {
             assertEquals(
-                Result.Error(AppError.NotTaggedJson("$.a")),
+                Result.Error(AppError.NotTaggedJson("$.a", TaggedJsonProblem.BadValue(type, value))),
                 parseTaggedJson("""{"a": {"type": "$type", "value": "$value"}}"""),
                 "$type with $value",
             )
@@ -114,6 +117,9 @@ class TaggedJsonTest {
         assertTrue(parseTaggedJson(json) is Result.Success)
     }
 
+    private fun badValue(type: String, value: String): Result<TomlDocument, AppError> =
+        Result.Error(AppError.NotTaggedJson("$.a", TaggedJsonProblem.BadValue(type, value)))
+
     private fun scalar(type: String, value: String): Result<TomlDocument, AppError> =
         parseTaggedJson("""{"a": {"type": "$type", "value": "$value"}}""")
 
@@ -121,7 +127,7 @@ class TaggedJsonTest {
     fun `integers TOML does not spell or that overflow 64 bits are refused`() {
         val refused = listOf("007", "1__0", "_1", " 1", "1 ", "", "-", "1.5", "\u0661\u0662", "9223372036854775808")
         for (value in refused) {
-            assertEquals(Result.Error(AppError.NotTaggedJson("$.a")), scalar("integer", value), "integer $value")
+            assertEquals(badValue("integer", value), scalar("integer", value), "integer $value")
         }
     }
 
@@ -139,7 +145,7 @@ class TaggedJsonTest {
             "0x1p3", "1f", "1d", " 1.0", "Infinity", "NaN", "1e400", "01.5", ".5", "1.", "1e", "inf ", "",
         )
         for (value in refused) {
-            assertEquals(Result.Error(AppError.NotTaggedJson("$.a")), scalar("float", value), "float $value")
+            assertEquals(badValue("float", value), scalar("float", value), "float $value")
         }
     }
 
@@ -152,5 +158,60 @@ class TaggedJsonTest {
         for (value in read) {
             assertTrue(scalar("float", value) is Result.Success, "float $value")
         }
+    }
+
+    private fun problem(json: String): Result<TomlDocument, AppError> = parseTaggedJson(json)
+
+    @Test
+    fun `a root that is not an object is refused at the root`() {
+        assertEquals(Result.Error(AppError.NotTaggedJson("$", TaggedJsonProblem.RootNotObject)), problem("[1]"))
+    }
+
+    @Test
+    fun `an unknown type is named`() {
+        assertEquals(
+            Result.Error(AppError.NotTaggedJson("$.a", TaggedJsonProblem.UnknownType("bogus"))),
+            problem("""{"a":{"type":"bogus","value":"x"}}"""),
+        )
+    }
+
+    @Test
+    fun `a tagged value without a value is refused at its own key`() {
+        assertEquals(
+            Result.Error(AppError.NotTaggedJson("$.a", TaggedJsonProblem.MissingValue)),
+            problem("""{"a":{"type":"string"}}"""),
+        )
+    }
+
+    @Test
+    fun `a value that is not a JSON string is refused at its own key`() {
+        assertEquals(
+            Result.Error(AppError.NotTaggedJson("$.a", TaggedJsonProblem.ValueNotString)),
+            problem("""{"a":{"type":"integer","value":5}}"""),
+        )
+    }
+
+    @Test
+    fun `an extra key beside type and value is named`() {
+        assertEquals(
+            Result.Error(AppError.NotTaggedJson("$.a", TaggedJsonProblem.ExtraKey("extra"))),
+            problem("""{"a":{"type":"string","value":"x","extra":1}}"""),
+        )
+    }
+
+    @Test
+    fun `a table with a key named type still reads as a table`() {
+        val json = """{"t":{"type":{"type":"string","value":"x"},"value":{"type":"integer","value":"1"}}}"""
+        val document = when (val parsed = problem(json)) {
+            is Result.Success -> parsed.value
+            is Result.Error -> fail("${parsed.error}")
+        }
+        assertEquals(json, document.toTaggedJson().toString())
+    }
+
+    @Test
+    fun `the human text says where and what`() {
+        val error = AppError.NotTaggedJson("$.a", TaggedJsonProblem.BadValue("integer", "x"))
+        assertEquals("not toml-test's tagged JSON at $.a: \"x\" is not a valid integer", error.describe())
     }
 }

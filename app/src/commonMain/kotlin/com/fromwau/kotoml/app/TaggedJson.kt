@@ -85,7 +85,7 @@ internal fun parseTaggedJson(text: String): Result<TomlDocument, AppError> {
     } catch (error: SerializationException) {
         return Err(AppError.InvalidJson(error.message))
     }
-    if (json !is JsonObject) return Err(AppError.NotTaggedJson("$"))
+    if (json !is JsonObject) return notTagged("$", TaggedJsonProblem.RootNotObject)
     val table = Table()
     for ((key, element) in json) {
         when (val value = element.toValue("$.$key")) {
@@ -109,7 +109,9 @@ private fun JsonElement.toValue(path: String): Result<Value, AppError> {
             return Ok(Value.Array(array))
         }
         is JsonObject -> {
-            scalarOrNull()?.let { (type, text) -> return scalarValue(type, text)?.let { Ok(it) } ?: notTagged(path) }
+            // A table's own `type` key holds a tagged object, never a string, so a string here tags a value.
+            val type = get("type")
+            if (type is JsonPrimitive && type.isString) return taggedValue(type.content, path)
             val table = InlineTable()
             for ((key, element) in this) {
                 when (val value = element.toValue("$path.$key")) {
@@ -119,18 +121,29 @@ private fun JsonElement.toValue(path: String): Result<Value, AppError> {
             }
             return Ok(Value.InlineTable(table))
         }
-        else -> return notTagged(path)
+        else -> return notTagged(path, TaggedJsonProblem.Untagged)
     }
 }
 
-private fun notTagged(path: String): Result<Nothing, AppError> = Err(AppError.NotTaggedJson(path))
+private fun notTagged(
+    path: String,
+    reason: TaggedJsonProblem,
+): Result<Nothing, AppError> = Err(AppError.NotTaggedJson(path, reason))
 
-/** The type and text of a tagged scalar, or null when this object is a table. */
-private fun JsonObject.scalarOrNull(): Pair<String, String>? {
-    if (keys != setOf("type", "value")) return null
-    val type = (get("type") as? JsonPrimitive)?.takeIf { it.isString }?.content ?: return null
-    val value = (get("value") as? JsonPrimitive)?.takeIf { it.isString }?.content ?: return null
-    return type to value
+private val TOML_TYPES =
+    setOf("string", "integer", "float", "bool", "datetime", "datetime-local", "date-local", "time-local")
+
+/** The value this object, tagged [type], describes. */
+private fun JsonObject.taggedValue(
+    type: String,
+    path: String,
+): Result<Value, AppError> {
+    if (type !in TOML_TYPES) return notTagged(path, TaggedJsonProblem.UnknownType(type))
+    val value = get("value") ?: return notTagged(path, TaggedJsonProblem.MissingValue)
+    if (value !is JsonPrimitive || !value.isString) return notTagged(path, TaggedJsonProblem.ValueNotString)
+    keys.firstOrNull { it != "type" && it != "value" }?.let { return notTagged(path, TaggedJsonProblem.ExtraKey(it)) }
+    return scalarValue(type, value.content)?.let { Ok(it) }
+        ?: notTagged(path, TaggedJsonProblem.BadValue(type, value.content))
 }
 
 private fun scalarValue(type: String, text: String): Value? = when (type) {
