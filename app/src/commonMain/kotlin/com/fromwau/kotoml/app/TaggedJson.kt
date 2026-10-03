@@ -47,6 +47,12 @@ private fun Value.tagged(): JsonElement = when (this) {
 private fun scalar(type: String, value: String): JsonElement =
     JsonObject(mapOf("type" to JsonPrimitive(type), "value" to JsonPrimitive(value)))
 
+/** [text] read as a TOML value, keeping its spelling; null for text TOML does not read or that has spaces around it. */
+private fun tomlNumber(text: String): Value? {
+    if (text.isEmpty() || text.first().isWhitespace() || text.last().isWhitespace()) return null
+    return (Value.parse(text) as? Result.Success)?.value
+}
+
 /** TOML's limit, plus the root object and the object that tags a scalar. */
 private const val MAX_JSON_NESTING = TomlDocument.NESTING_LIMIT + 2
 
@@ -129,12 +135,11 @@ private fun JsonObject.scalarOrNull(): Pair<String, String>? {
 
 private fun scalarValue(type: String, text: String): Value? = when (type) {
     "string" -> Value.String(text)
-    "integer" -> text.toLongOrNull()?.let { Value.Integer(it) }
-    "float" -> when (text) {
-        "nan", "+nan", "-nan" -> Value.Float(Double.NaN)
-        "inf", "+inf" -> Value.Float(Double.POSITIVE_INFINITY)
-        "-inf" -> Value.Float(Double.NEGATIVE_INFINITY)
-        else -> text.toDoubleOrNull()?.let { Value.Float(it) }
+    "integer" -> tomlNumber(text) as? Value.Integer
+    "float" -> when (val number = tomlNumber(text)) {
+        is Value.Float -> number
+        is Value.Integer -> Value.Float(number.value.toDouble())
+        else -> null
     }
     "bool" -> text.toBooleanStrictOrNull()?.let { Value.Boolean(it) }
     "datetime", "datetime-local", "date-local", "time-local" -> when (val parsed = Datetime.parse(text)) {

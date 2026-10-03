@@ -113,4 +113,44 @@ class TaggedJsonTest {
         val json = """{"a":{"type":"string","value":"${text.replace("\\", "\\\\").replace("\"", "\\\"")}"}}"""
         assertTrue(parseTaggedJson(json) is Result.Success)
     }
+
+    private fun scalar(type: String, value: String): Result<TomlDocument, AppError> =
+        parseTaggedJson("""{"a": {"type": "$type", "value": "$value"}}""")
+
+    @Test
+    fun `integers TOML does not spell or that overflow 64 bits are refused`() {
+        val refused = listOf("007", "1__0", "_1", " 1", "1 ", "", "-", "1.5", "\u0661\u0662", "9223372036854775808")
+        for (value in refused) {
+            assertEquals(Result.Error(AppError.NotTaggedJson("$.a")), scalar("integer", value), "integer $value")
+        }
+    }
+
+    @Test
+    fun `integers in any TOML spelling are read`() {
+        val read = listOf("0", "42", "-17", "+5", "1_000", "0x10", "0o17", "0b101", "9223372036854775807")
+        for (value in read) {
+            assertTrue(scalar("integer", value) is Result.Success, "integer $value")
+        }
+    }
+
+    @Test
+    fun `floats TOML does not spell or that overflow are refused`() {
+        val refused = listOf(
+            "0x1p3", "1f", "1d", " 1.0", "Infinity", "NaN", "1e400", "01.5", ".5", "1.", "1e", "inf ", "",
+        )
+        for (value in refused) {
+            assertEquals(Result.Error(AppError.NotTaggedJson("$.a")), scalar("float", value), "float $value")
+        }
+    }
+
+    @Test
+    fun `floats in any TOML spelling and integer spellings are read`() {
+        val read = listOf(
+            "0", "100", "-0.0", "3.14", "+1.0", "1_000.5", "1e10", "1.0E10", "4.9E-324", "6.02e+23",
+            "inf", "+inf", "-inf", "nan", "+nan", "-nan",
+        )
+        for (value in read) {
+            assertTrue(scalar("float", value) is Result.Success, "float $value")
+        }
+    }
 }
