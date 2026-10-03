@@ -206,17 +206,17 @@ section 1.
 
 | upstream | Kotlin | status | tests |
 |---|---|---|---|
-| `DocumentMut::new`, `Default` | `DocumentMut()` | done | `EditUnitTest.documentDefaultRoundtrip` |
-| `DocumentMut::as_item`, `as_item_mut`, `into_item`, `as_table`, `as_table_mut`, `into_table`, `iter`, `set_trailing`, `trailing` | same names; the trailing text is a `String` | done | `EditTest` |
-| `impl FromStr for DocumentMut` | `DocumentMut.parse(String): Result<DocumentMut, TomlParseError>` | done | `EditTest`, `ComplianceParseTest` |
+| `DocumentMut::new`, `Default` | `TomlDocument()` | done | `EditUnitTest.documentDefaultRoundtrip` |
+| `DocumentMut::as_item`, `as_item_mut`, `into_item`, `as_table`, `as_table_mut`, `into_table` | `root: Table` | done | `EditTest`, `VisitExampleTest` |
+| `DocumentMut::iter` | `TomlDocument` is an `Iterable<Pair<String, Item>>` over the root table | done | `TomlDocumentTest` |
+| `DocumentMut::set_trailing`, `trailing` | `var trailing: String` | done | `EditTest.testAddRootDecor`, `TomlDocumentTest` |
+| `impl FromStr for DocumentMut` | `TomlDocument.parse(String)` and `parse(ByteArray)`, both `Result<TomlDocument, TomlParseError>` | done | `EditTest`, `ComplianceParseTest` |
 | `impl Display for DocumentMut` | `toString()`, keeping line endings, spellings and dotted-key order (see section 2) | done | `EditTest`, `PreservationTest`, `SuiteTest.roundTrips*` |
 | `impl Index<&str> / IndexMut<&str> for DocumentMut` | `operator get`, `operator set` | done | `EditTest` |
-| `impl Deref / DerefMut<Target = Table> for DocumentMut` | `asTable()`, plus forwards for `getOrNull`, `containsKey`, `put`, `remove`, `getOrPut`, `size`, `isEmpty`, the `operator set` overloads, and `var decor` for `decor` / `decor_mut` | done | `EditTest.testAddRootDecor`, `SlotSemanticsTest` |
-| `impl From<Table> for DocumentMut` | `DocumentMut(Table)` | done | |
-| `Document::new`, `Default` | `Document()` | done | |
-| `Document::parse`, `as_item`, `into_item`, `as_table`, `into_table`, `iter`, `trailing`, `raw`, `into_mut` | same names; `trailing()` is the text as a `String` | done | every `DocumentMut.parse` goes through them |
-| `impl FromStr for Document<String>` | `Document.parse` | done | |
-| `impl Deref<Target = Table> for Document` | `asTable()`, `operator get` | done | |
+| `impl Deref / DerefMut<Target = Table> for DocumentMut` | `root`, plus forwards for `getOrNull`, `containsKey`, `operator contains`, `put`, `remove`, `getOrPut`, `size`, `isEmpty`, the `operator set` overloads, and `var decor` for `decor` / `decor_mut` | done | `EditTest.testAddRootDecor`, `SlotSemanticsTest` |
+| `impl From<Table> for DocumentMut` | `TomlDocument(Table)` | done | |
+| `impl Clone for DocumentMut` | `copy()` | done | `TomlDocumentTest` |
+| `Document::new`, `Default`, `parse`, `as_item`, `into_item`, `as_table`, `into_table`, `iter`, `trailing`, `raw`, `into_mut`, `FromStr`, `Deref<Target = Table>` | | n/a | `TomlDocument.parse` gives the editable document directly; see section 5 |
 | `ImDocument` (deprecated alias of `Document`) | | n/a | deprecated upstream since 0.23 |
 | `Item::None / Value / Table / ArrayOfTables`, `Default` | the constructors `Item()`, `Item(Value)`, `Item(Table)`, `Item(ArrayOfTables)` | done | `EditTest` |
 | `Item::or_insert` | | n/a | `Table.getOrPut`, or `if (item.isNone) item.assign(other)` |
@@ -290,7 +290,8 @@ section 1.
 | `visit_mut::VisitMut` and `visit_document_mut` … `visit_value_mut` | | n/a | as for `Visit`; `VisitExampleTest`, `EditDocTest.visitMutFloatToString` show how |
 | `de::*`, `ser::*`, `TomlError::custom`, `Serialize / Deserialize` impls | | serde-only | |
 | `toml_datetime::*` re-export | the date-time types in the same package | done | |
-| (none: an addition) | `TomlVersion`, and a `version` parameter on `DocumentMut.parse`, `Document.parse`, `Value.parse`, `Key.parse`, `Key.parsePath` | added | `TomlVersionTest`, `SuiteTest.*Toml100` |
+| (none: an addition) | `TomlVersion`, and a `version` parameter on `TomlDocument.parse`, `TomlDocument.read`, `Value.parse`, `Key.parse`, `Key.parsePath` | added | `TomlVersionTest`, `SuiteTest.*Toml100` |
+| (none: an addition) | `TomlDocument.read(Source)` and `TomlDocument.writeTo(Sink)` over kotlinx-io, failing with `TomlReadError` (`TomlIoError` or `Parse`) and `TomlIoError` | added | `TomlDocumentTest`, `EditDocTest.moduleReadmeReadAndWrite` |
 
 ## 4. Upstream tests
 
@@ -735,8 +736,10 @@ commands of [`:app`](../app/README.md) and compares their output by its own rule
 | Writing a `Table` or `ArrayOfTables` into an `InlineTable` slot (`*item = other`, `TableLike::entry(…).or_insert`, an index on an empty item) | stores it; a table prints as dotted keys, an array of tables not at all | `TomlEditError.NotAValue`, nothing written; `putItem` converts the item to an inline table or array, as `TableLike::insert` does | an inline table holds values; a dotted `InlineTable` prints the same dotted keys, as `EditTest.tableUnderInline` shows |
 | `Array::insert / replace / remove`, `ArrayOfTables::insert / replace / remove`, `IndexMut` on a scalar, `TableLike::insert` of an empty item into an inline table | panic | `TomlEditError` | nothing throws |
 | `IndexMut<&str> for InlineTable` on a missing key | panics | `inlineTable[key] = value` adds the key | Kotlin's `[]=` is a write, as `MutableMap.set` is |
-| `DocumentMut::as_table` when the root item was made a non-table | panics | resets the root to an empty table | nothing throws |
-| `Document` | immutable by borrow rules | editable through its items | Kotlin cannot hand out read-only views of mutable classes; documented as read-only |
+| `DocumentMut` | named `DocumentMut`, beside the read-only `Document` | `TomlDocument`, the one document type | there is no second document type to tell it apart from |
+| `Document` | a read-only parse result that borrows its input, turned editable with `into_mut` | not public | Kotlin cannot hand out a read-only view of mutable classes, so a second type would only add a step |
+| The root of a `DocumentMut` | an `Item`, reached as an item or a table, that can be made to hold a non-table | `root: Table` | a document's root is always a table, and one property says so |
+| Reading and writing a document | `&str` in through `FromStr`, text out through `Display` | also `TomlDocument.read(Source)` and `writeTo(Sink)`, failing with typed `TomlReadError` and `TomlIoError` | a Kotlin caller holding a file or stream uses kotlinx-io, and an I/O failure arrives as a value like a parse failure |
 | `Display` into a writer that refuses text | stops part-way, propagating `fmt::Error` | `toString()` cannot fail; writing that string to an `FmtWrite` fails before anything is written | Kotlin's `toString` has no error channel |
 | Line endings | every line printed with LF | each line keeps its own ending; an inserted line ends like the line before | the suite's round trip (`valid/newline-crlf`); upstream's `document_display_propagates_write_errors` therefore expects CRLF kept |
 | A key spelled differently on several lines | every occurrence printed with the first spelling | each line keeps its own while the shared keys are unchanged | the suite's round trip (`valid/key/dotted-01`, `valid/table/with-literal-string`); upstream's `test_key_unification` therefore expects each header as written |

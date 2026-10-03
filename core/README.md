@@ -21,8 +21,9 @@ dependencies {
 }
 ```
 
-KMP consumers put it in `commonMain`. kern's `result` and `kotlinx-serialization-core` come along as `api`,
-since `Result` and the `@Serializable` error types appear in this module's signatures. The JVM and Android
+KMP consumers put it in `commonMain`. kern's `result`, `kotlinx-serialization-core` and `kotlinx-io-core` come
+along as `api`, since `Result`, the `@Serializable` error types and kotlinx-io's `Source` and `Sink` appear in this
+module's signatures. The JVM and Android
 artifacts need a JDK 25 toolchain, and Android needs `minSdk` 26. Published versions are listed at
 [maven.frommhund.xyz](https://maven.frommhund.xyz/#/releases/com/fromwau/kotoml).
 
@@ -30,7 +31,7 @@ artifacts need a JDK 25 toolchain, and Android needs `minSdk` 26. Published vers
 
 ```kotlin
 val text = "\n\"hello\" = 'toml!' # comment\n['a'.b]\n"
-val doc = DocumentMut.parse(text).getOrNull()!!
+val doc = TomlDocument.parse(text).getOrNull()!!
 check(doc.toString() == text)
 
 doc["a"]["b"]["c"]["d"] = "hello"
@@ -47,14 +48,14 @@ instead. The `item["key"] = value` form drops that error; call `item.set("key", 
 ## Make and read values
 
 ```kotlin
-val doc = DocumentMut()
+val doc = TomlDocument()
 doc["port"] = Value.Integer(8080L, Decor(prefix = " ", suffix = " # default"))
 doc["when"] = Datetime(date = Date(year = 1979, month = 5, day = 27))
 // port = 8080 # default
 // when = 1979-05-27
 
 val port: Long? = doc["port"].longOrNull // 8080
-val spelled = DocumentMut.parse("n = 0x10\n").getOrNull()!!["n"].valueOrNull as Value.Integer
+val spelled = TomlDocument.parse("n = 0x10\n").getOrNull()!!["n"].valueOrNull as Value.Integer
 // spelled.value == 16, spelled.spelling == "0x10"
 ```
 
@@ -66,7 +67,7 @@ for any other kind.
 ## Tables and arrays
 
 ```kotlin
-val doc = DocumentMut.parse("[server]\nhosts = [\"alpha\"]\n").getOrNull()!!
+val doc = TomlDocument.parse("[server]\nhosts = [\"alpha\"]\n").getOrNull()!!
 doc["server"]["hosts"].arrayOrNull?.add("beta")
 val server = doc["server"].tableOrNull!!
 server.getOrPut("port") { Item(Value.Integer(8080L)) }
@@ -84,11 +85,38 @@ doc["client"] = tableOf("retries" to Item(Value.Integer(3L)))
 array of tables; `valueOrNull`, `tableOrNull` and their siblings read what it holds. Storing an item stores a
 copy, so editing the original afterwards does not change the document.
 
+A document's top-level keys live in its `root` table. The document itself offers the keyed calls (`get`, `set`,
+`getOrNull`, `contains`, `put`, `getOrPut`, `remove`, `size`) and iterates over the root's pairs; everything else
+a `Table` does, such as `sortValues()` or `key(name)`, goes through `doc.root`.
+
+## Read and write files
+
+```kotlin
+val path = Path("Cargo.toml")
+val read = SystemFileSystem.source(path).buffered().use { TomlDocument.read(it) }
+val doc = when (read) {
+    is Result.Success -> read.value
+    is Result.Error -> return println(
+        when (val error = read.error) {
+            is TomlIoError -> "cannot read $path: ${error.detail}"
+            is TomlReadError.Parse -> error.error.render(error.text)
+        },
+    )
+}
+doc["package"]["version"] = "0.2.0"
+SystemFileSystem.sink(path).buffered().use { doc.writeTo(it) }
+```
+
+`TomlDocument.read` takes any kotlinx-io `Source` and reads it to the end; `writeTo` takes any `Sink` and flushes
+it. Neither closes what it is given. A failure while reading or writing comes back as a `TomlIoError`, and text
+that is not TOML as a `TomlReadError.Parse` carrying the text it read, to render the error from. Opening the file
+is kotlinx-io's own call and throws its `IOException` when the file cannot be opened.
+
 ## Handle errors
 
 ```kotlin
 val text = "a = 1\na = 2\n"
-when (val parsed = DocumentMut.parse(text)) {
+when (val parsed = TomlDocument.parse(text)) {
     is Result.Success -> use(parsed.value)
     is Result.Error -> when (val reason = parsed.error.reason) {
         is TomlParseError.Reason.DuplicateKey -> println("`${reason.key}` is defined twice")
@@ -110,7 +138,8 @@ comments and a trailing comma in inline tables, the `\x` and `\e` escapes, and t
 ## Differences from `toml_edit`
 
 The types keep upstream's names (`Array` is `TomlArray`), and their members read like Kotlin's collections:
-`size` for `len`, `put` and `getOrPut` for `insert` and the entry API, `add` for `push`. Unchanged text prints back byte for byte, which goes past upstream: line endings are kept per
+`size` for `len`, `put` and `getOrPut` for `insert` and the entry API, `add` for `push`. A document is a
+`TomlDocument` whose `root` is its top-level table. Unchanged text prints back byte for byte, which goes past upstream: line endings are kept per
 line, each dotted key and header keeps its own spelling, and dotted keys keep the order they were read in.
 [PARITY.md](PARITY.md) lists every public item, every ported test, and every intended difference.
 

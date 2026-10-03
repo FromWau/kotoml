@@ -20,7 +20,7 @@ Published versions are listed at [maven.frommhund.xyz](https://maven.frommhund.x
 which reads without credentials.
 
 ```kotlin
-val doc = DocumentMut.parse("[package]\nname = \"kotoml\" # the name\n").getOrNull()!!
+val doc = TomlDocument.parse("[package]\nname = \"kotoml\" # the name\n").getOrNull()!!
 doc["package"]["version"] = "0.1.0"
 doc.toString() // "[package]\nname = \"kotoml\" # the name\nversion = \"0.1.0\"\n"
 ```
