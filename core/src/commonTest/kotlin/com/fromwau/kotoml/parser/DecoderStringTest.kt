@@ -157,6 +157,9 @@ trimmed in raw strings.
                     "r",
                 ),
                 Literal(
+                    "t",
+                ),
+                Literal(
                     "\\",
                 ),
                 Literal(
@@ -347,6 +350,9 @@ Violets are blue
                 ),
                 Literal(
                     "r",
+                ),
+                Literal(
+                    "t",
                 ),
                 Literal(
                     "\\",

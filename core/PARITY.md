@@ -715,6 +715,7 @@ commands of [`:app`](../app/README.md) and compares their output by its own rule
 | `Date`, `Time` fields | `u16`, `u8`, `u32` | `Int` | Kotlin's unsigned types need a `u` suffix and conversions at every use; parsing still checks every range |
 | `Datetime` from a date or a time | `From<Date>`, `From<Time>` | `Datetime(date = …)`, `Datetime(time = …)` with the other parts defaulting to `null` | one constructor covers all four kinds |
 | `Value::fmt` | `fmt` | `resetFormatting()` | says what it does to the value |
+| The escapes a bad escape's error lists | `b`, `e`, `f`, `n`, `r`, `\`, `"`, `x`, `u`, `U` | adds `t`; under TOML 1.0 also leaves out `e` and `x` | `\t` is a valid escape; 1.0 has no `\e` or `\x` |
 | An integer prefix with no digits (`0x`, `0o`, `0b`) | "integer number overflowed" | `TomlParseError.Reason.MissingDigits(radix)`: "expected hexadecimal digits after `0x`", and `0o`, `0b` alike | nothing overflowed; the digits are missing |
 | `Item::into_value`, `into_table`, `into_array_of_tables`, `Table::into_inline_table`, `InlineTable::into_table`, `ArrayOfTables::into_array` | consume the source | `Item`'s are internal; `toInlineTable()`, `toTable()` and `toTomlArray()` convert a copy and leave the source as it is | Kotlin cannot consume a caller's variable, and a moved-out source left empty in the document would vanish from its printout |
 | `*place = value` through `&mut` | assignment | `Item.assign`, `holder.decor = …`, `array[i] = v`, `table[key] = v`, `put` | see "Items are slots, values are not" |

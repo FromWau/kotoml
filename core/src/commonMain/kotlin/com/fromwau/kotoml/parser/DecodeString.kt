@@ -16,6 +16,7 @@ private val EXPECTED_ESCAPES = listOf(
     Expected.Literal("f"),
     Expected.Literal("n"),
     Expected.Literal("r"),
+    Expected.Literal("t"),
     Expected.Literal("\\"),
     Expected.Literal("\""),
     Expected.Literal("x"),

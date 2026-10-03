@@ -66,7 +66,7 @@ TOML parse error at line 1, column 7
   |
 1 | s = "\x41"
   |       ^
-missing escaped value, expected `b`, `f`, `n`, `r`, `\`, `"`, `u`, `U`
+missing escaped value, expected `b`, `f`, `n`, `r`, `t`, `\`, `"`, `u`, `U`
 
 """,
         )
@@ -81,7 +81,7 @@ TOML parse error at line 1, column 4
   |
 1 | "a\e" = 1
   |    ^
-missing escaped value, expected `b`, `f`, `n`, `r`, `\`, `"`, `u`, `U`
+missing escaped value, expected `b`, `f`, `n`, `r`, `t`, `\`, `"`, `u`, `U`
 
 """,
         )
@@ -96,7 +96,7 @@ TOML parse error at line 1, column 7
   |
 1 | s = "\q"
   |       ^
-missing escaped value, expected `b`, `f`, `n`, `r`, `\`, `"`, `u`, `U`
+missing escaped value, expected `b`, `f`, `n`, `r`, `t`, `\`, `"`, `u`, `U`
 
 """,
             TomlDocument.parse(input, TomlVersion.V1_0).unwrapErr().render(input),
@@ -112,7 +112,7 @@ TOML parse error at line 1, column 4
   |
 1 | "a\q" = 1
   |    ^
-missing escaped value, expected `b`, `f`, `n`, `r`, `\`, `"`, `u`, `U`
+missing escaped value, expected `b`, `f`, `n`, `r`, `t`, `\`, `"`, `u`, `U`
 
 """,
             TomlDocument.parse(input, TomlVersion.V1_0).unwrapErr().render(input),
