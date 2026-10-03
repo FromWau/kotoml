@@ -104,7 +104,7 @@ public class TomlDocument internal constructor(
 
     /**
      * Removes [key] from the root table and returns its item, or null when it held none. The comment and blank
-     * lines above the key stay where they print; see [Table.remove].
+     * lines above the key, or above a table's first header, stay where they print; see [Table.remove].
      */
     public fun remove(key: String): Item? = root.remove(key)
 

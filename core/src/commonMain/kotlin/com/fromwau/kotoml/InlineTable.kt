@@ -260,9 +260,9 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
     /**
      * Removes [key] and returns its value, or null when it held none.
      *
-     * Only the entry's own text goes: the key, its value and the comma after it. In a table written over several
-     * lines, the comment and blank lines above the entry stay where they print, now above the next entry or before
-     * the closing `}`. Upstream drops those lines with the key.
+     * Only the entry's own text goes: the key, its value, its comma and, for an entry on a line of its own, the
+     * rest of that line with the comment on it. The comment and blank lines above the entry stay where they print,
+     * now above the next entry or before the closing `}`. Upstream drops those lines with the key.
      */
     public fun remove(key: String): Value? {
         val entry = items.getEntry(key) ?: return null
@@ -275,8 +275,8 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
     override fun removeItem(key: String): Item? = remove(key)?.let { Item(it) }
 
     /**
-     * Keeps only the pairs [predicate] accepts, visiting them in order. The lines above a removed pair stay, as
-     * [remove] keeps them.
+     * Keeps only the pairs [predicate] accepts, visiting them in order. A removed pair's own text goes and the
+     * lines above it stay, as [remove] says.
      */
     public fun retainAll(predicate: (String, Value) -> Boolean) {
         val removed = items.entries().filterNot { entry ->
@@ -289,16 +289,57 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
 
     private fun keepLinesAbove(removed: Collection<KeyValue>) {
         if (removed.isEmpty()) return
+        if (!isDotted) {
+            leaveTextAfterRemoved(bodyLines(), RemovedLines(removed))
+            return
+        }
         keepLinesAbove(
             lines = bodyLines(),
             removed = RemovedLines(removed),
-            isDotted = isDotted,
+            isDotted = true,
             linesAbove = { linesAboveElement(it.entry.key.rawLeafDecor.prefix) },
             keyDefault = DEFAULT_INLINE_KEY_DECOR.first,
-            keep = { kept ->
-                if (isDotted) items.keptLines += kept else rawTrailing = RawString.from(kept.text + trailing)
-            },
+            keep = { items.keptLines += it },
         )
+    }
+
+    // Walks back from the end, so the text after a removed entry already holds what removing later ones left.
+    private fun leaveTextAfterRemoved(
+        lines: List<BodyLine>,
+        removed: RemovedLines,
+    ) {
+        var next: BodyLine? = null
+        for ((index, line) in lines.withIndex().reversed()) {
+            if (line !in removed) {
+                next = line
+                continue
+            }
+            val replacement = when (line) {
+                is KeptLines -> line.text + textBefore(next)
+                is VisualValue -> textAfterRemovedElement(
+                    prefix = line.entry.key.rawLeafDecor.prefix?.asStr().orEmpty(),
+                    suffix = line.value.rawDecor().suffix?.asStr().orEmpty(),
+                    next = textBefore(next),
+                    nextIsElement = next is VisualValue,
+                ) ?: continue
+            }
+            when (next) {
+                is VisualValue -> next.entry.key.rawLeafDecor.prefix = RawString.from(replacement)
+                is KeptLines -> next.text = replacement
+                null -> {
+                    trailing = replacement
+                    // The comma before the removed entry ends its line now, ahead of the lines kept.
+                    val survivorBefore = lines.subList(0, index).any { it is VisualValue && it !in removed }
+                    if (line is VisualValue && survivorBefore) trailingComma = true
+                }
+            }
+        }
+    }
+
+    private fun textBefore(line: BodyLine?): String = when (line) {
+        is VisualValue -> line.entry.key.rawLeafDecor.prefix?.asStr().orEmpty()
+        is KeptLines -> line.text
+        null -> trailing
     }
 
     /** Sets the key of every pair of [pairs] to its value, in order, as `table[key] = value` does. */

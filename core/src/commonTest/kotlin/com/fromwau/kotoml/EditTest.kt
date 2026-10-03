@@ -619,7 +619,7 @@ name = "dep"
     }
 
     @Test
-    fun `removing a table removes its sub-tables and keeps the comments above their headers`() {
+    fun `removing a table removes its sub-tables and keeps only the comment above its first header`() {
         given("""
         title = "not relevant"
 
@@ -665,16 +665,8 @@ name = "dep"
         [b] # comment 2.1
         key2 = 2 # comment 2.2
 
-        # comment 3
-
-
            # comment on some other table
            [some.other.table]
-
-
-
-
-        # comment 4
 
 
     """)
@@ -731,7 +723,6 @@ name = "dep"
 
         [dependencies]
         nom = "4.0" # future is here
-
 
 """)
     }

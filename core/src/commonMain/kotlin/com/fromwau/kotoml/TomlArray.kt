@@ -155,48 +155,48 @@ public class TomlArray() : Iterable<Value> {
     /**
      * Removes the element at [index].
      *
-     * Only the element's own text goes: the value and the comma after it. In an array written over several lines,
-     * the comment and blank lines above the element stay where they print, now above the next element or before
-     * the closing `]`. Upstream drops those lines with the element.
+     * Only the element's own text goes: the value, its comma and, for an element on a line of its own, the rest of
+     * that line with the comment on it. The comment and blank lines above the element stay where they print, now
+     * above the next element or before the closing `]`. Upstream drops those lines with the element.
      *
      * @return the removed element, or [TomlEditError.IndexOutOfBounds] when there is no element at [index].
      */
     public fun removeAt(index: Int): Result<Value, TomlEditError> {
         val removed = get(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
-        keepLinesAbove(listOf(values[index]))
-        values.removeAt(index)
+        removeSlot(index)
         return Ok(removed)
     }
 
     /**
-     * Keeps only the values [predicate] accepts, in order, visiting each once. The lines above a removed value
-     * stay, as [removeAt] keeps them.
+     * Keeps only the values [predicate] accepts, in order, visiting each once. A removed value's own text goes and
+     * the lines above it stay, as [removeAt] says.
      */
     public fun retainAll(predicate: (Value) -> Boolean) {
-        val removed = values.filterNot { item -> item.valueOrNull?.let(predicate) ?: false }
-        keepLinesAbove(removed)
-        val removedSlots = removed.toHashSet()
-        values.removeAll { it in removedSlots }
+        val removed = values.indices.filterNot { index -> values[index].valueOrNull?.let(predicate) ?: false }
+        for (index in removed.asReversed()) removeSlot(index)
     }
 
-    private fun keepLinesAbove(removed: List<Item>) {
-        val removedSlots = removed.toHashSet()
-        var pending = ""
-        var survivors = 0
-        for (item in values) {
-            val decor = item.valueOrNull?.rawDecor() ?: continue
-            if (item in removedSlots) {
-                pending += linesAboveElement(decor.prefix)
-                continue
+    private fun removeSlot(index: Int) {
+        val decor = values[index].valueOrNull?.rawDecor()
+        if (decor != null) {
+            val next = values
+                .subList(index + 1, values.size)
+                .firstNotNullOfOrNull { it.valueOrNull }
+            val replacement = textAfterRemovedElement(
+                prefix = decor.prefix?.asStr().orEmpty(),
+                suffix = decor.suffix?.asStr().orEmpty(),
+                next = next?.rawDecor()?.prefix?.asStr() ?: trailing,
+                nextIsElement = next != null,
+            )
+            if (replacement != null && next != null) {
+                next.rawDecor().prefix = RawString.from(replacement)
+            } else if (replacement != null) {
+                trailing = replacement
+                // The comma before the removed element ends its line now, ahead of the lines kept.
+                if (values.subList(0, index).any { it.valueOrNull != null }) trailingComma = true
             }
-            if (pending.isNotEmpty()) {
-                val default = if (survivors == 0) DEFAULT_LEADING_VALUE_DECOR.first else DEFAULT_VALUE_DECOR.first
-                decor.prependToPrefix(pending, default)
-                pending = ""
-            }
-            survivors++
         }
-        if (pending.isNotEmpty()) trailing = pending + trailing
+        values.removeAt(index)
     }
 
     /** Sorts the values with [comparator]. The sort is stable. */

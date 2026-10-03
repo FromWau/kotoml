@@ -129,16 +129,22 @@ class RemovalKeepsCommentsTest {
     }
 
     @Test
-    fun `a table leaves the lines above each of its headers`() {
+    fun `a table leaves the lines above its first header and takes those above its sub-tables`() {
         val text = "# about a\n[a]\nx = 1\n# about c\n[c]\n# about a.b\n[a.b]\ny = 2\n"
-        assertEquals("# about a\n# about c\n[c]\n# about a.b\n", removing(text) { it.remove("a") })
+        assertEquals("# about a\n# about c\n[c]\n", removing(text) { it.remove("a") })
+    }
+
+    @Test
+    fun `a table whose sub-table prints first leaves only the lines above that header`() {
+        val text = "# about a.b\n[a.b]\ny = 2\n# about c\n[c]\n# about a\n[a]\nx = 1\n"
+        assertEquals("# about a.b\n# about c\n[c]\n", removing(text) { it.remove("a") })
     }
 
     private val fleet = "# first\n[[x]]\nn = 1\n\n# second\n[[x]]\nn = 2\n\n# after\n[y]\n"
 
     @Test
-    fun `an array of tables leaves the lines above each header`() {
-        assertEquals("# first\n\n# second\n\n# after\n[y]\n", removing(fleet) { it.remove("x") })
+    fun `an array of tables leaves the lines above its first header only`() {
+        assertEquals("# first\n\n# after\n[y]\n", removing(fleet) { it.remove("x") })
     }
 
     @Test
@@ -192,6 +198,40 @@ class RemovalKeepsCommentsTest {
             "ports = [\n  # http\n  80,\n  # https\n]\n",
             removing(ports) { it["ports"].arrayOrNull!!.removeAt(1).unwrap() },
         )
+    }
+
+    @Test
+    fun `the first array element takes the comment on its line`() {
+        val text = "ports = [\n  80, # http\n  443, # https\n]\n"
+        assertEquals(
+            "ports = [\n  443, # https\n]\n",
+            removing(text) { it["ports"].arrayOrNull!!.removeAt(0).unwrap() },
+        )
+    }
+
+    @Test
+    fun `the last array element without a trailing comma leaves the closing bracket on its own line`() {
+        val text = "ports = [\n  80, # http\n  443 # https\n]\n"
+        assertEquals(
+            "ports = [\n  80, # http\n]\n",
+            removing(text) { it["ports"].arrayOrNull!!.removeAt(1).unwrap() },
+        )
+    }
+
+    @Test
+    fun `an array element sharing its line leaves the comment on that line`() {
+        val text = "ports = [\n  80, 443, # web\n  8080,\n]\n"
+        assertEquals(
+            "ports = [\n  80, # web\n  8080,\n]\n",
+            removing(text) { it["ports"].arrayOrNull!!.removeAt(1).unwrap() },
+        )
+    }
+
+    @Test
+    fun `an inline table entry takes the comment on its line`() {
+        val text = "t = {\n  a = 1, # one\n  b = 2 # two\n}\n"
+        assertEquals("t = {\n  b = 2 # two\n}\n", removing(text) { it["t"].inlineTableOrNull!!.remove("a") })
+        assertEquals("t = {\n  a = 1, # one\n}\n", removing(text) { it["t"].inlineTableOrNull!!.remove("b") })
     }
 
     @Test

@@ -321,11 +321,12 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     /**
      * Removes [key] and returns its item, or null when it held none.
      *
-     * Only the key's own text goes: its line, from the key to the end of its value and the comment after it, or
-     * for a table its header and body. The comment and blank lines above it stay where they print, now above
-     * whatever follows: the next key, the next table header, or the end of the document. Removing a table keeps
-     * the lines above each of its headers, those of the tables under it and of an array of tables included.
-     * Upstream drops those lines with the key.
+     * The comment and blank lines above the key stay where they print, now above whatever follows: the next key,
+     * the next table header, or the end of the document. What belongs to the key goes with it: its line, from the
+     * key to the end of its value and the comment after it, with every comment inside a multi-line value. For a
+     * table or an array of tables that is everything after its first header: its headers, its bodies, and the
+     * comment and blank lines above the headers of the tables under it and of its later elements. Upstream drops
+     * the lines above the key too.
      */
     public fun remove(key: String): Item? {
         val entry = items.getEntry(key) ?: return null

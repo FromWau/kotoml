@@ -44,7 +44,7 @@ public class ArrayOfTables() : Iterable<Table> {
     /** Whether there are no tables. */
     public fun isEmpty(): Boolean = size == 0
 
-    /** Removes every table, keeping the lines above each header as [removeAt] does. */
+    /** Removes every table, each as [removeAt] removes it, so the lines above each `[[header]]` stay. */
     public fun clear() {
         retainAll { false }
     }
@@ -88,9 +88,9 @@ public class ArrayOfTables() : Iterable<Table> {
     }
 
     /**
-     * Removes the table at [index]: its `[[header]]` line and its body, with the tables under it. The comment and
-     * blank lines above each header removed stay where they print, now above whatever follows. Upstream drops
-     * those lines with the table.
+     * Removes the table at [index]: its `[[header]]` line and its body, with the tables under it and the comment and
+     * blank lines above their headers. The lines above its own `[[header]]` stay where they print, now above
+     * whatever follows. Upstream drops those lines with the table.
      *
      * @return the removed table, or [TomlEditError.IndexOutOfBounds] when there is no table at [index].
      */
@@ -102,8 +102,8 @@ public class ArrayOfTables() : Iterable<Table> {
     }
 
     /**
-     * Keeps only the tables [predicate] accepts, in order. The lines above a removed table's headers stay, as
-     * [removeAt] keeps them.
+     * Keeps only the tables [predicate] accepts, in order. A removed table goes as [removeAt] removes it, so the
+     * lines above its `[[header]]` stay.
      */
     public fun retainAll(predicate: (Table) -> Boolean) {
         val removed = values.filterNot { item -> item.tableOrNull?.let(predicate) ?: false }

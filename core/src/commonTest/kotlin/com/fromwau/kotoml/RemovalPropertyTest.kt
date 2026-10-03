@@ -18,7 +18,8 @@ import kotlin.test.assertEquals
  * - a key/value line before the first header that starts with the key: from the start of the line its key is on
  *   to the end of the line its value ends on, the comment after it included;
  * - a header whose path starts with the key, and its body: from the start of the header's line to the end of
- *   the last key/value line under it. The comment and blank lines after that line belong to what follows.
+ *   the last key/value line under it. The comment and blank lines after that line belong to what follows;
+ * - the comment and blank lines above every such header but the first, which sit inside what the key removes.
  */
 class RemovalPropertyTest {
 
@@ -99,6 +100,7 @@ class RemovalPropertyTest {
     ): List<IntRange> {
         val statements = statements(text, version)
         val ranges = mutableListOf<IntRange>()
+        var seenHeader = false
         var index = 0
         while (index < statements.size) {
             val statement = statements[index]
@@ -109,7 +111,11 @@ class RemovalPropertyTest {
             }
             var last = index
             while (last + 1 < statements.size && !statements[last + 1].isHeader) last++
-            if (statement.owner == key) ranges += statement.lineStart until statements[last].end
+            if (statement.owner == key) {
+                val start = if (seenHeader) statements.getOrNull(index - 1)?.end ?: 0 else statement.lineStart
+                ranges += start until statements[last].end
+                seenHeader = true
+            }
             index = last + 1
         }
         return ranges
