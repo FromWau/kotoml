@@ -132,15 +132,15 @@ class ListMergeTest {
     }
 
     @Test
-    fun `reordered elements move with their comments`() {
+    fun `reordered elements move with their comments and leave the blank lines in place`() {
         val result = merged(fleet) { it.copy(servers = it.servers.reversed()) }
         assertEquals(
             """
             name = "f"
+
             # fallback box
             [[servers]]
             host = "b"
-
             [[servers]]
             host = "a" # primary
             port = 80

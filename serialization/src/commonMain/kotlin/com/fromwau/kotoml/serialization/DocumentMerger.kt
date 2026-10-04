@@ -154,6 +154,7 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
             }
         }
         positionTables(merged, plan)
+        if (plan.movesElements) keepBlankLinesInPlace(merged, plan, old)
         // A kept element may land in another's slot, and must not take that slot's header comments.
         for ((index, table) in merged.withIndex()) {
             if (index < tables.size) tables.replace(index, table, keepDecor = false) else tables.add(table)
@@ -322,6 +323,37 @@ private fun TomlArray.layOutInserted(index: Int) {
     val nextPrefix = next.decor.prefix
     value.decor = Decor(prefix = nextPrefix)
     next.decor = next.decor.copy(prefix = nextPrefix?.let(::elementSeparator))
+}
+
+/**
+ * Gives each element from the document the blank lines above the header of the slot it lands in, keeping its own
+ * comment lines: blank lines space the array out where it stands, while a comment belongs to its element.
+ */
+private fun keepBlankLinesInPlace(
+    merged: List<StandardTable>,
+    plan: ListPlan,
+    old: List<StandardTable>,
+) {
+    val removed = plan.removed.toSet()
+    val slotBlankLines = old.indices
+        .filter { it !in removed }
+        .map { leadingBlankLines(old[it].decor.prefix.orEmpty()) }
+        .iterator()
+    for ((new, table) in merged.withIndex()) {
+        if (plan.sources[new] == ElementSource.Inserted || !slotBlankLines.hasNext()) continue
+        val prefix = table.decor.prefix.orEmpty()
+        table.decor = table.decor.copy(prefix = slotBlankLines.next() + prefix.removePrefix(leadingBlankLines(prefix)))
+    }
+}
+
+/** The whole blank lines [prefix] starts with, line breaks included. */
+private fun leadingBlankLines(prefix: String): String {
+    var end = 0
+    while (true) {
+        val lineBreak = prefix.indexOf('\n', end)
+        if (lineBreak < 0 || prefix.substring(end, lineBreak).isNotBlank()) return prefix.substring(0, end)
+        end = lineBreak + 1
+    }
 }
 
 /**

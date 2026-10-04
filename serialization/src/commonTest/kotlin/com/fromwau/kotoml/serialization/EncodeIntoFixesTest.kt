@@ -22,6 +22,12 @@ private data class ListenPorts(val ports: List<Int>)
 private data class TallyMap(val m: Map<String, Int>)
 
 @Serializable
+private data class Step(val n: Int)
+
+@Serializable
+private data class Steps(val s: List<Step>)
+
+@Serializable
 private data class Ratio(val d: Double)
 
 @Serializable
@@ -103,6 +109,18 @@ class EncodeIntoFixesTest {
             ListenPorts.serializer(),
             ListenPorts(listOf(8443, 8080)),
         ),
+    )
+
+    @Test
+    fun `reordered tables keep the blank lines where they were and take their comments along`() = assertEquals(
+        "# two\n[[s]]\nn = 2\n\n# one\n[[s]]\nn = 1\n",
+        encoded("# one\n[[s]]\nn = 1\n\n# two\n[[s]]\nn = 2\n", Steps.serializer(), Steps(listOf(Step(2), Step(1)))),
+    )
+
+    @Test
+    fun `reordered tables at the start of a file print no blank line first`() = assertEquals(
+        "[[s]]\nn = 2\n\n[[s]]\nn = 1\n",
+        encoded("[[s]]\nn = 1\n\n[[s]]\nn = 2\n", Steps.serializer(), Steps(listOf(Step(2), Step(1)))),
     )
 
     @Test

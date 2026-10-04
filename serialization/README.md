@@ -103,7 +103,8 @@ document.toString()
   no longer has is removed.
 - A list is merged into the document's list element by element, in the form the document wrote it: an array of
   tables stays one, and an inline array keeps its layout and the comment after it. An element equal to one the
-  document holds keeps that element's text and comments, even when it moved. A changed element updates the old
+  document holds keeps that element's text and comments, even when it moved; the blank lines above a moved table
+  stay where they were. A changed element updates the old
   element sharing the most values with it, as a nested class updates its table; in a list of scalars, it takes
   the next old element left over. A new element is inserted at its place. Where an old element was removed
   there, it takes over the lines above that element; elsewhere a table gets default formatting and an element

@@ -72,7 +72,7 @@ class ListLayoutTest {
             "[nodes.meta]\nzone = \"y\"\n"
         val result = merged<Cluster>(text) { Cluster(it.nodes.reversed()) }
         assertEquals(
-            "\n# second\n[[nodes]]\nname = \"b\"\n[nodes.meta]\nzone = \"y\"\n[[nodes]]\nname = \"a\"\n[nodes.meta]\n" +
+            "# second\n[[nodes]]\nname = \"b\"\n[nodes.meta]\nzone = \"y\"\n\n[[nodes]]\nname = \"a\"\n[nodes.meta]\n" +
                 "zone = \"x\" # here\n",
             result,
         )
