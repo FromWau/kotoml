@@ -26,6 +26,7 @@ public sealed interface ParseErrorReason {
     @SerialName("MultilineKey")
     public data class MultilineKey(val encoding: Encoding) : ParseErrorReason
 
+    /** A key that is not a bare, basic or literal key. */
     @Serializable
     @SerialName("InvalidKey")
     public data object InvalidKey : ParseErrorReason
@@ -35,18 +36,22 @@ public sealed interface ParseErrorReason {
     @SerialName("InvalidTable")
     public data object InvalidTable : ParseErrorReason
 
+    /** A value that is not a string, number, boolean, date-time, array or inline table. */
     @Serializable
     @SerialName("InvalidValue")
     public data object InvalidValue : ParseErrorReason
 
+    /** A bare key holding a character other than letters, digits, `-` and `_`. */
     @Serializable
     @SerialName("InvalidUnquotedKey")
     public data object InvalidUnquotedKey : ParseErrorReason
 
+    /** A line that starts like a key/value pair but is not one. */
     @Serializable
     @SerialName("InvalidKeyValuePair")
     public data object InvalidKeyValuePair : ParseErrorReason
 
+    /** Something inside `{ }` that is not a key/value pair. */
     @Serializable
     @SerialName("InvalidInlineTableElement")
     public data object InvalidInlineTableElement : ParseErrorReason
@@ -61,6 +66,7 @@ public sealed interface ParseErrorReason {
     @SerialName("UnquotedString")
     public data object UnquotedString : ParseErrorReason
 
+    /** An empty bare key, as in `a..b`; an empty key must be quoted, `""`. */
     @Serializable
     @SerialName("EmptyUnquotedKey")
     public data object EmptyUnquotedKey : ParseErrorReason
@@ -80,6 +86,7 @@ public sealed interface ParseErrorReason {
     @SerialName("LoneCarriageReturn")
     public data object LoneCarriageReturn : ParseErrorReason
 
+    /** A decimal number with a leading zero, such as `01`. */
     @Serializable
     @SerialName("UnexpectedLeadingZero")
     public data object UnexpectedLeadingZero : ParseErrorReason
@@ -129,26 +136,32 @@ public sealed interface ParseErrorReason {
     @SerialName("ExtraEquals")
     public data object ExtraEquals : ParseErrorReason
 
+    /** A key with no `=` after it. */
     @Serializable
     @SerialName("KeyWithoutValue")
     public data object KeyWithoutValue : ParseErrorReason
 
+    /** A key whose value is missing. */
     @Serializable
     @SerialName("MissingValueForKey")
     public data object MissingValueForKey : ParseErrorReason
 
+    /** A place the grammar needs a value holds none. */
     @Serializable
     @SerialName("MissingValue")
     public data object MissingValue : ParseErrorReason
 
+    /** A key or value where neither may stand. */
     @Serializable
     @SerialName("UnexpectedKeyOrValue")
     public data object UnexpectedKeyOrValue : ParseErrorReason
 
+    /** An `=` inside an array, which holds values, not key/value pairs. */
     @Serializable
     @SerialName("UnexpectedEqualsInArray")
     public data object UnexpectedEqualsInArray : ParseErrorReason
 
+    /** Text that fits nowhere in the grammar. */
     @Serializable
     @SerialName("UnexpectedContent")
     public data object UnexpectedContent : ParseErrorReason
@@ -158,58 +171,72 @@ public sealed interface ParseErrorReason {
     @SerialName("ContentAfterComment")
     public data object ContentAfterComment : ParseErrorReason
 
+    /** A table header with no `[` before it. */
     @Serializable
     @SerialName("MissingTableOpen")
     public data object MissingTableOpen : ParseErrorReason
 
+    /** An array with no `[` before it. */
     @Serializable
     @SerialName("MissingArrayOpening")
     public data object MissingArrayOpening : ParseErrorReason
 
+    /** An inline table with no `{` before it. */
     @Serializable
     @SerialName("MissingInlineTableOpening")
     public data object MissingInlineTableOpening : ParseErrorReason
 
+    /** A string with no quote before it. */
     @Serializable
     @SerialName("MissingOpeningQuote")
     public data object MissingOpeningQuote : ParseErrorReason
 
+    /** A comment with no `#` before it. */
     @Serializable
     @SerialName("MissingCommentStart")
     public data object MissingCommentStart : ParseErrorReason
 
+    /** An element of an inline table with a value but no key. */
     @Serializable
     @SerialName("MissingInlineTableKey")
     public data object MissingInlineTableKey : ParseErrorReason
 
+    /** A `[table]` header with no `]`. */
     @Serializable
     @SerialName("UnclosedTable")
     public data object UnclosedTable : ParseErrorReason
 
+    /** A `[[table]]` header with no `]]`. */
     @Serializable
     @SerialName("UnclosedArrayTable")
     public data object UnclosedArrayTable : ParseErrorReason
 
+    /** An array with no `]`. */
     @Serializable
     @SerialName("UnclosedArray")
     public data object UnclosedArray : ParseErrorReason
 
+    /** An inline table with no `}`. */
     @Serializable
     @SerialName("UnclosedInlineTable")
     public data object UnclosedInlineTable : ParseErrorReason
 
+    /** Two array elements with no comma between them. */
     @Serializable
     @SerialName("MissingArrayComma")
     public data object MissingArrayComma : ParseErrorReason
 
+    /** Two inline table entries with no comma between them. */
     @Serializable
     @SerialName("MissingInlineTableComma")
     public data object MissingInlineTableComma : ParseErrorReason
 
+    /** A comma in an array with no element before it. */
     @Serializable
     @SerialName("ExtraArrayComma")
     public data object ExtraArrayComma : ParseErrorReason
 
+    /** A comma in an inline table with no entry before it. */
     @Serializable
     @SerialName("ExtraInlineTableComma")
     public data object ExtraInlineTableComma : ParseErrorReason
