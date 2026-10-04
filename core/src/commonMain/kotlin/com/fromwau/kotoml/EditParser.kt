@@ -213,8 +213,11 @@ private class DocumentBuilder(private val input: EventStream, private val contex
 
         val text = source.input
         val input = SourceText(text)
-        root.resolveSpans(input)
-        return TomlDocument(root, takeTrailing().resolveSpans(input), lineEnding, text)
+        // A failed parse is thrown away, and its recovery spans need not fit the text, as other entry points also skip.
+        val failed = errors.error != null
+        if (!failed) root.resolveSpans(input)
+        val trailing = takeTrailing().let { if (failed) it else it.resolveSpans(input) }
+        return TomlDocument(root, trailing, lineEnding, text)
     }
 
     private fun onTable(openEvent: Event): TableHeader {
