@@ -26,9 +26,12 @@ public fun TomlParseError.render(source: String): String = buildString {
         val line = source.split('\n')[lineNum - 1]
         // Platforms decode bytes that are not UTF-8 differently, so the line shows only what comes before them.
         val content = if (reason is TomlParseError.Reason.InvalidUtf8) line.take(column) else line
-        val contentBytes = content.encodeToByteArray().size
-        // Allow the highlight to reach one past the line.
-        val highlightLength = minOf(span.end - span.start, maxOf(contentBytes - column, 0))
+        // The caret count is upstream's: UTF-8 bytes, allowed to reach one past the line.
+        val spanned = source.substring(span.start.coerceIn(0, source.length), span.end.coerceIn(0, source.length))
+        val highlightLength = minOf(
+            spanned.encodeToByteArray().size + maxOf(span.end - source.length, 0),
+            maxOf(content.encodeToByteArray().size - column, 0),
+        )
 
         append("TOML parse error at line $lineNum, column ${position.column}\n")
         repeat(gutter + 1) { append(' ') }
@@ -262,3 +265,4 @@ private fun escapeDebug(text: String): String = buildString {
         }
     }
 }
+

@@ -27,9 +27,10 @@ document model. The parser types a `TomlParseError` carries are public and live 
 ### Bytes, not characters
 
 The lexer, the event parser and the decoders work on the UTF-8 bytes of the input, never on the
-`String`'s UTF-16 units. Every `Span`, every error position and every span kept for formatting is a byte
-offset, exactly as upstream's are, so a span read off this port indexes the same text a Rust caller would
-index. Only the slices that become values (decoded strings, keys, raw text kept for formatting) are
+`String`'s UTF-16 units. Every internal `Span`, every error position and every span kept for formatting is
+a byte offset, exactly as upstream's are. A `TomlParseError`'s `span` and `context` are the exception: they are
+converted once to indices into the parsed `String`, so a Kotlin caller can `substring` with them (section 5).
+Only the slices that become values (decoded strings, keys, raw text kept for formatting) are
 decoded back to `String`. The reason is that upstream's error columns, its `Span`s and the text an edit
 reproduces are all defined over bytes; converting at the edges keeps every one of them identical
 instead of translating each rule. The cost is one `encodeToByteArray()` per parse.
@@ -695,6 +696,7 @@ commands of [`:app`](../app/README.md) and compares their output by its own rule
 
 | where | upstream | Kotlin | why |
 |---|---|---|---|
+| a parse error's `span` and `context` | UTF-8 byte offsets into the input | indices into the parsed `String`; for bytes that are not UTF-8, an empty span where the valid text ends | Kotlin indexes a `String` by UTF-16 unit, so byte offsets mis-slice any text after a non-ASCII character |
 | a decoder's output refusing text | `push_str` / `push_char` return `false` and the decoder reports `could not allocate for string` | the builder always accepts, and there is no `AllocationFailed` reason | only a borrowed `&str` builder refused, and kotoml has none |
 | `Offset::Custom` display | `minutes *= -1` overflows (panics in debug builds) for `i16::MIN` | prints the magnitude computed in `Int` | an `i16::MIN` offset is not a TOML value; Kotlin has no panic to copy |
 | `TomlSource` over a `String` with an unpaired surrogate | not representable: `&str` is always valid UTF-8 | lexed as if U+FFFD stood there, which is what `encodeToByteArray` writes | Kotlin strings can hold what Rust strings cannot |
@@ -731,7 +733,7 @@ commands of [`:app`](../app/README.md) and compares their output by its own rule
 | `Span` accessors | `start()`, `end()`, `len()`, `is_empty()` | `start`, `end` and `length` properties of a data class | Kotlin reads a field as a property; an empty span is one whose `length` is zero or less |
 | `Source` | named `Source` | `TomlSource` | `kotlinx.io.Source` is the name a caller holding a stream already uses |
 | `Visit`, `VisitMut` | traits with one overridable hook per node | not ported | an exhaustive `when` over the sealed `Value` walks the tree in plain recursion, and the compiler names every case it misses |
-| `TomlError` | holds a copy of the input to render from | `render` takes the source; the error keeps a byte `span` and a `TextPosition` | the error stays small, and the caller already holds the text |
+| `TomlError` | holds a copy of the input to render from | `render` takes the source; the error keeps a `span` of `String` indices and a `TextPosition` | the error stays small, and the caller already holds the text |
 | Duplicate key and dotted key over a value | no key named | `DuplicateKey(key)`, `DottedKeyExtendsValue(key, type)` | the reason says which key |
 | `Index` on a missing key | panics (`index not found`) | returns an empty item, or null for `InlineTable` | reading through a missing key never fails, and the empty item joins the table when written to |
 | `IndexMut` before a write | inserts an empty slot (or turns an empty item into an inline table) at access time | joins the parent at the first write | reading in Kotlin cannot be told from writing; the document only changes when written |

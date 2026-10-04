@@ -130,7 +130,7 @@ when (val parsed = TomlDocument.parse(text)) {
 ```
 
 Every error type is `@Serializable`, so a program can pass it on as JSON. A `TomlParseError` says what went
-wrong as a typed `reason`, where as a byte `span` and a line and column
+wrong as a typed `reason`, where as a `span` of indices into the parsed text and a line and column
 `position`, and what would have been accepted there. `render(text)` gives the message as `toml_edit` words it,
 with the offending line and a caret under it.
 

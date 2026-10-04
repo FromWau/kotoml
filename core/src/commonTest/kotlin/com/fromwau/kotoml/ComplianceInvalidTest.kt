@@ -3,6 +3,7 @@ package com.fromwau.kotoml
 import com.fromwau.kern.result.Result
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.fail
 
 /** `toml_edit/tests/compliance/invalid.rs` */
@@ -15,10 +16,10 @@ class ComplianceInvalidTest {
         }
     }
 
-    /** The input under an error's span, sliced by bytes as Rust slices a `str`. */
+    /** The input under an error's span. */
     private fun spanText(input: String, error: TomlParseError): String {
-        val span = error.span!!
-        return input.encodeToByteArray().decodeToString(span.start, span.end)
+        val span = assertNotNull(error.span)
+        return input.substring(span.start, span.end)
     }
 
     @Test
@@ -150,6 +151,20 @@ missing key for inline table element, expected key
         val input = "key = 😀"
         val err = TomlDocument.parse(input).errorOrFail()
         assertEquals("😀", spanText(input, err))
+    }
+
+    @Test
+    fun `an error span after non-ASCII text indexes the parsed String`() {
+        val input = "a = \"é😀\"\nb = asdf"
+        val err = TomlDocument.parse(input).errorOrFail()
+        assertEquals("asdf", spanText(input, err))
+    }
+
+    @Test
+    fun `bytes that are not UTF-8 get an empty span where the valid text ends`() {
+        val bytes = "a = \"é\"".encodeToByteArray() + byteArrayOf(0xFF.toByte())
+        val err = TomlDocument.parse(bytes).errorOrFail()
+        assertEquals(Span(7, 7), err.span)
     }
 
     @Test

@@ -3,9 +3,8 @@ package com.fromwau.kotoml
 import kotlinx.serialization.Serializable
 
 /**
- * A range of the parsed text: the bytes from [start] up to, not including, [end].
- *
- * Offsets count UTF-8 bytes of the input, not characters, so a span over `é` has a [length] of 2.
+ * A range of the parsed text, from [start] up to, not including, [end], as indices into the parsed `String`:
+ * `text.substring(span.start, span.end)` is the text it covers.
  */
 @Serializable
 public data class Span(
@@ -13,7 +12,7 @@ public data class Span(
     val end: Int,
 ) : Comparable<Span> {
 
-    /** The number of bytes covered; zero or less for a span that covers none. */
+    /** The number of `String` indices covered; zero or less for a span that covers none. */
     public val length: Int get() = end - start
 
     override fun compareTo(other: Span): Int {
@@ -21,7 +20,7 @@ public data class Span(
         return if (byStart != 0) byStart else end.compareTo(other.end)
     }
 
-    /** Writes the span as a Rust range, `start..end`. */
+    /** Writes the span as `start..end`. */
     override fun toString(): String = "$start..$end"
 }
 

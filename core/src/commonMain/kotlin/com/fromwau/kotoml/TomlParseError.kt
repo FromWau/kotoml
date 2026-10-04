@@ -9,10 +9,10 @@ import kotlinx.serialization.Serializable
 /**
  * Why TOML text could not be parsed: the first problem found.
  *
- * [span] is the byte range of the offending text and [position] where it starts; both are null for a
- * problem that has no single place, such as a key nested too deep. [context] is the byte range of a related
- * construct, such as the first definition of a duplicate key. [expected] lists what would have been
- * accepted at [span], when known.
+ * [span] is the range of the offending text, as indices into the parsed `String`, and [position] where it starts;
+ * both are null for a problem that has no single place, such as a key nested too deep. For bytes that are not UTF-8,
+ * [span] is empty where the valid text ends. [context] is the range of a related construct, such as the first
+ * definition of a duplicate key. [expected] lists what would have been accepted at [span], when known.
  *
  * [render] turns it into the message a person reads.
  */
@@ -175,6 +175,7 @@ internal fun utf8Error(bytes: ByteArray): TomlParseError.Reason.InvalidUtf8? {
 /** Keeps the first error reported, from the parser or from building the document. */
 internal class TomlSink(private val input: String) : ErrorSink {
     private var first: TomlParseError? = null
+    private val bytes by lazy { input.encodeToByteArray() }
 
     val error: TomlParseError?
         get() = first
@@ -195,9 +196,26 @@ internal class TomlSink(private val input: String) : ErrorSink {
     ) {
         if (first != null) return
         val position = unexpected?.let {
-            val (line, column) = translatePosition(input.encodeToByteArray(), it.start)
+            val (line, column) = translatePosition(bytes, it.start)
             TextPosition(line + 1, column + 1)
         }
-        first = TomlParseError(reason, unexpected, position, context, expected)
+        first = TomlParseError(reason, unexpected?.toTextIndices(bytes), position, context?.toTextIndices(bytes), expected)
     }
+}
+
+/** This byte span of [bytes] as indices into the `String` the bytes decode to. */
+internal fun Span.toTextIndices(bytes: ByteArray): Span = Span(utf16Index(bytes, start), utf16Index(bytes, end))
+
+/** The number of UTF-16 units that `bytes[0, byteIndex)` decodes to; a four-byte sequence needs two. */
+private fun utf16Index(bytes: ByteArray, byteIndex: Int): Int {
+    var units = 0
+    for (position in 0 until minOf(byteIndex, bytes.size)) {
+        val byte = bytes[position].toInt() and 0xFF
+        when {
+            byte and 0xC0 == 0x80 -> {}
+            byte >= 0xF0 -> units += 2
+            else -> units += 1
+        }
+    }
+    return units + maxOf(byteIndex - bytes.size, 0)
 }
