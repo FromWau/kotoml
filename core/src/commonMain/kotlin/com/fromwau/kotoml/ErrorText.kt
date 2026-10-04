@@ -139,6 +139,7 @@ internal fun Reason.describe(): String = when (this) {
     Reason.IntegerOverflow -> "integer number overflowed"
     Reason.FloatOverflow -> "floating-point number overflowed"
     Reason.KeyTooDeep -> "recursion limit"
+    Reason.NotUnicode -> "half of a surrogate pair, which is not Unicode text"
     is Reason.InvalidUtf8 -> if (errorLength == null) {
         "incomplete utf-8 byte sequence from index $validUpTo"
     } else {

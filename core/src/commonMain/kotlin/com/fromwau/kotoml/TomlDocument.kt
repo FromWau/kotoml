@@ -252,6 +252,7 @@ public class TomlDocument internal constructor(
             text: String,
             version: TomlVersion = TomlVersion.V1_1,
         ): Result<TomlDocument, TomlParseError> {
+            loneSurrogateError(text)?.let { return Err(it) }
             val errors = TomlSink(text)
             val document = parseDocumentModel(TomlSource(text), errors, version)
             errors.error?.let { return Err(it) }
@@ -306,17 +307,20 @@ public class TomlDocument internal constructor(
 private const val BYTE_ORDER_MARK: Char = '\uFEFF'
 
 /** Whether this holds half of a surrogate pair without the other half, which no Unicode encoding can write. */
-internal fun String.hasLoneSurrogate(): Boolean {
+internal fun String.hasLoneSurrogate(): Boolean = loneSurrogateIndex() >= 0
+
+/** Where this holds the first half of a surrogate pair without the other half, or -1 when it holds none. */
+internal fun String.loneSurrogateIndex(): Int {
     var index = 0
     while (index < length) {
         val char = this[index]
         when {
             char.isHighSurrogate() && index + 1 < length && this[index + 1].isLowSurrogate() -> index += 2
-            char.isSurrogate() -> return true
+            char.isSurrogate() -> return index
             else -> index++
         }
     }
-    return false
+    return -1
 }
 
 /**

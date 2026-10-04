@@ -309,6 +309,7 @@ public sealed interface Value {
             text: kotlin.String,
             version: TomlVersion = TomlVersion.V1_1,
         ): Result<Value, TomlParseError> {
+            loneSurrogateError(text)?.let { return Err(it) }
             val source = TomlSource(text)
             val sink = TomlSink(text)
             val parsed = parseValueItem(source, sink, version)

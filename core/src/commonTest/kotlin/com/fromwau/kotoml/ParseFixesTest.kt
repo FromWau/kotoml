@@ -17,6 +17,32 @@ class ParseFixesTest {
     private val invalidDecimal = syntax(ParseErrorReason.InvalidScalar(ScalarKind.Integer(IntegerRadix.Dec)))
 
     @Test
+    fun `half of a surrogate pair in the text is refused where it stands`() {
+        val error = TomlDocument.parse("a = 1\ns = \"x\uD800\"\n").errorOrFail()
+        assertEquals(TomlParseError.Reason.NotUnicode, error.reason)
+        assertEquals(TextPosition(2, 7), error.position)
+        assertEquals(Span(12, 13), error.span)
+    }
+
+    @Test
+    fun `half of a surrogate pair in a comment is refused too`() {
+        assertEquals(TomlParseError.Reason.NotUnicode, TomlDocument.parse("# \uDC00\n").errorOrFail().reason)
+    }
+
+    @Test
+    fun `a whole surrogate pair parses and prints back`() {
+        val text = "s = \"\uD83D\uDE00\"\n"
+        assertEquals(text, TomlDocument.parse(text).getOrFail().toString())
+    }
+
+    @Test
+    fun `values and keys parsed from a String refuse half of a surrogate pair`() {
+        assertEquals(TomlParseError.Reason.NotUnicode, Value.parse("\"\uD800\"").errorOrFail().reason)
+        assertEquals(TomlParseError.Reason.NotUnicode, Key.parse("\"\uD800\"").errorOrFail().reason)
+        assertEquals(TomlParseError.Reason.NotUnicode, Key.parsePath("a.\"\uD800\"").errorOrFail().reason)
+    }
+
+    @Test
     fun `an error after a byte order mark is placed by the visible columns`() {
         val text = "\uFEFFa = = 1\n"
         val error = TomlDocument.parse(text).errorOrFail()

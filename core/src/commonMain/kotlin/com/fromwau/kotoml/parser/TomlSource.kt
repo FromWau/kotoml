@@ -10,8 +10,8 @@ import com.fromwau.kotoml.Span
 /**
  * TOML text, ready to be lexed and sliced.
  *
- * The text is held as UTF-8 bytes, which is what every [Span] counts. A `String` holding an unpaired
- * surrogate, which UTF-8 cannot encode, is read as if it held U+FFFD there.
+ * The text is held as UTF-8 bytes, which is what every [Span] counts. The public parse calls refuse a `String`
+ * holding an unpaired surrogate before it gets here, since UTF-8 cannot encode one.
  */
 internal class TomlSource(
     /** The text this source was made from. */

@@ -8,9 +8,6 @@ reproduced on `dev` at `2781090` before it was filed.
 
 ## Decided: enforce (owner, 2026-10-05)
 
-- [ ] **13. `parse(String)` refuses a lone surrogate.** Today it becomes `?` on the JVM and U+FFFD on Kotlin/Native,
-  so the value changes silently and differs by platform; `PARITY.md:727` and `TomlSource.kt:14` claim U+FFFD.
-  Return a typed parse error. Goals 2, 13.
 - [ ] **14. An empty dotted or implicit table still prints.** Removing `a.b` from `a = { a.b = 1 }`, emptying an
   implicit table, or an empty dotted inline table makes the key vanish from the text while the model keeps it.
   Print it as `key = {}` or its header. Goal 3.
@@ -56,6 +53,13 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **13. `parse(String)` refuses a lone surrogate.** Today it becomes `?` on the JVM and U+FFFD on Kotlin/Native,
+  so the value changes silently and differs by platform; `PARITY.md:727` and `TomlSource.kt:14` claim U+FFFD.
+  Return a typed parse error. Goals 2, 13.
+  **Verdict 2026-10-05:** fixed. `TomlDocument.parse`, `Value.parse`, `Key.parse` and `Key.parsePath` refuse a `String`
+  holding an unpaired surrogate with `TomlParseError.Reason.NotUnicode` at its line and column. PARITY and the
+  `TomlSource` KDoc corrected; four tests in `ParseFixesTest`; core, serialization and app JVM green.
 
 - [x] **12. A typed error past the nesting limit when encoding or storing.** A recursive model 100 deep encodes to
   text kotoml refuses (`KeyTooDeep`); thousands deep throws `StackOverflowError` (`NodeEncoder` catches

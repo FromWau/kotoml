@@ -112,6 +112,7 @@ public class Key(
             text: String,
             version: TomlVersion = TomlVersion.V1_1,
         ): Result<Key, TomlParseError> {
+            loneSurrogateError(text)?.let { return Err(it) }
             val source = TomlSource(text)
             val sink = TomlSink(text)
             val key = parseSimpleKeyItem(source, sink, version)
@@ -128,6 +129,7 @@ public class Key(
             text: String,
             version: TomlVersion = TomlVersion.V1_1,
         ): Result<List<Key>, TomlParseError> {
+            loneSurrogateError(text)?.let { return Err(it) }
             val source = TomlSource(text)
             val sink = TomlSink(text)
             val keys = parseKeyPath(source, sink, version)

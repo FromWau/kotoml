@@ -76,6 +76,11 @@ public data class TomlParseError(
         @SerialName("InvalidUtf8")
         public data class InvalidUtf8(val validUpTo: Int, val errorLength: Int?) : Reason
 
+        /** The text holds half of a surrogate pair without the other half, which is not Unicode text. */
+        @Serializable
+        @SerialName("NotUnicode")
+        public data object NotUnicode : Reason
+
         /** Text TOML 1.1 accepts, parsed as [TomlVersion.V1_0]. */
         @Serializable
         @SerialName("NotInToml10")
@@ -238,3 +243,28 @@ private val UTF8_BOM = byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte())
 
 private fun ByteArray.startsWithByteOrderMark(): Boolean =
     size >= UTF8_BOM.size && UTF8_BOM.indices.all { this[it] == UTF8_BOM[it] }
+
+/** The error for the first half of a surrogate pair [text] holds without the other half, or null when it holds none. */
+internal fun loneSurrogateError(text: String): TomlParseError? {
+    val index = text.loneSurrogateIndex()
+    if (index < 0) return null
+    val lineStart = text.lastIndexOf('\n', index - 1) + 1
+    val line = text.substring(0, lineStart).count { it == '\n' }
+    val column = text.codePointCountBetween(lineStart, index)
+    return TomlParseError(
+        reason = TomlParseError.Reason.NotUnicode,
+        span = Span(index, index + 1),
+        position = TextPosition(line + 1, column + 1),
+    )
+}
+
+// Whole surrogate pairs count once, as a column counts characters.
+private fun String.codePointCountBetween(from: Int, to: Int): Int {
+    var count = 0
+    var index = from
+    while (index < to) {
+        index += if (this[index].isHighSurrogate() && index + 1 < to && this[index + 1].isLowSurrogate()) 2 else 1
+        count++
+    }
+    return count
+}
