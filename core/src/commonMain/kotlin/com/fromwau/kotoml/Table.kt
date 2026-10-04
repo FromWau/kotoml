@@ -185,7 +185,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
         }
 
     /** The key [name] as stored, whose formatting can be changed in place; null when there is none. */
-    override fun key(name: String): Key? = items.getEntry(name)?.key
+    override fun keyOrNull(name: String): Key? = items.getEntry(name)?.key
 
     internal fun despan(input: SourceText) {
         span = null
@@ -199,15 +199,16 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     }
 
     /** The key/item pairs with an item, in order. */
-    override fun items(): List<Pair<String, Item>> = items.entries()
+    override val entries: List<Pair<String, Item>>
+        get() = items.entries()
         .filter { !it.item.isMissing }
         .map { it.key.name to it.item }
 
-    override fun iterator(): Iterator<Pair<String, Item>> = items().iterator()
+    override fun iterator(): Iterator<Pair<String, Item>> = entries.iterator()
 
     /** The keys holding an item, in order, as a copy that later changes to the table leave as it is. */
     override val keys: Set<String>
-        get() = items().mapTo(LinkedHashSet()) { it.first }
+        get() = entries.mapTo(LinkedHashSet()) { it.first }
 
     /** The number of keys holding an item. */
     override val size: Int
@@ -472,12 +473,12 @@ internal val DEFAULT_KEY_PATH_DECOR: Pair<String, String> = "" to ""
  * A [Table] or an [InlineTable], seen as key/item pairs.
  *
  * ```kotlin
- * fun names(table: TableLike): List<String> = table.items().map { it.first }
+ * fun names(table: TableLike): List<String> = table.entries.map { it.first }
  * ```
  */
 public sealed interface TableLike {
     /** The key/item pairs, in order. */
-    public fun items(): List<Pair<String, Item>>
+    public val entries: List<Pair<String, Item>>
 
     /** The item at [key], or null when there is none. */
     public fun getItem(key: String): Item?
@@ -531,5 +532,5 @@ public sealed interface TableLike {
     public var isDotted: Boolean
 
     /** The key [name] as stored, whose formatting can be changed in place; null when there is none. */
-    public fun key(name: String): Key?
+    public fun keyOrNull(name: String): Key?
 }

@@ -145,13 +145,12 @@ public sealed interface Offset : Comparable<Offset> {
     /** A numeric offset such as `-07:00`, in whole [minutes] east of UTC. */
     public data class Custom(
         /** Minutes east of UTC, within a day either way. */
-        val minutes: Short,
+        val minutes: Int,
     ) : Offset {
         /** Writes the offset as `+HH:MM` or `-HH:MM`. */
         override fun toString(): String {
-            val total = minutes.toInt()
-            val sign = if (total < 0) '-' else '+'
-            val magnitude = if (total < 0) -total else total
+            val sign = if (minutes < 0) '-' else '+'
+            val magnitude = if (minutes < 0) -minutes else minutes
             return "$sign${(magnitude / 60).pad(2)}:${(magnitude % 60).pad(2)}"
         }
     }

@@ -1087,15 +1087,15 @@ edition = "2024"
             .running { root ->
                 val a = root["a"].tableLikeOrNull
                 assertTrue(a != null)
-                assertEquals(3, a.items().size)
+                assertEquals(3, a.entries.size)
                 assertEquals(3, a.size)
                 assertEquals(2L, a.getItem("a")?.longOrNull)
                 val b = root["b"].tableLikeOrNull
                 assertTrue(b != null)
-                assertEquals(1, b.items().size)
+                assertEquals(1, b.entries.size)
                 assertEquals(1, b.size)
                 assertEquals("y", b.getItem("x")?.stringOrNull)
-                assertEquals(0, root["x"].tableLikeOrNull?.items()?.size)
+                assertEquals(0, root["x"].tableLikeOrNull?.entries?.size)
                 assertEquals(true, root["empty"].tableLikeOrNull?.isEmpty())
                 assertTrue(root["bin"].tableLikeOrNull == null)
             }

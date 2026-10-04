@@ -270,7 +270,7 @@ duplicate key `a`
     fun `getOrPut on an empty table stores the key under its name`() {
         val map = Table()
         map.getOrPut("hello") { Item(Value.Integer(1L)) }
-        assertEquals("hello", map.key("hello")?.name)
+        assertEquals("hello", map.keyOrNull("hello")?.name)
     }
 
     @Test
@@ -278,21 +278,21 @@ duplicate key `a`
         val map = Table()
         map["foo"] = 1L
         map.getOrPut("foo") { Item(Value.Integer(2L)) }
-        assertEquals("foo", map.key("foo")?.name)
+        assertEquals("foo", map.keyOrNull("foo")?.name)
     }
 
     @Test
     fun `getOrPut on a missing key stores the key under its name`() {
         val map = Table()
         map.getOrPut("foo") { Item(Value.Integer(1L)) }
-        assertEquals("foo", map.key("foo")?.name)
+        assertEquals("foo", map.keyOrNull("foo")?.name)
     }
 
     @Test
     fun `getOrPut on an inline table stores the key under its name`() {
         val map = InlineTable()
         map.getOrPut("hello") { Value.Integer(1L) }
-        assertEquals("hello", map.key("hello")?.name)
+        assertEquals("hello", map.keyOrNull("hello")?.name)
     }
 
     @Test
@@ -319,7 +319,7 @@ duplicate key `a`
         table: TableLike,
         strings: MutableList<String>,
     ) {
-        for ((_, item) in table.items()) collectStrings(item, strings)
+        for ((_, item) in table.entries) collectStrings(item, strings)
     }
 
     private fun collectStrings(
@@ -358,7 +358,7 @@ the-force = { value = "surrounds-you" }
     }
 
     private fun floatsToStrings(table: TableLike) {
-        for ((_, item) in table.items()) floatsToStrings(item)
+        for ((_, item) in table.entries) floatsToStrings(item)
     }
 
     private fun floatsToStrings(item: Item) {

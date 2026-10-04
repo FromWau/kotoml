@@ -111,7 +111,7 @@ public class Item private constructor(
     }
 
     /**
-     * Puts a copy of [item]'s content in this slot, Rust's `*item = other.clone()`. Fails when this slot is in an
+     * Replaces this slot's content with a copy of [item]'s. Fails when this slot is in an
      * array or an inline table and [item] holds no value, or in an array of tables and [item] holds no table.
      */
     public fun assign(item: Item): EmptyResult<TomlEditError> {

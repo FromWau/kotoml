@@ -1,6 +1,6 @@
 # Parity with upstream `toml_edit`
 
-This file is the item-by-item proof that `:toml` ports `toml_edit` and the three crates under it. A row
+This file is the item-by-item proof that `:core` ports `toml_edit` and the three crates under it. A row
 that is not `done` says why; a behaviour difference that is not listed under
 [Intended differences](#intended-differences) is a bug.
 
@@ -123,7 +123,7 @@ section 1.
 | `Datetime` (`date`, `time`, `offset` fields) | `Datetime(date, time, offset)` data class, each part defaulting to `null` | done | `DatetimeDisplayTest`, `DatetimeParseTest` |
 | `Date` (`year`, `month`, `day`) | `Date` (`Int`, `Int`, `Int`) | done | `` DatetimeDisplayTest.`an offset date-time without seconds prints as hours and minutes` ``, `` DatetimeParseTest.`an offset date-time without seconds parses with no seconds` `` |
 | `Time` (`hour`, `minute`, `second`, `nanosecond`) | `Time` (`Int`, `Int`, `Int?`, `Int?`) | done | `DatetimeDisplayTest`, `` DatetimeParseTest.`a time without seconds parses with no seconds` `` |
-| `Offset::Z`, `Offset::Custom { minutes }` | `Offset.Z`, `Offset.Custom(minutes: Short)` | done | `` DatetimeDisplayTest.`an offset date-time without seconds prints as hours and minutes` `` |
+| `Offset::Z`, `Offset::Custom { minutes }` | `Offset.Z`, `Offset.Custom(minutes: Int)` | done | `` DatetimeDisplayTest.`an offset date-time without seconds prints as hours and minutes` `` |
 | `DatetimeParseError` | `DatetimeParseError(part, expected)`, typed: `DatetimePart`, `DatetimeExpected`, `DatetimeField` | done | `DatetimeParseTest` |
 | `impl Display for Datetime / Date / Time / Offset / DatetimeParseError` | `toString()`; the error's text is rendered as part of `TomlParseError.render` | done | `DatetimeDisplayTest`, `DatetimeParseTest` |
 | `impl FromStr for Datetime` | `Datetime.parse(String): Result<Datetime, DatetimeParseError>` | done | `DatetimeParseTest` |
@@ -164,17 +164,17 @@ section 1.
 | `impl EventReceiver for FnMut(Event)` / `Vec<Event>` | `eventReceiver { ... }`, e.g. `eventReceiver(events::add)` | done | all parser tests |
 | `impl EventReceiver for ()` | `EventReceiver.IGNORE` | done | |
 | `parser::ValidateWhitespace::new` | `ValidateWhitespace(EventReceiver, TomlSource)` | done | toml_edit's parser |
-| `parser::RecursionGuard::new(_, u32)` | `RecursionGuard(EventReceiver, UInt)` | done | `ParseDocumentTest.*RecursionLimit` |
+| `parser::RecursionGuard::new(_, u32)` | `RecursionGuard(EventReceiver, UInt)` | done | `` ParseDocumentTest.`*recursion limit*` `` |
 | `parser::Event::new_unchecked / kind / encoding / span` | `Event(...)`, `Event.newUnchecked`, same names | done | all parser tests |
 | `parser::EventKind` (17 kinds), `description` | `EventKind`; `description` n/a, as for `TokenKind` | done | |
-| `decoder::Encoding`, `description` | `Encoding`; `description` n/a, as for `TokenKind` | done | |
+| `decoder::Encoding`, `description` | `Encoding`, with `MlLiteralString` / `MlBasicString` spelled `MultilineLiteralString` / `MultilineBasicString` (also in `TokenKind`); `description` n/a, as for `TokenKind` | done | |
 | `decoder::StringBuilder` | `DecodedStringBuilder` | done | `DecoderStringTest` |
 | `impl StringBuilder for String` / `Cow<str>` | `StringOutput` | done | `DecoderStringTest`, `ParseValueTest` |
 | `impl StringBuilder for &str` | `BorrowedOutput` | done | |
 | `impl StringBuilder for ()` | `DecodedStringBuilder.DISCARD` | done | `ParseDocumentTest` (keys) |
 | `decoder::ScalarKind` (`String`, `Boolean`, `DateTime`, `Float`, `Integer`), `description`, `invalid_description` | `ScalarKind` sealed interface; `description` n/a, as for `TokenKind`; `invalid_description` is `ParseErrorReason.InvalidScalar(kind)` | done | `ParseValueTest` |
-| `decoder::IntegerRadix`, `description`, `value`, `invalid_description`, `Default` | `IntegerRadix`, `value`; `description` n/a, as for `TokenKind`; `Default` is `IntegerRadix.Dec`; `invalid_description` as for `ScalarKind` | done | `ParseValueTest` |
-| derived `Ord` / `Hash` / `Eq` on `Span`, `Token`, `TokenKind`, `Event`, `EventKind`, `Encoding`, `ScalarKind`, `IntegerRadix`, `ParseError` | `Comparable` / `equals` / `hashCode` | done | |
+| `decoder::IntegerRadix`, `description`, `value`, `invalid_description`, `Default` | `IntegerRadix`, `base`; `description` n/a, as for `TokenKind`; `Default` is `IntegerRadix.Dec`; `invalid_description` as for `ScalarKind` | done | `ParseValueTest` |
+| derived `Ord` / `Hash` / `Eq` on `Span`, `Token`, `TokenKind`, `Event`, `EventKind`, `Encoding`, `ScalarKind`, `IntegerRadix`, `ParseError` | `Comparable` / `equals` / `hashCode`; `ScalarKind` is not `Comparable`, as nothing orders it | done | |
 
 ### `toml_writer`
 
@@ -258,18 +258,18 @@ section 1.
 | `Table::get`, `get_mut` | `getOrNull` | done | `EditTest` |
 | `Table::insert`, `insert_formatted` | `put(String, Item)`, keeping a present key's formatting (section 5), and `put(Key, Item)`, returning the item replaced | done | `EditTest`, `SlotSemanticsTest`, `` CollectionApiTest.`put with a string keeps the spelling and comment of a quoted key` ``, `` CollectionApiTest.`put with a key replaces the spelling and comment of a quoted key` `` |
 | `Table::entry`, `entry_format`, `Entry`, `OccupiedEntry`, `VacantEntry`, `or_insert`, `or_insert_with` | `getOrPut(String / Key, () -> Item): Item` | done | `` EditTest.`a table with a negative position prints before the other tables` ``, `` EditDocTest.`getOrPut on an empty table stores the key under its name` ``, `SlotSemanticsTest` |
-| `Table::key`, `key_mut` | `key(name): Key?`, whose formatting is `var` | done | `PreservationTest` |
+| `Table::key`, `key_mut` | `keyOrNull(name): Key?`, whose formatting is `var` | done | `PreservationTest` |
 | `Table::remove`, `retain`, `into_inline_table` | `remove`, `retainAll((Pair<String, Item>) -> Boolean)` returning whether it removed a pair, `toInlineTable()` converting a copy | done | `EditTest`, `RemovalCommentScopeTest`, `RemovalKeepsCommentsTest`, `RemovalPropertyTest`, `CollectionApiTest` |
-| `Table::get_key_value(_mut)`, `contains_table`, `contains_value`, `contains_array_of_tables`, `remove_entry` | | n/a | `key(name)` with `getOrNull(name)`; `getOrNull(name)?.tableOrNull != null` and its siblings; `key(name)` before `remove(name)` |
+| `Table::get_key_value(_mut)`, `contains_table`, `contains_value`, `contains_array_of_tables`, `remove_entry` | | n/a | `keyOrNull(name)` with `getOrNull(name)`; `getOrNull(name)?.tableOrNull != null` and its siblings; `keyOrNull(name)` before `remove(name)` |
 | `impl Index / IndexMut<&str> for Table` | `operator get` (a slot), `operator set` for an `Item`, `Value`, `Table`, `ArrayOfTables` or scalar | done | `EditTest`, `` EditDocTest.`string values that need escaping print as literal strings` `` |
 | `impl Display / Extend / FromIterator for Table` | `toString()`, `putAll`, `tableOf(…)` and `Iterable<Pair<String, Item>>.toTable()` | done | `` EditDocTest.`string values that need escaping print as literal strings` ``, `SlotSemanticsTest` |
-| `TableLike` (`iter`, `iter_mut`, `len`, `is_empty`, `clear`, `get`, `get_mut`, `contains_key`, `insert`, `remove`, `get_values`, `fmt`, `sort_values`, `set_dotted`, `is_dotted`, `key`, `key_mut`) | sealed `TableLike`: `items()`, `keys`, `size`, `isEmpty()`, `isNotEmpty()`, `clear()`, `getItem(key)`, `containsKey` and `operator contains`, `putItem`, `removeItem`, `valuesWithPaths()`, `resetFormatting()`, `var isDotted`, `key(name)`; sorting is on `Table` and `InlineTable` (section 5) | done | `` EditTest.`tables and inline tables read as TableLike and an array of tables does not` ``, `VisitExampleTest`, `` CollectionApiTest.`getItem reads the item at a key of a table like` ``, `` CollectionApiTest.`a key is in a table like when it holds an item` `` |
-| `TableLike::entry`, `entry_format`, `get_key_value(_mut)` | | n/a | `getOrPut` on `Table` or `InlineTable`; `key(name)` with `getItem(name)` |
+| `TableLike` (`iter`, `iter_mut`, `len`, `is_empty`, `clear`, `get`, `get_mut`, `contains_key`, `insert`, `remove`, `get_values`, `fmt`, `sort_values`, `set_dotted`, `is_dotted`, `key`, `key_mut`) | sealed `TableLike`: `entries`, `keys`, `size`, `isEmpty()`, `isNotEmpty()`, `clear()`, `getItem(key)`, `containsKey` and `operator contains`, `putItem`, `removeItem`, `valuesWithPaths()`, `resetFormatting()`, `var isDotted`, `keyOrNull(name)`; sorting is on `Table` and `InlineTable` (section 5) | done | `` EditTest.`tables and inline tables read as TableLike and an array of tables does not` ``, `VisitExampleTest`, `` CollectionApiTest.`getItem reads the item at a key of a table like` ``, `` CollectionApiTest.`a key is in a table like when it holds an item` `` |
+| `TableLike::entry`, `entry_format`, `get_key_value(_mut)` | | n/a | `getOrPut` on `Table` or `InlineTable`; `keyOrNull(name)` with `getItem(name)` |
 | `InlineTable::new`, `fmt`, `trailing_comma` / `set_trailing_comma`, `trailing` / `set_trailing`, `set_dotted` / `is_dotted`, `decor(_mut)`, `iter`, `iter_mut`, `IntoIterator`, `len`, `is_empty`, `clear`, `contains_key` | `InlineTable()`, `resetFormatting()`, `var trailingComma`, `var trailing: String`, `var isDotted`, `var decor`, `Iterable<Pair<String, Value>>`, `keys`, `size`, `isEmpty()` and `isNotEmpty()`, `clear()`, `containsKey` and `operator contains`; no `span` | done | `EditTest`, `CollectionApiTest` |
-| `InlineTable::get`, `get_mut`, `insert`, `insert_formatted`, `remove`, `retain`, `key`, `key_mut` | `operator get`, `put(String / Key, Value)`, `put(String, …)` keeping a present key's formatting (section 5), `remove`, `retainAll((Pair<String, Value>) -> Boolean)` returning whether it removed a pair, `key(name)` | done | `CollectionApiTest`, `` EditTest.`getOrPut adds a key to an inline table and resetting prints default spacing` ``, `` EditTest.`removing inline table keys keeps the spacing of the ones left` ``, `RemovalKeepsCommentsTest` |
+| `InlineTable::get`, `get_mut`, `insert`, `insert_formatted`, `remove`, `retain`, `key`, `key_mut` | `operator get`, `put(String / Key, Value)`, `put(String, …)` keeping a present key's formatting (section 5), `remove`, `retainAll((Pair<String, Value>) -> Boolean)` returning whether it removed a pair, `keyOrNull(name)` | done | `CollectionApiTest`, `` EditTest.`getOrPut adds a key to an inline table and resetting prints default spacing` ``, `` EditTest.`removing inline table keys keeps the spacing of the ones left` ``, `RemovalKeepsCommentsTest` |
 | `InlineTable::entry`, `entry_format`, `get_or_insert`, `InlineEntry`, `InlineOccupiedEntry`, `InlineVacantEntry` | `getOrPut(String / Key, () -> Value): Value` | done | `` EditTest.`getOrPut adds a key to an inline table and resetting prints default spacing` ``, `` EditDocTest.`getOrPut on an inline table stores the key under its name` `` |
 | `InlineTable::sort_values`, `sort_values_by`, `get_values`, `into_table` | `sortBy { (key, _) -> key }` or any `sortBy(selector)`, `sortWith(Comparator<Pair<Key, Value>>)`, `valuesWithPaths()`, `toTable()` converting a copy | done | `` EditTest.`an inline table converted to a table prints as a table with a header` ``, `TableSortTest` |
-| `InlineTable::get_key_value(_mut)`, `remove_entry` | | n/a | `key(name)` with `operator get`; `key(name)` before `remove(name)` |
+| `InlineTable::get_key_value(_mut)`, `remove_entry` | | n/a | `keyOrNull(name)` with `operator get`; `keyOrNull(name)` before `remove(name)` |
 | `impl Index<&str> for InlineTable` | `operator get`, returning null where upstream panics | done | |
 | `impl IndexMut<&str> for InlineTable` | `operator set` for a `Value` or scalar, adding a missing key | done | `SlotSemanticsTest` |
 | `impl Display / Extend / FromIterator for InlineTable` | `toString()`, `putAll`, `inlineTableOf(…)` and `Iterable<Pair<String, Value>>.toInlineTable()` | done | `` EditTest.`putAll copies another inline table's pairs and leaves that table as it was` `` |
@@ -290,7 +290,7 @@ section 1.
 | `visit_mut::VisitMut` and `visit_document_mut` … `visit_value_mut` | | n/a | as for `Visit`; `VisitExampleTest`, `` EditDocTest.`walking a document replaces each float with a string and keeps its decor` `` show how |
 | `de::*`, `ser::*`, `TomlError::custom`, `Serialize / Deserialize` impls | | serde-only | |
 | `toml_datetime::*` re-export | the date-time types in the same package | done | |
-| (none: an addition) | `TomlVersion`, and a `version` parameter on `TomlDocument.parse`, `TomlDocument.read`, `Value.parse`, `Key.parse`, `Key.parsePath` | added | `TomlVersionTest`, `SuiteTest.*Toml100` |
+| (none: an addition) | `TomlVersion`, and a `version` parameter on `TomlDocument.parse`, `TomlDocument.read`, `Value.parse`, `Key.parse`, `Key.parsePath` | added | `TomlVersionTest`, `` SuiteTest.`* V1_0 *` `` |
 | (none: an addition) | `removeAll(predicate)` on `Table`, `InlineTable`, `TomlArray`, `ArrayOfTables` and `TomlDocument`, returning whether it removed anything; `keys` on `TableLike` and `TomlDocument`; `isNotEmpty()` on every container | added | `CollectionApiTest` |
 | (none: an addition) | `TomlDocument.read(Source)` and `TomlDocument.writeTo(Sink)` over kotlinx-io, failing with `TomlReadError` (`TomlIoError` or `Parse`) and `TomlIoError` | added | `TomlDocumentTest`, `` EditDocTest.`the module README example reads a document from a source and writes it to a sink` `` |
 
@@ -667,7 +667,6 @@ Beyond upstream's tests, `FloatFormatTest` compares the shortest digits, `Displa
 | `src/value.rs` doctests (`decor_mut`, `decor`, `decorated`) | `` EditDocTest.`a new value's decor has no suffix` ``, `` EditDocTest.`a new value's decor reads as default` ``, `` EditDocTest.`a value's decor prints around its text` `` |
 | `src/visit.rs` doctest | `` EditDocTest.`walking a document collects every string in tables and inline tables` `` |
 | `src/visit_mut.rs` doctest | `` EditDocTest.`walking a document replaces each float with a string and keeps its decor` `` |
-
 | `tests/decoder_compliance.rs` + `tests/decoder.rs` (toml-test harness at 1.1.0 and `tests/fixtures`, valid) | `` ComplianceHarnessTest.`every valid suite and upstream fixture decodes to its JSON` `` |
 | `tests/decoder_compliance.rs` (invalid, each error checked against `tests/snapshots/invalid/**.stderr`) | `` ComplianceHarnessTest.`every invalid suite and upstream fixture is refused with its snapshot's error text` `` (560 snapshots, copied; section 5 lists the texts kotoml changed) |
 | `tests/encoder_compliance.rs` + `tests/encoder.rs` | `` ComplianceHarnessTest.`every valid fixture's JSON encodes to TOML that decodes to the same values` `` |
@@ -678,7 +677,7 @@ precision. A fixture that is not UTF-8 is refused with Rust's `Utf8Error` text, 
 
 The `tests/serde` suite is `serde`-only and not ported.
 
-### The official suite (goal 2)
+### The official suite
 
 | check | `files-toml-1.0.0` (parsed as `V1_0`) | `files-toml-1.1.0` |
 |---|---|---|
@@ -705,7 +704,7 @@ commands of [`:app`](../app/README.md) and compares their output by its own rule
 | `WriteTomlValue.of(Char)` | a `char` is a Unicode scalar value | a `Char` is a UTF-16 unit, so a lone surrogate is written as is | Kotlin has no scalar-value type |
 | `Array` | named `Array` | `TomlArray` | a star import of `Array` would shadow `kotlin.Array` |
 | `Table::get`, `Item::get` | `get` | `getOrNull` | `get` is the index operator |
-| `TableLike` | an open trait whose item functions are `iter`, `get`, `insert`, `remove`, with entries | a sealed interface over `Table` and `InlineTable` with `items()`, `getItem`, `putItem`, `removeItem` and no entries | an `InlineTable` already uses the plain names for values, and Kotlin cannot overload on the return type |
+| `TableLike` | an open trait whose item functions are `iter`, `get`, `insert`, `remove`, with entries | a sealed interface over `Table` and `InlineTable` with `entries`, `getItem`, `putItem`, `removeItem` and no entries | an `InlineTable` already uses the plain names for values, and Kotlin cannot overload on the return type |
 | `Key::parse` | parses a dotted path | `Key.parsePath`; `Key.parse` is `FromStr`, one key | `parse` reads one of the type, as `Value.parse` and `Datetime.parse` do |
 | `Formatted<T>`, `Repr`, `RawString` | public, `Value::String(Formatted<String>)` | internal; a scalar `Value` has its own constructor and `value`, `spelling`, `displaySpelling` and `decor` properties | a caller reads and builds values without unwrapping a formatting container |
 | `Value::from(…)`, `FromIterator for Value` | one conversion per source type | the constructors `Value.String(…)` … `Value.InlineTable(…)` | a constructor names the kind; `Value.from(Value)`, a clone, is `copy()` |

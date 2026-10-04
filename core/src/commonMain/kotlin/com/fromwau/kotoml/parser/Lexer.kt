@@ -127,7 +127,7 @@ internal fun LexStream.lexMlLiteralString(): Token {
         position += 1
         if (!isEmpty() && peek() == APOSTROPHE) position += 1
     }
-    return token(TokenKind.MlLiteralString, start)
+    return token(TokenKind.MultilineLiteralString, start)
 }
 
 /** `basic-string = quotation-mark *basic-char quotation-mark`, ending early at a newline. */
@@ -189,7 +189,7 @@ internal fun LexStream.lexMlBasicString(): Token {
         position += 1
         if (!isEmpty() && peek() == QUOTATION_MARK) position += 1
     }
-    return token(TokenKind.MlBasicString, start)
+    return token(TokenKind.MultilineBasicString, start)
 }
 
 /** Everything else, up to the next byte that can start another token. */
@@ -239,10 +239,10 @@ internal class Token internal constructor(
  */
 internal enum class TokenKind {
     /** A `'''multi-line literal'''` string, possibly unclosed. */
-    MlLiteralString,
+    MultilineLiteralString,
 
     /** A `"""multi-line basic"""` string, possibly unclosed. */
-    MlBasicString,
+    MultilineBasicString,
 
     /** Anything else: a bare key, a number, a boolean, a date-time, or garbage. */
     Atom,
@@ -291,8 +291,8 @@ internal enum class TokenKind {
     fun encoding(): Encoding? = when (this) {
         LiteralString -> Encoding.LiteralString
         BasicString -> Encoding.BasicString
-        MlLiteralString -> Encoding.MlLiteralString
-        MlBasicString -> Encoding.MlBasicString
+        MultilineLiteralString -> Encoding.MultilineLiteralString
+        MultilineBasicString -> Encoding.MultilineBasicString
         else -> null
     }
 

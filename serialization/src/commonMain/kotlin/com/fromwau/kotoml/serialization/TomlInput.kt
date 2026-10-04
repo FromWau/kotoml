@@ -36,10 +36,10 @@ internal fun Item.toInput(): TomlInput? {
     return valueOrNull?.toInput()
 }
 
-internal fun Table.toInput(): TomlInput.Table = TomlInput.Table(items().toMap(), TomlType.Table)
+internal fun Table.toInput(): TomlInput.Table = TomlInput.Table(entries.toMap(), TomlType.Table)
 
 internal fun Value.toInput(): TomlInput = when (this) {
-    is Value.InlineTable -> TomlInput.Table(table.items().toMap(), TomlType.InlineTable)
+    is Value.InlineTable -> TomlInput.Table(table.entries.toMap(), TomlType.InlineTable)
     is Value.Array -> TomlInput.Sequence(array.map { it.toInput() }, TomlType.Array)
     else -> TomlInput.Scalar(this)
 }

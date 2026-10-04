@@ -15,16 +15,19 @@ internal fun Span.dbg(): Dbg = lit("$start..$end")
 
 internal fun Token.dbg(): Dbg = struct(
     "Token",
-    "kind" to lit(kind().name),
+    "kind" to lit(upstreamName(kind().name)),
     "span" to span().dbg(),
 )
 
 internal fun Event.dbg(): Dbg = struct(
     "Event",
     "kind" to lit(kind().name),
-    "encoding" to option(encoding()) { lit(it.name) },
+    "encoding" to option(encoding()) { lit(upstreamName(it.name)) },
     "span" to span().dbg(),
 )
+
+/** Upstream abbreviates the multi-line string forms as `Ml`, and the snapshots print its names. */
+private fun upstreamName(name: String): String = name.replace("Multiline", "Ml")
 
 internal fun Expected.dbg(): Dbg = when (this) {
     is Expected.Literal -> tuple("Literal", str(literal))

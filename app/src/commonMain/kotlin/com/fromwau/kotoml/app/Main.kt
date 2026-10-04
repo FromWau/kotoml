@@ -75,7 +75,7 @@ fun main(args: Array<String>) {
         version = VERSION
 
         command("get", "print what a jq path selects") {
-            example("kotoml get .package.version Cargo.toml", "one value")
+            example("kotoml get '.servers[0].port' config.toml", "one value")
             example("kotoml get '.servers[] | .host' --json config.toml", "the host of every server, as JSON")
             val filter = argument("filter", "a jq path: ., .a.b, .\"key\", .[0], .[] and | between them")
             val file = fileArgument()

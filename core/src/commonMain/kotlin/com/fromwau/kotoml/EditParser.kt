@@ -551,7 +551,7 @@ private fun onScalar(event: Event, context: ParseContext): Value {
         }
         is ScalarKind.Integer -> {
             // The decoder validated the digits there are, so a failure here is no digits or overflow.
-            val integer = parseRustI64(text, kind.radix.value()) ?: run {
+            val integer = parseRustI64(text, kind.radix.base) ?: run {
                 val digits = text.removePrefix("-").removePrefix("+")
                 val reason = if (digits.isEmpty()) Reason.MissingDigits(kind.radix) else Reason.IntegerOverflow
                 errors.report(reason, unexpected = event.span())
@@ -579,7 +579,7 @@ private fun checkEscapes(event: Event, context: ParseContext) {
     if (context.version != TomlVersion.V1_0) return
     val encoding = event.encoding()
     if (encoding != Encoding.BasicString &&
-        encoding != Encoding.MlBasicString
+        encoding != Encoding.MultilineBasicString
     ) {
         return
     }

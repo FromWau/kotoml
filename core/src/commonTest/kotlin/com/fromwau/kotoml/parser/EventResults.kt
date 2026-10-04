@@ -77,7 +77,7 @@ internal class EventResults(val input: String) {
             }
             ScalarKind.DateTime -> if (Datetime.parse(text) is Result.Error) "failed to parse datetime" else null
             ScalarKind.Float -> if (parseRustF64(text) == null) "failed to parse f64" else null
-            is ScalarKind.Integer -> if (parseRustI64(text, kind.radix.value()) == null) "failed to parse i64" else null
+            is ScalarKind.Integer -> if (parseRustI64(text, kind.radix.base) == null) "failed to parse i64" else null
         }
         if (failure != null) {
             errors += parseErrorDbg(

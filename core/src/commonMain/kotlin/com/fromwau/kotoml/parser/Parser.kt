@@ -140,8 +140,8 @@ internal class DocumentParser(
                 TokenKind.RightSquareBracket -> onMissingStdTable(current)
                 TokenKind.LiteralString -> onExpressionKey(current, Encoding.LiteralString)
                 TokenKind.BasicString -> onExpressionKey(current, Encoding.BasicString)
-                TokenKind.MlLiteralString -> onExpressionKey(current, Encoding.MlLiteralString)
-                TokenKind.MlBasicString -> onExpressionKey(current, Encoding.MlBasicString)
+                TokenKind.MultilineLiteralString -> onExpressionKey(current, Encoding.MultilineLiteralString)
+                TokenKind.MultilineBasicString -> onExpressionKey(current, Encoding.MultilineBasicString)
                 TokenKind.Atom -> onExpressionKey(current, null)
                 TokenKind.Equals -> {
                     receiver.simpleKey(current.span().before(), null, error)
@@ -256,8 +256,8 @@ internal class DocumentParser(
                 }
                 TokenKind.LiteralString -> Encoding.LiteralString
                 TokenKind.BasicString -> Encoding.BasicString
-                TokenKind.MlLiteralString -> Encoding.MlLiteralString
-                TokenKind.MlBasicString -> Encoding.MlBasicString
+                TokenKind.MultilineLiteralString -> Encoding.MultilineLiteralString
+                TokenKind.MultilineBasicString -> Encoding.MultilineBasicString
                 TokenKind.Atom -> null
             }
             receiver.simpleKey(current.span(), encoding, error)
@@ -370,7 +370,7 @@ internal class DocumentParser(
             }
             TokenKind.LiteralString -> Encoding.LiteralString
             TokenKind.BasicString -> Encoding.BasicString
-            TokenKind.MlLiteralString -> {
+            TokenKind.MultilineLiteralString -> {
                 error.reportError(
                     ParseError(
                         invalidReason,
@@ -379,9 +379,9 @@ internal class DocumentParser(
                         unexpected = current.span(),
                     ),
                 )
-                Encoding.MlLiteralString
+                Encoding.MultilineLiteralString
             }
-            TokenKind.MlBasicString -> {
+            TokenKind.MultilineBasicString -> {
                 error.reportError(
                     ParseError(
                         invalidReason,
@@ -390,7 +390,7 @@ internal class DocumentParser(
                         unexpected = current.span(),
                     ),
                 )
-                Encoding.MlBasicString
+                Encoding.MultilineBasicString
             }
             TokenKind.Atom -> null
         }
@@ -435,8 +435,8 @@ internal class DocumentParser(
                     }
                     TokenKind.LiteralString -> Encoding.LiteralString
                     TokenKind.BasicString -> Encoding.BasicString
-                    TokenKind.MlLiteralString -> Encoding.MlLiteralString
-                    TokenKind.MlBasicString -> Encoding.MlBasicString
+                    TokenKind.MultilineLiteralString -> Encoding.MultilineLiteralString
+                    TokenKind.MultilineBasicString -> Encoding.MultilineBasicString
                     TokenKind.Atom -> null
                 }
                 receiver.simpleKey(current.span(), kind, error)
@@ -518,8 +518,8 @@ internal class DocumentParser(
             }
             TokenKind.LiteralString,
             TokenKind.BasicString,
-            TokenKind.MlLiteralString,
-            TokenKind.MlBasicString,
+            TokenKind.MultilineLiteralString,
+            TokenKind.MultilineBasicString,
             TokenKind.Dot,
             TokenKind.Atom,
             -> onScalar(current)
@@ -531,8 +531,8 @@ internal class DocumentParser(
         val encoding = when (scalar.kind()) {
             TokenKind.LiteralString -> Encoding.LiteralString
             TokenKind.BasicString -> Encoding.BasicString
-            TokenKind.MlLiteralString -> Encoding.MlLiteralString
-            TokenKind.MlBasicString -> Encoding.MlBasicString
+            TokenKind.MultilineLiteralString -> Encoding.MultilineLiteralString
+            TokenKind.MultilineBasicString -> Encoding.MultilineBasicString
             else -> {
                 while (true) {
                     val next = tokens.first() ?: break
@@ -674,8 +674,8 @@ internal class DocumentParser(
             }
             TokenKind.LiteralString,
             TokenKind.BasicString,
-            TokenKind.MlLiteralString,
-            TokenKind.MlBasicString,
+            TokenKind.MultilineLiteralString,
+            TokenKind.MultilineBasicString,
             TokenKind.Dot,
             TokenKind.Atom,
             -> {
@@ -863,8 +863,8 @@ internal class DocumentParser(
             }
             TokenKind.LiteralString,
             TokenKind.BasicString,
-            TokenKind.MlLiteralString,
-            TokenKind.MlBasicString,
+            TokenKind.MultilineLiteralString,
+            TokenKind.MultilineBasicString,
             TokenKind.Dot,
             TokenKind.Atom,
             -> when (frame.state) {
@@ -948,8 +948,8 @@ internal class DocumentParser(
                 TokenKind.RightCurlyBracket,
                 TokenKind.LiteralString,
                 TokenKind.BasicString,
-                TokenKind.MlLiteralString,
-                TokenKind.MlBasicString,
+                TokenKind.MultilineLiteralString,
+                TokenKind.MultilineBasicString,
                 TokenKind.Atom,
                 -> {
                     error.reportError(
@@ -1053,8 +1053,8 @@ internal class DocumentParser(
                 TokenKind.Comma,
                 TokenKind.LiteralString,
                 TokenKind.BasicString,
-                TokenKind.MlLiteralString,
-                TokenKind.MlBasicString,
+                TokenKind.MultilineLiteralString,
+                TokenKind.MultilineBasicString,
                 TokenKind.Atom,
                 -> receiver.error(current.span(), error)
                 TokenKind.Comment -> onComment(current)

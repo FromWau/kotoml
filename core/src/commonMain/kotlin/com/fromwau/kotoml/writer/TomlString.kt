@@ -37,7 +37,7 @@ internal class TomlStringBuilder(private val decoded: String) {
     fun asMlLiteral(): TomlString? = if (metrics.escapeCodes || 2 < metrics.maxSeqSingleQuotes) {
         null
     } else {
-        TomlString(decoded, StringEncoding.MlLiteralString, metrics.newline)
+        TomlString(decoded, StringEncoding.MultilineLiteralString, metrics.newline)
     }
 
     /** `"basic"` needing no escapes, unless the string has control characters, `\`, `"` or a newline. */
@@ -56,7 +56,7 @@ internal class TomlStringBuilder(private val decoded: String) {
     fun asBasic(): TomlString = TomlString(decoded, StringEncoding.BasicString, metrics.newline)
 
     /** `"""multi-line basic"""`, escaping whatever needs it. Always possible. */
-    fun asMlBasic(): TomlString = TomlString(decoded, StringEncoding.MlBasicString, metrics.newline)
+    fun asMlBasic(): TomlString = TomlString(decoded, StringEncoding.MultilineBasicString, metrics.newline)
 
     override fun toString(): String = "TomlStringBuilder(decoded=$decoded)"
 }
@@ -135,10 +135,10 @@ internal enum class StringEncoding {
     BasicString,
 
     /** `'''multi-line literal'''` */
-    MlLiteralString,
+    MultilineLiteralString,
 
     /** `"""multi-line basic"""` */
-    MlBasicString,
+    MultilineBasicString,
 }
 
 private fun writeEncoded(
@@ -150,12 +150,12 @@ private fun writeEncoded(
     val delimiter = when (encoding) {
         StringEncoding.LiteralString -> "'"
         StringEncoding.BasicString -> "\""
-        StringEncoding.MlLiteralString -> "'''"
-        StringEncoding.MlBasicString -> "\"\"\""
+        StringEncoding.MultilineLiteralString -> "'''"
+        StringEncoding.MultilineBasicString -> "\"\"\""
         null -> ""
     }
-    val escaped = encoding == StringEncoding.BasicString || encoding == StringEncoding.MlBasicString
-    val isMl = encoding == StringEncoding.MlLiteralString || encoding == StringEncoding.MlBasicString
+    val escaped = encoding == StringEncoding.BasicString || encoding == StringEncoding.MultilineBasicString
+    val isMl = encoding == StringEncoding.MultilineLiteralString || encoding == StringEncoding.MultilineBasicString
 
     writer.writeStr(delimiter).orBail { return it }
     if (newline && isMl) writer.newline().orBail { return it }

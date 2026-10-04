@@ -65,7 +65,7 @@ private fun instant(text: String): Pair<Long, Long>? {
     val time = datetime.time ?: return null
     val offsetMinutes = when (val offset = datetime.offset ?: return null) {
         Offset.Z, Offset.Unknown -> 0
-        is Offset.Custom -> offset.minutes.toInt()
+        is Offset.Custom -> offset.minutes
     }
     val days = daysFromCivil(date.year.toLong(), date.month.toLong(), date.day.toLong())
     val seconds = days * 86_400 +

@@ -62,7 +62,7 @@ class RemovalPropertyTest {
         val keys = TomlDocument.parse(text, version)
             .unwrap()
             .root
-            .items()
+            .entries
             .map { it.first }
         return keys.filter { key ->
             val document = TomlDocument.parse(text, version).unwrap()

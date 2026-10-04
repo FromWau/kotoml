@@ -271,11 +271,9 @@ public enum class ExpectedToken {
 
 /**
  * Which kind of scalar a value spells, as [ParseErrorReason.InvalidScalar] names it.
- *
- * Kinds order as declared, a [Boolean] by its value and an [Integer] by its radix.
  */
 @Serializable
-public sealed interface ScalarKind : Comparable<ScalarKind> {
+public sealed interface ScalarKind {
     /** A string, quoted or not. */
     @Serializable
     @SerialName("String")
@@ -300,48 +298,24 @@ public sealed interface ScalarKind : Comparable<ScalarKind> {
     @Serializable
     @SerialName("Integer")
     public data class Integer(val radix: IntegerRadix) : ScalarKind
-
-    override fun compareTo(other: ScalarKind): Int {
-        val byVariant = variantIndex().compareTo(other.variantIndex())
-        if (byVariant != 0) return byVariant
-        return when {
-            this is Boolean && other is Boolean -> value.compareTo(other.value)
-            this is Integer && other is Integer -> radix.compareTo(other.radix)
-            else -> 0
-        }
-    }
-
-    private fun variantIndex(): Int = when (this) {
-        String -> 0
-        is Boolean -> 1
-        DateTime -> 2
-        Float -> 3
-        is Integer -> 4
-    }
 }
 
 /** The base an integer is written in. */
-public enum class IntegerRadix {
+public enum class IntegerRadix(
+    /** The base as a number: 10, 16, 8 or 2. */
+    public val base: Int,
+) {
     /** Base 10, the default. */
-    Dec,
+    Dec(10),
 
     /** Base 16, `0x`. */
-    Hex,
+    Hex(16),
 
     /** Base 8, `0o`. */
-    Oct,
+    Oct(8),
 
     /** Base 2, `0b`. */
-    Bin,
-    ;
-
-    /** The base as a number: 10, 16, 8 or 2. */
-    public fun value(): Int = when (this) {
-        Dec -> 10
-        Hex -> 16
-        Oct -> 8
-        Bin -> 2
-    }
+    Bin(2),
 }
 
 /**
@@ -351,10 +325,10 @@ public enum class IntegerRadix {
  */
 public enum class Encoding {
     /** `'''multi-line literal'''` */
-    MlLiteralString,
+    MultilineLiteralString,
 
     /** `"""multi-line basic"""` */
-    MlBasicString,
+    MultilineBasicString,
 
     /** `"basic"` */
     BasicString,

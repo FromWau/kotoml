@@ -53,7 +53,7 @@ class PreservationTest {
     @Test
     fun `resetting a shared key's formatting applies to every line`() {
         val doc = parse("name.first = \"Arthur\"\n\"name\" . 'last' = \"Dent\"\n")
-        doc.root.key("name")!!.resetFormatting()
+        doc.root.keyOrNull("name")!!.resetFormatting()
         // The leaf key `'last'` is the line's own and keeps its spelling and the space before it.
         assertEquals("name.first = \"Arthur\"\nname. 'last' = \"Dent\"\n", doc.toString())
     }

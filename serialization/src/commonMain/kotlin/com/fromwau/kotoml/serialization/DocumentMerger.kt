@@ -270,7 +270,7 @@ private fun Table.headerTables(): List<Table> {
     val tables = mutableListOf<Table>()
     fun collect(table: Table) {
         if (table.position != null) tables += table
-        for ((_, item) in table.items()) {
+        for ((_, item) in table.entries) {
             item.tableOrNull?.let(::collect)
             item.arrayOfTablesOrNull?.forEach(::collect)
         }

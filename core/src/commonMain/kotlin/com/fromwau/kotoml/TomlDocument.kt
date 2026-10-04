@@ -180,7 +180,7 @@ public class TomlDocument internal constructor(
      * open.
      *
      * ```kotlin
-     * SystemFileSystem.sink(Path("Cargo.toml")).buffered().use { document.writeTo(it) }
+     * SystemFileSystem.sink(Path("config.toml")).buffered().use { document.writeTo(it) }
      * ```
      *
      * @return [TomlIoError] when the sink fails to take the text.
@@ -238,7 +238,7 @@ public class TomlDocument internal constructor(
          * Reads [source] to its end and parses what it held as UTF-8 TOML of [version]. The source stays open.
          *
          * ```kotlin
-         * val read = SystemFileSystem.source(Path("Cargo.toml")).buffered().use { TomlDocument.read(it) }
+         * val read = SystemFileSystem.source(Path("config.toml")).buffered().use { TomlDocument.read(it) }
          * ```
          *
          * @return [TomlIoError] when reading fails, or [TomlReadError.Parse] when the bytes are not TOML.

@@ -71,20 +71,20 @@ internal class Raw internal constructor(
         when (encoding) {
             Encoding.LiteralString -> decodeLiteralString(this, output, rebased)
             Encoding.BasicString -> decodeBasicString(this, output, rebased)
-            Encoding.MlLiteralString -> {
+            Encoding.MultilineLiteralString -> {
                 rebased.reportError(
                     ParseError(
-                        ParseErrorReason.MultilineKey(Encoding.MlLiteralString),
+                        ParseErrorReason.MultilineKey(Encoding.MultilineLiteralString),
                         expected = KEY_STRING_KINDS,
                         unexpected = Span(0, len()),
                     ),
                 )
                 decodeMlLiteralString(this, output, rebased)
             }
-            Encoding.MlBasicString -> {
+            Encoding.MultilineBasicString -> {
                 rebased.reportError(
                     ParseError(
-                        ParseErrorReason.MultilineKey(Encoding.MlBasicString),
+                        ParseErrorReason.MultilineKey(Encoding.MultilineBasicString),
                         expected = KEY_STRING_KINDS,
                         unexpected = Span(0, len()),
                     ),
@@ -110,11 +110,11 @@ internal class Raw internal constructor(
                 decodeBasicString(this, output, rebased)
                 ScalarKind.String
             }
-            Encoding.MlLiteralString -> {
+            Encoding.MultilineLiteralString -> {
                 decodeMlLiteralString(this, output, rebased)
                 ScalarKind.String
             }
-            Encoding.MlBasicString -> {
+            Encoding.MultilineBasicString -> {
                 decodeMlBasicString(this, output, rebased)
                 ScalarKind.String
             }

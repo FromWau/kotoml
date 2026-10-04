@@ -39,7 +39,7 @@ class TomlDocumentTest {
         val document = TomlDocument.parse("b = 1\na = 2\n[t]\n").unwrap()
 
         assertEquals(listOf("b", "a", "t"), document.map { it.first })
-        assertEquals(document.root.items(), document.toList())
+        assertEquals(document.root.entries, document.toList())
     }
 
     @Test

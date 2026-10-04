@@ -272,7 +272,7 @@ public sealed interface Value {
 
     /**
      * Drops the value's own spelling so it prints in the default one. An array or inline table instead drops
-     * the formatting of its elements, as [TomlArray.fmt] and [TomlInlineTable.fmt] do.
+     * the formatting of its elements, as [TomlArray.resetFormatting] and [TomlInlineTable.resetFormatting] do.
      */
     public fun resetFormatting() {
         when (this) {

@@ -172,7 +172,7 @@ private fun Datetime.kind(): DatetimeKind = when {
 
 private fun Offset.minutesEast(): Int = when (this) {
     Offset.Z, Offset.Unknown -> 0
-    is Offset.Custom -> minutes.toInt()
+    is Offset.Custom -> minutes
 }
 
 private fun Date.toLocalDate(): LocalDate = LocalDate(year, month, day)

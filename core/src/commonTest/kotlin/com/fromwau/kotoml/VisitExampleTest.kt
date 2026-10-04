@@ -34,7 +34,7 @@ class VisitExampleTest {
         state: VisitState,
         names: MutableSet<String>,
     ) {
-        for ((key, item) in table.items()) {
+        for ((key, item) in table.entries) {
             // Only the keys right under [dependencies] are wanted, so this does not always recurse.
             if (state == VisitState.Dependencies) {
                 names += key
@@ -84,7 +84,7 @@ class VisitExampleTest {
         table: TableLike,
         state: VisitState,
     ) {
-        for ((name, item) in table.items()) normalizeDependencyEntry(table.key(name)!!, item, state.descend(name))
+        for ((name, item) in table.entries) normalizeDependencyEntry(table.keyOrNull(name)!!, item, state.descend(name))
     }
 
     private fun normalizeDependencyEntry(

@@ -4,10 +4,10 @@ Query TOML files like jq. What `kotoml` prints keeps the comments, spacing and s
 because it reads through [`:core`](../core/README.md), a format-preserving TOML parser.
 
 ```console
-$ kotoml get .package.version Cargo.toml
-"0.1.0"
-$ kotoml get -r .package.version Cargo.toml
-0.1.0
+$ kotoml get '.servers[0].host' config.toml
+"alpha"
+$ kotoml get -r '.servers[0].host' config.toml
+alpha
 $ kotoml get '.servers[] | .host' config.toml
 "alpha"
 "beta"
@@ -21,9 +21,9 @@ $ kotoml get --json '.servers[0]' config.toml
 {"host":"alpha","port":8080}
 $ kotoml get --json '.servers[] | .port' config.toml
 [8080,8081]
-$ cat config.toml | kotoml get .package
-name = "kotoml"   # the name
-version = "0.1.0"
+$ cat config.toml | kotoml get '.servers[1]'
+host = "beta"
+port = 8081
 ```
 
 ## Commands

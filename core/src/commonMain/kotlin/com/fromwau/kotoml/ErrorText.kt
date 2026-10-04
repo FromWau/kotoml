@@ -208,8 +208,8 @@ private fun DatetimeField.placeholder(): String = when (this) {
 private fun Encoding.describe(): String = when (this) {
     Encoding.LiteralString -> "literal string"
     Encoding.BasicString -> "basic string"
-    Encoding.MlLiteralString -> "multi-line literal string"
-    Encoding.MlBasicString -> "multi-line basic string"
+    Encoding.MultilineLiteralString -> "multi-line literal string"
+    Encoding.MultilineBasicString -> "multi-line basic string"
 }
 
 internal fun ExpectedToken.describe(): String = when (this) {

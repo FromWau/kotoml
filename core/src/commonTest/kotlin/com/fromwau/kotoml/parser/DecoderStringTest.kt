@@ -101,7 +101,7 @@ trimmed in raw strings.
             val error = mutableListOf<ParseError>()
             val actual = StringOutput()
             decodeMlLiteralString(
-                Raw.newUnchecked(input, Encoding.MlLiteralString, Span.DEFAULT),
+                Raw.newUnchecked(input, Encoding.MultilineLiteralString, Span.DEFAULT),
                 actual,
                 ErrorSink { error += it },
             )
@@ -384,7 +384,7 @@ Violets are blue
             val error = mutableListOf<ParseError>()
             val actual = StringOutput()
             decodeMlBasicString(
-                Raw.newUnchecked(input, Encoding.MlBasicString, Span.DEFAULT),
+                Raw.newUnchecked(input, Encoding.MultilineBasicString, Span.DEFAULT),
                 actual,
                 ErrorSink { error += it },
             )

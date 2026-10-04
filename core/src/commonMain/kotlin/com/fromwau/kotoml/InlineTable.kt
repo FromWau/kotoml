@@ -167,7 +167,7 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
         }
 
     /** The key [name] as stored, whose formatting can be changed in place; null when there is none. */
-    override fun key(name: String): Key? = items.getEntry(name)?.key
+    override fun keyOrNull(name: String): Key? = items.getEntry(name)?.key
 
     internal fun despan(input: SourceText) {
         span = null
@@ -185,13 +185,14 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
         .iterator()
 
     /** The key/item pairs, in order; each item holds a value. */
-    override fun items(): List<Pair<String, Item>> = items.entries()
+    override val entries: List<Pair<String, Item>>
+        get() = items.entries()
         .filter { !it.item.isMissing }
         .map { it.key.name to it.item }
 
     /** The keys holding a value, in order, as a copy that later changes to the table leave as it is. */
     override val keys: Set<String>
-        get() = items().mapTo(LinkedHashSet()) { it.first }
+        get() = entries.mapTo(LinkedHashSet()) { it.first }
 
     /** The number of key/value pairs. */
     override val size: Int

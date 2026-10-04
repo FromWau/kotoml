@@ -69,7 +69,7 @@ private fun Selected.apply(step: Step): Result<List<Selected>, AppError> {
         }
         Step.Iterate -> when {
             table != null -> Ok(
-                table.items().map { (key, child) -> Selected(child, path + key, trail + Step.Key(key).locate()) },
+                table.entries.map { (key, child) -> Selected(child, path + key, trail + Step.Key(key).locate()) },
             )
             array != null -> Ok(array.mapIndexed { index, value -> Selected(Item(value), path, "$trail[$index]") })
             tables != null -> Ok(

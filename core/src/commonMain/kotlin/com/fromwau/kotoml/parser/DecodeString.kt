@@ -136,7 +136,7 @@ private fun Raw.stripStartNewline(start: Int, end: Int): Int = when {
 
 /** `ml-literal-string = ml-literal-string-delim [ newline ] ml-literal-body ml-literal-string-delim` */
 internal fun decodeMlLiteralString(raw: Raw, output: DecodedStringBuilder, error: ErrorSink) {
-    val invalidString = ParseErrorReason.InvalidString(Encoding.MlLiteralString)
+    val invalidString = ParseErrorReason.InvalidString(Encoding.MultilineLiteralString)
     val length = raw.len()
 
     output.clear()
@@ -369,7 +369,7 @@ private fun hexEscape(stream: Stream, digits: Int, error: ErrorSink): Int {
 
 /** `ml-basic-string = ml-basic-string-delim [ newline ] ml-basic-body ml-basic-string-delim` */
 internal fun decodeMlBasicString(raw: Raw, output: DecodedStringBuilder, error: ErrorSink) {
-    val invalidString = ParseErrorReason.InvalidString(Encoding.MlBasicString)
+    val invalidString = ParseErrorReason.InvalidString(Encoding.MultilineBasicString)
     val length = raw.len()
 
     var start = 0
@@ -458,7 +458,7 @@ private fun isMlbUnescaped(byte: Int): Boolean = isBasicUnescaped(byte) || byte 
 
 /** `mlb-escaped-nl = escape ws newline *( wschar / newline )`, with [stream] just past the escape. */
 private fun mlbEscapedNl(stream: Stream, error: ErrorSink) {
-    val invalidString = ParseErrorReason.InvalidString(Encoding.MlBasicString)
+    val invalidString = ParseErrorReason.InvalidString(Encoding.MultilineBasicString)
     val length = stream.raw.len()
     stream.takeWhile(::isWsChar)
 

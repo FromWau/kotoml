@@ -29,8 +29,8 @@ import kotlin.reflect.typeOf
  * @Serializable
  * data class Server(val host: String, val port: Int = 8080)
  *
- * val server = Toml.decodeFromString<Server>("host = \"example.org\"\n") // Ok(Server("example.org", 8080))
- * val text = Toml.encodeToString(Server("example.org", 80)) // Ok("host = \"example.org\"\nport = 80\n")
+ * val server = Toml.decodeFromString<Server>("host = \"example.org\"\n") // Result.Success(Server("example.org", 8080))
+ * val text = Toml.encodeToString(Server("example.org", 80)) // Result.Success("host = \"example.org\"\nport = 80\n")
  * val lenient = Toml { ignoreUnknownKeys = true }
  * ```
  *
@@ -102,7 +102,7 @@ public sealed class Toml(
         val descriptor = deserializer.descriptor
         if (!descriptor.isTableKind()) return Err(TomlDecodeError.UnsupportedRoot(descriptor.serialName))
         firstNullableType(descriptor, serializersModule)?.let { return Err(TomlDecodeError.NullableType("$it")) }
-        val root = TomlInput.Table(document.root.items().toMap(), TomlType.Table)
+        val root = TomlInput.Table(document.root.entries.toMap(), TomlType.Table)
         return try {
             Ok(NodeDecoder(this, root, TomlPath.Root).decodeSerializableValue(deserializer))
         } catch (failure: DecodeFailure) {
@@ -155,7 +155,7 @@ public sealed class Toml(
      * document.toString() // "host = 'a'\nport = 9090 # the default\n"
      * ```
      *
-     * @return [Ok] once [document] holds [value], or the error that stopped writing.
+     * @return [Result.Success] once [document] holds [value], or the error that stopped writing.
      */
     public fun <T> encodeInto(
         document: TomlDocument,

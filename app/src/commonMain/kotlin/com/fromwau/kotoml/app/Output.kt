@@ -107,7 +107,7 @@ internal fun Selected.toToml(): String {
 internal fun Item.toJson(): JsonElement {
     valueOrNull?.let { return it.toJson() }
     tableLikeOrNull?.let { table ->
-        return JsonObject(table.items().associate { (key, item) -> key to item.toJson() })
+        return JsonObject(table.entries.associate { (key, item) -> key to item.toJson() })
     }
     arrayOfTablesOrNull?.let { tables ->
         return JsonArray(tables.map { Item(it).toJson() })

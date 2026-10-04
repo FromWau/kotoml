@@ -96,7 +96,7 @@ or `key(name)`, goes through `doc.root`.
 ## Read and write files
 
 ```kotlin
-val path = Path("Cargo.toml")
+val path = Path("config.toml")
 val read = SystemFileSystem.source(path).buffered().use { TomlDocument.read(it) }
 val doc = when (read) {
     is Result.Success -> read.value
