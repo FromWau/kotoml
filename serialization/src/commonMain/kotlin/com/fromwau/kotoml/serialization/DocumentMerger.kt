@@ -79,7 +79,7 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
         full: TomlNode,
         defaults: Defaults,
     ) {
-        val existingTable = existing.standardTableOrNull ?: existing.inlineTableOrNull
+        val existingTable = existing.tableOrNull
         when {
             full is TomlNode.Struct && existingTable != null -> mergeTable(existingTable, full, defaults)
             existing.toInput()?.sameAs(full, defaults) == true -> {}

@@ -6,7 +6,6 @@ import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
 import com.fromwau.kern.result.map
 import com.fromwau.kotoml.TomlDocument
-import com.fromwau.kotoml.TomlType
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialFormat
@@ -29,8 +28,10 @@ import kotlin.reflect.typeOf
  * @Serializable
  * data class Server(val host: String, val port: Int = 8080)
  *
- * val server = Toml.decodeFromString<Server>("host = \"example.org\"\n") // Result.Success(Server("example.org", 8080))
- * val text = Toml.encodeToString(Server("example.org", 80)) // Result.Success("host = \"example.org\"\nport = 80\n")
+ * // Result.Success(Server("example.org", 8080))
+ * val server = Toml.decodeFromString<Server>("host = \"example.org\"\n")
+ * // Result.Success("host = \"example.org\"\nport = 80\n")
+ * val text = Toml.encodeToString(Server("example.org", 80))
  * val lenient = Toml { ignoreUnknownKeys = true }
  * ```
  *
@@ -102,9 +103,8 @@ public sealed class Toml(
         val descriptor = deserializer.descriptor
         if (!descriptor.isTableKind()) return Err(TomlDecodeError.UnsupportedRoot(descriptor.serialName))
         firstNullableType(descriptor, serializersModule)?.let { return Err(TomlDecodeError.NullableType("$it")) }
-        val root = TomlInput.Table(document.root.entries.toMap(), TomlType.Table)
         return try {
-            Ok(NodeDecoder(this, root, TomlPath.Root).decodeSerializableValue(deserializer))
+            Ok(NodeDecoder(this, document.root.toInput(), TomlPath.Root).decodeSerializableValue(deserializer))
         } catch (failure: DecodeFailure) {
             Err(failure.error)
         }
