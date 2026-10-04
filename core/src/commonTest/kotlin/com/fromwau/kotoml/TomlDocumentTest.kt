@@ -1,5 +1,9 @@
 package com.fromwau.kotoml
 
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import kotlinx.io.Buffer
 import kotlinx.io.IOException
 import kotlinx.io.RawSink
@@ -8,9 +12,6 @@ import kotlinx.io.buffered
 import kotlinx.io.readString
 import kotlinx.io.writeString
 import kotlinx.serialization.json.Json
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class TomlDocumentTest {
 
@@ -101,7 +102,7 @@ class TomlDocumentTest {
 
         val error = TomlDocument.read(Buffer().apply { writeString(text) }).errorOrFail()
 
-        assertTrue(error is TomlReadError.Parse)
+        assertIs<TomlReadError.Parse>(error)
         assertEquals(TomlParseError.Reason.DuplicateKey("a"), error.error.reason)
         assertEquals(text, error.text)
     }
@@ -112,7 +113,7 @@ class TomlDocumentTest {
 
         val error = TomlDocument.read(source).errorOrFail()
 
-        assertTrue(error is TomlReadError.Parse)
+        assertIs<TomlReadError.Parse>(error)
         assertEquals(TomlParseError.Reason.InvalidUtf8(validUpTo = 1, errorLength = 1), error.error.reason)
     }
 
@@ -122,7 +123,7 @@ class TomlDocumentTest {
 
         val error = TomlDocument.read(source, TomlVersion.V1_0).errorOrFail()
 
-        assertTrue(error is TomlReadError.Parse)
+        assertIs<TomlReadError.Parse>(error)
         assertEquals(TomlParseError.Reason.NotInToml10(Toml11Feature.TimeWithoutSeconds), error.error.reason)
     }
 

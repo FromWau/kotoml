@@ -3,6 +3,7 @@ package com.fromwau.kotoml
 import com.fromwau.kern.result.Result
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /** `toml_edit/tests/compliance/parse.rs` */
@@ -123,14 +124,14 @@ string'''""",
 #...
 """,
         )
-        assertTrue(table["foo"][0]["bar"].tableOrNull != null)
-        assertTrue(table["foo"][1]["bar"].tableOrNull != null)
+        assertNotNull(table["foo"][0]["bar"].tableOrNull)
+        assertNotNull(table["foo"][1]["bar"].tableOrNull)
     }
 
     @Test
     fun `a header with no keys makes an empty table`() {
         val table = parseDocument("\n[foo]")
-        assertTrue(table["foo"].tableOrNull != null)
+        assertNotNull(table["foo"].tableOrNull)
     }
 
     @Test
@@ -265,11 +266,11 @@ name = "plantain"
         ['""']
     """,
         )
-        assertTrue(a["a"]["b"].tableOrNull != null)
-        assertTrue(a["f f"].tableOrNull != null)
-        assertTrue(a["f.f"].tableOrNull != null)
-        assertTrue(a["\""].tableOrNull != null)
-        assertTrue(a["\"\""].tableOrNull != null)
+        assertNotNull(a["a"]["b"].tableOrNull)
+        assertNotNull(a["f f"].tableOrNull)
+        assertNotNull(a["f.f"].tableOrNull)
+        assertNotNull(a["\""].tableOrNull)
+        assertNotNull(a["\"\""].tableOrNull)
     }
 
     @Test

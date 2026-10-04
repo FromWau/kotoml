@@ -3,6 +3,9 @@ package com.fromwau.kotoml
 import com.fromwau.kern.result.Result
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.test.fail
 
@@ -378,8 +381,8 @@ trailing...
             "in.rs\"\n\n[dependencies]\nnom = \"4.0\" # future is here\n\n[[bin]]\nname = \"delete me please\"\npath " +
             "= \"src/bin/dmp/main.rs\"")
             .runningOnDoc { document ->
-                    assertTrue(document.decor.prefix == null)
-                    assertTrue(document.decor.suffix == null)
+                    assertNull(document.decor.prefix)
+                    assertNull(document.decor.suffix)
                     document.trailing = "\n\ntrailing..."
             }
             .producesDisplay("""
@@ -499,8 +502,7 @@ dc = "eqdc10"
         given("\n        [package]\n        title = \"withoutarray\"")
             .running { root ->
                 root["bin"] = ArrayOfTables()
-                assertTrue(root["bin"].arrayOfTablesOrNull != null)
-                val array = root["bin"].arrayOfTablesOrNull!!
+                val array = assertNotNull(root["bin"].arrayOfTablesOrNull)
                 run {
                     val table = Table()
                     table["hello"] = "world"
@@ -578,7 +580,7 @@ name = "dep"
             .running { root ->
                 val servers = root.getOrNull("servers")!!
                 val serversTable = servers.tableOrNull!!
-                assertTrue(serversTable.remove("alpha") != null)
+                assertNotNull(serversTable.remove("alpha"))
             }
             .producesDisplay("""
 
@@ -629,7 +631,7 @@ name = "dep"
 
     """)
             .running { root ->
-                    assertTrue(root.remove("a") != null)
+                    assertNotNull(root.remove("a"))
             }
             .producesDisplay("""
 
@@ -656,8 +658,7 @@ name = "dep"
             "p/main.rs\"")
             .running { root ->
                 val dmp = root.getOrNull("bin")!!
-                assertTrue(dmp.arrayOfTablesOrNull != null)
-                val dmpArray = dmp.arrayOfTablesOrNull!!
+                val dmpArray = assertNotNull(dmp.arrayOfTablesOrNull)
                 assertEquals(2, dmpArray.size)
                 dmpArray.removeAt(1)
                 assertEquals(1, dmpArray.size)
@@ -687,7 +688,7 @@ name = "dep"
             "\" # future is here\n\n        [[bin]]\n        name = \"delete me please\"\n        path = \"src/bin/dm" +
             "p/main.rs\"")
             .running { root ->
-                    assertTrue(root.remove("bin") != null)
+                    assertNotNull(root.remove("bin"))
             }
             .producesDisplay("""
 
@@ -709,10 +710,9 @@ name = "dep"
             "tation = \"https://docs.rs/hello\"")
             .running { root ->
                 val value = root.remove("version")
-                assertTrue(value != null)
-                assertTrue(value.valueOrNull != null)
-                val version = value.valueOrNull!!
-                assertTrue(version is Value.String)
+                assertNotNull(value)
+                val version = assertNotNull(value.valueOrNull)
+                assertIs<Value.String>(version)
                 assertSnapshot("1.0.0", version.stringOrNull!!)
             }
             .producesDisplay("""
@@ -731,13 +731,11 @@ name = "dep"
         b = 1""")
             .running { root ->
                 val a = root.getOrNull("a")!!
-                assertTrue(a.tableOrNull != null)
-                val aTable = a.tableOrNull!!
+                val aTable = assertNotNull(a.tableOrNull)
                 aTable.isImplicit = true
                 val value = aTable.remove("b")
-                assertTrue(value != null)
-                assertTrue(value.valueOrNull != null)
-                assertEquals(1L, value.valueOrNull!!.longOrNull)
+                assertNotNull(value)
+                assertEquals(1L, assertNotNull(value.valueOrNull).longOrNull)
             }
             .producesDisplay("")
     }
@@ -918,7 +916,7 @@ edition = "2024"
                 run {
                     val a = root.getOrNull("a")!!.arrayOrNull!!
                     assertEquals(3, a.size)
-                    assertTrue(a.get(2) != null)
+                    assertNotNull(a.get(2))
                     a.add(4L)
                     assertEquals(4, a.size)
                     a.resetFormatting()
@@ -1006,7 +1004,9 @@ edition = "2024"
                 run {
                     val a = root.getOrNull("a")!!.inlineTableOrNull!!
                     assertEquals(2, a.size)
-                    assertTrue(a.containsKey("a") && "a" in a && a["c"] != null)
+                    assertTrue(a.containsKey("a"))
+                    assertTrue("a" in a)
+                    assertNotNull(a["c"])
                     a.getOrPut("b") { Value.Integer(42L) }
                     assertEquals(3, a.size)
                     a.resetFormatting()
@@ -1034,12 +1034,12 @@ edition = "2024"
                 run {
                     val a = root.getOrNull("a")!!.inlineTableOrNull!!
                     assertEquals(3, a.size)
-                    assertTrue(a.remove("c") != null)
+                    assertNotNull(a.remove("c"))
                     assertEquals(2, a.size)
                 }
                 val b = root.getOrNull("b")!!.inlineTableOrNull!!
                 assertEquals(1, b.size)
-                assertTrue(b.remove("hello") != null)
+                assertNotNull(b.remove("hello"))
                 assertTrue(b.isEmpty())
             }
             .producesDisplay("""
@@ -1061,18 +1061,18 @@ edition = "2024"
         [empty]""")
             .running { root ->
                 val a = root["a"].tableLikeOrNull
-                assertTrue(a != null)
+                assertNotNull(a)
                 assertEquals(3, a.entries.size)
                 assertEquals(3, a.size)
                 assertEquals(2L, a.getItem("a")?.longOrNull)
                 val b = root["b"].tableLikeOrNull
-                assertTrue(b != null)
+                assertNotNull(b)
                 assertEquals(1, b.entries.size)
                 assertEquals(1, b.size)
                 assertEquals("y", b.getItem("x")?.stringOrNull)
                 assertEquals(0, root["x"].tableLikeOrNull?.entries?.size)
                 assertEquals(true, root["empty"].tableLikeOrNull?.isEmpty())
-                assertTrue(root["bin"].tableLikeOrNull == null)
+                assertNull(root["bin"].tableLikeOrNull)
             }
     }
 
