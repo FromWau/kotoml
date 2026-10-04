@@ -88,7 +88,7 @@ public sealed class Toml(
      * and is [TomlDecodeError.MissingKey] for a field without one.
      *
      * ```kotlin
-     * val document = TomlDocument.parse(text).getOrNull()!!
+     * val document = TomlDocument.parse(text).getOrElse { error(it) }
      * val config = Toml.decodeFromDocument(Config.serializer(), document)
      * ```
      *
@@ -150,7 +150,7 @@ public sealed class Toml(
      * key in [document], to get the value that key is updated to.
      *
      * ```kotlin
-     * val document = TomlDocument.parse("host = 'a'\nport = 8080 # the default\n").getOrNull()!!
+     * val document = TomlDocument.parse("host = 'a'\nport = 8080 # the default\n").getOrElse { error(it) }
      * Toml.encodeInto(document, Server.serializer(), Server("a", 9090))
      * document.toString() // "host = 'a'\nport = 9090 # the default\n"
      * ```

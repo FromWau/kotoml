@@ -83,8 +83,8 @@ hold, such as a `ULong` above `Long.MAX_VALUE`, is a `TomlEncodeError`, and so i
 
 ```kotlin
 val document = TomlDocument.parse("# where to listen\nhostname = \"example.org\"\nport = 8080 # the default\n")
-    .getOrNull()!!
-val config = Toml.decodeFromDocument<Config>(document).getOrNull()!!
+    .getOrElse { error(it) }
+val config = Toml.decodeFromDocument<Config>(document).getOrElse { error(it) }
 Toml.encodeInto(document, config.copy(port = 9090, mode = Mode.UDP))
 document.toString()
 // # where to listen
@@ -125,8 +125,8 @@ data class Fleet(val name: String, val servers: List<Server> = emptyList())
 
 val document = TomlDocument.parse(
     "name = \"f\"\n\n[[servers]]\nhost = \"a\" # primary\n# fallback box\n[[servers]]\nhost = \"b\"\n",
-).getOrNull()!!
-val fleet = Toml.decodeFromDocument<Fleet>(document).getOrNull()!!
+).getOrElse { error(it) }
+val fleet = Toml.decodeFromDocument<Fleet>(document).getOrElse { error(it) }
 Toml.encodeInto(document, fleet.copy(servers = listOf(Server("z"), Server("a", 80), Server("b"))))
 document.toString()
 // name = "f"

@@ -19,7 +19,7 @@ import kotlinx.io.readByteArray
  * prints as it was read; once changed it ends with a newline.
  *
  * ```kotlin
- * val doc = TomlDocument.parse("\"hello\" = 'toml!' # comment\n['a'.b]\n").getOrNull()!!
+ * val doc = TomlDocument.parse("\"hello\" = 'toml!' # comment\n['a'.b]\n").getOrElse { error(it) }
  * doc["a"]["b"]["c"]["d"] = "hello"
  * doc["a"]["b"]["c"].inlineTableOrNull?.resetFormatting()
  * doc.toString() // "\"hello\" = 'toml!' # comment\n['a'.b]\nc = { d = \"hello\" }\n"

@@ -31,7 +31,7 @@ artifacts need a JDK 25 toolchain, and Android needs `minSdk` 26. Published vers
 
 ```kotlin
 val text = "\n\"hello\" = 'toml!' # comment\n['a'.b]\n"
-val doc = TomlDocument.parse(text).getOrNull()!!
+val doc = TomlDocument.parse(text).getOrElse { error(it) }
 check(doc.toString() == text)
 
 doc["a"]["b"]["c"]["d"] = "hello"
@@ -55,7 +55,7 @@ doc["when"] = Datetime(date = Date(year = 1979, month = 5, day = 27))
 // when = 1979-05-27
 
 val port: Long? = doc["port"].longOrNull // 8080
-val spelled = TomlDocument.parse("n = 0x10\n").getOrNull()!!["n"].valueOrNull as Value.Integer
+val spelled = TomlDocument.parse("n = 0x10\n").getOrElse { error(it) }["n"].valueOrNull as Value.Integer
 // spelled.value == 16, spelled.spelling == "0x10"
 ```
 
@@ -67,7 +67,7 @@ for any other kind.
 ## Tables and arrays
 
 ```kotlin
-val doc = TomlDocument.parse("[server]\nhosts = [\"alpha\"]\n").getOrNull()!!
+val doc = TomlDocument.parse("[server]\nhosts = [\"alpha\"]\n").getOrElse { error(it) }
 doc["server"]["hosts"].arrayOrNull?.add("beta")
 val server = doc["server"].tableOrNull!!
 server.getOrPut("port") { Item(Value.Integer(8080L)) }

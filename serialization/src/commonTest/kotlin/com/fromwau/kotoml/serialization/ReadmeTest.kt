@@ -2,6 +2,7 @@ package com.fromwau.kotoml.serialization
 
 import com.fromwau.kern.result.Result
 import com.fromwau.kern.result.errorOrNull
+import com.fromwau.kern.result.getOrElse
 import com.fromwau.kern.result.getOrNull
 import com.fromwau.kotoml.TomlDocument
 import com.fromwau.kotoml.TomlType
@@ -62,8 +63,8 @@ class ReadmeTest {
     @Test
     fun `the README updates a file in place`() {
         val document = TomlDocument.parse("# where to listen\nhostname = \"example.org\"\nport = 8080 # the default\n")
-            .getOrNull()!!
-        val config = Toml.decodeFromDocument<Config>(document).getOrNull()!!
+            .getOrElse { error(it) }
+        val config = Toml.decodeFromDocument<Config>(document).getOrElse { error(it) }
         Toml.encodeInto(document, config.copy(port = 9090, mode = Mode.UDP))
         assertEquals(
             "# where to listen\nhostname = \"example.org\"\nport = 9090 # the default\nmode = \"udp\"\n",
@@ -75,8 +76,8 @@ class ReadmeTest {
     fun `the README merges a list into the file`() {
         val document = TomlDocument.parse(
             "name = \"f\"\n\n[[servers]]\nhost = \"a\" # primary\n# fallback box\n[[servers]]\nhost = \"b\"\n",
-        ).getOrNull()!!
-        val fleet = Toml.decodeFromDocument<Fleet>(document).getOrNull()!!
+        ).getOrElse { error(it) }
+        val fleet = Toml.decodeFromDocument<Fleet>(document).getOrElse { error(it) }
         Toml.encodeInto(document, fleet.copy(servers = listOf(Server("z"), Server("a", 80), Server("b"))))
         assertEquals(
             "name = \"f\"\n\n[[servers]]\nhost = \"z\"\n\n[[servers]]\nhost = \"a\" # primary\nport = 80\n" +
