@@ -1,5 +1,6 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.Err
 import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
 
@@ -10,9 +11,8 @@ import com.fromwau.kern.result.Result
  * not printed while it holds no values of its own. A table that stands for the parts of a dotted key, such as
  * `a` in `a.b = 1`, is dotted.
  *
- * Indexing reads and writes slots: `table["key"]` returns the [Item] stored there, or an empty one that
- * joins the table when it is written to; `table["key"] = item` stores a copy of `item`, keeping the key's
- * formatting.
+ * Indexing reads and writes slots: `table["key"]` returns the [Item] stored there, or
+ * [TomlEditError.NotFound]; `table["key"] = item` stores a copy of `item`, keeping the key's formatting.
  *
  * ```kotlin
  * val table = standardTableOf("name" to Item(Value.String("kotoml")))
@@ -28,7 +28,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
      *
      * ```kotlin
      * val doc = TomlDocument.parse("[a]\n[a.b]\n").getOrElse { error(it) }
-     * doc["a"].standardTableOrNull?.isImplicit = true
+     * doc["a"].getOrNull()?.standardTableOrNull?.isImplicit = true
      * doc.toString() // "[a.b]\n"
      * ```
      */
@@ -49,11 +49,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     public var position: Long? = null
 
     internal var span: Span? = null
-    internal var items: KeyValuePairs = KeyValuePairs().also { it.keepLinesOfRemoved = { removed -> keepLinesAbove(removed) } }
-        set(value) {
-            field = value
-            value.keepLinesOfRemoved = { removed -> keepLinesAbove(removed) }
-        }
+    internal var items: KeyValuePairs = KeyValuePairs()
 
     // Lines above the headers of tables removed from this one, printed among the tables by their position.
     internal val keptHeaderLines: MutableList<KeptLines> = mutableListOf()
@@ -217,26 +213,24 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         }
     }
 
-    /** The key/item pairs with an item, in order. */
+    /** The key/item pairs, in order. */
     override val entries: List<Pair<String, Item>>
-        get() = items.entries
-        .filter { !it.item.isMissing }
-        .map { it.key.name to it.item }
+        get() = items.entries.map { it.key.name to it.item }
 
     override fun iterator(): Iterator<Pair<String, Item>> = entries.iterator()
 
-    /** The keys holding an item, in order, as a copy that later changes to the table leave as it is. */
+    /** The keys, in order, as a copy that later changes to the table leave as it is. */
     override val keys: Set<String>
         get() = entries.mapTo(LinkedHashSet()) { it.first }
 
-    /** The number of keys holding an item. */
+    /** The number of keys. */
     override val size: Int
-        get() = items.entries.count { !it.item.isMissing }
+        get() = items.size
 
-    /** Whether no key holds an item. */
+    /** Whether the table has no keys. */
     override fun isEmpty(): Boolean = size == 0
 
-    /** Whether some key holds an item. */
+    /** Whether the table has a key. */
     override fun isNotEmpty(): Boolean = !isEmpty()
 
     /** Removes every entry, keeping the lines above each as [remove] does. */
@@ -245,18 +239,13 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     }
 
     /** The item at [key], or null when there is none. */
-    public fun getOrNull(key: String): Item? = items.get(key)?.takeIf { !it.isMissing }
+    public fun getOrNull(key: String): Item? = items.get(key)
 
     override fun getItem(key: String): Item? = getOrNull(key)
 
-    /**
-     * The slot at [key]: the item stored there, or an empty item that joins this table under [key] when it
-     * is first written to. Reading never adds a key.
-     */
-    public operator fun get(key: String): Item = items.get(key) ?: Item.detached(Item.Holds.Anything) { child ->
-        items.put(Key(key), child)
-        Ok(Unit)
-    }
+    /** The item stored at [key], or [TomlEditError.NotFound] when there is none. */
+    public operator fun get(key: String): Result<Item, TomlEditError> =
+        items.get(key)?.let { Ok(it) } ?: Err(TomlEditError.NotFound(key))
 
     /** Stores a copy of [item] at [key], keeping the key's position and formatting when it is already there. */
     public operator fun set(
@@ -291,7 +280,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     }
 
     /** Whether [key] holds an item. */
-    override fun containsKey(key: String): Boolean = items.get(key)?.let { !it.isMissing } ?: false
+    override fun containsKey(key: String): Boolean = items.containsKey(key)
 
     /** Whether [key] holds an item, for `key in table`. */
     override operator fun contains(key: String): Boolean = containsKey(key)
@@ -309,7 +298,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         item: Item,
     ): Item? {
         items.getEntry(key)?.prepareFor(item)
-        return items.put(Key(key), item.copy())?.takeIf { !it.isMissing }
+        return items.put(Key(key), item.copy())
     }
 
     /**
@@ -323,13 +312,13 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         item: Item,
     ): Item? {
         items.getEntry(key.name)?.key = key.copy()
-        return items.put(key.copy(), item.copy())?.takeIf { !it.isMissing }
+        return items.put(key.copy(), item.copy())
     }
 
     override fun putItem(
         key: String,
         item: Item,
-    ): Result<Item?, TomlEditError> = Ok(put(key, item))
+    ): Item? = put(key, item)
 
     /**
      * The item at [key], first storing a copy of what [default] makes when the key holds none. [default] is
@@ -367,7 +356,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         val entry = items.getEntry(key) ?: return null
         keepLinesAbove(listOf(entry))
         items.remove(key)
-        return entry.item.takeIf { !it.isMissing }
+        return entry.item
     }
 
     /** Removes [key] and returns its item, or null when it held none; the lines above it stay, as [remove] says. */
@@ -395,7 +384,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     public fun removeAll(predicate: (Pair<String, Item>) -> Boolean): Boolean = removeEntries(entriesWhere(predicate))
 
     private fun entriesWhere(predicate: (Pair<String, Item>) -> Boolean): List<KeyValue> = items.entries
-        .filter { !it.item.isMissing && predicate(it.key.name to it.item) }
+        .filter { predicate(it.key.name to it.item) }
 
     private fun removeEntries(removed: List<KeyValue>): Boolean {
         if (removed.isEmpty()) return false

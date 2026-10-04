@@ -25,7 +25,10 @@ class ReplacementCommentScopeTest {
         val text = "[server]\nport = 1 # comment\nhost = \"localhost\"\n"
         val expected = "[server]\nport = 2 # comment\nhost = \"localhost\"\n"
         assertEquals(expected, replacing(text) { it["server"]["port"] = Value.Integer(2L) })
-        assertEquals(expected, replacing(text) { it["server"]["port"].assign(Item(Value.Integer(2L))).getOrFail() })
+        assertEquals(
+            expected,
+            replacing(text) { it["server"]["port"].getOrFail().assign(Item(Value.Integer(2L))).getOrFail() },
+        )
     }
 
     @Test
@@ -42,7 +45,7 @@ class ReplacementCommentScopeTest {
         val text = "c = 2\n# about a\na.b = 1 # same line\nz = 0\n"
         val expected = "c = 2\n# about a\na = 5\nz = 0\n"
         assertEquals(expected, replacing(text) { it["a"] = Value.Integer(5L) })
-        assertEquals(expected, replacing(text) { it["a"].assign(Item(Value.Integer(5L))).getOrFail() })
+        assertEquals(expected, replacing(text) { it["a"].getOrFail().assign(Item(Value.Integer(5L))).getOrFail() })
     }
 
     @Test
@@ -81,32 +84,4 @@ class ReplacementCommentScopeTest {
         )
     }
 
-    @Test
-    fun `a table replaced by an empty item keeps the lines above its header as removing it does`() {
-        val text = "x = 0\n\n# about t\n[t]\ny = 1\n\n# about u\n[u]\n"
-        val removed = replacing(text) { it.remove("t") }
-        assertEquals("x = 0\n\n# about t\n\n# about u\n[u]\n", removed)
-        assertEquals(removed, replacing(text) { it["t"].assign(Item()).getOrFail() })
-        assertEquals(removed, replacing(text) { it.put("t", Item()) })
-    }
-
-    @Test
-    fun `a value replaced by an empty item keeps the comment above it and drops the one on its line`() {
-        val text = "# about a\na = 1 # same line\nz = 0\n"
-        val removed = replacing(text) { it.remove("a") }
-        assertEquals("# about a\nz = 0\n", removed)
-        assertEquals(removed, replacing(text) { it["a"].assign(Item()).getOrFail() })
-    }
-
-    @Test
-    fun `a key emptied and written again prints the comment kept from it once above the next key`() {
-        val text = "# about a\na = 1\nz = 0\n"
-        assertEquals(
-            "a = 2\n# about a\nz = 0\n",
-            replacing(text) {
-                it["a"].assign(Item()).getOrFail()
-                it["a"] = Value.Integer(2L)
-            },
-        )
-    }
 }

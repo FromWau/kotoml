@@ -6,47 +6,43 @@ import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
 
 /**
- * A slot in a table or array holding nothing, a [Value], a [StandardTable] or an [ArrayOfTables].
+ * A slot in a table or array holding a [Value], a [StandardTable] or an [ArrayOfTables].
  *
  * An item is a place, not just a value: the tables and arrays store items, and indexing hands out the item
  * stored there, so writing through it changes the document.
  *
  * ```kotlin
- * val doc = TomlDocument()
- * doc["a"]["b"] = "c" // a = { b = "c" }
+ * val doc = TomlDocument.parse("[server]\nport = 8080\n").getOrElse { error(it) }
+ * doc["server"]["port"] = 9090L
+ * doc["server"]["port"].getOrNull()?.longOrNull // 9090
+ * doc["database"]["url"] // Err(NotFound("database"))
  * ```
  *
  * Storing an item stores a copy of what it holds, so two places never share one slot or one table or value:
- * after `doc["b"] = doc["a"]`, editing `doc["a"]` leaves `doc["b"]` as it was.
+ * after `doc["b"] = doc["a"].getOrElse { error(it) }`, editing `doc["a"]` leaves `doc["b"]` as it was.
  *
  * A slot inside an array or an inline table holds only a value, and one inside an array of tables only a table;
- * writing anything else there fails with [TomlEditError.NotAValue] or [TomlEditError.NotATableElement]. What a slot
- * may hold follows from where it is when it is written, not from where it was when it was handed out.
+ * writing anything else there fails with [TomlEditError.NotAValue] or [TomlEditError.NotATableElement].
  *
- * Indexing a key or position that is not there returns an empty item that joins its parent when it is
- * first written to; until then nothing is added. Indexing into an empty item makes it an inline table when
- * written to, as upstream does. Writing through an index that cannot hold the write, such as a key of an
- * integer or a position past the end of an array, fails with [TomlEditError]; upstream panics there. In the
+ * Indexing returns a [Result]: a key that is not there is [TomlEditError.NotFound], and indexing on through an
+ * error passes it on, so a chain stops at the first key it misses. Writing creates only the key it names, never
+ * a missing parent; create each level first. Writing through an index that cannot hold the write, such as a key
+ * of an integer or a position past the end of an array, fails with [TomlEditError]; upstream panics there. In the
  * `item[key] = x` form the failure is discarded, so call [set] to see it.
  */
 public class Item private constructor(
     private var content: Content,
-    private var attach: ((Item) -> EmptyResult<TomlEditError>)?,
     private var holds: Holds,
 ) {
 
-    /** An empty item. */
-    public constructor() : this(Content.None, null, Holds.Anything)
-
     /** An item holding [value], as is. */
-    public constructor(value: Value) : this(Content.ValueContent(value), null, Holds.Anything)
+    public constructor(value: Value) : this(Content.ValueContent(value), Holds.Anything)
 
     /** An item holding [table], as is. */
-    public constructor(table: StandardTable) : this(Content.TableContent(table), null, Holds.Anything)
+    public constructor(table: StandardTable) : this(Content.TableContent(table), Holds.Anything)
 
     /** An item holding [arrayOfTables], as is. */
-    public constructor(arrayOfTables: ArrayOfTables) :
-        this(Content.ArrayOfTablesContent(arrayOfTables), null, Holds.Anything)
+    public constructor(arrayOfTables: ArrayOfTables) : this(Content.ArrayOfTablesContent(arrayOfTables), Holds.Anything)
 
     /** What a slot may hold. */
     internal enum class Holds {
@@ -56,8 +52,6 @@ public class Item private constructor(
     }
 
     private sealed interface Content {
-        data object None : Content
-
         class ValueContent(val value: Value) : Content
 
         class TableContent(val table: StandardTable) : Content
@@ -66,14 +60,12 @@ public class Item private constructor(
 
         val type: TomlType
             get() = when (this) {
-                None -> TomlType.Missing
                 is ValueContent -> value.type
                 is TableContent -> TomlType.Table
                 is ArrayOfTablesContent -> TomlType.ArrayOfTables
             }
 
         fun deepCopy(): Content = when (this) {
-            None -> None
             is ValueContent -> ValueContent(value.copy())
             is TableContent -> TableContent(table.copy())
             is ArrayOfTablesContent -> ArrayOfTablesContent(array.copy())
@@ -86,18 +78,11 @@ public class Item private constructor(
         Holds.Table -> TomlEditError.NotATableElement(content.type).takeUnless { content is Content.TableContent }
     }
 
-    /** For an empty slot not yet in its parent: what it may hold once it joins, decided when it is written. */
-    private var placement: (() -> Holds)? = null
-
     /** The table entry this slot is stored in, if any; its key's spacing depends on what the slot holds. */
     internal var entry: KeyValue? = null
 
-    /** Whether this slot was handed out empty and has not joined its parent yet. */
-    internal val isDetached: Boolean
-        get() = attach != null
-
     /** A deep copy that stays the same kind of slot. */
-    internal fun copySlot(): Item = Item(content.deepCopy(), null, holds)
+    internal fun copySlot(): Item = Item(content.deepCopy(), holds)
 
     /** This slot, made a slot of kind [holds] for the container it moves into. */
     internal fun movedTo(holds: Holds): Item {
@@ -107,27 +92,9 @@ public class Item private constructor(
 
     /** Takes [next]'s content, not copied, and returns an item holding what this slot held before. */
     internal fun takeContentOf(next: Item): Item {
-        val old = Item(content, null, Holds.Anything)
+        val old = Item(content, Holds.Anything)
         content = next.content
         return old
-    }
-
-    /** Joins this item to its parent if it was handed out empty, before its first write. */
-    private fun ensureAttached(): EmptyResult<TomlEditError> {
-        val attach = attach ?: return Ok(Unit)
-        val result = attach(this)
-        if (result is Result.Success) this.attach = null
-        return result
-    }
-
-    private fun write(content: Content): EmptyResult<TomlEditError> {
-        placement?.let { holds = it() }
-        refusal(content)?.let { return Err(it) }
-        val attached = ensureAttached()
-        if (attached is Result.Error) return attached
-        placement = null
-        this.content = content
-        return Ok(Unit)
     }
 
     /**
@@ -137,8 +104,12 @@ public class Item private constructor(
      */
     public fun assign(item: Item): EmptyResult<TomlEditError> {
         val next = item.content.deepCopy()
-        val entry = entry ?: return write(next)
         refusal(next)?.let { return Err(it) }
+        val entry = entry
+        if (entry == null) {
+            content = next
+            return Ok(Unit)
+        }
         entry.prepareFor(item)
         val linesAbove = entry.takeLinesAbove(item)
         val oldDecor = valueOrNull?.rawDecor
@@ -167,27 +138,24 @@ public class Item private constructor(
     }
 
     /**
-     * The slot at [key]: the item stored there, or an empty one that joins this table, inline table or empty
-     * item under [key] when it is first written to.
+     * The item stored at [key] of this table or inline table.
+     *
+     * @return [TomlEditError.NotFound] when there is none, or [TomlEditError.NotATable] when this holds neither
+     *   kind of table.
      */
-    public operator fun get(key: String): Item {
-        when (val content = content) {
-            is Content.TableContent -> content.table.items.get(key)?.let { return it }
-            is Content.ValueContent -> content.value.inlineTableOrNull?.items?.get(key)?.let { return it }
-            else -> {}
-        }
-        val child = detached(childHolds()) { slot -> attachChild(key, slot) }
-        child.placement = ::childHolds
-        return child
+    public operator fun get(key: String): Result<Item, TomlEditError> {
+        if (tableOrNull == null) return Err(TomlEditError.NotATable(key, type))
+        return getOrNull(key)?.let { Ok(it) } ?: Err(TomlEditError.NotFound(key))
     }
 
-    // Writing through a key of an empty item makes it an inline table, so a new slot there holds values only.
-    private fun childHolds(): Holds = if (content is Content.TableContent) Holds.Anything else Holds.Value
-
-    /** The slot at [index] of this array or array of tables, or an empty one that cannot be written to. */
-    public operator fun get(index: Int): Item = getOrNull(index) ?: detached(Holds.Anything) {
-        Err(missingIndex(index))
-    }
+    /**
+     * The item at [index] of this array or array of tables.
+     *
+     * @return [TomlEditError.IndexOutOfBounds] when there is none, or [TomlEditError.NotAnArray] when this holds
+     *   neither kind of array.
+     */
+    public operator fun get(index: Int): Result<Item, TomlEditError> =
+        getOrNull(index)?.let { Ok(it) } ?: Err(missingIndex(index))
 
     private fun missingIndex(index: Int): TomlEditError {
         val size = arrayOrNull?.size ?: arrayOfTablesOrNull?.size
@@ -195,18 +163,22 @@ public class Item private constructor(
     }
 
     /**
-     * Stores a copy of [item] at [key]: in a table as [StandardTable.set] does, elsewhere as `this[key].assign(item)`
-     * does.
+     * Stores a copy of [item] at [key], as [StandardTable.set] or [InlineTable.set] does.
      *
      * @return [TomlEditError.NotATable] when this item holds neither a table nor an inline table, or
-     *   [TomlEditError.NotAValue] when this is an inline table, or empty, and [item] holds no value.
+     *   [TomlEditError.NotAValue] when this is an inline table and [item] holds no value.
      */
     public operator fun set(
         key: String,
         item: Item,
     ): EmptyResult<TomlEditError> {
-        val table = standardTableOrNull ?: return get(key).assign(item)
-        table[key] = item
+        standardTableOrNull?.let { table ->
+            table[key] = item
+            return Ok(Unit)
+        }
+        val inline = inlineTableOrNull ?: return Err(TomlEditError.NotATable(key, type))
+        val value = item.valueOrNull ?: return Err(TomlEditError.NotAValue(item.type))
+        inline[key] = value
         return Ok(Unit)
     }
 
@@ -240,29 +212,6 @@ public class Item private constructor(
         return slot.assign(item)
     }
 
-    private fun attachChild(key: String, child: Item): EmptyResult<TomlEditError> {
-        when (val content = content) {
-            Content.None -> {
-                val table = InlineTable()
-                table.items.put(Key(key), child)
-                return write(Content.ValueContent(Value.InlineTable(table)))
-            }
-            is Content.TableContent -> {
-                val attached = ensureAttached()
-                if (attached is Result.Error) return attached
-                content.table.items.put(Key(key), child)
-            }
-            is Content.ValueContent -> {
-                val table = content.value.inlineTableOrNull ?: return Err(TomlEditError.NotATable(key, type))
-                val attached = ensureAttached()
-                if (attached is Result.Error) return attached
-                table.items.put(Key(key), child)
-            }
-            is Content.ArrayOfTablesContent -> return Err(TomlEditError.NotATable(key, type))
-        }
-        return Ok(Unit)
-    }
-
     /** The value, or null when this holds none. Changing the value changes this item. */
     public val valueOrNull: Value?
         get() = (content as? Content.ValueContent)?.value
@@ -281,10 +230,9 @@ public class Item private constructor(
 
     /**
      * This item as a value: a table becomes an inline table and an array of tables an array, both moving
-     * their content. Null when this item is empty.
+     * their content.
      */
-    internal fun moveToValue(): Value? = when (val content = content) {
-        Content.None -> null
+    internal fun moveToValue(): Value = when (val content = content) {
         is Content.ValueContent -> content.value
         is Content.TableContent -> Value.InlineTable(content.table.moveToInlineTable())
         is Content.ArrayOfTablesContent -> Value.Array(content.array.moveToTomlArray())
@@ -292,15 +240,14 @@ public class Item private constructor(
 
     /**
      * Turns a table in this slot into an inline table and an array of tables into an array of inline tables,
-     * formatted anew; a value or an empty item stays as it is. The comment lines above the header move above the key.
+     * formatted anew; a value stays as it is. The comment lines above the header move above the key.
      *
      * @return [TomlEditError.NotATableElement], changing nothing, when this is a table in an array of tables.
      */
     public fun makeValue(): EmptyResult<TomlEditError> {
         if (holds == Holds.Table) return Err(TomlEditError.NotATableElement(TomlType.InlineTable))
         val linesAbove = entry?.linesAboveHeader().orEmpty()
-        val value = moveToValue()
-        content = if (value != null) Content.ValueContent(value) else Content.None
+        content = Content.ValueContent(moveToValue())
         entry?.keepLinesAbove(linesAbove)
         return Ok(Unit)
     }
@@ -328,10 +275,6 @@ public class Item private constructor(
         }
         else -> null
     }
-
-    /** Whether this slot holds nothing, as one indexed at a key or position that is not there does. */
-    public val isMissing: Boolean
-        get() = content == Content.None
 
     /** The string, or null when this holds none. */
     public val stringOrNull: String?
@@ -363,7 +306,6 @@ public class Item private constructor(
 
     internal val span: Span?
         get() = when (val content = content) {
-            Content.None -> null
             is Content.ValueContent -> content.value.span
             is Content.TableContent -> content.table.span
             is Content.ArrayOfTablesContent -> content.array.span
@@ -371,7 +313,6 @@ public class Item private constructor(
 
     internal fun resolveSpans(input: SourceText) {
         when (val content = content) {
-            Content.None -> {}
             is Content.ValueContent -> content.value.resolveSpans(input)
             is Content.TableContent -> content.table.resolveSpans(input)
             is Content.ArrayOfTablesContent -> content.array.resolveSpans(input)
@@ -379,29 +320,23 @@ public class Item private constructor(
     }
 
     /** A deep copy of this item, free to be put anywhere. */
-    public fun copy(): Item = Item(content.deepCopy(), null, Holds.Anything)
+    public fun copy(): Item = Item(content.deepCopy(), Holds.Anything)
 
-    /** The item as TOML: nothing, a value, a table's key/value pairs, or an array of tables as an array. */
+    /** The item as TOML: a value, a table's key/value pairs, or an array of tables as an array. */
     override fun toString(): String = when (val content = content) {
-        Content.None -> ""
         is Content.ValueContent -> content.value.toString()
         is Content.TableContent -> content.table.toString()
         is Content.ArrayOfTablesContent -> content.array.toString()
     }
 
     internal companion object {
-        fun detached(
-            holds: Holds,
-            attach: (Item) -> EmptyResult<TomlEditError>,
-        ): Item = Item(Content.None, attach, holds)
-
         /** A slot of a [TomlArray], which only ever holds a value. */
-        fun inArray(value: Value): Item = Item(Content.ValueContent(value), null, Holds.Value)
+        fun inArray(value: Value): Item = Item(Content.ValueContent(value), Holds.Value)
 
         /** A slot of an [InlineTable], which only ever holds a value. */
-        fun inInlineTable(value: Value): Item = Item(Content.ValueContent(value), null, Holds.Value)
+        fun inInlineTable(value: Value): Item = Item(Content.ValueContent(value), Holds.Value)
 
         /** A slot of an [ArrayOfTables], which only ever holds a table. */
-        fun inArrayOfTables(table: StandardTable): Item = Item(Content.TableContent(table), null, Holds.Table)
+        fun inArrayOfTables(table: StandardTable): Item = Item(Content.TableContent(table), Holds.Table)
     }
 }

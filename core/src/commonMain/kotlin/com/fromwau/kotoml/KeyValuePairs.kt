@@ -31,7 +31,7 @@ internal class KeyValue(var key: Key, item: Item) {
      * [keepLinesAbove] brings along those above a header.
      */
     fun prepareFor(next: Item) {
-        if (item.isMissing || item.printsHeader == next.printsHeader) return
+        if (item.printsHeader == next.printsHeader) return
         val decor = key.rawLeafDecor
         if (decor.prefix?.textOrNull.isNullOrBlank()) decor.prefix = null
         if (decor.suffix?.textOrNull.isNullOrBlank()) decor.suffix = null
@@ -58,17 +58,9 @@ internal class KeyValue(var key: Key, item: Item) {
     /**
      * Readies the comment and blank lines above what the item prints for its replacement, returning those that go
      * above what replaces it: the lines above its header, or above the first of its dotted-key lines. The lines
-     * above its later dotted-key lines stay where they print. When [next] is empty, nothing replaces it, and every
-     * line stays as removing the key keeps it.
+     * above its later dotted-key lines stay where they print.
      */
     fun takeLinesAbove(next: Item): String {
-        if (item.isMissing) return ""
-        if (next.isMissing) {
-            pairs?.keepLinesOfRemoved(listOf(this))
-            val prefix = key.rawLeafDecor.prefix?.textOrNull
-            if (prefix != null) key.rawLeafDecor.prefix = KeptText.from(prefix.substringAfterLast('\n'))
-            return ""
-        }
         item.headerTable?.let { return linesAbove(it.rawDecor.prefix) }
         val dottedTable = item.standardTableOrNull?.takeIf { it.isDotted }
         val dottedInline = item.inlineTableOrNull?.takeIf { it.isDotted }
@@ -182,9 +174,6 @@ internal class KeyValuePairs {
     /** Lines kept from removed entries, printed among the entries' lines; see [KeptLines]. */
     val keptLines: MutableList<KeptLines> = mutableListOf()
 
-    /** Keeps the lines that removing these entries leaves, as the table holding the pairs keeps them. */
-    var keepLinesOfRemoved: (Collection<KeyValue>) -> Unit = {}
-
     val size: Int get() = byName.size
 
     fun get(key: String): Item? = byName[key]?.item
@@ -196,8 +185,6 @@ internal class KeyValuePairs {
     /**
      * Inserts or replaces the item under [key]'s text. A replaced entry keeps its own key, its position and its slot,
      * which takes [item]'s content as [KeyValue.replace] puts it, so a slot handed out for the key stays its place.
-     * [item] itself takes the entry's place instead when it is a slot handed out empty that joins here, or when the
-     * entry's slot holds nothing, so that [item] is the stored slot a `getOrPut` hands back.
      *
      * @return the item the key held before, or null when there was no entry.
      */
@@ -207,11 +194,7 @@ internal class KeyValuePairs {
             byName[key.name] = KeyValue(key, item).also { it.pairs = this }
             return null
         }
-        if (!item.isDetached && !existing.item.isMissing) return existing.replace(item)
-        val old = existing.item
-        old.entry = null
-        existing.item = item
-        return old
+        return existing.replace(item)
     }
 
     fun remove(key: String): KeyValue? = byName.remove(key)

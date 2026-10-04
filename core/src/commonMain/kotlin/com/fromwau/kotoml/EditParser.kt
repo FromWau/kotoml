@@ -915,8 +915,7 @@ private fun descendInlinePath(
             continue
         }
         shared += existing.key
-        // An occupied entry always holds a value, as InlineTable.entryFormat guarantees upstream.
-        val value = existing.item.moveToValue() ?: Value.InlineTable(InlineTable())
+        val value = existing.item.moveToValue()
         existing.item = Item.inInlineTable(value)
         table = when (value) {
             is Value.InlineTable -> {

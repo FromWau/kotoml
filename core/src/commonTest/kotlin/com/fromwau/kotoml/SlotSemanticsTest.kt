@@ -13,25 +13,25 @@ class SlotSemanticsTest {
     @Test
     fun `assigning a key after copying it into another leaves the copy alone`() {
         val doc = TomlDocument.parse("a = 1\n").getOrFail()
-        doc["b"] = doc["a"]
-        doc["a"].assign(Item(Value.Integer(2L))).getOrFail()
-        assertEquals(1L, doc["b"].longOrNull)
+        doc["b"] = doc["a"].getOrFail()
+        doc["a"].getOrFail().assign(Item(Value.Integer(2L))).getOrFail()
+        assertEquals(1L, doc["b"].getOrFail().longOrNull)
     }
 
     @Test
     fun `editing an array in place after copying it leaves the copy alone`() {
         val doc = TomlDocument.parse("a = [1]\n").getOrFail()
-        doc["b"] = doc["a"]
-        doc["a"].arrayOrNull!!.add(2L)
+        doc["b"] = doc["a"].getOrFail()
+        doc["a"].getOrFail().arrayOrNull!!.add(2L)
         assertEquals("a = [1, 2]\nb = [1]\n", doc.toString())
     }
 
     @Test
     fun `editing a table in place after copying it leaves the copy alone`() {
         val doc = TomlDocument.parse("[a]\nx = 1\n").getOrFail()
-        doc["b"] = doc["a"]
+        doc["b"] = doc["a"].getOrFail()
         doc["a"]["y"] = 2L
-        assertEquals(null, doc["b"].getOrNull("y"))
+        assertEquals(null, doc["b"].getOrFail().getOrNull("y"))
     }
 
     @Test
@@ -40,7 +40,7 @@ class SlotSemanticsTest {
         val item = Item(Value.Integer(1L))
         table.put("a", item)
         item.assign(Item(Value.Integer(2L))).getOrFail()
-        assertEquals(1L, table["a"].longOrNull)
+        assertEquals(1L, table["a"].getOrFail().longOrNull)
     }
 
     @Test
@@ -49,7 +49,7 @@ class SlotSemanticsTest {
         val item = Item(Value.Integer(1L))
         table.put(Key("a"), item)
         item.assign(Item(Value.Integer(2L))).getOrFail()
-        assertEquals(1L, table["a"].longOrNull)
+        assertEquals(1L, table["a"].getOrFail().longOrNull)
     }
 
     @Test
@@ -58,7 +58,7 @@ class SlotSemanticsTest {
         val table = StandardTable()
         table.putAll(listOf("a" to item))
         item.assign(Item(Value.Integer(2L))).getOrFail()
-        assertEquals(1L, table["a"].longOrNull)
+        assertEquals(1L, table["a"].getOrFail().longOrNull)
     }
 
     @Test
@@ -66,7 +66,7 @@ class SlotSemanticsTest {
         val item = Item(Value.Integer(1L))
         val table = standardTableOf("a" to item)
         item.assign(Item(Value.Integer(2L))).getOrFail()
-        assertEquals(1L, table["a"].longOrNull)
+        assertEquals(1L, table["a"].getOrFail().longOrNull)
     }
 
     @Test
@@ -75,7 +75,7 @@ class SlotSemanticsTest {
         val item = Item(Value.Integer(1L))
         doc.put("a", item)
         item.assign(Item(Value.Integer(2L))).getOrFail()
-        assertEquals(1L, doc["a"].longOrNull)
+        assertEquals(1L, doc["a"].getOrFail().longOrNull)
     }
 
     @Test
@@ -85,7 +85,7 @@ class SlotSemanticsTest {
         val stored = doc.getOrPut("a") { item }
         item.assign(Item(Value.Integer(2L))).getOrFail()
         stored.assign(Item(Value.Integer(3L))).getOrFail()
-        assertEquals(3L, doc["a"].longOrNull)
+        assertEquals(3L, doc["a"].getOrFail().longOrNull)
     }
 
     @Test
@@ -103,29 +103,29 @@ class SlotSemanticsTest {
         val old = doc.put("a", item)
         item.assign(Item(Value.Integer(3L))).getOrFail()
         assertEquals(1L, old?.longOrNull)
-        assertEquals(2L, doc["a"].longOrNull)
+        assertEquals(2L, doc["a"].getOrFail().longOrNull)
     }
 
     @Test
     fun `inserting an item into an inline table stores a copy`() {
         val doc = TomlDocument.parse("a = [1]\nt = {}\n").getOrFail()
-        doc["t"].inlineTableOrNull!!.putItem("b", doc["a"]).getOrFail()
-        doc["a"].arrayOrNull!!.add(2L)
-        assertEquals(1, doc["t"]["b"].arrayOrNull!!.size)
+        doc["t"].getOrFail().inlineTableOrNull!!.putItem("b", doc["a"].getOrFail())
+        doc["a"].getOrFail().arrayOrNull!!.add(2L)
+        assertEquals(1, doc["t"]["b"].getOrFail().arrayOrNull!!.size)
     }
 
     @Test
     fun `item set by key stores a copy of the content`() {
         val doc = TomlDocument.parse("a = [1]\n[t]\n").getOrFail()
-        doc["t"].set("b", doc["a"]).getOrFail()
-        doc["a"].arrayOrNull!!.add(2L)
+        doc["t"].set("b", doc["a"].getOrFail()).getOrFail()
+        doc["a"].getOrFail().arrayOrNull!!.add(2L)
         assertEquals("a = [1, 2]\n[t]\nb = [1]\n", doc.toString())
     }
 
     @Test
     fun `the assigned item keeps its own content`() {
         val source = Item(Value.Array(tomlArrayOf(Value.Integer(1L))))
-        val slot = Item()
+        val slot = Item(Value.Integer(0L))
         slot.assign(source).getOrFail()
         source.arrayOrNull!!.add(2L)
         assertEquals(1, slot.arrayOrNull!!.size)
@@ -134,17 +134,9 @@ class SlotSemanticsTest {
     @Test
     fun `a table assigned into an array slot fails`() {
         val doc = TomlDocument.parse("a = [1, 2]\n").getOrFail()
-        val error = doc["a"][0].assign(Item(StandardTable())).errorOrFail()
+        val error = doc["a"][0].getOrFail().assign(Item(StandardTable())).errorOrFail()
         assertEquals(TomlEditError.NotAValue(TomlType.Table), error)
         assertEquals("a = [1, 2]\n", doc.toString())
-    }
-
-    @Test
-    fun `an empty item assigned into an array slot fails`() {
-        val doc = TomlDocument.parse("a = [1, 2]\n").getOrFail()
-        val error = doc["a"].set(1, Item()).errorOrFail()
-        assertEquals(TomlEditError.NotAValue(TomlType.Missing), error)
-        assertEquals(2, doc["a"].arrayOrNull!!.size)
     }
 
     @Test
@@ -157,16 +149,16 @@ class SlotSemanticsTest {
     @Test
     fun `a value assigned into an array of tables slot fails`() {
         val doc = TomlDocument.parse("[[a]]\nx = 1\n").getOrFail()
-        val error = doc["a"][0].assign(Item(Value.Integer(1L))).errorOrFail()
+        val error = doc["a"][0].getOrFail().assign(Item(Value.Integer(1L))).errorOrFail()
         assertEquals(TomlEditError.NotATableElement(TomlType.Integer), error)
         assertEquals("[[a]]\nx = 1\n", doc.toString())
-        assertEquals(1, doc["a"].arrayOfTablesOrNull!!.size)
+        assertEquals(1, doc["a"].getOrFail().arrayOfTablesOrNull!!.size)
     }
 
     @Test
     fun `an array of tables slot refuses to become a value`() {
         val doc = TomlDocument.parse("[[a]]\nx = 1\n").getOrFail()
-        val error = doc["a"][0].makeValue().errorOrFail()
+        val error = doc["a"][0].getOrFail().makeValue().errorOrFail()
         assertEquals(TomlEditError.NotATableElement(TomlType.InlineTable), error)
         assertEquals("[[a]]\nx = 1\n", doc.toString())
     }
@@ -183,8 +175,9 @@ class SlotSemanticsTest {
     @Test
     fun `an array turned into an array of tables keeps its own slots`() {
         val doc = TomlDocument.parse("a = [{ x = 1 }]\n").getOrFail()
-        val tables = doc["a"].copy().moveToArrayOfTables()!!
-        assertIs<TomlEditError.NotATableElement>(Item(tables)[0].assign(Item(Value.Integer(1L))).errorOrFail())
+        val tables = doc["a"].getOrFail().copy().moveToArrayOfTables()!!
+        val error = Item(tables)[0].getOrFail().assign(Item(Value.Integer(1L))).errorOrFail()
+        assertIs<TomlEditError.NotATableElement>(error)
         assertEquals("a = [{ x = 1 }]\n", doc.toString())
     }
 
@@ -193,14 +186,15 @@ class SlotSemanticsTest {
         val tables = ArrayOfTables()
         tables.add(StandardTable())
         val array = tables.toTomlArray()
-        assertIs<TomlEditError.NotAValue>(Item(Value.Array(array))[0].assign(Item(StandardTable())).errorOrFail())
+        val error = Item(Value.Array(array))[0].getOrFail().assign(Item(StandardTable())).errorOrFail()
+        assertIs<TomlEditError.NotAValue>(error)
         assertEquals(1, array.size)
     }
 
     @Test
     fun `a table assigned into an inline table slot fails`() {
         val doc = TomlDocument.parse("t = { a = 1 }\n").getOrFail()
-        val error = doc["t"]["a"].assign(Item(StandardTable())).errorOrFail()
+        val error = doc["t"]["a"].getOrFail().assign(Item(StandardTable())).errorOrFail()
         assertEquals(TomlEditError.NotAValue(TomlType.Table), error)
         assertEquals("t = { a = 1 }\n", doc.toString())
     }
@@ -216,40 +210,15 @@ class SlotSemanticsTest {
     @Test
     fun `a value assigned into an inline table slot replaces it`() {
         val doc = TomlDocument.parse("t = { a = 1 }\n").getOrFail()
-        doc["t"]["a"].assign(Item(Value.Integer(2L))).getOrFail()
+        doc["t"]["a"].getOrFail().assign(Item(Value.Integer(2L))).getOrFail()
         assertEquals("t = { a = 2 }\n", doc.toString())
-    }
-
-    @Test
-    fun `an inline table refuses an empty item put at a new key`() {
-        val inline = InlineTable()
-        val error = inline.putItem("a", Item()).errorOrFail()
-        assertEquals(TomlEditError.NotAValue(TomlType.Missing), error)
-        assertEquals(0, inline.size)
-    }
-
-    @Test
-    fun `an inline table refuses an empty item put at a present key`() {
-        val inline = InlineTable()
-        inline["a"] = 1L
-        val error = inline.putItem("a", Item()).errorOrFail()
-        assertEquals(TomlEditError.NotAValue(TomlType.Missing), error)
-        assertEquals(1L, inline["a"]?.longOrNull)
     }
 
     @Test
     fun `a table put into an inline table becomes an inline table`() {
         val inline = InlineTable()
-        inline.putItem("a", Item(standardTableOf("x" to Item(Value.Integer(1L))))).getOrFail()
+        inline.putItem("a", Item(standardTableOf("x" to Item(Value.Integer(1L)))))
         assertEquals("{ a = { x = 1 } }", inline.toString())
-    }
-
-    @Test
-    fun `a table written below an empty item fails because the item becomes an inline table`() {
-        val doc = TomlDocument()
-        val error = doc["a"].set("b", Item(StandardTable())).errorOrFail()
-        assertEquals(TomlEditError.NotAValue(TomlType.Table), error)
-        assertEquals("", doc.toString())
     }
 
     @Test
@@ -258,7 +227,7 @@ class SlotSemanticsTest {
         source["a"] = 1L
         val inline = source.toInlineTable()
         val slot = Item(Value.InlineTable(inline))["a"]
-        assertIs<TomlEditError.NotAValue>(slot.assign(Item(StandardTable())).errorOrFail())
+        assertIs<TomlEditError.NotAValue>(slot.getOrFail().assign(Item(StandardTable())).errorOrFail())
     }
 
     @Test
@@ -274,22 +243,22 @@ class SlotSemanticsTest {
     @Test
     fun `a copied inline table holds only values`() {
         val doc = TomlDocument.parse("t = { a = 1 }\n").getOrFail()
-        doc["u"] = doc["t"]
-        assertIs<TomlEditError.NotAValue>(doc["u"]["a"].assign(Item(StandardTable())).errorOrFail())
+        doc["u"] = doc["t"].getOrFail()
+        assertIs<TomlEditError.NotAValue>(doc["u"]["a"].getOrFail().assign(Item(StandardTable())).errorOrFail())
     }
 
     @Test
     fun `array length counts what iteration yields`() {
         val doc = TomlDocument.parse("a = [1, 2]\n").getOrFail()
-        doc["a"][0].assign(Item(StandardTable()))
-        val array = doc["a"].arrayOrNull!!
+        doc["a"][0].getOrFail().assign(Item(StandardTable()))
+        val array = doc["a"].getOrFail().arrayOrNull!!
         assertEquals(array.count(), array.size)
     }
 
     @Test
     fun `converting a table to an inline table leaves the table as it is`() {
         val doc = TomlDocument.parse("[t]\na = 1\n").getOrFail()
-        val inline = doc["t"].standardTableOrNull!!.toInlineTable()
+        val inline = doc["t"].getOrFail().standardTableOrNull!!.toInlineTable()
         assertEquals("{ a = 1 }", inline.toString())
         assertEquals("[t]\na = 1\n", doc.toString())
     }
@@ -297,7 +266,7 @@ class SlotSemanticsTest {
     @Test
     fun `converting an inline table to a table leaves the inline table as it is`() {
         val doc = TomlDocument.parse("t = { a = 1 }\n").getOrFail()
-        val table = doc["t"].inlineTableOrNull!!.toStandardTable()
+        val table = doc["t"].getOrFail().inlineTableOrNull!!.toStandardTable()
         assertEquals("a = 1\n", table.toString())
         assertEquals("t = { a = 1 }\n", doc.toString())
     }
@@ -305,7 +274,7 @@ class SlotSemanticsTest {
     @Test
     fun `converting an array of tables to an array leaves the array of tables as it is`() {
         val doc = TomlDocument.parse("[[a]]\nx = 1\n").getOrFail()
-        val array = doc["a"].arrayOfTablesOrNull!!.toTomlArray()
+        val array = doc["a"].getOrFail().arrayOfTablesOrNull!!.toTomlArray()
         assertEquals("[{ x = 1 }]", array.toString())
         assertEquals("[[a]]\nx = 1\n", doc.toString())
     }

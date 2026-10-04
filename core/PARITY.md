@@ -65,8 +65,9 @@ Rust hands out `&mut Item` and `&mut Value` and lets a caller overwrite the plac
 references, not places, so the port makes the difference explicit:
 
 - `Item` is a mutable slot. Tables and arrays store items, indexing hands out the stored item, and
-  `item.assign(other)` is `*item = other.clone()`. Indexing a missing key returns an empty item that joins its
-  parent at the first write, so `doc["a"]["b"] = "x"` works as in Rust, and reading never adds a key.
+  `item.assign(other)` is `*item = other.clone()`. An item always holds something: there is no `Item::None`.
+  Indexing returns a `Result`, and a missing key is `TomlEditError.NotFound`, so `doc["a"]["b"]` stops at the
+  first key it misses. A write adds only the key it names; a missing parent is written first.
 - `Value` is a sealed type. A scalar's spelling is fixed once made, apart from `resetFormatting()`; its
   `decor` and the containers `TomlArray` and `InlineTable` change in place. A whole value is replaced through
   its container (`array[i] = v`, `inlineTable[key] = v`, `Item.assign`).
@@ -107,9 +108,9 @@ Everything else, and every edited document that uses none of the above, prints e
 
 ### Index operators and panics
 
-`get` serves both Rust's `Index` and `IndexMut`. Where upstream panics on misuse (an index out of bounds,
-indexing into a scalar), the Kotlin function returns a
-`TomlEditError` instead. A Kotlin `operator set` may return a value, so `item["k"] = v` stays index syntax
+`get` serves both Rust's `Index` and `IndexMut`, returning `Result<Item, TomlEditError>`; `get` and `set` on that
+`Result` index on or pass the error on. Where upstream panics on misuse (a missing key, an index out of bounds,
+indexing into a scalar), the Kotlin function returns a `TomlEditError` instead. A Kotlin `operator set` may return a value, so `item["k"] = v` stays index syntax
 while `item.set("k", v)` hands the error back; in the `[]=` form it is discarded.
 
 ## 3. Public items
@@ -214,21 +215,22 @@ section 1.
 | `DocumentMut::set_trailing`, `trailing` | `var trailing: String` | done | `` EditTest.`a document's decor and trailing text print around its tables` ``, `TomlDocumentTest` |
 | `impl FromStr for DocumentMut` | `TomlDocument.parse(String)` and `parse(ByteArray)`, both `Result<TomlDocument, TomlParseError>` | done | `EditTest`, `ComplianceParseTest` |
 | `impl Display for DocumentMut` | `toString()`, keeping line endings, spellings and dotted-key order (see section 2) | done | `EditTest`, `PreservationTest`, `` SuiteTest.`every valid V1_0 file prints back byte for byte` ``, `` SuiteTest.`every valid V1_1 file prints back byte for byte` `` |
-| `impl Index<&str> / IndexMut<&str> for DocumentMut` | `operator get`, `operator set` | done | `EditTest` |
+| `impl Index<&str> / IndexMut<&str> for DocumentMut` | `operator get` returning `Result<Item, TomlEditError>`, `operator set` | done | `EditTest`, `IndexingTest` |
 | `impl Deref / DerefMut<Target = Table> for DocumentMut` | `root`, plus forwards for `getOrNull`, `containsKey`, `operator contains`, `put(String / Key, Item)`, `putAll`, `remove`, `retainAll`, `removeAll`, `clear`, `getOrPut(String / Key, …)`, `keys`, `size`, `isEmpty`, `isNotEmpty`, the `operator set` overloads, and `var decor` for `decor` / `decor_mut` | done | `` EditTest.`a document's decor and trailing text print around its tables` ``, `SlotSemanticsTest`, `CollectionApiTest` |
 | `impl From<Table> for DocumentMut` | `TomlDocument(StandardTable)` | done | |
 | `impl Clone for DocumentMut` | `copy()` | done | `TomlDocumentTest` |
 | `Document::new`, `Default`, `parse`, `as_item`, `into_item`, `as_table`, `into_table`, `iter`, `trailing`, `raw`, `into_mut`, `FromStr`, `Deref<Target = Table>` | | n/a | `TomlDocument.parse` gives the editable document directly; see section 5 |
 | `ImDocument` (deprecated alias of `Document`) | | n/a | deprecated upstream since 0.23 |
-| `Item::None / Value / Table / ArrayOfTables`, `Default` | the constructors `Item()`, `Item(Value)`, `Item(StandardTable)`, `Item(ArrayOfTables)` | done | `EditTest` |
-| `Item::or_insert` | | n/a | `Table.getOrPut`, or `if (item.isMissing) item.assign(other)` |
-| `Item::type_name` (as `type: TomlType`), `as_value(_mut)`, `as_table(_mut)`, `as_array_of_tables(_mut)`, `as_table_like(_mut)`, `is_none` | `type`, `valueOrNull`, `standardTableOrNull`, `arrayOfTablesOrNull`, `tableOrNull`, `isMissing` | done | `EditTest`, `ComplianceParseTest` |
+| `Item::Value / Table / ArrayOfTables` | the constructors `Item(Value)`, `Item(StandardTable)`, `Item(ArrayOfTables)` | done | `EditTest` |
+| `Item::None`, `Default` | | n/a | an item always holds something; a missing key is `TomlEditError.NotFound` |
+| `Item::or_insert` | | n/a | `Table.getOrPut` |
+| `Item::type_name` (as `type: TomlType`), `as_value(_mut)`, `as_table(_mut)`, `as_array_of_tables(_mut)`, `as_table_like(_mut)`, `is_none` | `type`, `valueOrNull`, `standardTableOrNull`, `arrayOfTablesOrNull`, `tableOrNull`; `is_none` is n/a, as there is no empty item | done | `EditTest`, `ComplianceParseTest` |
 | `Item::is_value`, `is_table`, `is_array_of_tables`, `is_table_like` | | n/a | `type`, or a check that the `OrNull` property is not null |
 | `Item::as_str`, `as_integer`, `as_float`, `as_bool`, `as_datetime`, `as_array(_mut)`, `as_inline_table(_mut)` | `stringOrNull`, `longOrNull`, `doubleOrNull`, `booleanOrNull`, `datetimeOrNull`, `arrayOrNull`, `inlineTableOrNull` | done | `EditTest`, `ComplianceParseTest` |
 | `Item::is_str` … `is_inline_table` | | n/a | `type`, or a check that the `OrNull` property is not null |
 | `Item::span` | | n/a | an editable item never holds spans; see section 2 |
 | `Item::get` / `get_mut` (`Option<&Item>`) | `getOrNull(String / Int)` | done | `EditTest` |
-| `impl Index / IndexMut<usize / &str / String> for Item` | `operator get(String / Int)`, `operator set(String / Int, Item)`, and `operator set(String, …)` for a `Value`, `StandardTable`, `ArrayOfTables`, `String`, `Long`, `Double`, `Boolean` or `Datetime` | done | `EditTest`, `` ComplianceParseTest.`nested arrays of tables and sub-tables read back by index` `` |
+| `impl Index / IndexMut<usize / &str / String> for Item` | `operator get(String / Int)` returning `Result<Item, TomlEditError>`, the same on a `Result` to chain, `operator set(String / Int, Item)`, and `operator set(String, …)` for a `Value`, `StandardTable`, `ArrayOfTables`, `String`, `Long`, `Double`, `Boolean` or `Datetime` | done | `EditTest`, `` ComplianceParseTest.`nested arrays of tables and sub-tables read back by index` `` |
 | `Item::into_value / into_table / into_array_of_tables` (`Result<_, Item>`) | internal; `StandardTable.toInlineTable()`, `InlineTable.toStandardTable()` and `ArrayOfTables.toTomlArray()` convert a copy | done | `` EditTest.`an inline table converted to a table prints as a table with a header` ``, `SlotSemanticsTest` |
 | `Item::make_value` | `makeValue()` | done | `` EditTest.`makeValue turns a table and its sub-tables into one inline table` `` |
 | `impl Display`, `impl Clone`, `From<Value / Table / ArrayOfTables>` | `toString()`, `copy()`, the constructors | done | `` EditUnitTest.`an item prints as text that parses back` `` |
@@ -263,7 +265,7 @@ section 1.
 | `Table::key`, `key_mut` | `keyOrNull(name): Key?`, whose formatting is `var` | done | `PreservationTest` |
 | `Table::remove`, `retain`, `into_inline_table` | `remove`, `retainAll((Pair<String, Item>) -> Boolean)` returning whether it removed a pair, `toInlineTable()` converting a copy | done | `EditTest`, `RemovalCommentScopeTest`, `RemovalKeepsCommentsTest`, `RemovalPropertyTest`, `CollectionApiTest` |
 | `Table::get_key_value(_mut)`, `contains_table`, `contains_value`, `contains_array_of_tables`, `remove_entry` | | n/a | `keyOrNull(name)` with `getOrNull(name)`; `getOrNull(name)?.tableOrNull != null` and its siblings; `keyOrNull(name)` before `remove(name)` |
-| `impl Index / IndexMut<&str> for Table` | `operator get` (a slot), `operator set` for an `Item`, `Value`, `StandardTable`, `ArrayOfTables` or scalar | done | `EditTest`, `` EditDocTest.`string values that need escaping print as literal strings` `` |
+| `impl Index / IndexMut<&str> for Table` | `operator get` (the stored slot, or `NotFound`), `operator set` for an `Item`, `Value`, `StandardTable`, `ArrayOfTables` or scalar | done | `EditTest`, `` EditDocTest.`string values that need escaping print as literal strings` `` |
 | `impl Display / Extend / FromIterator for Table` | `toString()`, `putAll`, `standardTableOf(…)` and `Iterable<Pair<String, Item>>.toStandardTable()` | done | `` EditDocTest.`string values that need escaping print as literal strings` ``, `SlotSemanticsTest` |
 | `TableLike` (`iter`, `iter_mut`, `len`, `is_empty`, `clear`, `get`, `get_mut`, `contains_key`, `insert`, `remove`, `get_values`, `fmt`, `sort_values`, `set_dotted`, `is_dotted`, `key`, `key_mut`) | sealed `Table`: `entries`, `keys`, `size`, `isEmpty()`, `isNotEmpty()`, `clear()`, `getItem(key)`, `containsKey` and `operator contains`, `putItem`, `removeItem`, `valuesWithPaths()`, `resetFormatting()`, `var isDotted`, `keyOrNull(name)`; sorting is on `StandardTable` and `InlineTable` (section 5) | done | `` EditTest.`tables and inline tables read as Table and an array of tables does not` ``, `VisitExampleTest`, `` CollectionApiTest.`getItem reads the item at a key of a table like` ``, `` CollectionApiTest.`a key is in a table like when it holds an item` `` |
 | `TableLike::entry`, `entry_format`, `get_key_value(_mut)` | | n/a | `getOrPut` on `StandardTable` or `InlineTable`; `keyOrNull(name)` with `getItem(name)` |
@@ -704,8 +706,8 @@ commands of [`:app`](../app/README.md) and compares their output by its own rule
 | The blank line above an inserted header in a CRLF document | a bare `\n` | the document's line ending | an inserted line ends like the line before it |
 | Replacing a `[table]` or `[[table]]` key (`put`, `set`, `assign`, `makeValue`) | drops the comment lines above its header | keeps them, above the new header or above the key; blank-only lines are not carried to a `key = value` line | they describe the place, like the comments above a key |
 | Replacing a value with a value (`put`, `set`, `assign`) | the new value prints with its own decor, the comment after the old value gone | the new value takes the old one's decor on each side it leaves at the default: its spacing and the comment after it | the comment describes the key, whatever its value |
-| Replacing a dotted key, or any key with an empty item (`put`, `set`, `assign`) | drops the comment lines above its dotted-key lines; an empty item drops the lines above the key | the lines above the first dotted-key line go above what replaces it, those above later lines stay where they print; an empty item keeps what `remove` keeps (`ReplacementCommentScopeTest`) | only comments inside what a key holds go with it |
-| A slot handed out for a key | its kind is fixed when handed out and it detaches when `put` replaces the key | its kind follows where it is when written, and it keeps referring to the key after `put` | an item is a place in the document |
+| Replacing a dotted key (`put`, `set`, `assign`) | drops the comment lines above its dotted-key lines | the lines above the first dotted-key line go above what replaces it, those above later lines stay where they print (`ReplacementCommentScopeTest`) | only comments inside what a key holds go with it |
+| A slot handed out for a key | it detaches when `put` replaces the key | it keeps referring to the key after `put` | an item is a place in the document |
 | Sorting a multi-line array without a trailing comma | the line break before `]` moves with the last value | the text before `]` stays in place, and a comment after the last value moves behind its comma | the result keeps its layout |
 | An error's column on a multi-byte or invalid character after non-ASCII text | counted in bytes | counted in characters, as everywhere else (changes the `bom-not-at-start-03` snapshot) | the column is documented in characters |
 | `render` with text that lacks the error's line | panics | prints only the message | nothing throws |
@@ -756,8 +758,8 @@ commands of [`:app`](../app/README.md) and compares their output by its own rule
 | `Visit`, `VisitMut` | traits with one overridable hook per node | not ported | an exhaustive `when` over the sealed `Value` walks the tree in plain recursion, and the compiler names every case it misses |
 | `TomlError` | holds a copy of the input to render from | `render` takes the source; the error keeps a `span` of `String` indices and a `TextPosition` | the error stays small, and the caller already holds the text |
 | Duplicate key and dotted key over a value | no key named | `DuplicateKey(key)`, `DottedKeyExtendsValue(key, type)` | the reason says which key |
-| `Index` on a missing key | panics (`index not found`) | returns an empty item, or null for `InlineTable` | reading through a missing key never fails, and the empty item joins the table when written to |
-| `IndexMut` before a write | inserts an empty slot (or turns an empty item into an inline table) at access time | joins the parent at the first write | reading in Kotlin cannot be told from writing; the document only changes when written |
+| `Index` on a missing key | panics (`index not found`) | `TomlEditError.NotFound(key)`, or null for `InlineTable`, `TomlArray` and `ArrayOfTables`, whose `get` reads like a Kotlin collection's | a missing key is an expected failure, typed instead of a crash or an empty item |
+| `IndexMut` on a missing key, or below one | inserts `Item::None` at access time, and an index on it makes an inline table | `item[key] = x` adds `key` to an existing table; below a missing key it is `NotFound` and writes nothing, so a parent is written first. Ported tests that relied on it write each level (`EditDocTest`'s README examples, `` EditTest.`a sub-table made dotted after its keys prints as dotted keys under the table header` ``, `` EditTest.`a key written under a dotted inline table prints as a dotted key inside it` ``) | reading cannot be told from writing in a Kotlin index chain, and `remove` stays the one way to delete; `Item::None` would be a second |
 | Storing an `Item` | moves it | stores a copy | see "Items are slots, values are not" |
 | Collection vocabulary of `Table`, `InlineTable`, `Array`, `ArrayOfTables` | `len`, `push`, `insert`, `replace`, `remove`, `retain`, `extend`, `sort_by`, `sort_by_key`, `sort_values`, `sort_values_by`, `FromIterator`, `fmt`, `clone`, `iter`, `get_mut`, `set_x` / `x` pairs | `size`, `add`, `add(index, …)` or `put`, `operator set`, `removeAt` or `remove`, `retainAll` and `removeAll` returning whether they removed anything, `addAll` or `putAll`, `sortWith`, `sortBy`, `tomlArrayOf(…)` and `toTomlArray()` and their siblings, `resetFormatting()`, `copy()`, `Iterable`, `getOrNull` or `get`, one `var` per pair | a Kotlin caller reaches for the names Kotlin's collections use; `get_mut` and `iter_mut` hand out the same object as `get` and `iter` |
 | Sorting a table | `sort_values()` sorts by key; `TableLike` has `sort_values` | no argument-free sort: `sortBy { (key, _) -> key }` sorts by key; `Table` has no sort | a table sorts the way a Kotlin collection does. On `Table` the pair type would differ between `StandardTable` (`Pair<Key, Item>`) and `InlineTable` (`Pair<Key, Value>`), so `InlineTable` would carry two `sortWith` overloads that a lambda cannot choose between |
@@ -767,8 +769,8 @@ commands of [`:app`](../app/README.md) and compares their output by its own rule
 | `KeyMut` | a view that changes a key's formatting but not its text | none: a `Key`'s text is a `val` and its formatting `var`s | the text cannot change through a `Key`, so a separate view protects nothing |
 | `Item` construction | `Item::Value(…)`, `Item::Table(…)`, and the `value()`, `table()`, `array()` helpers | the constructors `Item(…)`, and `operator set` overloads that take a `Value`, `StandardTable`, `ArrayOfTables` or a scalar | a constructor names the kind, and `doc["a"]["b"] = "x"` needs no wrapper |
 | Writing a non-value into an `Array` element or a non-table into an `ArrayOfTables` element (`*item = other`, `Item::make_value`) | stores it as a placeholder that `len` counts and printing skips | `TomlEditError.NotAValue` / `NotATableElement`, nothing written; `makeValue()` returns the result | an element of the wrong kind would vanish from the printed document |
-| Writing a `Table` or `ArrayOfTables` into an `InlineTable` slot (`*item = other`, `TableLike::entry(…).or_insert`, an index on an empty item) | stores it; a table prints as dotted keys, an array of tables not at all | `TomlEditError.NotAValue`, nothing written; `putItem` converts the item to an inline table or array, as `TableLike::insert` does | an inline table holds values; a dotted `InlineTable` prints the same dotted keys, as `` EditTest.`a key written under a dotted inline table prints as a dotted key inside it` `` shows |
-| `Array::insert / replace / remove`, `ArrayOfTables::insert / replace / remove`, `IndexMut` on a scalar, `TableLike::insert` of an empty item into an inline table | panic | `TomlEditError` | nothing throws |
+| Writing a `Table` or `ArrayOfTables` into an `InlineTable` slot (`*item = other`, `TableLike::entry(…).or_insert`) | stores it; a table prints as dotted keys, an array of tables not at all | `TomlEditError.NotAValue`, nothing written; `putItem` converts the item to an inline table or array, as `TableLike::insert` does | an inline table holds values; a dotted `InlineTable` prints the same dotted keys, as `` EditTest.`a key written under a dotted inline table prints as a dotted key inside it` `` shows |
+| `Array::insert / replace / remove`, `ArrayOfTables::insert / replace / remove`, `IndexMut` on a scalar | panic | `TomlEditError` | nothing throws |
 | `IndexMut<&str> for InlineTable` on a missing key | panics | `inlineTable[key] = value` adds the key | Kotlin's `[]=` is a write, as `MutableMap.set` is |
 | `DocumentMut` | named `DocumentMut`, beside the read-only `Document` | `TomlDocument`, the one document type | there is no second document type to tell it apart from |
 | `Document` | a read-only parse result that borrows its input, turned editable with `into_mut` | not public | Kotlin cannot hand out a read-only view of mutable classes, so a second type would only add a step |

@@ -122,7 +122,8 @@ missing escaped value, expected `b`, `f`, `n`, `r`, `t`, `\`, `"`, `u`, `U`
 
     @Test
     fun `V1_0 reads an escaped backslash before an x as text`() {
-        assertEquals("\\x41", TomlDocument.parse("s = \"\\\\x41\"\n", TomlVersion.V1_0).getOrFail()["s"].stringOrNull)
+        val doc = TomlDocument.parse("s = \"\\\\x41\"\n", TomlVersion.V1_0).getOrFail()
+        assertEquals("\\x41", doc["s"].getOrFail().stringOrNull)
     }
 
     @Test

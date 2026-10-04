@@ -29,14 +29,14 @@ class SlotFixesTest {
     @Test
     fun `a value assigned to a table's slot moves the comment above its header above the key`() {
         val doc = parse("a = 1\n\n# about t\n[t]\nx = 1\n")
-        doc["t"].assign(Item(Value.Integer(2L))).getOrFail()
+        doc["t"].getOrFail().assign(Item(Value.Integer(2L))).getOrFail()
         assertEquals("a = 1\n\n# about t\nt = 2\n", doc.toString())
     }
 
     @Test
     fun `a table made a value keeps the comment above its header`() {
         val doc = parse("a = 1\n\n# about t\n[t]\nx = 1\n")
-        doc["t"].makeValue().getOrFail()
+        doc["t"].getOrFail().makeValue().getOrFail()
         assertEquals("a = 1\n\n# about t\nt= { x = 1 }\n", doc.toString())
     }
 
@@ -48,38 +48,12 @@ class SlotFixesTest {
     }
 
     @Test
-    fun `a slot handed out under a table refuses a table once the table became inline`() {
-        val doc = TomlDocument()
-        doc["p"] = StandardTable()
-        val p = doc["p"]
-        val child = p["c"]
-        p.makeValue().getOrFail()
-        val error = child.assign(Item(standardTableOf("x" to Item(Value.Integer(1L))))).errorOrFail()
-        assertEquals(TomlEditError.NotAValue(TomlType.Table), error)
-        assertEquals(0, doc["p"].inlineTableOrNull!!.size)
-        assertEquals(emptySet<String>(), doc["p"].inlineTableOrNull!!.keys)
-        assertEquals("p = {}\n", doc.toString())
-    }
-
-    @Test
-    fun `a slot handed out under an empty item takes a table once it joined a standard table`() {
-        val doc = TomlDocument()
-        val p = doc["p"]
-        val c = p["c"]
-        p.assign(Item(StandardTable())).getOrFail()
-        c.assign(Item(Value.Integer(1L))).getOrFail()
-        doc["p"]["c"].assign(Item(StandardTable())).getOrFail()
-        assertEquals(TomlType.Table, doc["p"]["c"].type)
-    }
-
-    @Test
     fun `a slot in a table refuses a table once the table became inline`() {
         val doc = TomlDocument()
         doc["p"] = StandardTable()
-        val p = doc["p"]
-        val x = p["x"]
-        x.assign(Item(Value.Integer(1L))).getOrFail()
-        p.makeValue().getOrFail()
+        doc["p"]["x"] = 1L
+        val x = doc["p"]["x"].getOrFail()
+        doc["p"].getOrFail().makeValue().getOrFail()
         assertEquals(TomlEditError.NotAValue(TomlType.Table), x.assign(Item(StandardTable())).errorOrFail())
         x.assign(Item(Value.Integer(2L))).getOrFail()
         assertEquals("p = { x = 2 }\n", doc.toString())
@@ -88,7 +62,7 @@ class SlotFixesTest {
     @Test
     fun `an inline table stores a copy of a value taken from another of its keys`() {
         val doc = parse("t = { a = [1] }\n")
-        val t = doc["t"].inlineTableOrNull!!
+        val t = doc["t"].getOrFail().inlineTableOrNull!!
         t["b"] = t["a"]!!
         t["a"]!!.arrayOrNull!!.add(2L)
         assertEquals("t = { a = [1, 2] , b = [1] }\n", doc.toString())
@@ -123,39 +97,39 @@ class SlotFixesTest {
     @Test
     fun `a slot handed out for a key writes the key after put replaces its value`() {
         val doc = parse("'k'   =   1\n")
-        val slot = doc["k"]
+        val slot = doc["k"].getOrFail()
         doc["k"] = 2L
         assertEquals(2L, slot.longOrNull)
         slot.assign(Item(Value.Integer(3L))).getOrFail()
         assertEquals("'k'   =   3\n", doc.toString())
-        assertSame(slot, doc["k"])
+        assertSame(slot, doc["k"].getOrFail())
     }
 
     @Test
     fun `writing past the end of an array through its index reports the index and the length`() {
         val doc = parse("a = [1]\n")
-        val error = doc["a"][5].assign(Item(Value.Integer(2L))).errorOrFail()
+        val error = doc["a"].set(5, Item(Value.Integer(2L))).errorOrFail()
         assertEquals(TomlEditError.IndexOutOfBounds(5, 1), error)
     }
 
     @Test
     fun `writing through an index of a scalar reports that it is not an array`() {
         val doc = parse("a = 1\n")
-        val error = doc["a"][0].assign(Item(Value.Integer(2L))).errorOrFail()
+        val error = doc["a"].set(0, Item(Value.Integer(2L))).errorOrFail()
         assertEquals(TomlEditError.NotAnArray(0, TomlType.Integer), error)
     }
 
     @Test
     fun `a multi-line array without a trailing comma keeps its closing line break in place when sorted`() {
         val doc = parse("a = [\n    3,\n    1\n]\n")
-        doc["a"].arrayOrNull!!.sortBy { it.longOrNull }
+        doc["a"].getOrFail().arrayOrNull!!.sortBy { it.longOrNull }
         assertEquals("a = [\n    1,\n    3\n]\n", doc.toString())
     }
 
     @Test
     fun `a sorted multi-line array moves the comment after its last value behind that value's comma`() {
         val doc = parse("a = [\n    3,\n    1 # one\n]\n")
-        doc["a"].arrayOrNull!!.sortBy { it.longOrNull }
+        doc["a"].getOrFail().arrayOrNull!!.sortBy { it.longOrNull }
         assertEquals("a = [\n    1, # one\n    3\n]\n", doc.toString())
     }
 }

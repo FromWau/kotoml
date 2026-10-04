@@ -35,7 +35,7 @@ class RemovalKeepsCommentsTest {
         val text = "[server]\nhost = 1\n# the port\nport = 2\n\n# client side\n[client]\nx = 1\n"
         assertEquals(
             "[server]\nhost = 1\n# the port\n\n# client side\n[client]\nx = 1\n",
-            removing(text) { it["server"].standardTableOrNull!!.remove("port") },
+            removing(text) { it["server"].getOrFail().standardTableOrNull!!.remove("port") },
         )
     }
 
@@ -77,11 +77,11 @@ class RemovalKeepsCommentsTest {
     fun `a dotted key removed through its table leaves its comment in place`() {
         assertEquals(
             "# about a.x\na.x = 1\n# about b\nb = 2\n# about a.y\nc = 4\n",
-            removing(interleaved) { it["a"].standardTableOrNull!!.remove("y") },
+            removing(interleaved) { it["a"].getOrFail().standardTableOrNull!!.remove("y") },
         )
         assertEquals(
             "# about a.x\n# about b\nb = 2\n# about a.y\na.y = 3\nc = 4\n",
-            removing(interleaved) { it["a"].standardTableOrNull!!.remove("x") },
+            removing(interleaved) { it["a"].getOrFail().standardTableOrNull!!.remove("x") },
         )
     }
 
@@ -98,7 +98,7 @@ class RemovalKeepsCommentsTest {
         assertEquals(
             "# about a.x\na.x = 1\n# about b\n# about a.y\nc = 4\n",
             removing(interleaved) {
-                it["a"].standardTableOrNull!!.remove("y")
+                it["a"].getOrFail().standardTableOrNull!!.remove("y")
                 it.remove("b")
             },
         )
@@ -113,9 +113,9 @@ class RemovalKeepsCommentsTest {
         pool.put(Key("idle", leafDecor = Decor(prefix = "# idle\n")), Item(Value.Integer(2L)))
         document["pool"] = pool
         document["timeout"] = Value.Integer(3L)
-        document["pool"].standardTableOrNull!!.remove("size")
+        document["pool"].getOrFail().standardTableOrNull!!.remove("size")
         assertEquals("# size\n# idle\npool.idle = 2\ntimeout = 3\n", document.toString())
-        document["pool"].standardTableOrNull!!.remove("idle")
+        document["pool"].getOrFail().standardTableOrNull!!.remove("idle")
         assertEquals("# size\n# idle\ntimeout = 3\n", document.toString())
     }
 
@@ -124,7 +124,7 @@ class RemovalKeepsCommentsTest {
         val text = "[a]\nx = 1\n\n# about b\n[a.b]\n# inside b\ny = 2\n\n# about c\n[c]\nz = 3\n"
         assertEquals(
             "[a]\nx = 1\n\n# about b\n\n# about c\n[c]\nz = 3\n",
-            removing(text) { it["a"].standardTableOrNull!!.remove("b") },
+            removing(text) { it["a"].getOrFail().standardTableOrNull!!.remove("b") },
         )
     }
 
@@ -151,11 +151,13 @@ class RemovalKeepsCommentsTest {
     fun `a table removed from an array of tables leaves the lines above its header`() {
         assertEquals(
             "# first\n\n# second\n[[x]]\nn = 2\n\n# after\n[y]\n",
-            removing(fleet) { it["x"].arrayOfTablesOrNull!!.removeAt(0).getOrFail() },
+            removing(fleet) { it["x"].getOrFail().arrayOfTablesOrNull!!.removeAt(0).getOrFail() },
         )
         assertEquals(
             "# first\n[[x]]\nn = 1\n\n# second\n\n# after\n[y]\n",
-            removing(fleet) { document -> document["x"].arrayOfTablesOrNull!!.retainAll { it["n"].longOrNull == 1L } },
+            removing(fleet) { document ->
+                document["x"].getOrFail().arrayOfTablesOrNull!!.retainAll { it["n"].getOrFail().longOrNull == 1L }
+            },
         )
     }
 
@@ -165,7 +167,7 @@ class RemovalKeepsCommentsTest {
     fun `an inline table entry leaves its comment above the next entry`() {
         assertEquals(
             "t = {\n  # first\n  # second\n  b = 2,\n}\n",
-            removing(inline) { it["t"].inlineTableOrNull!!.remove("a") },
+            removing(inline) { it["t"].getOrFail().inlineTableOrNull!!.remove("a") },
         )
     }
 
@@ -173,13 +175,16 @@ class RemovalKeepsCommentsTest {
     fun `the last inline table entry leaves its comment before the closing brace`() {
         assertEquals(
             "t = {\n  # first\n  a = 1,\n  # second\n}\n",
-            removing(inline) { it["t"].tableOrNull!!.removeItem("b") },
+            removing(inline) { it["t"].getOrFail().tableOrNull!!.removeItem("b") },
         )
     }
 
     @Test
     fun `an inline table on one line prints as before`() {
-        assertEquals("t = { b = 2 }\n", removing("t = { a = 1, b = 2 }\n") { it["t"].inlineTableOrNull!!.remove("a") })
+        assertEquals(
+            "t = { b = 2 }\n",
+            removing("t = { a = 1, b = 2 }\n") { it["t"].getOrFail().inlineTableOrNull!!.remove("a") },
+        )
     }
 
     private val ports = "ports = [\n  # http\n  80,\n  # https\n  443,\n]\n"
@@ -188,7 +193,7 @@ class RemovalKeepsCommentsTest {
     fun `an array element leaves its comment above the next element`() {
         assertEquals(
             "ports = [\n  # http\n  # https\n  443,\n]\n",
-            removing(ports) { it["ports"].arrayOrNull!!.removeAt(0).getOrFail() },
+            removing(ports) { it["ports"].getOrFail().arrayOrNull!!.removeAt(0).getOrFail() },
         )
     }
 
@@ -196,7 +201,7 @@ class RemovalKeepsCommentsTest {
     fun `the last array element leaves its comment before the closing bracket`() {
         assertEquals(
             "ports = [\n  # http\n  80,\n  # https\n]\n",
-            removing(ports) { it["ports"].arrayOrNull!!.removeAt(1).getOrFail() },
+            removing(ports) { it["ports"].getOrFail().arrayOrNull!!.removeAt(1).getOrFail() },
         )
     }
 
@@ -205,7 +210,7 @@ class RemovalKeepsCommentsTest {
         val text = "ports = [\n  80, # http\n  443, # https\n]\n"
         assertEquals(
             "ports = [\n  443, # https\n]\n",
-            removing(text) { it["ports"].arrayOrNull!!.removeAt(0).getOrFail() },
+            removing(text) { it["ports"].getOrFail().arrayOrNull!!.removeAt(0).getOrFail() },
         )
     }
 
@@ -214,7 +219,7 @@ class RemovalKeepsCommentsTest {
         val text = "ports = [\n  80, # http\n  443 # https\n]\n"
         assertEquals(
             "ports = [\n  80, # http\n]\n",
-            removing(text) { it["ports"].arrayOrNull!!.removeAt(1).getOrFail() },
+            removing(text) { it["ports"].getOrFail().arrayOrNull!!.removeAt(1).getOrFail() },
         )
     }
 
@@ -223,26 +228,35 @@ class RemovalKeepsCommentsTest {
         val text = "ports = [\n  80, 443, # web\n  8080,\n]\n"
         assertEquals(
             "ports = [\n  80, # web\n  8080,\n]\n",
-            removing(text) { it["ports"].arrayOrNull!!.removeAt(1).getOrFail() },
+            removing(text) { it["ports"].getOrFail().arrayOrNull!!.removeAt(1).getOrFail() },
         )
     }
 
     @Test
     fun `an inline table entry takes the comment on its line`() {
         val text = "t = {\n  a = 1, # one\n  b = 2 # two\n}\n"
-        assertEquals("t = {\n  b = 2 # two\n}\n", removing(text) { it["t"].inlineTableOrNull!!.remove("a") })
-        assertEquals("t = {\n  a = 1, # one\n}\n", removing(text) { it["t"].inlineTableOrNull!!.remove("b") })
+        assertEquals(
+            "t = {\n  b = 2 # two\n}\n",
+            removing(text) { it["t"].getOrFail().inlineTableOrNull!!.remove("a") },
+        )
+        assertEquals(
+            "t = {\n  a = 1, # one\n}\n",
+            removing(text) { it["t"].getOrFail().inlineTableOrNull!!.remove("b") },
+        )
     }
 
     @Test
     fun `clearing an array keeps every comment in it`() {
-        assertEquals("ports = [\n  # http\n  # https\n]\n", removing(ports) { it["ports"].arrayOrNull!!.clear() })
+        assertEquals(
+            "ports = [\n  # http\n  # https\n]\n",
+            removing(ports) { it["ports"].getOrFail().arrayOrNull!!.clear() },
+        )
     }
 
     @Test
     fun `clearing a table keeps the comments above its keys`() {
         val text = "[a]\n# one\nx = 1\n# two\ny = 2\n[b]\n"
-        assertEquals("[a]\n# one\n# two\n[b]\n", removing(text) { it["a"].standardTableOrNull!!.clear() })
+        assertEquals("[a]\n# one\n# two\n[b]\n", removing(text) { it["a"].getOrFail().standardTableOrNull!!.clear() })
     }
 
     @Test
@@ -264,7 +278,7 @@ class RemovalKeepsCommentsTest {
     fun `a key added after removing the last one prints above the kept lines`() {
         val text = "[a]\nx = 1\n# about y\ny = 2\n[b]\n"
         assertEquals("[a]\nx = 1\nz = 3\n# about y\n[b]\n", removing(text) { document ->
-            val a = document["a"].standardTableOrNull!!
+            val a = document["a"].getOrFail().standardTableOrNull!!
             a.remove("y")
             a["z"] = Value.Integer(3L)
         })

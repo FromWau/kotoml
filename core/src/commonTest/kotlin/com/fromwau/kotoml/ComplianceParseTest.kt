@@ -88,24 +88,24 @@ string'''""",
                 "apples'''\nlines  = '''\nThe first newline is\ntrimmed in raw strings.\nAll other whitespace\n" +
                 "is preserved.\n'''\n",
         )
-        assertEquals("\u0000", table["bar"].stringOrNull)
-        assertEquals("One\nTwo", table["key1"].stringOrNull)
-        assertEquals("One\nTwo", table["key2"].stringOrNull)
-        assertEquals("One\nTwo", table["key3"].stringOrNull)
+        assertEquals("\u0000", table["bar"].getOrFail().stringOrNull)
+        assertEquals("One\nTwo", table["key1"].getOrFail().stringOrNull)
+        assertEquals("One\nTwo", table["key2"].getOrFail().stringOrNull)
+        assertEquals("One\nTwo", table["key3"].getOrFail().stringOrNull)
 
         val msg = "The quick brown fox jumps over the lazy dog."
-        assertEquals(msg, table["key4"].stringOrNull)
-        assertEquals(msg, table["key5"].stringOrNull)
-        assertEquals(msg, table["key6"].stringOrNull)
+        assertEquals(msg, table["key4"].getOrFail().stringOrNull)
+        assertEquals(msg, table["key5"].getOrFail().stringOrNull)
+        assertEquals(msg, table["key6"].getOrFail().stringOrNull)
 
-        assertEquals("C:\\Users\\nodejs\\templates", table["winpath"].stringOrNull)
-        assertEquals("\\\\ServerX\\admin\$\\system32\\", table["winpath2"].stringOrNull)
-        assertEquals("Tom \"Dubs\" Preston-Werner", table["quoted"].stringOrNull)
-        assertEquals("<\\i\\c*\\s*>", table["regex"].stringOrNull)
-        assertEquals("I [dw]on't need \\d{2} apples", table["regex2"].stringOrNull)
+        assertEquals("C:\\Users\\nodejs\\templates", table["winpath"].getOrFail().stringOrNull)
+        assertEquals("\\\\ServerX\\admin\$\\system32\\", table["winpath2"].getOrFail().stringOrNull)
+        assertEquals("Tom \"Dubs\" Preston-Werner", table["quoted"].getOrFail().stringOrNull)
+        assertEquals("<\\i\\c*\\s*>", table["regex"].getOrFail().stringOrNull)
+        assertEquals("I [dw]on't need \\d{2} apples", table["regex2"].getOrFail().stringOrNull)
         assertEquals(
             "The first newline is\ntrimmed in raw strings.\nAll other whitespace\nis preserved.\n",
-            table["lines"].stringOrNull,
+            table["lines"].getOrFail().stringOrNull,
         )
     }
 
@@ -124,14 +124,14 @@ string'''""",
 #...
 """,
         )
-        assertNotNull(table["foo"][0]["bar"].standardTableOrNull)
-        assertNotNull(table["foo"][1]["bar"].standardTableOrNull)
+        assertNotNull(table["foo"][0]["bar"].getOrFail().standardTableOrNull)
+        assertNotNull(table["foo"][1]["bar"].getOrFail().standardTableOrNull)
     }
 
     @Test
     fun `a header with no keys makes an empty table`() {
         val table = parseDocument("\n[foo]")
-        assertNotNull(table["foo"].standardTableOrNull)
+        assertNotNull(table["foo"].getOrFail().standardTableOrNull)
     }
 
     @Test
@@ -178,25 +178,25 @@ name = "banana"
 name = "plantain"
 """,
         )
-        assertEquals("apple", table["fruit"][0]["name"].stringOrNull)
-        assertEquals("red", table["fruit"][0]["physical"]["color"].stringOrNull)
-        assertEquals("round", table["fruit"][0]["physical"]["shape"].stringOrNull)
-        assertEquals("red delicious", table["fruit"][0]["variety"][0]["name"].stringOrNull)
-        assertEquals("granny smith", table["fruit"][0]["variety"][1]["name"].stringOrNull)
-        assertEquals("banana", table["fruit"][1]["name"].stringOrNull)
-        assertEquals("plantain", table["fruit"][1]["variety"][0]["name"].stringOrNull)
+        assertEquals("apple", table["fruit"][0]["name"].getOrFail().stringOrNull)
+        assertEquals("red", table["fruit"][0]["physical"]["color"].getOrFail().stringOrNull)
+        assertEquals("round", table["fruit"][0]["physical"]["shape"].getOrFail().stringOrNull)
+        assertEquals("red delicious", table["fruit"][0]["variety"][0]["name"].getOrFail().stringOrNull)
+        assertEquals("granny smith", table["fruit"][0]["variety"][1]["name"].getOrFail().stringOrNull)
+        assertEquals("banana", table["fruit"][1]["name"].getOrFail().stringOrNull)
+        assertEquals("plantain", table["fruit"][1]["variety"][0]["name"].getOrFail().stringOrNull)
     }
 
     @Test
     fun `an empty literal string reads as empty`() {
         val table = parseDocument("foo = ''")
-        assertEquals("", table["foo"].stringOrNull)
+        assertEquals("", table["foo"].getOrFail().stringOrNull)
     }
 
     @Test
     fun `a multi-line string of blank lines keeps all but the trimmed first newline`() {
         val table = parseDocument("foo = \"\"\"\n\n\n\"\"\"")
-        assertEquals("\n\n", table["foo"].stringOrNull)
+        assertEquals("\n\n", table["foo"].getOrFail().stringOrNull)
     }
 
     @Test
@@ -204,15 +204,15 @@ name = "plantain"
         val table = parseDocument(
             "\n        foo = \"\"\"\\\r\n\"\"\"\n        bar = \"\"\"\\\r\n   \r\n   \r\n   a\"\"\"\n    ",
         )
-        assertEquals("", table["foo"].stringOrNull)
-        assertEquals("a", table["bar"].stringOrNull)
+        assertEquals("", table["foo"].getOrFail().stringOrNull)
+        assertEquals("a", table["bar"].getOrFail().stringOrNull)
     }
 
     @Test
     fun `floats with exponents and underscores decode to their values`() {
         fun assertDecodesTo(actual: String, expected: Double) {
             val a = parseDocument("foo = $actual")
-            assertEquals(expected, a["foo"].doubleOrNull)
+            assertEquals(expected, a["foo"].getOrFail().doubleOrNull)
         }
 
         assertDecodesTo("1.0", 1.0)
@@ -266,11 +266,11 @@ name = "plantain"
         ['""']
     """,
         )
-        assertNotNull(a["a"]["b"].standardTableOrNull)
-        assertNotNull(a["f f"].standardTableOrNull)
-        assertNotNull(a["f.f"].standardTableOrNull)
-        assertNotNull(a["\""].standardTableOrNull)
-        assertNotNull(a["\"\""].standardTableOrNull)
+        assertNotNull(a["a"]["b"].getOrFail().standardTableOrNull)
+        assertNotNull(a["f f"].getOrFail().standardTableOrNull)
+        assertNotNull(a["f.f"].getOrFail().standardTableOrNull)
+        assertNotNull(a["\""].getOrFail().standardTableOrNull)
+        assertNotNull(a["\"\""].getOrFail().standardTableOrNull)
     }
 
     @Test
@@ -289,7 +289,7 @@ name = "plantain"
     fun `integers with underscores and signs decode to their values`() {
         fun assertDecodesTo(actual: String, expected: Long) {
             val table = parseDocument("foo = $actual")
-            assertEquals(expected, table["foo"].longOrNull)
+            assertEquals(expected, table["foo"].getOrFail().longOrNull)
         }
 
         assertDecodesTo("1_0", 10)
@@ -301,14 +301,14 @@ name = "plantain"
 
     @Test
     fun `an empty basic string reads as empty`() {
-        assertEquals("", parseDocument("foo = \"\"")["foo"].stringOrNull)
+        assertEquals("", parseDocument("foo = \"\"")["foo"].getOrFail().stringOrNull)
     }
 
     @Test
     fun `offset date-times print back as written`() {
         fun assertPrintsBack(actual: String) {
             val toml = parseDocument("foo = $actual")
-            assertEquals(actual, toml["foo"].datetimeOrNull.toString())
+            assertEquals(actual, toml["foo"].getOrFail().datetimeOrNull.toString())
         }
 
         assertPrintsBack("2016-09-09T09:09:09Z")

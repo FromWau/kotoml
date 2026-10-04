@@ -24,9 +24,10 @@ class EditDocTest {
         val doc = TomlDocument.parse(toml).getOrFail()
         assertEquals(toml, doc.toString())
         // Add a new key/value pair inside a.b: c = {d = "hello"}
+        doc["a"]["b"]["c"] = Value.InlineTable(InlineTable())
         doc["a"]["b"]["c"]["d"] = "hello"
         // Autoformat inline table a.b.c: { d = "hello" }
-        doc["a"]["b"]["c"].inlineTableOrNull?.resetFormatting()
+        doc["a"]["b"]["c"].getOrFail().inlineTableOrNull?.resetFormatting()
         val expected = """
 "hello" = 'toml!' # comment
 ['a'.b]
@@ -41,9 +42,10 @@ c = { d = "hello" }
         val doc = TomlDocument.parse(toml).getOrFail()
         assertEquals(toml, doc.toString())
         // Add a new key/value pair inside a.b: c = {d = "hello"}
+        doc["a"]["b"]["c"] = Value.InlineTable(InlineTable())
         doc["a"]["b"]["c"]["d"] = "hello"
         // Autoformat inline table a.b.c: { d = "hello" }
-        doc["a"]["b"]["c"].inlineTableOrNull?.resetFormatting()
+        doc["a"]["b"]["c"].getOrFail().inlineTableOrNull?.resetFormatting()
         val expected = "\n\"hello\" = 'toml!' # comment\n['a'.b]\nc = { d = \"hello\" }\n    "
         assertEquals(expected, doc.toString())
     }
@@ -60,8 +62,9 @@ c = { d = "hello" }
         val text = "\n\"hello\" = 'toml!' # comment\n['a'.b]\n"
         val doc = TomlDocument.parse(text).getOrFail()
         assertEquals(text, doc.toString())
+        doc["a"]["b"]["c"] = Value.InlineTable(InlineTable())
         doc["a"]["b"]["c"]["d"] = "hello"
-        doc["a"]["b"]["c"].inlineTableOrNull?.resetFormatting()
+        doc["a"]["b"]["c"].getOrFail().inlineTableOrNull?.resetFormatting()
         assertEquals("\n\"hello\" = 'toml!' # comment\n['a'.b]\nc = { d = \"hello\" }\n", doc.toString())
     }
 
@@ -72,9 +75,9 @@ c = { d = "hello" }
         doc["when"] = Datetime.LocalDate(Date.of(1979, 5, 27).getOrElse { error(it) })
         assertEquals("port = 8080 # default\nwhen = 1979-05-27\n", doc.toString())
 
-        assertEquals(8080L, doc["port"].longOrNull)
+        assertEquals(8080L, doc["port"].getOrFail().longOrNull)
         val parsed = TomlDocument.parse("n = 0x10\n").getOrFail()
-        val spelled = parsed["n"].valueOrNull as Value.Integer
+        val spelled = parsed["n"].getOrFail().valueOrNull as Value.Integer
         assertEquals(16L, spelled.value)
         assertEquals("0x10", spelled.spelling)
         spelled.resetFormatting()
@@ -84,8 +87,8 @@ c = { d = "hello" }
     @Test
     fun `the module README tables example extends an array and adds a key and a table`() {
         val doc = TomlDocument.parse("[server]\nhosts = [\"alpha\"]\n").getOrFail()
-        doc["server"]["hosts"].arrayOrNull?.add("beta")
-        val server = doc["server"].standardTableOrNull!!
+        doc["server"]["hosts"].getOrFail().arrayOrNull?.add("beta")
+        val server = doc["server"].getOrFail().standardTableOrNull!!
         server.getOrPut("port") { Item(Value.Integer(8080L)) }
         doc["client"] = standardTableOf("retries" to Item(Value.Integer(3L)))
         assertEquals(
@@ -250,7 +253,7 @@ duplicate key `a`
         arr.add(standardTableOf("name" to Item(Value.String("apple"))))
 
         arr.set(0, standardTableOf("name" to Item(Value.String("banana")))).getOrFail()
-        assertEquals("banana", arr[0]?.get("name")?.stringOrNull)
+        assertEquals("banana", arr[0]!!["name"].getOrFail().stringOrNull)
     }
 
     @Test
@@ -270,7 +273,7 @@ duplicate key `a`
     fun `an implicit table with a sub-table prints only the sub-table's header`() {
         val doc = TomlDocument.parse("[a]\n[a.b]\n").getOrFail()
 
-        doc["a"].standardTableOrNull!!.isImplicit = true
+        doc["a"].getOrFail().standardTableOrNull!!.isImplicit = true
         assertEquals("[a.b]\n", doc.toString())
     }
 

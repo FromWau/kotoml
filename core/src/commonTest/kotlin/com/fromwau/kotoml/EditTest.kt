@@ -58,9 +58,9 @@ class EditTest {
         assertEquals(input, document.toString())
 
         val name = document["parent"]["entries"][1]["name"]
-        val decor = name.valueOrNull!!.decor
-        name.assign(Item(Value.String("updated")))
-        name.valueOrNull!!.decor = decor
+        val decor = name.getOrFail().valueOrNull!!.decor
+        name.getOrFail().assign(Item(Value.String("updated")))
+        name.getOrFail().valueOrNull!!.decor = decor
         assertEquals(input.replace("\"second\"", "\"updated\""), document.toString())
     }
 
@@ -465,7 +465,7 @@ dc = "eqdc10"
         given("[a]")
             .running { root ->
                 val other = TomlDocument.parse("[b]").getOrFail()
-                root["b"] = other["b"].copy()
+                root["b"] = other["b"].getOrFail().copy()
             }
             .prints("""
 [a]
@@ -502,7 +502,7 @@ dc = "eqdc10"
         given("\n        [package]\n        title = \"withoutarray\"")
             .running { root ->
                 root["bin"] = ArrayOfTables()
-                val array = assertNotNull(root["bin"].arrayOfTablesOrNull)
+                val array = assertNotNull(root["bin"].getOrFail().arrayOfTablesOrNull)
                 run {
                     val table = StandardTable()
                     table["hello"] = "world"
@@ -1060,19 +1060,19 @@ edition = "2024"
         x = "y"
         [empty]""")
             .running { root ->
-                val a = root["a"].tableOrNull
+                val a = root["a"].getOrFail().tableOrNull
                 assertNotNull(a)
                 assertEquals(3, a.entries.size)
                 assertEquals(3, a.size)
                 assertEquals(2L, a.getItem("a")?.longOrNull)
-                val b = root["b"].tableOrNull
+                val b = root["b"].getOrFail().tableOrNull
                 assertNotNull(b)
                 assertEquals(1, b.entries.size)
                 assertEquals(1, b.size)
                 assertEquals("y", b.getItem("x")?.stringOrNull)
-                assertEquals(0, root["x"].tableOrNull?.entries?.size)
-                assertEquals(true, root["empty"].tableOrNull?.isEmpty())
-                assertNull(root["bin"].tableOrNull)
+                assertEquals(0, root["x"].getOrFail().tableOrNull?.entries?.size)
+                assertEquals(true, root["empty"].getOrFail().tableOrNull?.isEmpty())
+                assertNull(root["bin"].getOrFail().tableOrNull)
             }
     }
 
@@ -1098,7 +1098,7 @@ edition = "2024"
             .running { root ->
                 root["nixpkgs"] = StandardTable()
                 root["nixpkgs"]["src"] = StandardTable()
-                root["nixpkgs"]["src"].tableOrNull!!.isDotted = true
+                root["nixpkgs"]["src"].getOrFail().tableOrNull!!.isDotted = true
                 root["nixpkgs"]["src"]["git"] = "https://github.com/nixos/nixpkgs"
             }
             .prints("""
@@ -1113,8 +1113,9 @@ src.git = "https://github.com/nixos/nixpkgs"
         given("")
             .running { root ->
                 root["nixpkgs"] = StandardTable()
+                root["nixpkgs"]["src"] = Value.InlineTable(InlineTable())
                 root["nixpkgs"]["src"]["git"] = "https://github.com/nixos/nixpkgs"
-                root["nixpkgs"]["src"].tableOrNull!!.isDotted = true
+                root["nixpkgs"]["src"].getOrFail().tableOrNull!!.isDotted = true
             }
             .prints("""
 [nixpkgs]
@@ -1136,7 +1137,7 @@ src.git = "https://github.com/nixos/nixpkgs"
         val document = TomlDocument.parse("bookmark = 1010").getOrFail()
         val key = "bookmark"
         document.put(key, Item(ArrayOfTables()))
-        val table = document[key].arrayOfTablesOrNull!!
+        val table = document[key].getOrFail().arrayOfTablesOrNull!!
         val bookmarkTable = StandardTable()
         bookmarkTable["name"] = "test.swf"
         table.add(bookmarkTable)
@@ -1152,7 +1153,7 @@ name = "test.swf"
         val document = TomlDocument.parse("bookmark = 1010").getOrFail()
         val key = Key.parsePath("  bookmark   ").getOrFail()[0]
         document.root.put(key, Item(ArrayOfTables()))
-        val table = document[key.name].arrayOfTablesOrNull!!
+        val table = document[key.name].getOrFail().arrayOfTablesOrNull!!
         val bookmarkTable = StandardTable()
         bookmarkTable["name"] = "test.swf"
         table.add(bookmarkTable)
@@ -1319,6 +1320,7 @@ other = "world"
         // An inline table holds only values, so a dotted inline table stands in for upstream's table here.
         val dotted = InlineTable()
         dotted.isDotted = true
+        doc["tool"] = Value.InlineTable(InlineTable())
         doc["tool"]["typst-test"] = Value.InlineTable(dotted)
         doc["tool"]["typst-test"]["tests"] = "tests"
         assertSnapshot("""
@@ -1336,7 +1338,7 @@ name = "apple"
 name = "banana"
 """)
             .running { root ->
-                    val array = root["fruit"].arrayOfTablesOrNull!!
+                    val array = root["fruit"].getOrFail().arrayOfTablesOrNull!!
                     val newTable = StandardTable()
                     newTable.put("name", Item(Value.String("cherry")))
                     array.add(0, newTable)
@@ -1367,7 +1369,7 @@ name = "apple"
 name = "banana"
 """)
             .running { root ->
-                    val array = root["fruit"].arrayOfTablesOrNull!!
+                    val array = root["fruit"].getOrFail().arrayOfTablesOrNull!!
                     val newTable = StandardTable()
                     newTable.put("name", Item(Value.String("cherry")))
                     // Give the new table a leading blank line to match the existing style.
@@ -1396,7 +1398,7 @@ name = "apple"
 name = "banana"
 """)
             .running { root ->
-                    val array = root["fruit"].arrayOfTablesOrNull!!
+                    val array = root["fruit"].getOrFail().arrayOfTablesOrNull!!
                     val newTable = StandardTable()
                     newTable.put("name", Item(Value.String("cherry")))
                     // Give the new table a leading blank line to match the existing style.
@@ -1479,11 +1481,11 @@ name = "apple"
 name = "banana"
 """)
             .running { root ->
-                val array = root["fruit"].arrayOfTablesOrNull!!
+                val array = root["fruit"].getOrFail().arrayOfTablesOrNull!!
                 val newTable = StandardTable()
                 newTable.put("name", Item(Value.String("cherry")))
                 val old = array.set(1, newTable).getOrFail()
-                assertEquals("banana", old["name"].stringOrNull)
+                assertEquals("banana", old["name"].getOrFail().stringOrNull)
             }
             .prints("""
 [[fruit]]

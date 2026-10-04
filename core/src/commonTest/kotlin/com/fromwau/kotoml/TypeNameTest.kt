@@ -9,15 +9,8 @@ import kotlin.test.assertTrue
 class TypeNameTest {
 
     @Test
-    fun `a slot holding nothing is named missing`() {
+    fun `nothing found is named missing`() {
         assertEquals("missing", TomlType.Missing.describe())
     }
 
-    @Test
-    fun `an item indexed at a key that is not there is missing`() {
-        val doc = TomlDocument.parse("a = 1\n").getOrFail()
-        assertEquals(TomlType.Missing, doc["b"].type)
-        assertTrue(doc["b"].isMissing)
-        assertFalse(doc["a"].isMissing)
-    }
 }

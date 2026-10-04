@@ -23,7 +23,7 @@ class RemovalCommentScopeTest {
         val text = "[[server]]\n#host = \"127.0.0.1\"\nhost = \"localhost\"\nport = 8080\n"
         assertEquals(
             "[[server]]\n#host = \"127.0.0.1\"\nport = 8080\n",
-            removing(text) { it["server"].arrayOfTablesOrNull!![0]!!.remove("host") },
+            removing(text) { it["server"].getOrFail().arrayOfTablesOrNull!![0]!!.remove("host") },
         )
     }
 
@@ -62,7 +62,7 @@ class RemovalCommentScopeTest {
         val text = "[[server]]\nhost = \"a\"\n# backup\n[[server]]\nhost = \"b\"\n"
         assertEquals(
             "[[server]]\nhost = \"a\"\n# backup\n",
-            removing(text) { it["server"].arrayOfTablesOrNull!!.removeAt(1).getOrFail() },
+            removing(text) { it["server"].getOrFail().arrayOfTablesOrNull!!.removeAt(1).getOrFail() },
         )
     }
 
@@ -83,7 +83,7 @@ class RemovalCommentScopeTest {
         val text = "ports = [\n  8080, # http\n  # https\n  8443, # tls\n]\n"
         assertEquals(
             "ports = [\n  8080, # http\n  # https\n]\n",
-            removing(text) { it["ports"].arrayOrNull!!.removeAt(1).getOrFail() },
+            removing(text) { it["ports"].getOrFail().arrayOrNull!!.removeAt(1).getOrFail() },
         )
     }
 
@@ -92,7 +92,7 @@ class RemovalCommentScopeTest {
         val text = "[database]\n# primary\nurl = \"postgres://\"\n[cache]\n"
         assertEquals(
             "[database]\n# primary\n[cache]\n",
-            removing(text) { it["database"].standardTableOrNull!!.remove("url") },
+            removing(text) { it["database"].getOrFail().standardTableOrNull!!.remove("url") },
         )
     }
 
@@ -107,7 +107,7 @@ class RemovalCommentScopeTest {
         val text = "# all servers\n[[server]]\nhost = \"a\"\n# backup\n[[server]]\nhost = \"b\"\n"
         assertEquals(
             "# all servers\n# backup\n",
-            removing(text) { it["server"].arrayOfTablesOrNull!!.clear() },
+            removing(text) { it["server"].getOrFail().arrayOfTablesOrNull!!.clear() },
         )
     }
 }

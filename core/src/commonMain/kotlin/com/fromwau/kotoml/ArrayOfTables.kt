@@ -11,7 +11,7 @@ import com.fromwau.kern.result.Result
  * A table added here is stored as is, not copied: keep using it only through the array, or add its `copy()`.
  *
  * A [StandardTable] has no content equality, so `contains(table)` and `indexOf(table)` find only that same table
- * object. Compare what the tables hold instead, as in `tables.indexOfFirst { it["name"].stringOrNull == "a" }`.
+ * object. Compare what the tables hold instead, as in `tables.indexOfFirst { it.getOrNull("name")?.stringOrNull == "a" }`.
  */
 public class ArrayOfTables() : Iterable<StandardTable> {
     internal var span: Span? = null
@@ -27,7 +27,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
 
     /** Moves the tables into a new inline array of inline tables, formatted anew, leaving this empty. */
     internal fun moveToTomlArray(): TomlArray {
-        val array = values.mapNotNull { it.moveToValue() }.toTomlArray()
+        val array = values.map { it.moveToValue() }.toTomlArray()
         values.clear()
         array.resetFormatting()
         return array

@@ -9,6 +9,11 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 public sealed interface TomlEditError : IError {
+    /** Indexing by [key] into a table or inline table that holds no item there. */
+    @Serializable
+    @SerialName("NotFound")
+    public data class NotFound(val key: String) : TomlEditError
+
     /** [index] is past the end of a sequence of [length] elements. */
     @Serializable
     @SerialName("IndexOutOfBounds")

@@ -52,7 +52,7 @@ class TomlDocumentTest {
 
         assertTrue("a" in document)
         assertEquals(2, document.size)
-        assertEquals(1L, document.root["a"].longOrNull)
+        assertEquals(1L, document.root["a"].getOrFail().longOrNull)
         assertEquals(2L, document.remove("b")?.longOrNull)
         assertEquals("a = 1\n", document.toString())
     }
@@ -85,7 +85,7 @@ class TomlDocumentTest {
 
         val document = TomlDocument.read(source).getOrFail()
 
-        assertEquals("alpha", document["server"]["host"].stringOrNull)
+        assertEquals("alpha", document["server"]["host"].getOrFail().stringOrNull)
         assertEquals(text, document.toString())
     }
 

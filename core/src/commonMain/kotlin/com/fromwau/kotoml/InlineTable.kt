@@ -32,11 +32,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     /** Whether this table stands for the parts of a dotted key rather than for `{ ... }`. */
     override var isDotted: Boolean = false
 
-    internal var items: KeyValuePairs = KeyValuePairs().also { it.keepLinesOfRemoved = { removed -> keepLinesAbove(removed) } }
-        set(value) {
-            field = value
-            value.keepLinesOfRemoved = { removed -> keepLinesAbove(removed) }
-        }
+    internal var items: KeyValuePairs = KeyValuePairs()
 
     internal constructor(items: KeyValuePairs) : this() {
         for (entry in items.entries) entry.item = entry.item.movedTo(Item.Holds.Value)
@@ -193,9 +189,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
 
     /** The key/item pairs, in order; each item holds a value. */
     override val entries: List<Pair<String, Item>>
-        get() = items.entries
-        .filter { !it.item.isMissing }
-        .map { it.key.name to it.item }
+        get() = items.entries.map { it.key.name to it.item }
 
     /** The keys holding a value, in order, as a copy that later changes to the table leave as it is. */
     override val keys: Set<String>
@@ -220,7 +214,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     public operator fun get(key: String): Value? = items.get(key)?.valueOrNull
 
     /** The slot at [key], or null when there is none. */
-    override fun getItem(key: String): Item? = items.get(key)?.takeIf { !it.isMissing }
+    override fun getItem(key: String): Item? = items.get(key)
 
     /** Sets [key] to a copy of [value], keeping the key's position and formatting when it is already there. */
     public operator fun set(
@@ -286,10 +280,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     override fun putItem(
         key: String,
         item: Item,
-    ): Result<Item?, TomlEditError> {
-        val value = item.copy().moveToValue() ?: return Err(TomlEditError.NotAValue(item.type))
-        return Ok(store(key, value)?.let { Item(it) })
-    }
+    ): Item? = store(key, item.copy().moveToValue())?.let { Item(it) }
 
     // Stores the value itself, so only for one nothing else holds.
     private fun store(

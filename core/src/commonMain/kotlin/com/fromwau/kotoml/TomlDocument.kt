@@ -20,8 +20,8 @@ import kotlinx.io.readByteArray
  *
  * ```kotlin
  * val doc = TomlDocument.parse("\"hello\" = 'toml!' # comment\n['a'.b]\n").getOrElse { error(it) }
+ * doc["a"]["b"]["c"] = Value.InlineTable(InlineTable())
  * doc["a"]["b"]["c"]["d"] = "hello"
- * doc["a"]["b"]["c"].inlineTableOrNull?.resetFormatting()
  * doc.toString() // "\"hello\" = 'toml!' # comment\n['a'.b]\nc = { d = \"hello\" }\n"
  * ```
  *
@@ -65,8 +65,8 @@ public class TomlDocument internal constructor(
             rawTrailing = KeptText.from(value)
         }
 
-    /** The slot at [key] of the root table; see [StandardTable.get]. */
-    public operator fun get(key: String): Item = root[key]
+    /** The item at [key] of the root table, or [TomlEditError.NotFound]; see [StandardTable.get]. */
+    public operator fun get(key: String): Result<Item, TomlEditError> = root[key]
 
     /** Stores a copy of [item] at [key] of the root table; see [StandardTable.set]. */
     public operator fun set(

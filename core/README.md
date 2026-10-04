@@ -33,16 +33,20 @@ val text = "\n\"hello\" = 'toml!' # comment\n['a'.b]\n"
 val doc = TomlDocument.parse(text).getOrElse { error(it) }
 check(doc.toString() == text)
 
+doc["a"]["b"]["c"] = Value.InlineTable(InlineTable())
 doc["a"]["b"]["c"]["d"] = "hello"
-doc["a"]["b"]["c"].inlineTableOrNull?.resetFormatting()
+doc["a"]["b"]["c"].getOrNull()?.inlineTableOrNull?.resetFormatting()
 // "hello" = 'toml!' # comment
 // ['a'.b]
 // c = { d = "hello" }
 ```
 
-Indexing a key that is not there gives an empty item; writing to it adds the key. Where `toml_edit` panics,
-for example on an index out of bounds or on writing a key into a string, the call returns a `TomlEditError`
-instead. The `item["key"] = value` form drops that error; call `item.set("key", value)` to see it.
+Indexing returns a `Result`: the stored item, or `TomlEditError.NotFound` for a key that is not there.
+Indexing on through an error passes it on, so `doc["a"]["b"]` stops at the first key it misses; read the end
+with `getOrNull()` or `getOrElse { }`. Writing adds only the key it names, never a missing parent, so create
+each level first, as `c` is created above. Where `toml_edit` panics, for example on an index out of bounds or
+on writing a key into a string, the call returns a `TomlEditError` instead. The `item["key"] = value` form drops
+that error; call `item.set("key", value)` to see it. `remove` is the only way to delete a key.
 
 ## Make and read values
 
@@ -53,8 +57,8 @@ doc["when"] = Datetime.LocalDate(Date.of(1979, 5, 27).getOrElse { error(it) })
 // port = 8080 # default
 // when = 1979-05-27
 
-val port: Long? = doc["port"].longOrNull // 8080
-val spelled = TomlDocument.parse("n = 0x10\n").getOrElse { error(it) }["n"].valueOrNull as Value.Integer
+val port: Long? = doc["port"].getOrNull()?.longOrNull // 8080
+val spelled = TomlDocument.parse("n = 0x10\n").getOrElse { error(it) }["n"].getOrNull()?.valueOrNull as Value.Integer
 // spelled.value == 16, spelled.spelling == "0x10"
 ```
 
@@ -67,8 +71,8 @@ for any other kind.
 
 ```kotlin
 val doc = TomlDocument.parse("[server]\nhosts = [\"alpha\"]\n").getOrElse { error(it) }
-doc["server"]["hosts"].arrayOrNull?.add("beta")
-val server = doc["server"].standardTableOrNull!!
+doc["server"]["hosts"].getOrNull()?.arrayOrNull?.add("beta")
+val server = doc["server"].getOrNull()?.standardTableOrNull!!
 server.getOrPut("port") { Item(Value.Integer(8080L)) }
 doc["client"] = standardTableOf("retries" to Item(Value.Integer(3L)))
 // [server]
