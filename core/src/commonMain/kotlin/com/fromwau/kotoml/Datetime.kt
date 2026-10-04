@@ -6,48 +6,67 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * A TOML date-time value, keeping exactly what the TOML text spelled.
- *
- * Which of the three parts are present decides which of the four TOML date-time kinds this is:
- *
- * | [date] | [time] | [offset] | TOML kind        |
- * | ------ | ------ | -------- | ---------------- |
- * | set    | set    | set      | Offset Date-Time |
- * | set    | set    | null     | Local Date-Time  |
- * | set    | null   | null     | Local Date       |
- * | null   | set    | null     | Local Time       |
+ * A TOML date-time value, keeping exactly what the TOML text spelled: one of TOML's four kinds.
  *
  * ```kotlin
  * val odt = Datetime.parse("1979-05-27T07:32:00Z")
- * val date = Datetime(date = Date(year = 1979, month = 5, day = 27))
+ * val date = Datetime.LocalDate(Date(year = 1979, month = 5, day = 27))
  * ```
  *
- * Datetimes order by their date, then time, then offset, each missing part sorting before a present one.
+ * Datetimes order by their [date], then [time], then [offset], each missing part sorting before a present one.
  * That is the order of the fields, not the order of instants: `00:00+01:00` sorts after `23:00Z`.
  */
-public data class Datetime(
-    /** The date, required for an offset date-time, a local date-time and a local date. */
-    val date: Date? = null,
-    /** The time, required for an offset date-time, a local date-time and a local time. */
-    val time: Time? = null,
-    /** The offset from UTC, required for an offset date-time only. */
-    val offset: Offset? = null,
-) : Comparable<Datetime> {
+public sealed interface Datetime : Comparable<Datetime> {
+    /** The date, null only for a [LocalTime]. */
+    public val date: Date?
+
+    /** The time, null only for a [LocalDate]. */
+    public val time: Time?
+
+    /** The offset from UTC, set only for an [OffsetDateTime]. */
+    public val offset: Offset?
+
+    /** A date and time at an [offset] from UTC, such as `1979-05-27T07:32:00Z`. */
+    public data class OffsetDateTime(
+        override val date: Date,
+        override val time: Time,
+        override val offset: Offset,
+    ) : Datetime {
+        override fun toString(): String = "${date}T$time$offset"
+    }
+
+    /** A date and time with no offset, such as `1979-05-27T07:32:00`. */
+    public data class LocalDateTime(
+        override val date: Date,
+        override val time: Time,
+    ) : Datetime {
+        override val offset: Offset? get() = null
+
+        override fun toString(): String = "${date}T$time"
+    }
+
+    /** A date alone, such as `1979-05-27`. */
+    public data class LocalDate(override val date: Date) : Datetime {
+        override val time: Time? get() = null
+
+        override val offset: Offset? get() = null
+
+        override fun toString(): String = date.toString()
+    }
+
+    /** A time of day alone, such as `07:32:00`. */
+    public data class LocalTime(override val time: Time) : Datetime {
+        override val date: Date? get() = null
+
+        override val offset: Offset? get() = null
+
+        override fun toString(): String = time.toString()
+    }
 
     override fun compareTo(other: Datetime): Int {
         compareNullable(date, other.date).let { if (it != 0) return it }
         compareNullable(time, other.time).let { if (it != 0) return it }
         return compareNullable(offset, other.offset)
-    }
-
-    /** Writes this date-time as TOML spells it, such as `1979-05-27T07:32:00Z`. */
-    override fun toString(): String = buildString {
-        date?.let { append(it) }
-        time?.let {
-            if (date != null) append('T')
-            append(it)
-        }
-        offset?.let { append(it) }
     }
 
     public companion object {

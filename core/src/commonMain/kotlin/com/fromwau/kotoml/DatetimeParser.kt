@@ -201,7 +201,14 @@ internal class DatetimeParser(private val input: String) {
 
         if (position < input.length) return error()
 
-        return Ok(Datetime(date = date, time = time, offset = offset))
+        return Ok(
+            when {
+                date == null -> Datetime.LocalTime(checkNotNull(time) { "a date-time without a date has a time" })
+                time == null -> Datetime.LocalDate(date)
+                offset == null -> Datetime.LocalDateTime(date, time)
+                else -> Datetime.OffsetDateTime(date, time, offset)
+            },
+        )
     }
 
     // Only called on a run of ASCII digits no longer than a datetime field, so it cannot overflow.

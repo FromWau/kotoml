@@ -50,10 +50,10 @@ internal fun knownValueOrNull(
         Value.Integer(value.toLong())
     }
     !nativeDatetime -> null
-    serialName == LOCAL_DATE && value is LocalDate -> Value.Datetime(Datetime(date = value.toTomlDate(path)))
-    serialName == LOCAL_TIME && value is LocalTime -> Value.Datetime(Datetime(time = value.toTomlTime()))
+    serialName == LOCAL_DATE && value is LocalDate -> Value.Datetime(Datetime.LocalDate(value.toTomlDate(path)))
+    serialName == LOCAL_TIME && value is LocalTime -> Value.Datetime(Datetime.LocalTime(value.toTomlTime()))
     serialName == LOCAL_DATE_TIME && value is LocalDateTime -> Value.Datetime(
-        Datetime(
+        Datetime.LocalDateTime(
             date = value.date.toTomlDate(path),
             time = value.time.toTomlTime(),
         ),
@@ -61,7 +61,7 @@ internal fun knownValueOrNull(
     serialName == INSTANT && value is Instant -> {
         val utc = value.toLocalDateTime(TimeZone.UTC)
         Value.Datetime(
-            Datetime(
+            Datetime.OffsetDateTime(
                 date = utc.date.toTomlDate(path),
                 time = utc.time.toTomlTime(),
                 offset = Offset.Z,
@@ -90,20 +90,32 @@ internal fun knownValueOrNull(
     serialName == U_INT -> input.integerIn(path, serialName, 0L..UInt.MAX_VALUE.toLong()).toUInt()
     serialName == U_LONG -> input.integerIn(path, serialName, 0L..Long.MAX_VALUE).toULong()
     !nativeDatetime -> null
-    serialName == LOCAL_DATE -> input.datetime(path, serialName, DatetimeKind.LocalDate, LocalDate::parse) {
-        it.date!!.toLocalDate()
-    }
-    serialName == LOCAL_TIME -> input.datetime(path, serialName, DatetimeKind.LocalTime, LocalTime::parse) {
-        it.time!!.toLocalTime(path)
-    }
-    serialName == LOCAL_DATE_TIME -> {
-        input.datetime(path, serialName, DatetimeKind.LocalDateTime, LocalDateTime::parse) {
-            LocalDateTime(it.date!!.toLocalDate(), it.time!!.toLocalTime(path))
-        }
-    }
-    serialName == INSTANT -> input.datetime(path, serialName, DatetimeKind.OffsetDateTime, Instant::parse) {
-        val local = LocalDateTime(it.date!!.toLocalDate(), it.time!!.toLocalTime(path))
-        local.toInstant(UtcOffset.ZERO) - it.offset!!.minutesEast.minutes
+    serialName == LOCAL_DATE -> input.datetime(
+        path = path,
+        serialName = serialName,
+        kind = DatetimeKind.LocalDate,
+        parse = LocalDate::parse,
+    ) { toml: Datetime.LocalDate -> toml.date.toLocalDate() }
+    serialName == LOCAL_TIME -> input.datetime(
+        path = path,
+        serialName = serialName,
+        kind = DatetimeKind.LocalTime,
+        parse = LocalTime::parse,
+    ) { toml: Datetime.LocalTime -> toml.time.toLocalTime(path) }
+    serialName == LOCAL_DATE_TIME -> input.datetime(
+        path = path,
+        serialName = serialName,
+        kind = DatetimeKind.LocalDateTime,
+        parse = LocalDateTime::parse,
+    ) { toml: Datetime.LocalDateTime -> LocalDateTime(toml.date.toLocalDate(), toml.time.toLocalTime(path)) }
+    serialName == INSTANT -> input.datetime(
+        path = path,
+        serialName = serialName,
+        kind = DatetimeKind.OffsetDateTime,
+        parse = Instant::parse,
+    ) { toml: Datetime.OffsetDateTime ->
+        val local = LocalDateTime(toml.date.toLocalDate(), toml.time.toLocalTime(path))
+        local.toInstant(UtcOffset.ZERO) - toml.offset.minutesEast.minutes
     }
     else -> null
 }
@@ -138,20 +150,21 @@ internal fun TomlInput?.integerIn(
  * Reads a native date-time of [kind] with [convert], which may count on the parts that kind has, or a string
  * with [parse]; any other kind of date-time or value is refused.
  */
-private fun <T> TomlInput.datetime(
+private inline fun <reified D : Datetime, T> TomlInput.datetime(
     path: TomlPath,
     serialName: String,
     kind: DatetimeKind,
     parse: (String) -> T,
-    convert: (Datetime) -> T,
+    convert: (D) -> T,
 ): T {
     val value = (this as? TomlInput.Scalar)?.value
     val datetime = value?.datetimeOrNull
     val text = value?.stringOrNull
     return when {
         datetime != null -> {
-            val found = datetime.kind
-            if (found != kind) throw DecodeFailure(TomlDecodeError.DatetimeKindMismatch("$path", kind, found))
+            if (datetime !is D) {
+                throw DecodeFailure(TomlDecodeError.DatetimeKindMismatch("$path", kind, datetime.kind))
+            }
             convert(datetime)
         }
         text != null -> try {
@@ -164,11 +177,11 @@ private fun <T> TomlInput.datetime(
 }
 
 private val Datetime.kind: DatetimeKind
-    get() = when {
-        offset != null -> DatetimeKind.OffsetDateTime
-        date != null && time != null -> DatetimeKind.LocalDateTime
-        date != null -> DatetimeKind.LocalDate
-        else -> DatetimeKind.LocalTime
+    get() = when (this) {
+        is Datetime.OffsetDateTime -> DatetimeKind.OffsetDateTime
+        is Datetime.LocalDateTime -> DatetimeKind.LocalDateTime
+        is Datetime.LocalDate -> DatetimeKind.LocalDate
+        is Datetime.LocalTime -> DatetimeKind.LocalTime
     }
 
 private val Offset.minutesEast: Int

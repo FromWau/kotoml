@@ -4,6 +4,7 @@ import com.fromwau.kern.result.Err
 import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
 import com.fromwau.kotoml.Datetime
+import com.fromwau.kotoml.Time
 import com.fromwau.kotoml.TomlDocument
 import com.fromwau.kotoml.InlineTable
 import com.fromwau.kotoml.Item
@@ -36,11 +37,7 @@ private fun Value.tagged(): JsonElement = when (this) {
     is Value.Integer -> scalar("integer", value.toString())
     is Value.Float -> scalar("float", value.let { if (it.isFinite()) it.toString() else it.tomlName() })
     is Value.Boolean -> scalar("bool", value.toString())
-    is Value.Datetime -> {
-        // toml-test reads a time with its seconds, which TOML 1.1 lets a document leave out.
-        val time = value.time?.let { it.copy(second = it.second ?: 0) }
-        scalar(value.tag(), value.copy(time = time).toString())
-    }
+    is Value.Datetime -> scalar(value.tag(), value.withSeconds().toString())
     is Value.Array -> JsonArray(array.map { it.tagged() })
     is Value.InlineTable -> JsonObject(table.associate { (key, value) -> key to value.tagged() })
 }
@@ -175,9 +172,19 @@ private fun scalarValue(type: String, text: String): Value? = when (type) {
 }
 
 /** toml-test's tag for the kind of date-time this is. */
-private fun Datetime.tag(): String = when {
-    date != null && time != null && offset != null -> "datetime"
-    date != null && time != null -> "datetime-local"
-    date != null -> "date-local"
-    else -> "time-local"
+private fun Datetime.tag(): String = when (this) {
+    is Datetime.OffsetDateTime -> "datetime"
+    is Datetime.LocalDateTime -> "datetime-local"
+    is Datetime.LocalDate -> "date-local"
+    is Datetime.LocalTime -> "time-local"
 }
+
+// toml-test reads a time with its seconds, which TOML 1.1 lets a document leave out.
+private fun Datetime.withSeconds(): Datetime = when (this) {
+    is Datetime.OffsetDateTime -> copy(time = time.withSeconds())
+    is Datetime.LocalDateTime -> copy(time = time.withSeconds())
+    is Datetime.LocalDate -> this
+    is Datetime.LocalTime -> copy(time = time.withSeconds())
+}
+
+private fun Time.withSeconds(): Time = copy(second = second ?: 0)

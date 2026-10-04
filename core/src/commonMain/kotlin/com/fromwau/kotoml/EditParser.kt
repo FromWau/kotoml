@@ -529,7 +529,13 @@ private fun onScalar(event: Event, context: ParseContext): Value? {
                     return null
                 }
             }
-            if (context.version == TomlVersion.V1_0 && datetime.time != null && datetime.time.second == null) {
+            val secondsLeftOut = when (datetime) {
+                is Datetime.LocalDate -> false
+                is Datetime.LocalTime -> datetime.time.second == null
+                is Datetime.LocalDateTime -> datetime.time.second == null
+                is Datetime.OffsetDateTime -> datetime.time.second == null
+            }
+            if (context.version == TomlVersion.V1_0 && secondsLeftOut) {
                 errors.report(Reason.NotInToml10(Toml11Feature.TimeWithoutSeconds), unexpected = event.span)
             }
             Value.Datetime(Formatted.of(datetime).withSpelling(valueRaw))

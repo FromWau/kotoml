@@ -68,7 +68,7 @@ c = { d = "hello" }
     fun `the module README values example builds decorated values and reads their spelling`() {
         val doc = TomlDocument()
         doc["port"] = Value.Integer(8080L, Decor(prefix = " ", suffix = " # default"))
-        doc["when"] = Datetime(date = Date(year = 1979, month = 5, day = 27))
+        doc["when"] = Datetime.LocalDate(Date(year = 1979, month = 5, day = 27))
         assertEquals("port = 8080 # default\nwhen = 1979-05-27\n", doc.toString())
 
         assertEquals(8080L, doc["port"].longOrNull)

@@ -121,14 +121,14 @@ section 1.
 
 | upstream | Kotlin | status | tests |
 |---|---|---|---|
-| `Datetime` (`date`, `time`, `offset` fields) | `Datetime(date, time, offset)` data class, each part defaulting to `null` | done | `DatetimeDisplayTest`, `DatetimeParseTest` |
+| `Datetime` (`date`, `time`, `offset` fields) | sealed `Datetime` with `OffsetDateTime`, `LocalDateTime`, `LocalDate` and `LocalTime`; `date`, `time` and `offset` read on every kind | done | `DatetimeDisplayTest`, `DatetimeParseTest` |
 | `Date` (`year`, `month`, `day`) | `Date` (`Int`, `Int`, `Int`) | done | `` DatetimeDisplayTest.`an offset date-time without seconds prints as hours and minutes` ``, `` DatetimeParseTest.`an offset date-time without seconds parses with no seconds` `` |
 | `Time` (`hour`, `minute`, `second`, `nanosecond`) | `Time` (`Int`, `Int`, `Int?`, `Int?`) | done | `DatetimeDisplayTest`, `` DatetimeParseTest.`a time without seconds parses with no seconds` `` |
 | `Offset::Z`, `Offset::Custom { minutes }` | `Offset.Z`, `Offset.Custom(minutes: Int)` | done | `` DatetimeDisplayTest.`an offset date-time without seconds prints as hours and minutes` `` |
 | `DatetimeParseError` | `DatetimeParseError(part, expected)`, typed: `DatetimePart`, `DatetimeExpected`, `DatetimeField` | done | `DatetimeParseTest` |
 | `impl Display for Datetime / Date / Time / Offset / DatetimeParseError` | `toString()`; the error's text is rendered as part of `TomlParseError.render` | done | `DatetimeDisplayTest`, `DatetimeParseTest` |
 | `impl FromStr for Datetime` | `Datetime.parse(String): Result<Datetime, DatetimeParseError>` | done | `DatetimeParseTest` |
-| `impl From<Date> for Datetime`, `impl From<Time> for Datetime` | `Datetime(date = …)`, `Datetime(time = …)` | done | `ValueTest` |
+| `impl From<Date> for Datetime`, `impl From<Time> for Datetime` | `Datetime.LocalDate(date)`, `Datetime.LocalTime(time)` | done | `ValueTest` |
 | `impl Ord / PartialOrd / Eq / Hash` (derived) | `Comparable`, data-class `equals` / `hashCode` | done | |
 | `impl Error for DatetimeParseError` | `IError` | done | |
 | `de::*` (`DatetimeDeserializer`, `VisitMap`, `is_datetime`) | | serde-only | |
@@ -240,7 +240,7 @@ section 1.
 | `Value::fmt` | `resetFormatting()` | done | `ValueTest` |
 | `Value::span` | | n/a | an editable value never holds spans; see section 2 |
 | `impl FromStr for Value`, `impl Display`, `impl Clone` | `Value.parse`, `toString()`, `copy()` | done | `ComplianceParseTest`, `ValueTest` |
-| `impl From<&str, String, i64, f64, bool, Datetime, Date, Time, Array, InlineTable, &Value> for Value` | the constructors: `Value.String(…)`, `Value.Datetime(Datetime(date = …))`, `Value.Array(…)`, `copy()` for `&Value` | done | `ComplianceParseTest` |
+| `impl From<&str, String, i64, f64, bool, Datetime, Date, Time, Array, InlineTable, &Value> for Value` | the constructors: `Value.String(…)`, `Value.Datetime(Datetime.LocalDate(…))`, `Value.Array(…)`, `copy()` for `&Value` | done | `ComplianceParseTest` |
 | `impl FromIterator<V> / FromIterator<(K, V)> for Value` | `Value.Array(values.toTomlArray())`, `Value.InlineTable(pairs.toInlineTable())` | done | `` EditUnitTest.`an array built from strings prints with default spacing` ``, `` EditTest.`putAll copies another inline table's pairs and leaves that table as it was` `` |
 | `Array::new`, `fmt`, `trailing_comma` / `set_trailing_comma`, `trailing` / `set_trailing`, `decor(_mut)`, `len`, `is_empty`, `clear`, `get`, `get_mut` | `TomlArray()`, `resetFormatting()`, `var trailingComma`, `var trailing: String`, `var decor`, `size`, `isEmpty()` and `isNotEmpty()`, `clear()`, `operator get`; no `span` | done | `EditTest`, `EditDocTest`, `CollectionApiTest` |
 | `Array::iter`, `iter_mut`, `IntoIterator`, `ArrayIter`, `ArrayIterMut`, `ArrayIntoIter` | `Iterable<Value>`; aliases n/a | done | `` EditDocTest.`walking a document replaces each float with a string and keeps its decor` `` |
@@ -716,7 +716,7 @@ commands of [`:app`](../app/README.md) and compares their output by its own rule
 | `Decor` | mutable through `decor_mut()`, `set_prefix`, `set_suffix`, `clear` | an immutable data class behind a `var decor` on each holder | a decor read out of one item can be stored on another without the two sharing a change |
 | `span()` on `Value`, `Key`, `Table`, `InlineTable`, `Array`, `ArrayOfTables`, `Item`, `Formatted`, `Repr`, `RawString`, `Decor` | public, `None` once a document is editable | not public | an editable document never holds spans; a parse error still carries its `span` |
 | `Date`, `Time` fields | `u16`, `u8`, `u32` | `Int` | Kotlin's unsigned types need a `u` suffix and conversions at every use; parsing still checks every range |
-| `Datetime` from a date or a time | `From<Date>`, `From<Time>` | `Datetime(date = …)`, `Datetime(time = …)` with the other parts defaulting to `null` | one constructor covers all four kinds |
+| `Datetime` from a date or a time | `From<Date>`, `From<Time>` | `Datetime.LocalDate(date)`, `Datetime.LocalTime(time)` | a sealed interface of TOML's four kinds, so a date-time with neither a date nor a time cannot be built |
 | `Value::fmt` | `fmt` | `resetFormatting()` | says what it does to the value |
 | The escapes a bad escape's error lists | `b`, `e`, `f`, `n`, `r`, `\`, `"`, `x`, `u`, `U` | adds `t`; under TOML 1.0 also leaves out `e` and `x` | `\t` is a valid escape; 1.0 has no `\e` or `\x` |
 | A `-00:00` offset | `Offset::Custom { minutes: 0 }`, printed `+00:00` | `Offset.Unknown`, printed `-00:00` | valid TOML stays as written; RFC 3339 gives `-00:00` its own meaning, an unknown local offset |

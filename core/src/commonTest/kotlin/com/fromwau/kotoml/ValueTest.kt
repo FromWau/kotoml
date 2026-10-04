@@ -65,7 +65,7 @@ class ValueTest {
 
     @Test
     fun `a date-time made from a time alone is a local time`() {
-        val time = Datetime(time = Time(hour = 7, minute = 32, second = 0, nanosecond = null))
+        val time = Datetime.LocalTime(Time(hour = 7, minute = 32, second = 0, nanosecond = null))
         assertEquals("07:32:00", Value.Datetime(time).toString())
     }
 

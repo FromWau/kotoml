@@ -1,12 +1,21 @@
 package com.fromwau.kotoml
 
 import kotlin.test.Test
+import kotlin.test.assertIs
 
 class DatetimeParseTest {
 
     private fun assertParsesTo(input: String, expected: String) {
         val actual = Datetime.parse(input)
         assertDebugSnapshot(expected, actual.debug({ it.dbg() }, { it.dbg() }))
+    }
+
+    @Test
+    fun `each of the four forms parses to its own kind`() {
+        assertIs<Datetime.OffsetDateTime>(Datetime.parse("1979-05-27T07:32:00Z").getOrFail())
+        assertIs<Datetime.LocalDateTime>(Datetime.parse("1979-05-27T07:32:00").getOrFail())
+        assertIs<Datetime.LocalDate>(Datetime.parse("1979-05-27").getOrFail())
+        assertIs<Datetime.LocalTime>(Datetime.parse("07:32:00").getOrFail())
     }
 
     @Test

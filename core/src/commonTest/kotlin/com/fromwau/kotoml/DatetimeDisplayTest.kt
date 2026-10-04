@@ -15,10 +15,8 @@ class DatetimeDisplayTest {
     @Test
     fun `a time without seconds prints as hours and minutes`() {
         assertPrintsAndParsesBack(
-            Datetime(
-                date = null,
-                time = Time(hour = 13, minute = 37, second = null, nanosecond = null),
-                offset = null,
+            Datetime.LocalTime(
+                Time(hour = 13, minute = 37, second = null, nanosecond = null),
             ),
             """
 "13:37"
@@ -30,10 +28,8 @@ class DatetimeDisplayTest {
     @Test
     fun `a time with nanoseconds but no seconds prints zero seconds before the fraction`() {
         assertPrintsAndParsesBack(
-            Datetime(
-                date = null,
-                time = Time(hour = 13, minute = 37, second = null, nanosecond = 5),
-                offset = null,
+            Datetime.LocalTime(
+                Time(hour = 13, minute = 37, second = null, nanosecond = 5),
             ),
             """
 "13:37:00.000000005"
@@ -45,10 +41,8 @@ class DatetimeDisplayTest {
     @Test
     fun `a time with zero seconds and zero nanoseconds prints a one digit fraction`() {
         assertPrintsAndParsesBack(
-            Datetime(
-                date = null,
-                time = Time(hour = 13, minute = 37, second = 0, nanosecond = 0),
-                offset = null,
+            Datetime.LocalTime(
+                Time(hour = 13, minute = 37, second = 0, nanosecond = 0),
             ),
             """
 "13:37:00.0"
@@ -60,7 +54,7 @@ class DatetimeDisplayTest {
     @Test
     fun `an offset date-time without seconds prints as hours and minutes`() {
         assertPrintsAndParsesBack(
-            Datetime(
+            Datetime.OffsetDateTime(
                 date = Date(year = 1979, month = 5, day = 27),
                 time = Time(hour = 7, minute = 32, second = null, nanosecond = null),
                 offset = Offset.Z,

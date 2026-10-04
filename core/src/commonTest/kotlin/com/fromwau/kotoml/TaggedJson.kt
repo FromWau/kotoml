@@ -121,16 +121,13 @@ private fun Value.toTagged(): Tagged = when (this) {
     is Value.String -> Tagged.Scalar("string", value)
     is Value.Float -> Tagged.Scalar("float", taggedFloat(value))
     is Value.Boolean -> Tagged.Scalar("bool", value.toString())
-    is Value.Datetime -> {
-        val time = value.time?.let { it.copy(second = it.second ?: 0, nanosecond = it.nanosecond ?: 0) }
-        val normalized = value.copy(time = time)
-        val type = when {
-            value.date != null && value.time != null && value.offset != null -> "datetime"
-            value.date != null && value.time != null -> "datetime-local"
-            value.date != null -> "date-local"
-            else -> "time-local"
+    is Value.Datetime -> when (val datetime = value) {
+        is Datetime.OffsetDateTime -> Tagged.Scalar("datetime", datetime.copy(time = datetime.time.full()).toString())
+        is Datetime.LocalDateTime -> {
+            Tagged.Scalar("datetime-local", datetime.copy(time = datetime.time.full()).toString())
         }
-        Tagged.Scalar(type, normalized.toString())
+        is Datetime.LocalDate -> Tagged.Scalar("date-local", datetime.toString())
+        is Datetime.LocalTime -> Tagged.Scalar("time-local", datetime.copy(time = datetime.time.full()).toString())
     }
     is Value.Array -> Tagged.Array(array.map { it.toTagged() })
     is Value.InlineTable -> Tagged.Table(table.associate { (key, value) -> key to value.toTagged() })
@@ -282,3 +279,6 @@ private class JsonParser(private val text: String) {
         }
     }
 }
+
+/** The time with its second and fraction written out, as toml-test compares them. */
+private fun Time.full(): Time = copy(second = second ?: 0, nanosecond = nanosecond ?: 0)
