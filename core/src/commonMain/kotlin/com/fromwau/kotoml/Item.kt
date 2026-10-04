@@ -141,7 +141,9 @@ public class Item private constructor(
         refusal(next)?.let { return Err(it) }
         entry.prepareFor(item)
         val linesAbove = entry.takeLinesAbove(item)
+        val oldDecor = valueOrNull?.rawDecor
         content = next
+        entry.keepValueDecor(oldDecor)
         entry.keepLinesAbove(linesAbove)
         return Ok(Unit)
     }

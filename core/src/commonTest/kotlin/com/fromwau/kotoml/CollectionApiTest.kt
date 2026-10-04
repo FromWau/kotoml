@@ -79,10 +79,10 @@ class CollectionApiTest {
     }
 
     @Test
-    fun `a value replaced by another value keeps the key's spacing`() {
+    fun `a value replaced by another value keeps the key's spacing and the value's`() {
         val doc = parse("'my key'   =   1\n")
         doc.put("my key", Item(Value.Integer(2L)))
-        assertEquals("'my key'   = 2\n", doc.toString())
+        assertEquals("'my key'   =   2\n", doc.toString())
     }
 
     @Test
@@ -100,10 +100,10 @@ class CollectionApiTest {
     }
 
     @Test
-    fun `assigning a value to a value key's slot keeps the key's spacing`() {
+    fun `assigning a value to a value key's slot keeps the key's spacing and the value's`() {
         val doc = parse("'my key'   =   1\n")
         doc["my key"].assign(Item(Value.Integer(2L)))
-        assertEquals("'my key'   = 2\n", doc.toString())
+        assertEquals("'my key'   =   2\n", doc.toString())
     }
 
     @Test

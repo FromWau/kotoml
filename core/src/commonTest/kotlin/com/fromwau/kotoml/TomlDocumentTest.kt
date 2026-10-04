@@ -75,7 +75,7 @@ class TomlDocumentTest {
         copy["a"] = 2L
 
         assertEquals("a = 1 # one\n", document.toString())
-        assertEquals("a = 2\n", copy.toString())
+        assertEquals("a = 2 # one\n", copy.toString())
     }
 
     @Test

@@ -127,7 +127,7 @@ class SlotFixesTest {
         doc["k"] = 2L
         assertEquals(2L, slot.longOrNull)
         slot.assign(Item(Value.Integer(3L))).getOrFail()
-        assertEquals("'k'   = 3\n", doc.toString())
+        assertEquals("'k'   =   3\n", doc.toString())
         assertSame(slot, doc["k"])
     }
 

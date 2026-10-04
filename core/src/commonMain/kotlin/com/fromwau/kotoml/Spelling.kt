@@ -140,6 +140,12 @@ internal class RawDecor(
 
     fun copy(): RawDecor = RawDecor(prefix, suffix)
 
+    /** Takes [other]'s side wherever this one is left at the default. */
+    fun fillDefaultsFrom(other: RawDecor) {
+        if (prefix == null) prefix = other.prefix
+        if (suffix == null) suffix = other.suffix
+    }
+
     fun prefixEncode(buf: StringBuilder, default: String) {
         val prefix = prefix
         if (prefix != null) encodeRaw(buf, prefix.textOr(default)) else buf.append(default)

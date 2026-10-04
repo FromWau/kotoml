@@ -40,9 +40,19 @@ internal class KeyValue(var key: Key, item: Item) {
     /** Puts [next]'s content, not copied, in this entry's slot, keeping the lines above; returns the old content. */
     fun replace(next: Item): Item {
         val lines = takeLinesAbove(next)
+        val oldDecor = item.valueOrNull?.rawDecor
         val old = item.takeContentOf(next)
+        keepValueDecor(oldDecor)
         keepLinesAbove(lines)
         return old
+    }
+
+    /**
+     * Gives the value now in the slot the spacing and same-line comment of the value [old] it replaced, on each side
+     * the new value leaves to the default.
+     */
+    fun keepValueDecor(old: RawDecor?) {
+        if (old != null) item.valueOrNull?.rawDecor?.fillDefaultsFrom(old)
     }
 
     /**

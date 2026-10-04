@@ -83,7 +83,7 @@ doc["client"] = standardTableOf("retries" to Item(Value.Integer(3L)))
 `keys`, `put`, `getOrPut`, `remove`, `add`, `removeAt`, `retainAll`, `removeAll` and iteration. Removing keeps
 the comment and blank lines above what it removes, and takes what belongs to it: the comment on its line, every
 comment inside its value, and for a table everything after its first header, the comments above its sub-tables'
-headers included. An `Item` is a slot that holds a value, a table or an array of tables; `valueOrNull`,
+headers included. Replacing a value keeps its spacing and the comment after it. An `Item` is a slot that holds a value, a table or an array of tables; `valueOrNull`,
 `standardTableOrNull` and their siblings read what it holds, and `tableOrNull` reads a table of either kind. Storing an item stores a copy, so editing the original
 afterwards does not change the document.
 

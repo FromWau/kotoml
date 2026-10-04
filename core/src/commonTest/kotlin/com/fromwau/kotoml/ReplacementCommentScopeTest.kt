@@ -21,6 +21,23 @@ class ReplacementCommentScopeTest {
     private val table = standardTableOf("q" to Item(Value.Integer(1L)))
 
     @Test
+    fun `a value replaced by a value keeps the comment after it`() {
+        val text = "[server]\nport = 1 # comment\nhost = \"localhost\"\n"
+        val expected = "[server]\nport = 2 # comment\nhost = \"localhost\"\n"
+        assertEquals(expected, replacing(text) { it["server"]["port"] = Value.Integer(2L) })
+        assertEquals(expected, replacing(text) { it["server"]["port"].assign(Item(Value.Integer(2L))).getOrFail() })
+    }
+
+    @Test
+    fun `a value with a decor of its own replaces the old value's decor`() {
+        val text = "port = 1 # comment\n"
+        assertEquals(
+            "port = 2 # new\n",
+            replacing(text) { it["port"] = Value.Integer(2L, Decor(prefix = " ", suffix = " # new")) },
+        )
+    }
+
+    @Test
     fun `a comment above a dotted key replaced by a value stays above the value`() {
         val text = "c = 2\n# about a\na.b = 1 # same line\nz = 0\n"
         val expected = "c = 2\n# about a\na = 5\nz = 0\n"
