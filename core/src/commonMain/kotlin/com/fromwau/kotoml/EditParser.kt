@@ -97,7 +97,8 @@ internal fun parseKeyPath(source: TomlSource, errors: TomlSink, version: TomlVer
     return (path ?: emptyList()) + last
 }
 
-internal fun parseValueItem(source: TomlSource, errors: TomlSink, version: TomlVersion): Value {
+/** The parsed value, or null once an error is reported. */
+internal fun parseValueItem(source: TomlSource, errors: TomlSink, version: TomlVersion): Value? {
     val events = collectEvents(source, errors, ::parseValueEvents)
     return value(EventStream(events), ParseContext(source, errors, version))
 }
@@ -172,6 +173,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
                     } ?: KeptText()
                     val value = value(input, context)
                     val (suffixSpan, newline) = wsCommentNewline(input)
+                    if (value == null) continue
                     val valueSuffix = suffixSpan?.let { KeptText.withSpan(it) } ?: KeptText()
                     val decor = value.rawDecor
                     decor.prefix = valuePrefix
@@ -271,7 +273,6 @@ private class DocumentBuilder(private val input: EventStream, private val contex
         currentTable = StandardTable()
         val header = currentHeader
         if (header == null) {
-            previousTable.span = Span.EMPTY
             root = previousTable
             return
         }
@@ -401,7 +402,7 @@ private fun descendPath(
     return table
 }
 
-private fun keySpan(key: Key): Span = key.written?.span ?: Span.EMPTY
+private fun keySpan(key: Key): Span? = key.written?.span
 
 /** The whitespace and comment to the end of the line, and the newline ending it, if the input did not end first. */
 private fun wsCommentNewline(input: EventStream): Pair<Span?, Event?> {
@@ -493,8 +494,8 @@ private fun onSimpleKey(event: Event, context: ParseContext): Pair<KeptText, Str
     return KeptText.withSpan(event.span) to decoded.toString()
 }
 
-/** `val = string / boolean / array / inline-table / date-time / float / integer` */
-private fun value(input: EventStream, context: ParseContext): Value {
+/** `val = string / boolean / array / inline-table / date-time / float / integer`, or null once an error is reported. */
+private fun value(input: EventStream, context: ParseContext): Value? {
     val event = input.next()
     if (event != null) {
         when (event.kind) {
@@ -504,13 +505,11 @@ private fun value(input: EventStream, context: ParseContext): Value {
             else -> {}
         }
     }
-
-    val formatted = Formatted.of(0L)
-    formatted.written = Spelling(KeptText.withSpan(0, 0))
-    return Value.Integer(formatted)
+    return null
 }
 
-private fun onScalar(event: Event, context: ParseContext): Value {
+/** The scalar [event] spells, or null once an error is reported. */
+private fun onScalar(event: Event, context: ParseContext): Value? {
     val errors = context.errors
     val valueRaw = KeptText.withSpan(event.span)
     val decoded = StringOutput()
@@ -527,7 +526,7 @@ private fun onScalar(event: Event, context: ParseContext): Value {
                 is com.fromwau.kern.result.Result.Success -> parsed.value
                 is com.fromwau.kern.result.Result.Error -> {
                     errors.report(Reason.InvalidDatetime(parsed.error), unexpected = event.span)
-                    Datetime(date = null, time = null, offset = null)
+                    return null
                 }
             }
             if (context.version == TomlVersion.V1_0 && datetime.time != null && datetime.time.second == null) {
@@ -539,7 +538,7 @@ private fun onScalar(event: Event, context: ParseContext): Value {
             val parsed = parseTomlFloat(text)
             val float = if (parsed == null) {
                 errors.reportError(ParseError(ParseErrorReason.InvalidScalar(kind), unexpected = event.span))
-                Double.NaN
+                return null
             } else {
                 val unsigned = if (text.startsWith('+') || text.startsWith('-')) text.substring(1) else text
                 if (parsed.isInfinite() && !unsigned.all { it in 'a'..'z' || it in 'A'..'Z' }) {
@@ -555,7 +554,7 @@ private fun onScalar(event: Event, context: ParseContext): Value {
                 val digits = text.removePrefix("-").removePrefix("+")
                 val reason = if (digits.isEmpty()) Reason.MissingDigits(kind.radix) else Reason.IntegerOverflow
                 errors.report(reason, unexpected = event.span)
-                Long.MAX_VALUE
+                return null
             }
             Value.Integer(Formatted.of(integer).withSpelling(valueRaw))
         }
@@ -622,7 +621,8 @@ private fun onArray(openEvent: Event, input: EventStream, context: ParseContext)
     var trailingStart: Int? = openEvent.span.end
     var currentSuffix: Span? = null
 
-    fun captureValue(event: Event, value: Value) {
+    fun captureValue(event: Event, value: Value?) {
+        if (value == null) return
         trailingStart = null
         if (currentPrefix == null) currentPrefix = event.span.before()
         currentValue = value

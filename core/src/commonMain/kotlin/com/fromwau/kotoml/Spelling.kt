@@ -71,12 +71,12 @@ internal class KeptText private constructor(private val state: State) {
 internal class SourceText(val text: String) {
     val bytes: ByteArray = text.encodeToByteArray()
 
-    /** The text under [span], or the empty string when the span does not fit this input. */
+    /** The text under [span], which must lie within this input. */
     fun slice(span: Span): String {
-        val start = span.start
-        val end = span.end
-        if (start < 0 || end > bytes.size || start > end) return ""
-        return bytes.decodeToString(start, end)
+        require(span.start in 0..span.end && span.end <= bytes.size) {
+            "span $span is outside an input of ${bytes.size} bytes"
+        }
+        return bytes.decodeToString(span.start, span.end)
     }
 }
 

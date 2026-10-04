@@ -311,8 +311,9 @@ public sealed interface Value {
         ): Result<Value, TomlParseError> {
             val source = TomlSource(text)
             val sink = TomlSink(text)
-            val value = parseValueItem(source, sink, version)
+            val parsed = parseValueItem(source, sink, version)
             sink.error?.let { return Err(it) }
+            val value = checkNotNull(parsed) { "a value parsed without an error must exist" }
             // Keep the spelling, not the decor: whitespace around the text is probably not intended.
             value.rawDecor.clear()
             value.resolveSpans(SourceText(text))
