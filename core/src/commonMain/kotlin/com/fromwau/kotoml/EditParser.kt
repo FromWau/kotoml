@@ -536,7 +536,7 @@ private fun onScalar(event: Event, context: ParseContext): Value {
             Value.Datetime(Formatted.of(datetime).withSpelling(valueRaw))
         }
         ScalarKind.Float -> {
-            val parsed = parseRustF64(text)
+            val parsed = parseTomlFloat(text)
             val float = if (parsed == null) {
                 errors.reportError(ParseError(ParseErrorReason.InvalidScalar(kind), unexpected = event.span))
                 Double.NaN
@@ -551,7 +551,7 @@ private fun onScalar(event: Event, context: ParseContext): Value {
         }
         is ScalarKind.Integer -> {
             // The decoder validated the digits there are, so a failure here is no digits or overflow.
-            val integer = parseRustI64(text, kind.radix.base) ?: run {
+            val integer = parseTomlLong(text, kind.radix.base) ?: run {
                 val digits = text.removePrefix("-").removePrefix("+")
                 val reason = if (digits.isEmpty()) Reason.MissingDigits(kind.radix) else Reason.IntegerOverflow
                 errors.report(reason, unexpected = event.span)

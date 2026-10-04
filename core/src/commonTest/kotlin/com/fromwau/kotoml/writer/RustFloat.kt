@@ -24,7 +24,7 @@ internal fun rustDebug(value: Double): String {
         value.isInfinite() -> if (value > 0) "inf" else "-inf"
         value == 0.0 -> if (value.toRawBits() < 0) "-0.0" else "0.0"
         magnitude < 1e-4 || magnitude >= 1e16 -> rustLowerExp(value)
-        else -> withFraction(rustDisplay(value))
+        else -> withFraction(toShortestDecimalString(value))
     }
 }
 
@@ -36,7 +36,7 @@ internal fun rustDebug(value: Float): String {
         value.isInfinite() -> if (value > 0) "inf" else "-inf"
         value == 0.0f -> if (value.toRawBits() < 0) "-0.0" else "0.0"
         magnitude < 1e-4f || magnitude >= 1e16f -> rustLowerExp(value)
-        else -> withFraction(rustDisplay(value))
+        else -> withFraction(toShortestDecimalString(value))
     }
 }
 
@@ -45,7 +45,7 @@ internal fun rustDisplayAny(value: Double): String = when {
     value.isNaN() -> "NaN"
     value.isInfinite() -> if (value > 0) "inf" else "-inf"
     value == 0.0 -> if (value.toRawBits() < 0) "-0" else "0"
-    else -> rustDisplay(value)
+    else -> toShortestDecimalString(value)
 }
 
 /** Rust's `{}` for an `f32`, special values included. */
@@ -53,7 +53,7 @@ internal fun rustDisplayAny(value: Float): String = when {
     value.isNaN() -> "NaN"
     value.isInfinite() -> if (value > 0) "inf" else "-inf"
     value == 0.0f -> if (value.toRawBits() < 0) "-0" else "0"
-    else -> rustDisplay(value)
+    else -> toShortestDecimalString(value)
 }
 
 private fun withFraction(display: String): String = if ('.' in display) display else "$display.0"

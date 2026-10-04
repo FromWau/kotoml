@@ -92,7 +92,7 @@ public class Key(
         it.rawDottedDecor.assign(rawDottedDecor)
     }
 
-    override fun compareTo(other: Key): Int = compareRustStr(name, other.name)
+    override fun compareTo(other: Key): Int = compareByCodePoint(name, other.name)
 
     override fun equals(other: Any?): Boolean = other is Key && name == other.name
 
@@ -139,10 +139,10 @@ public class Key(
 }
 
 /**
- * Rust's `Ord for str`: byte-wise over UTF-8, which orders by code point. Kotlin's `compareTo` orders by
- * UTF-16 unit, which puts U+E000..U+FFFF after the supplementary planes.
+ * Orders by code point, as byte-wise UTF-8 comparison does. Kotlin's `compareTo` orders by UTF-16 unit, which
+ * puts U+E000..U+FFFF after the supplementary planes.
  */
-internal fun compareRustStr(left: String, right: String): Int {
+internal fun compareByCodePoint(left: String, right: String): Int {
     var leftIndex = 0
     var rightIndex = 0
     while (leftIndex < left.length && rightIndex < right.length) {

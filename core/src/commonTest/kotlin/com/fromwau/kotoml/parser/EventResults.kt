@@ -6,8 +6,8 @@ import com.fromwau.kotoml.Dbg
 import com.fromwau.kotoml.ScalarKind
 import com.fromwau.kotoml.Span
 import com.fromwau.kotoml.assertFileData
-import com.fromwau.kotoml.parseRustF64
-import com.fromwau.kotoml.parseRustI64
+import com.fromwau.kotoml.parseTomlFloat
+import com.fromwau.kotoml.parseTomlLong
 import com.fromwau.kotoml.pretty
 import com.fromwau.kotoml.readSnapshot
 import com.fromwau.kotoml.seq
@@ -76,8 +76,8 @@ internal class EventResults(val input: String) {
                 else -> "failed to parse bool"
             }
             ScalarKind.DateTime -> if (Datetime.parse(text) is Result.Error) "failed to parse datetime" else null
-            ScalarKind.Float -> if (parseRustF64(text) == null) "failed to parse f64" else null
-            is ScalarKind.Integer -> if (parseRustI64(text, kind.radix.base) == null) "failed to parse i64" else null
+            ScalarKind.Float -> if (parseTomlFloat(text) == null) "failed to parse f64" else null
+            is ScalarKind.Integer -> if (parseTomlLong(text, kind.radix.base) == null) "failed to parse i64" else null
         }
         if (failure != null) {
             errors += parseErrorDbg(

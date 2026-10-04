@@ -37,8 +37,8 @@ private fun sameScalar(left: Tagged.Scalar, right: Tagged.Scalar): Boolean {
         "float" -> when {
             left.value == "nan" && right.value == "nan" -> true
             else -> {
-                val a = parseRustF64(left.value) ?: return false
-                val b = parseRustF64(right.value) ?: return false
+                val a = parseTomlFloat(left.value) ?: return false
+                val b = parseTomlFloat(right.value) ?: return false
                 a == b
             }
         }
@@ -153,8 +153,8 @@ internal fun Tagged.toDocument(): TomlDocument? {
 private fun Tagged.toValue(): Value? = when (this) {
     is Tagged.Scalar -> when (type) {
         "string" -> Value.String(value)
-        "integer" -> parseRustI64(value, 10)?.let { Value.Integer(it) }
-        "float" -> parseRustF64(value)?.let { Value.Float(it) }
+        "integer" -> parseTomlLong(value, 10)?.let { Value.Integer(it) }
+        "float" -> parseTomlFloat(value)?.let { Value.Float(it) }
         "bool" -> when (value) {
             "true" -> Value.Boolean(true)
             "false" -> Value.Boolean(false)

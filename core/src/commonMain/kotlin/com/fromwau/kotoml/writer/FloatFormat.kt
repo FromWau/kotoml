@@ -7,18 +7,18 @@ package com.fromwau.kotoml.writer
 internal class ShortestDigits(val digits: String, val exponent: Int)
 
 /**
- * Rust's `Display` for a finite, non-zero `f64`: the shortest round-tripping digits, written without an
- * exponent and without a fraction when there is none, so `1.0` prints as `1` and `1e300` as `1` and 300 zeros.
+ * A finite, non-zero `Double` in its shortest round-tripping digits, written without an exponent and without a
+ * fraction when there is none, so `1.0` prints as `1` and `1e300` as `1` and 300 zeros.
  * The platform's own `toString` differs between the JVM and native targets, so the digits are computed here.
  */
-internal fun rustDisplay(value: Double): String {
+internal fun toShortestDecimalString(value: Double): String {
     val negative = value.toRawBits() < 0
     val digits = shortestDigits(value)
     return (if (negative) "-" else "") + plainDecimal(digits)
 }
 
-/** Rust's `Display` for a finite, non-zero `f32`. */
-internal fun rustDisplay(value: Float): String {
+/** A finite, non-zero `Float` in its shortest round-tripping digits, as for a `Double`. */
+internal fun toShortestDecimalString(value: Float): String {
     val negative = value.toRawBits() < 0
     val digits = shortestDigits(value)
     return (if (negative) "-" else "") + plainDecimal(digits)

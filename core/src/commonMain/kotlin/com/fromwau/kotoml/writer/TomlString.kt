@@ -1,5 +1,7 @@
 package com.fromwau.kotoml.writer
 
+import com.fromwau.kotoml.Encoding
+
 /**
  * Chooses how a string value is written: as a basic, literal, multi-line basic or multi-line literal string.
  *
@@ -28,14 +30,14 @@ internal class TomlStringBuilder(private val decoded: String) {
         if (metrics.escapeCodes || 0 < metrics.maxSeqSingleQuotes || metrics.newline) {
             null
         } else {
-            TomlString(decoded, StringEncoding.LiteralString, metrics.newline)
+            TomlString(decoded, Encoding.LiteralString, metrics.newline)
         }
 
     /** `'''multi-line literal'''`, unless the string has control characters or three `'` in a row. */
     fun asMlLiteral(): TomlString? = if (metrics.escapeCodes || 2 < metrics.maxSeqSingleQuotes) {
         null
     } else {
-        TomlString(decoded, StringEncoding.MultilineLiteralString, metrics.newline)
+        TomlString(decoded, Encoding.MultilineLiteralString, metrics.newline)
     }
 
     /** `"basic"` needing no escapes, unless the string has control characters, `\`, `"` or a newline. */
@@ -51,10 +53,10 @@ internal class TomlStringBuilder(private val decoded: String) {
         if (metrics.escapeCodes || metrics.escape || 2 < metrics.maxSeqDoubleQuotes) null else asMlBasic()
 
     /** `"basic"`, escaping whatever needs it. Always possible. */
-    fun asBasic(): TomlString = TomlString(decoded, StringEncoding.BasicString, metrics.newline)
+    fun asBasic(): TomlString = TomlString(decoded, Encoding.BasicString, metrics.newline)
 
     /** `"""multi-line basic"""`, escaping whatever needs it. Always possible. */
-    fun asMlBasic(): TomlString = TomlString(decoded, StringEncoding.MultilineBasicString, metrics.newline)
+    fun asMlBasic(): TomlString = TomlString(decoded, Encoding.MultilineBasicString, metrics.newline)
 
     override fun toString(): String = "TomlStringBuilder(decoded=$decoded)"
 }
@@ -62,7 +64,7 @@ internal class TomlStringBuilder(private val decoded: String) {
 /** A string value with its encoding chosen by [TomlStringBuilder]. Write it with [StringBuilder.value]. */
 internal class TomlString internal constructor(
     private val decoded: String,
-    private val encoding: StringEncoding,
+    private val encoding: Encoding,
     private val newline: Boolean,
 ) : WriteTomlValue {
     override fun writeTomlValue(writer: StringBuilder) {
@@ -96,7 +98,7 @@ internal class TomlKeyBuilder(private val decoded: String) {
     fun asLiteral(): TomlKey? = if (metrics.escapeCodes || metrics.singleQuotes) {
         null
     } else {
-        TomlKey(decoded, StringEncoding.LiteralString)
+        TomlKey(decoded, Encoding.LiteralString)
     }
 
     /** `"basic"` needing no escapes, unless the key has control characters, `\` or `"`. */
@@ -104,7 +106,7 @@ internal class TomlKeyBuilder(private val decoded: String) {
         if (metrics.escapeCodes || metrics.escape || metrics.doubleQuotes) null else asBasic()
 
     /** `"basic"`, escaping whatever needs it. Always possible. */
-    fun asBasic(): TomlKey = TomlKey(decoded, StringEncoding.BasicString)
+    fun asBasic(): TomlKey = TomlKey(decoded, Encoding.BasicString)
 
     override fun toString(): String = "TomlKeyBuilder(decoded=$decoded)"
 }
@@ -112,7 +114,7 @@ internal class TomlKeyBuilder(private val decoded: String) {
 /** A key with its encoding chosen by [TomlKeyBuilder]. Write it with [StringBuilder.key]. */
 internal class TomlKey internal constructor(
     private val decoded: String,
-    private val encoding: StringEncoding?,
+    private val encoding: Encoding?,
 ) : WriteTomlKey {
     override fun writeTomlKey(writer: StringBuilder) {
         writeEncoded(decoded, encoding, newline = false, writer)
@@ -126,36 +128,21 @@ internal class TomlKey internal constructor(
     override fun toString(): String = "TomlKey(decoded=$decoded, encoding=$encoding)"
 }
 
-/** The four string forms a [TomlString] or [TomlKey] can be written in. */
-internal enum class StringEncoding {
-    /** `'literal'` */
-    LiteralString,
-
-    /** `"basic"` */
-    BasicString,
-
-    /** `'''multi-line literal'''` */
-    MultilineLiteralString,
-
-    /** `"""multi-line basic"""` */
-    MultilineBasicString,
-}
-
 private fun writeEncoded(
     decoded: String,
-    encoding: StringEncoding?,
+    encoding: Encoding?,
     newline: Boolean,
     writer: StringBuilder,
 ) {
     val delimiter = when (encoding) {
-        StringEncoding.LiteralString -> "'"
-        StringEncoding.BasicString -> "\""
-        StringEncoding.MultilineLiteralString -> "'''"
-        StringEncoding.MultilineBasicString -> "\"\"\""
+        Encoding.LiteralString -> "'"
+        Encoding.BasicString -> "\""
+        Encoding.MultilineLiteralString -> "'''"
+        Encoding.MultilineBasicString -> "\"\"\""
         null -> ""
     }
-    val escaped = encoding == StringEncoding.BasicString || encoding == StringEncoding.MultilineBasicString
-    val isMl = encoding == StringEncoding.MultilineLiteralString || encoding == StringEncoding.MultilineBasicString
+    val escaped = encoding == Encoding.BasicString || encoding == Encoding.MultilineBasicString
+    val isMl = encoding == Encoding.MultilineLiteralString || encoding == Encoding.MultilineBasicString
 
     writer.append(delimiter)
     if (newline && isMl) writer.newline()
@@ -224,7 +211,7 @@ private class ValueMetrics(
             var single = 0
             var double = 0
             for (char in text) {
-                // Upstream counts in a saturating u8, so a run longer than 255 still reads as 255.
+                // Upstream caps the count at 255, so a longer run still reads as 255.
                 single = if (char == '\'') minOf(single + 1, 255) else 0
                 maxSingle = maxOf(maxSingle, single)
                 double = if (char == '"') minOf(double + 1, 255) else 0

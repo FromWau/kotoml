@@ -17,7 +17,7 @@ class WriterDocTest {
 
         output.key(WriteTomlKey.of("key"))
         output.space()
-        output.keyvalSep()
+        output.keyValueSeparator()
         output.space()
         output.value(WriteTomlValue.of("value"))
         output.newline()

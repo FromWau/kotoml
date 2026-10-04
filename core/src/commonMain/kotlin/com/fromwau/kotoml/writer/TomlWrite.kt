@@ -31,12 +31,12 @@ internal fun StringBuilder.closeArray() {
 }
 
 /** Writes `.`, between the parts of a dotted key. */
-internal fun StringBuilder.keySep() {
+internal fun StringBuilder.keySeparator() {
     append(".")
 }
 
 /** Writes `=`, between a key and its value. */
-internal fun StringBuilder.keyvalSep() {
+internal fun StringBuilder.keyValueSeparator() {
     append("=")
 }
 
@@ -59,7 +59,7 @@ internal fun StringBuilder.value(value: WriteTomlValue) {
 }
 
 /** Writes `,`, between values. */
-internal fun StringBuilder.valSep() {
+internal fun StringBuilder.valueSeparator() {
     append(",")
 }
 

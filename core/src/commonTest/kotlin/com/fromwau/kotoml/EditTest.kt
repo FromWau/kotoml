@@ -791,7 +791,7 @@ name = "dep"
                 val a = root.getOrNull("a")!!.tableOrNull!!
                 // Sort by the representation, not the value. So "\"c\"" sorts before "a" because '"' sorts
                 // before 'a'.
-                a.sortWith { (k1, _), (k2, _) -> compareRustStr(k1.displaySpelling, k2.displaySpelling) }
+                a.sortWith { (k1, _), (k2, _) -> compareByCodePoint(k1.displaySpelling, k2.displaySpelling) }
             }
             .producesDisplay("""
 

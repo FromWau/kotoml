@@ -3,11 +3,12 @@ package com.fromwau.kotoml
 private const val SIGN_BIT = Long.MIN_VALUE
 
 /**
- * Parses [text] the way Rust's `str::parse::<f64>` does: an optional sign, then `inf`, `infinity` or `nan` in
- * any case, or decimal digits with an optional fraction and exponent. Returns null for anything else.
- * Overflow is not an error: it yields an infinity, as in Rust.
+ * Parses [text] as a float: an optional sign, then `inf`, `infinity` or `nan` in any case, or decimal digits
+ * with an optional fraction and exponent. Returns null for anything else. Overflow is not an error: it yields an
+ * infinity. The grammar is checked here because `toDoubleOrNull` alone also takes `NaN`, `Infinity` and, on the
+ * JVM, suffixes such as `1f`.
  */
-internal fun parseRustF64(text: String): Double? {
+internal fun parseTomlFloat(text: String): Double? {
     var index = 0
     var negative = false
     if (index < text.length && (text[index] == '+' || text[index] == '-')) {
@@ -62,10 +63,10 @@ private fun clampExponent(exponent: String): String {
 }
 
 /**
- * Parses [text] the way Rust's `i64::from_str_radix` does: one optional `+` or `-`, then at least one ASCII
- * digit of [radix]. Returns null for anything else, and for a number that does not fit a `Long`.
+ * Parses [text] as an integer: one optional `+` or `-`, then at least one ASCII digit of [radix]. Returns null for
+ * anything else, and for a number that does not fit a `Long`.
  */
-internal fun parseRustI64(text: String, radix: Int): Long? {
+internal fun parseTomlLong(text: String, radix: Int): Long? {
     var index = 0
     var negative = false
     if (text.isNotEmpty() && (text[0] == '+' || text[0] == '-')) {

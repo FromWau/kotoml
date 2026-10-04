@@ -21,8 +21,7 @@ internal fun WriteTomlKey.toTomlKey(): String = buildString { writeTomlKey(this)
 /**
  * Something that can be written as a TOML value.
  *
- * [TomlString] and [TomlInteger] implement it; the `of` functions adapt Kotlin's own values the way upstream
- * implements the trait for Rust's.
+ * [TomlString] and [TomlInteger] implement it; the `of` functions adapt Kotlin's own values.
  */
 internal fun interface WriteTomlValue {
     /** Writes this value, encoded, to [writer]. */
@@ -68,7 +67,7 @@ internal fun interface WriteTomlValue {
                     isZero = value == 0.0f,
                     isWhole = value % 1.0f == 0.0f,
                     isInfinite = value.isInfinite(),
-                    display = { rustDisplay(value) },
+                    display = { toShortestDecimalString(value) },
                 ),
             )
         }
@@ -85,7 +84,7 @@ internal fun interface WriteTomlValue {
                     isZero = value == 0.0,
                     isWhole = value % 1.0 == 0.0,
                     isInfinite = value.isInfinite(),
-                    display = { rustDisplay(value) },
+                    display = { toShortestDecimalString(value) },
                 ),
             )
         }
@@ -102,7 +101,7 @@ internal fun interface WriteTomlValue {
             var first = true
             for (value in values) {
                 if (!first) {
-                    writer.valSep()
+                    writer.valueSeparator()
                     writer.space()
                 }
                 first = false
@@ -122,13 +121,13 @@ internal fun interface WriteTomlValue {
                 if (first) {
                     writer.space()
                 } else {
-                    writer.valSep()
+                    writer.valueSeparator()
                     writer.space()
                 }
                 first = false
                 writer.key(key)
                 writer.space()
-                writer.keyvalSep()
+                writer.keyValueSeparator()
                 writer.space()
                 writer.value(value)
             }
