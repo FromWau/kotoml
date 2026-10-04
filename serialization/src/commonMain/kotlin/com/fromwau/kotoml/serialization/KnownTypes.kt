@@ -1,5 +1,6 @@
 package com.fromwau.kotoml.serialization
 
+import com.fromwau.kern.result.Result
 import com.fromwau.kotoml.Date
 import com.fromwau.kotoml.Datetime
 import com.fromwau.kotoml.Offset
@@ -32,7 +33,6 @@ private const val U_SHORT = "kotlin.UShort"
 private const val U_INT = "kotlin.UInt"
 private const val U_LONG = "kotlin.ULong"
 
-private val TOML_YEARS = 0..9999
 
 private val UNSIGNED = setOf(U_BYTE, U_SHORT, U_INT, U_LONG)
 
@@ -60,11 +60,11 @@ internal fun knownValueOrNull(
     }
     !nativeDatetime -> null
     serialName == LOCAL_DATE && value is LocalDate -> Value.Datetime(Datetime.LocalDate(value.toTomlDate(path)))
-    serialName == LOCAL_TIME && value is LocalTime -> Value.Datetime(Datetime.LocalTime(value.toTomlTime()))
+    serialName == LOCAL_TIME && value is LocalTime -> Value.Datetime(Datetime.LocalTime(value.toTomlTime(path)))
     serialName == LOCAL_DATE_TIME && value is LocalDateTime -> Value.Datetime(
         Datetime.LocalDateTime(
             date = value.date.toTomlDate(path),
-            time = value.time.toTomlTime(),
+            time = value.time.toTomlTime(path),
         ),
     )
     serialName == INSTANT && value is Instant -> {
@@ -72,7 +72,7 @@ internal fun knownValueOrNull(
         Value.Datetime(
             Datetime.OffsetDateTime(
                 date = utc.date.toTomlDate(path),
-                time = utc.time.toTomlTime(),
+                time = utc.time.toTomlTime(path),
                 offset = Offset.Z,
             ),
         )
@@ -241,9 +241,13 @@ private fun Time.toLocalTime(path: TomlPath): LocalTime {
     return LocalTime(hour, minute, second ?: 0, nanosecond ?: 0)
 }
 
-private fun LocalDate.toTomlDate(path: TomlPath): Date {
-    if (year !in TOML_YEARS) throw EncodeFailure(TomlEncodeError.OutOfRange("$path", "$this"))
-    return Date(year, month.number, day)
+private fun LocalDate.toTomlDate(path: TomlPath): Date = when (val date = Date.of(year, month.number, day)) {
+    is Result.Success -> date.value
+    is Result.Error -> throw EncodeFailure(TomlEncodeError.OutOfRange("$path", "$this"))
 }
 
-private fun LocalTime.toTomlTime(): Time = Time(hour, minute, second, nanosecond.takeIf { it != 0 })
+private fun LocalTime.toTomlTime(path: TomlPath): Time =
+    when (val time = Time.of(hour, minute, second, nanosecond.takeIf { it != 0 })) {
+        is Result.Success -> time.value
+        is Result.Error -> throw EncodeFailure(TomlEncodeError.OutOfRange("$path", "$this"))
+    }

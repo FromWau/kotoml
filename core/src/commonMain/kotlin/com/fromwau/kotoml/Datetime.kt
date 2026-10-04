@@ -1,6 +1,8 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.Err
 import com.fromwau.kern.result.IError
+import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -83,11 +85,15 @@ public sealed interface Datetime : Comparable<Datetime> {
 }
 
 /**
- * A calendar date: on its own, a TOML Local Date such as `1979-05-27`.
+ * A calendar date: on its own, a TOML Local Date such as `1979-05-27`. Make one with [of], which refuses a date that
+ * does not exist.
  *
- * @throws IllegalArgumentException when constructed with a date that does not exist.
+ * ```kotlin
+ * val date = Date.of(1979, 5, 27) // Result.Success(1979-05-27)
+ * ```
  */
-public data class Date(
+@ConsistentCopyVisibility
+public data class Date private constructor(
     /** The year, 0 to 9999, written with four digits. */
     val year: Int,
     /** The month, 1 to 12. */
@@ -95,13 +101,6 @@ public data class Date(
     /** The day of the month, 1 to 28, 29, 30 or 31 depending on [month] and [year]. */
     val day: Int,
 ) : Comparable<Date> {
-
-    init {
-        require(year in 0..9999) { "year $year is not between 0 and 9999" }
-        require(month in 1..12) { "month $month is not between 1 and 12" }
-        val days = daysInMonth(year, month)
-        require(day in 1..days) { "day $day is not between 1 and $days" }
-    }
 
     override fun compareTo(other: Date): Int {
         year.compareTo(other.year).let { if (it != 0) return it }
@@ -111,18 +110,40 @@ public data class Date(
 
     /** Writes this date as `YYYY-MM-DD`. */
     override fun toString(): String = "${year.pad(4)}-${month.pad(2)}-${day.pad(2)}"
+
+    public companion object {
+        /**
+         * The date [year]-[month]-[day].
+         *
+         * @return the date, or a [DatetimeParseError] naming the first field out of range: the year must be 0 to 9999,
+         *   the month 1 to 12, and the day one the month has in that year.
+         */
+        public fun of(
+            year: Int,
+            month: Int,
+            day: Int,
+        ): Result<Date, DatetimeParseError> {
+            if (year !in 0..9999) return outOfRange(DatetimePart.Date, DatetimeField.Year, 0, 9999)
+            if (month !in 1..12) return outOfRange(DatetimePart.Date, DatetimeField.Month, 1, 12)
+            val days = daysInMonth(year, month)
+            if (day !in 1..days) return outOfRange(DatetimePart.Date, DatetimeField.Day, 1, days)
+            return Ok(Date(year, month, day))
+        }
+    }
 }
 
 /**
  * A time of day: on its own, a TOML Local Time such as `07:32:00`.
  *
  * A time without [second] is a TOML 1.1 spelling (`07:32`) and prints back without seconds; it cannot have a
- * [nanosecond].
+ * [nanosecond]. Make one with [of], which refuses a field out of range.
  *
- * @throws IllegalArgumentException when constructed with a field out of range, or a [nanosecond] without a
- * [second].
+ * ```kotlin
+ * val time = Time.of(7, 32, 0) // Result.Success(07:32:00)
+ * ```
  */
-public data class Time(
+@ConsistentCopyVisibility
+public data class Time private constructor(
     /** The hour, 0 to 23. */
     val hour: Int,
     /** The minute, 0 to 59. */
@@ -132,16 +153,6 @@ public data class Time(
     /** The fraction of the second in nanoseconds, 0 to 999 999 999, or null when the text had none. */
     val nanosecond: Int?,
 ) : Comparable<Time> {
-
-    init {
-        require(hour in 0..23) { "hour $hour is not between 0 and 23" }
-        require(minute in 0..59) { "minute $minute is not between 0 and 59" }
-        require(second == null || second in 0..60) { "second $second is not between 0 and 60" }
-        require(nanosecond == null || nanosecond in 0..999_999_999) {
-            "nanosecond $nanosecond is not between 0 and 999999999"
-        }
-        require(nanosecond == null || second != null) { "a nanosecond needs a second" }
-    }
 
     override fun compareTo(other: Time): Int {
         hour.compareTo(other.hour).let { if (it != 0) return it }
@@ -165,6 +176,33 @@ public data class Time(
             append(fraction.ifEmpty { "0" })
         }
     }
+
+    public companion object {
+        /**
+         * The time [hour]:[minute], with [second] and [nanosecond] when given.
+         *
+         * @return the time, or a [DatetimeParseError] naming the first field out of range: the hour must be 0 to 23,
+         *   the minute 0 to 59, the second 0 to 60 to allow a leap second, and the nanosecond 0 to 999 999 999, which
+         *   needs a second.
+         */
+        public fun of(
+            hour: Int,
+            minute: Int,
+            second: Int? = null,
+            nanosecond: Int? = null,
+        ): Result<Time, DatetimeParseError> {
+            if (hour !in 0..23) return outOfRange(DatetimePart.Time, DatetimeField.Hour, 0, 23)
+            if (minute !in 0..59) return outOfRange(DatetimePart.Time, DatetimeField.Minute, 0, 59)
+            if (second != null && second !in 0..60) return outOfRange(DatetimePart.Time, DatetimeField.Second, 0, 60)
+            if (nanosecond != null && nanosecond !in 0..999_999_999) {
+                return outOfRange(DatetimePart.Time, DatetimeField.Nanosecond, 0, 999_999_999)
+            }
+            if (nanosecond != null && second == null) {
+                return Err(DatetimeParseError(DatetimePart.Time, DatetimeExpected.SecondBeforeFraction))
+            }
+            return Ok(Time(hour, minute, second, nanosecond))
+        }
+    }
 }
 
 /** The offset of an Offset Date-Time from UTC. */
@@ -180,25 +218,33 @@ public sealed interface Offset : Comparable<Offset> {
         override fun toString(): String = "-00:00"
     }
 
-    /**
-     * A numeric offset such as `-07:00`, in whole [minutes] east of UTC.
-     *
-     * @throws IllegalArgumentException when [minutes] is a day or more either way.
-     */
-    public data class Custom(
+    /** A numeric offset such as `-07:00`, in whole [minutes] east of UTC. Make one with [of]. */
+    @ConsistentCopyVisibility
+    public data class Custom private constructor(
         /** Minutes east of UTC, -1439 to 1439: `-23:59` to `+23:59`. */
         val minutes: Int,
     ) : Offset {
-
-        init {
-            require(minutes in -MAX_MINUTES..MAX_MINUTES) { "offset of $minutes minutes is a day or more" }
-        }
 
         /** Writes the offset as `+HH:MM` or `-HH:MM`. */
         override fun toString(): String {
             val sign = if (minutes < 0) '-' else '+'
             val magnitude = if (minutes < 0) -minutes else minutes
             return "$sign${(magnitude / 60).pad(2)}:${(magnitude % 60).pad(2)}"
+        }
+
+        public companion object {
+            /**
+             * The offset [minutes] east of UTC.
+             *
+             * @return the offset, or a [DatetimeParseError] when [minutes] is outside -1439 to 1439, `-23:59` to
+             *   `+23:59`.
+             */
+            public fun of(minutes: Int): Result<Custom, DatetimeParseError> =
+                if (minutes in -MAX_MINUTES..MAX_MINUTES) {
+                    Ok(Custom(minutes))
+                } else {
+                    outOfRange(DatetimePart.Offset, DatetimeField.Minute, -MAX_MINUTES, MAX_MINUTES)
+                }
         }
     }
 
@@ -217,8 +263,8 @@ public sealed interface Offset : Comparable<Offset> {
 }
 
 /**
- * Why [Datetime.parse] refused its input: the [part] being read, if any, and what it [expected] there, if
- * known.
+ * Why a date-time was refused, by [Datetime.parse] or by [Date.of], [Time.of] or [Offset.Custom.of]: the [part]
+ * being read, if any, and what it [expected] there, if known.
  */
 @Serializable
 public data class DatetimeParseError(
@@ -294,7 +340,19 @@ public sealed interface DatetimeExpected {
     @Serializable
     @SerialName("Range")
     public data class Range(val field: DatetimeField, val min: Int, val max: Int) : DatetimeExpected
+
+    /** A second, which a fraction of a second needs. */
+    @Serializable
+    @SerialName("SecondBeforeFraction")
+    public data object SecondBeforeFraction : DatetimeExpected
 }
+
+private fun outOfRange(
+    part: DatetimePart,
+    field: DatetimeField,
+    min: Int,
+    max: Int,
+): Result<Nothing, DatetimeParseError> = Err(DatetimeParseError(part, DatetimeExpected.Range(field, min, max)))
 
 private fun <T : Comparable<T>> compareNullable(left: T?, right: T?): Int = when {
     left == null && right == null -> 0

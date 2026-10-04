@@ -1,9 +1,10 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.Result
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /** Where upstream misplaces, misnames or accepts a problem, and how kotoml reports it instead. */
@@ -143,56 +144,76 @@ invalid utf-8 sequence of 1 bytes from index 8
 
     @Test
     fun `a date that does not exist cannot be constructed`() {
-        assertFailsWith<IllegalArgumentException> { Date(year = 2021, month = 2, day = 29) }
-        assertFailsWith<IllegalArgumentException> { Date(year = 1900, month = 2, day = 29) }
-        assertFailsWith<IllegalArgumentException> { Date(year = 2021, month = 4, day = 31) }
-        assertFailsWith<IllegalArgumentException> { Date(year = 2021, month = 1, day = 0) }
-        assertFailsWith<IllegalArgumentException> { Date(year = 2021, month = 13, day = 1) }
-        assertFailsWith<IllegalArgumentException> { Date(year = 2021, month = 0, day = 1) }
-        assertFailsWith<IllegalArgumentException> { Date(year = 10000, month = 1, day = 1) }
-        assertFailsWith<IllegalArgumentException> { Date(year = -1, month = 1, day = 1) }
+        assertIs<Result.Error<*>>(Date.of(year = 2021, month = 2, day = 29))
+        assertIs<Result.Error<*>>(Date.of(year = 1900, month = 2, day = 29))
+        assertIs<Result.Error<*>>(Date.of(year = 2021, month = 4, day = 31))
+        assertIs<Result.Error<*>>(Date.of(year = 2021, month = 1, day = 0))
+        assertIs<Result.Error<*>>(Date.of(year = 2021, month = 13, day = 1))
+        assertIs<Result.Error<*>>(Date.of(year = 2021, month = 0, day = 1))
+        assertIs<Result.Error<*>>(Date.of(year = 10000, month = 1, day = 1))
+        assertIs<Result.Error<*>>(Date.of(year = -1, month = 1, day = 1))
+    }
+
+    @Test
+    fun `a date-time part out of range is refused with the field and its range`() {
+        assertEquals(
+            DatetimeParseError(DatetimePart.Date, DatetimeExpected.Range(DatetimeField.Day, 1, 28)),
+            Date.of(2021, 2, 29).errorOrFail(),
+        )
+        assertEquals(
+            DatetimeParseError(DatetimePart.Time, DatetimeExpected.Range(DatetimeField.Hour, 0, 23)),
+            Time.of(24, 0).errorOrFail(),
+        )
+        assertEquals(
+            DatetimeParseError(DatetimePart.Time, DatetimeExpected.SecondBeforeFraction),
+            Time.of(13, 37, nanosecond = 5).errorOrFail(),
+        )
+        assertEquals(
+            DatetimeParseError(DatetimePart.Offset, DatetimeExpected.Range(DatetimeField.Minute, -1439, 1439)),
+            Offset.Custom.of(1440).errorOrFail(),
+        )
     }
 
     @Test
     fun `a leap day and the ends of the year range can be constructed`() {
-        assertEquals("2020-02-29", Date(year = 2020, month = 2, day = 29).toString())
-        assertEquals("2000-02-29", Date(year = 2000, month = 2, day = 29).toString())
-        assertEquals("0000-01-01", Date(year = 0, month = 1, day = 1).toString())
-        assertEquals("9999-12-31", Date(year = 9999, month = 12, day = 31).toString())
+        assertEquals("2020-02-29", Date.of(year = 2020, month = 2, day = 29).getOrFail().toString())
+        assertEquals("2000-02-29", Date.of(year = 2000, month = 2, day = 29).getOrFail().toString())
+        assertEquals("0000-01-01", Date.of(year = 0, month = 1, day = 1).getOrFail().toString())
+        assertEquals("9999-12-31", Date.of(year = 9999, month = 12, day = 31).getOrFail().toString())
     }
 
     @Test
     fun `a time with a field out of range cannot be constructed`() {
-        assertFailsWith<IllegalArgumentException> { Time(hour = 24, minute = 0, second = null, nanosecond = null) }
-        assertFailsWith<IllegalArgumentException> { Time(hour = -1, minute = 0, second = null, nanosecond = null) }
-        assertFailsWith<IllegalArgumentException> { Time(hour = 0, minute = 60, second = null, nanosecond = null) }
-        assertFailsWith<IllegalArgumentException> { Time(hour = 0, minute = 0, second = 61, nanosecond = null) }
-        assertFailsWith<IllegalArgumentException> { Time(hour = 0, minute = 0, second = -1, nanosecond = null) }
-        assertFailsWith<IllegalArgumentException> { Time(hour = 0, minute = 0, second = 0, nanosecond = 1_000_000_000) }
-        assertFailsWith<IllegalArgumentException> { Time(hour = 0, minute = 0, second = 0, nanosecond = -1) }
+        assertIs<Result.Error<*>>(Time.of(hour = 24, minute = 0, second = null, nanosecond = null))
+        assertIs<Result.Error<*>>(Time.of(hour = -1, minute = 0, second = null, nanosecond = null))
+        assertIs<Result.Error<*>>(Time.of(hour = 0, minute = 60, second = null, nanosecond = null))
+        assertIs<Result.Error<*>>(Time.of(hour = 0, minute = 0, second = 61, nanosecond = null))
+        assertIs<Result.Error<*>>(Time.of(hour = 0, minute = 0, second = -1, nanosecond = null))
+        assertIs<Result.Error<*>>(Time.of(hour = 0, minute = 0, second = 0, nanosecond = 1_000_000_000))
+        assertIs<Result.Error<*>>(Time.of(hour = 0, minute = 0, second = 0, nanosecond = -1))
     }
 
     @Test
     fun `a time with a nanosecond but no second cannot be constructed`() {
-        assertFailsWith<IllegalArgumentException> { Time(hour = 13, minute = 37, second = null, nanosecond = 5) }
+        assertIs<Result.Error<*>>(Time.of(hour = 13, minute = 37, second = null, nanosecond = 5))
     }
 
     @Test
     fun `a leap second with the largest fraction can be constructed`() {
-        val time = Time(hour = 23, minute = 59, second = 60, nanosecond = 999_999_999)
+        val time = Time.of(hour = 23, minute = 59, second = 60, nanosecond = 999_999_999).getOrFail()
         assertEquals("23:59:60.999999999", time.toString())
     }
 
     @Test
     fun `an offset of a day or more cannot be constructed`() {
-        assertFailsWith<IllegalArgumentException> { Offset.Custom(1440) }
-        assertFailsWith<IllegalArgumentException> { Offset.Custom(-1440) }
+        assertIs<Result.Error<*>>(Offset.Custom.of(1440))
+        assertIs<Result.Error<*>>(Offset.Custom.of(-1440))
     }
 
     @Test
     fun `an offset just short of a day either way can be constructed`() {
-        assertEquals("+23:59", Offset.Custom(1439).toString())
-        assertEquals("-23:59", Offset.Custom(-1439).toString())
+        assertEquals("+23:59", Offset.Custom.of(1439).getOrFail().toString())
+        assertEquals("-23:59", Offset.Custom.of(-1439).getOrFail().toString())
     }
 
     @Test
@@ -232,11 +253,11 @@ invalid utf-8 sequence of 1 bytes from index 8
         assertEquals("2020-02-29", Datetime.parse("2020-02-29").getOrFail().toString())
         assertEquals("23:59:60.5", Datetime.parse("23:59:60.5").getOrFail().toString())
         assertEquals(
-            Offset.Custom(1439),
+            Offset.Custom.of(1439).getOrFail(),
             Datetime.parse("1979-05-27T07:32:00+23:59").getOrFail().offset,
         )
         assertEquals(
-            Offset.Custom(-1439),
+            Offset.Custom.of(-1439).getOrFail(),
             Datetime.parse("1979-05-27T07:32:00-23:59").getOrFail().offset,
         )
     }

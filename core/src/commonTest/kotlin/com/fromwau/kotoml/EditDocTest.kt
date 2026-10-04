@@ -1,15 +1,16 @@
 package com.fromwau.kotoml
 
 import com.fromwau.kern.result.Result
-import kotlinx.io.Buffer
-import kotlinx.io.readString
-import kotlinx.io.writeString
+import com.fromwau.kern.result.getOrElse
 import kotlin.math.round
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.test.fail
+import kotlinx.io.Buffer
+import kotlinx.io.readString
+import kotlinx.io.writeString
 
 /** Upstream's documentation examples for `toml_edit`, which `cargo test` runs as doctests. */
 class EditDocTest {
@@ -68,7 +69,7 @@ c = { d = "hello" }
     fun `the module README values example builds decorated values and reads their spelling`() {
         val doc = TomlDocument()
         doc["port"] = Value.Integer(8080L, Decor(prefix = " ", suffix = " # default"))
-        doc["when"] = Datetime.LocalDate(Date(year = 1979, month = 5, day = 27))
+        doc["when"] = Datetime.LocalDate(Date.of(1979, 5, 27).getOrElse { error(it) })
         assertEquals("port = 8080 # default\nwhen = 1979-05-27\n", doc.toString())
 
         assertEquals(8080L, doc["port"].longOrNull)

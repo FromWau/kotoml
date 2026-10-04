@@ -97,14 +97,10 @@ internal class DatetimeParser(private val input: String) {
                 if (year.raw.length != 4) return dateError(Width(Year, 4))
                 if (month.raw.length != 2) return dateError(Width(Month, 2))
                 if (day.raw.length != 2) return dateError(Width(Day, 2))
-                // Four digits always make a valid year; the month and day are checked before Date's own check.
-                val yearValue = digitsValue(year.raw)
-                val monthValue = digitsValue(month.raw)
-                val dayValue = digitsValue(day.raw)
-                if (monthValue < 1 || monthValue > 12) return dateError(Range(Month, 1, 12))
-                val maxDays = daysInMonth(yearValue, monthValue)
-                if (dayValue < 1 || dayValue > maxDays) return dateError(Range(Day, 1, maxDays))
-                date = Date(yearValue, monthValue, dayValue)
+                date = when (val built = Date.of(digitsValue(year.raw), digitsValue(month.raw), digitsValue(day.raw))) {
+                    is Result.Success -> built.value
+                    is Result.Error -> return built
+                }
             }
             Kind.Colon -> position = 0
             else -> return error(expected = DateOrTimeSeparator)
@@ -149,14 +145,16 @@ internal class DatetimeParser(private val input: String) {
             if (minute.raw.length != 2) return timeError(Width(Minute, 2))
             if (second != null && second.raw.length != 2) return timeError(Width(Second, 2))
 
-            val hourValue = digitsValue(hour.raw)
-            val minuteValue = digitsValue(minute.raw)
-            val secondValue = second?.let { digitsValue(it.raw) }
-            if (hourValue > 23) return timeError(Range(Hour, 0, 23))
-            if (minuteValue > 59) return timeError(Range(Minute, 0, 59))
-            if ((secondValue ?: 0) > 60) return timeError(Range(Second, 0, 60))
-            // A fraction is only read after a second, and truncated to nine digits, so Time accepts it.
-            time = Time(hourValue, minuteValue, secondValue, nanosecond?.let { secondsToNanoseconds(it.raw) })
+            val built = Time.of(
+                hour = digitsValue(hour.raw),
+                minute = digitsValue(minute.raw),
+                second = second?.let { digitsValue(it.raw) },
+                nanosecond = nanosecond?.let { secondsToNanoseconds(it.raw) },
+            )
+            time = when (built) {
+                is Result.Success -> built.value
+                is Result.Error -> return built
+            }
         }
 
         if (date != null && time != null) {
@@ -182,7 +180,14 @@ internal class DatetimeParser(private val input: String) {
                     if (minuteValue > 59) return offsetError(Range(Minute, 0, 59))
 
                     val minutesEast = sign * (hourValue * 60 + minuteValue)
-                    offset = if (minutesEast == 0 && sign < 0) Offset.Unknown else Offset.Custom(minutesEast)
+                    offset = if (minutesEast == 0 && sign < 0) {
+                        Offset.Unknown
+                    } else {
+                        when (val built = Offset.Custom.of(minutesEast)) {
+                            is Result.Success -> built.value
+                            is Result.Error -> return built
+                        }
+                    }
                 }
                 else -> return offsetError(OffsetStart)
             }

@@ -17,7 +17,7 @@ class UnknownOffsetTest {
     @Test
     fun `a +00 00 offset stays a numeric offset of zero`() {
         val datetime = Datetime.parse("1979-05-27T07:32:00+00:00").getOrFail()
-        assertEquals(Offset.Custom(0), datetime.offset)
+        assertEquals(Offset.Custom.of(0).getOrFail(), datetime.offset)
         assertEquals("1979-05-27T07:32:00+00:00", datetime.toString())
     }
 
@@ -29,8 +29,8 @@ class UnknownOffsetTest {
 
     @Test
     fun `offsets order Z then unknown then numeric offsets by minutes`() {
-        val sorted = listOf(Offset.Custom(60), Offset.Unknown, Offset.Custom(-60), Offset.Z).sorted()
-        assertEquals(listOf(Offset.Z, Offset.Unknown, Offset.Custom(-60), Offset.Custom(60)), sorted)
+        val sorted = listOf(Offset.Custom.of(60).getOrFail(), Offset.Unknown, Offset.Custom.of(-60).getOrFail(), Offset.Z).sorted()
+        assertEquals(listOf(Offset.Z, Offset.Unknown, Offset.Custom.of(-60).getOrFail(), Offset.Custom.of(60).getOrFail()), sorted)
         assertTrue(Offset.Unknown > Offset.Z)
     }
 }

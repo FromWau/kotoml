@@ -185,6 +185,7 @@ internal fun DatetimeExpected.describe(part: DatetimePart?): String = when (this
     DatetimeExpected.TimeStart -> "`T` between date and time"
     DatetimeExpected.MinuteSeparator -> "`:` (HH:MM)"
     DatetimeExpected.OffsetStart -> "`Z`, +OFFSET, -OFFSET"
+    DatetimeExpected.SecondBeforeFraction -> "a second before the fraction"
     is DatetimeExpected.Digits -> field.describe()
     is DatetimeExpected.Width -> {
         val digits = if (width == 4) "four" else "two"

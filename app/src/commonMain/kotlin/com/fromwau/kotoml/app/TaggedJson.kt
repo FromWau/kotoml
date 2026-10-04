@@ -3,6 +3,7 @@ package com.fromwau.kotoml.app
 import com.fromwau.kern.result.Err
 import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
+import com.fromwau.kern.result.getOrElse
 import com.fromwau.kotoml.Datetime
 import com.fromwau.kotoml.Time
 import com.fromwau.kotoml.TomlDocument
@@ -199,4 +200,4 @@ private fun Datetime.withSeconds(): Datetime = when (this) {
     is Datetime.LocalTime -> copy(time = time.withSeconds())
 }
 
-private fun Time.withSeconds(): Time = copy(second = second ?: 0)
+private fun Time.withSeconds(): Time = if (second != null) this else Time.of(hour, minute, 0).getOrElse { this }

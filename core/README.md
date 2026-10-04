@@ -49,7 +49,7 @@ instead. The `item["key"] = value` form drops that error; call `item.set("key", 
 ```kotlin
 val doc = TomlDocument()
 doc["port"] = Value.Integer(8080L, Decor(prefix = " ", suffix = " # default"))
-doc["when"] = Datetime.LocalDate(Date(year = 1979, month = 5, day = 27))
+doc["when"] = Datetime.LocalDate(Date.of(1979, 5, 27).getOrElse { error(it) })
 // port = 8080 # default
 // when = 1979-05-27
 
