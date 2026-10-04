@@ -23,7 +23,7 @@ class EditTest {
             return this
         }
 
-        fun producesDisplay(expected: String): Given {
+        fun prints(expected: String): Given {
             assertSnapshot(expected, doc.toString())
             return this
         }
@@ -33,14 +33,14 @@ class EditTest {
         return Given(TomlDocument.parse(input).getOrFail())
     }
 
-    private fun assertKeyReprRoundtrip(input: String, expected: String) {
+    private fun assertKeySpellingRoundTrip(input: String, expected: String) {
         val value = Key.parse(input).getOrFail()
         val actual = value.toString()
         if (Key.parse(actual) is Result.Error) fail("invalid `Key`:\n```\n$actual\n```\n")
         assertSnapshot(expected, actual)
     }
 
-    private fun assertKeyValueRoundtrip(input: String, expected: String) {
+    private fun assertKeyValueRoundTrip(input: String, expected: String) {
         val parsed = Key.parse(input).getOrFail()
         // Drops the written spelling.
         val value = Key(parsed.name)
@@ -351,7 +351,7 @@ class EditTest {
                     document.decor = Decor(prefix = "# Some Header\n\n", suffix = "# Some Footer")
                     document.trailing = "\n\ntrailing..."
             }
-            .producesDisplay("""
+            .prints("""
 # Some Header
 
 [package]
@@ -385,7 +385,7 @@ trailing...
                     assertNull(document.decor.suffix)
                     document.trailing = "\n\ntrailing..."
             }
-            .producesDisplay("""
+            .prints("""
 [package]
 name = "hello"
 version = "1.0.0"
@@ -420,7 +420,7 @@ trailing...
                     root["servers"]["beta"]["ip"] = "10.0.0.2"
                     root["servers"]["beta"]["dc"] = "eqdc10"
             }
-            .producesDisplay("""
+            .prints("""
 [servers]
 
         [servers.alpha]
@@ -447,7 +447,7 @@ dc = "eqdc10"
             .running { root ->
                     root["dependencies"]["newthing"] = Table()
             }
-            .producesDisplay("""
+            .prints("""
 
         [package]
         [dependencies]
@@ -467,7 +467,7 @@ dc = "eqdc10"
                 val other = TomlDocument.parse("[b]").getOrFail()
                 root["b"] = other["b"].copy()
             }
-            .producesDisplay("""
+            .prints("""
 [a]
 [b]
 
@@ -484,7 +484,7 @@ dc = "eqdc10"
                     root["servers"]["alpha"]["ip"] = "10.0.0.1"
                     root["servers"]["alpha"]["dc"] = "eqdc10"
             }
-            .producesDisplay("""
+            .prints("""
 
         [other.table]
 
@@ -510,7 +510,7 @@ dc = "eqdc10"
                 }
                 array.add(Table())
             }
-            .producesDisplay("""
+            .prints("""
 
         [package]
         title = "withoutarray"
@@ -532,7 +532,7 @@ hello = "world"
                     root["tbl"]["key2"] = 42L
                     root["tbl"]["key3"] = 8.1415926
             }
-            .producesDisplay("""
+            .prints("""
 [tbl]
 key1 = "value1"
 key2 = 42
@@ -556,7 +556,7 @@ key3 = 8.1415926
                     root["target"]["cfg(target_os = \"linux\")"]["dependencies"] = Table()
                     root["target"]["cfg(target_os = \"linux\")"]["dependencies"]["name"] = "dep"
             }
-            .producesDisplay("""
+            .prints("""
 
         [package]
         name = "foo"
@@ -582,7 +582,7 @@ name = "dep"
                 val serversTable = servers.tableOrNull!!
                 assertNotNull(serversTable.remove("alpha"))
             }
-            .producesDisplay("""
+            .prints("""
 
         [servers]
 
@@ -633,7 +633,7 @@ name = "dep"
             .running { root ->
                     assertNotNull(root.remove("a"))
             }
-            .producesDisplay("""
+            .prints("""
 
         title = "not relevant"
 
@@ -663,7 +663,7 @@ name = "dep"
                 dmpArray.removeAt(1)
                 assertEquals(1, dmpArray.size)
             }
-            .producesDisplay("""
+            .prints("""
 
         [package]
         name = "hello"
@@ -690,7 +690,7 @@ name = "dep"
             .running { root ->
                     assertNotNull(root.remove("bin"))
             }
-            .producesDisplay("""
+            .prints("""
 
         [package]
         name = "hello"
@@ -715,7 +715,7 @@ name = "dep"
                 assertIs<Value.String>(version)
                 assertSnapshot("1.0.0", version.stringOrNull!!)
             }
-            .producesDisplay("""
+            .prints("""
 
         name = "hello"
         # delete this
@@ -737,7 +737,7 @@ name = "dep"
                 assertNotNull(value)
                 assertEquals(1L, assertNotNull(value.valueOrNull).longOrNull)
             }
-            .producesDisplay("")
+            .prints("")
     }
 
     @Test
@@ -756,7 +756,7 @@ name = "dep"
                 val a = root.getOrNull("a")!!
                 a.tableOrNull!!.sortBy { (key, _) -> key }
             }
-            .producesDisplay("""
+            .prints("""
 
         [a.z]
 
@@ -789,7 +789,7 @@ name = "dep"
                 // before 'a'.
                 a.sortWith { (k1, _), (k2, _) -> compareByCodePoint(k1.displaySpelling, k2.displaySpelling) }
             }
-            .producesDisplay("""
+            .prints("""
 
         [a.z]
 
@@ -821,7 +821,7 @@ name = "dep"
                     }
                 }
             }
-            .producesDisplay("""
+            .prints("""
         [dependencies]
 
         [package]
@@ -846,7 +846,7 @@ name = "dep"
                 }
                 pkg["edition"] = "2024"
             }
-            .producesDisplay("""
+            .prints("""
 
         edition = "2015"
 
@@ -872,7 +872,7 @@ edition = "2024"
                     table.tableOrNull!!.position = 0
                 }
             }
-            .producesDisplay("""
+            .prints("""
 
         [package]
         [dependencies]
@@ -896,7 +896,7 @@ edition = "2024"
                     table.tableOrNull!!.position = Long.MAX_VALUE
                 }
             }
-            .producesDisplay("""
+            .prints("""
         [dependencies.opencl]
         a=""
 
@@ -940,7 +940,7 @@ edition = "2024"
                         .stringOrNull,
                 )
             }
-            .producesDisplay("""
+            .prints("""
 
         a = [1, 2, 3, 4]
         b = ["hello", "beep",   "zoink"   ,
@@ -967,7 +967,7 @@ edition = "2024"
                 assertTrue(b.removeAt(0).getOrFail() is Value.String)
                 assertTrue(b.isEmpty())
             }
-            .producesDisplay("""
+            .prints("""
 
         a = [1, 2, 3]
         b = []
@@ -989,7 +989,7 @@ edition = "2024"
                     v.arrayOrNull?.resetFormatting()
                 }
             }
-            .producesDisplay("""
+            .prints("""
 
     a = [1, "2", 3.0]
     """)
@@ -1017,7 +1017,7 @@ edition = "2024"
                 assertEquals(1, b.size)
                 b.resetFormatting()
             }
-            .producesDisplay("""
+            .prints("""
 
         a = { a = 2, c = 3, b = 42 }
         b = { hello = "world" }
@@ -1042,7 +1042,7 @@ edition = "2024"
                 assertNotNull(b.remove("hello"))
                 assertTrue(b.isEmpty())
             }
-            .producesDisplay("""
+            .prints("""
 
         a = {a=2, b = 42}
         b = {}
@@ -1101,7 +1101,7 @@ edition = "2024"
                 root["nixpkgs"]["src"].tableLikeOrNull!!.isDotted = true
                 root["nixpkgs"]["src"]["git"] = "https://github.com/nixos/nixpkgs"
             }
-            .producesDisplay("""
+            .prints("""
 [nixpkgs]
 src.git = "https://github.com/nixos/nixpkgs"
 
@@ -1116,7 +1116,7 @@ src.git = "https://github.com/nixos/nixpkgs"
                 root["nixpkgs"]["src"]["git"] = "https://github.com/nixos/nixpkgs"
                 root["nixpkgs"]["src"].tableLikeOrNull!!.isDotted = true
             }
-            .producesDisplay("""
+            .prints("""
 [nixpkgs]
 src.git = "https://github.com/nixos/nixpkgs"
 
@@ -1263,26 +1263,26 @@ other = "world"
 
     @Test
     fun `a parsed key prints back with its own quoting`() {
-        assertKeyReprRoundtrip("\"\"", "\"\"")
-        assertKeyReprRoundtrip("\"a\"", "\"a\"")
-        assertKeyReprRoundtrip("\"tab \\t tab\"", "\"tab \\t tab\"")
-        assertKeyReprRoundtrip("\"lf \\n lf\"", "\"lf \\n lf\"")
-        assertKeyReprRoundtrip("\"crlf \\r\\n crlf\"", "\"crlf \\r\\n crlf\"")
-        assertKeyReprRoundtrip("\"bell \\b bell\"", "\"bell \\b bell\"")
-        assertKeyReprRoundtrip("\"feed \\f feed\"", "\"feed \\f feed\"")
-        assertKeyReprRoundtrip("\"backslash \\\\ backslash\"", "\"backslash \\\\ backslash\"")
-        assertKeyReprRoundtrip("\"squote ' squote\"", "\"squote ' squote\"")
-        assertKeyReprRoundtrip("\"triple squote ''' triple squote\"", "\"triple squote ''' triple squote\"")
-        assertKeyReprRoundtrip("\"end squote '\"", "\"end squote '\"")
-        assertKeyReprRoundtrip("\"quote \\\" quote\"", "\"quote \\\" quote\"")
-        assertKeyReprRoundtrip(
+        assertKeySpellingRoundTrip("\"\"", "\"\"")
+        assertKeySpellingRoundTrip("\"a\"", "\"a\"")
+        assertKeySpellingRoundTrip("\"tab \\t tab\"", "\"tab \\t tab\"")
+        assertKeySpellingRoundTrip("\"lf \\n lf\"", "\"lf \\n lf\"")
+        assertKeySpellingRoundTrip("\"crlf \\r\\n crlf\"", "\"crlf \\r\\n crlf\"")
+        assertKeySpellingRoundTrip("\"bell \\b bell\"", "\"bell \\b bell\"")
+        assertKeySpellingRoundTrip("\"feed \\f feed\"", "\"feed \\f feed\"")
+        assertKeySpellingRoundTrip("\"backslash \\\\ backslash\"", "\"backslash \\\\ backslash\"")
+        assertKeySpellingRoundTrip("\"squote ' squote\"", "\"squote ' squote\"")
+        assertKeySpellingRoundTrip("\"triple squote ''' triple squote\"", "\"triple squote ''' triple squote\"")
+        assertKeySpellingRoundTrip("\"end squote '\"", "\"end squote '\"")
+        assertKeySpellingRoundTrip("\"quote \\\" quote\"", "\"quote \\\" quote\"")
+        assertKeySpellingRoundTrip(
             "\"triple quote \\\"\\\"\\\" triple quote\"",
             "\"triple quote \\\"\\\"\\\" triple quote\"",
         )
-        assertKeyReprRoundtrip("\"end quote \\\"\"", "\"end quote \\\"\"")
-        assertKeyReprRoundtrip("\"quoted \\\"content\\\" quoted\"", "\"quoted \\\"content\\\" quoted\"")
-        assertKeyReprRoundtrip("\"squoted 'content' squoted\"", "\"squoted 'content' squoted\"")
-        assertKeyReprRoundtrip(
+        assertKeySpellingRoundTrip("\"end quote \\\"\"", "\"end quote \\\"\"")
+        assertKeySpellingRoundTrip("\"quoted \\\"content\\\" quoted\"", "\"quoted \\\"content\\\" quoted\"")
+        assertKeySpellingRoundTrip("\"squoted 'content' squoted\"", "\"squoted 'content' squoted\"")
+        assertKeySpellingRoundTrip(
             "\"mixed quoted \\\"start\\\" 'end'' mixed quote\"",
             "\"mixed quoted \\\"start\\\" 'end'' mixed quote\"",
         )
@@ -1290,23 +1290,23 @@ other = "world"
 
     @Test
     fun `a key built from a name prints with the simplest quoting that parses back`() {
-        assertKeyValueRoundtrip("\"\"", "\"\"")
-        assertKeyValueRoundtrip("\"a\"", "a")
-        assertKeyValueRoundtrip("\"tab \\t tab\"", "\"tab \\t tab\"")
-        assertKeyValueRoundtrip("\"lf \\n lf\"", "\"lf \\n lf\"")
-        assertKeyValueRoundtrip("\"crlf \\r\\n crlf\"", "\"crlf \\r\\n crlf\"")
-        assertKeyValueRoundtrip("\"bell \\b bell\"", "\"bell \\b bell\"")
-        assertKeyValueRoundtrip("\"feed \\f feed\"", "\"feed \\f feed\"")
-        assertKeyValueRoundtrip("\"backslash \\\\ backslash\"", "'backslash \\ backslash'")
-        assertKeyValueRoundtrip("\"squote ' squote\"", "\"squote ' squote\"")
-        assertKeyValueRoundtrip("\"triple squote ''' triple squote\"", "\"triple squote ''' triple squote\"")
-        assertKeyValueRoundtrip("\"end squote '\"", "\"end squote '\"")
-        assertKeyValueRoundtrip("\"quote \\\" quote\"", "'quote \" quote'")
-        assertKeyValueRoundtrip("\"triple quote \\\"\\\"\\\" triple quote\"", "'triple quote \"\"\" triple quote'")
-        assertKeyValueRoundtrip("\"end quote \\\"\"", "'end quote \"'")
-        assertKeyValueRoundtrip("\"quoted \\\"content\\\" quoted\"", "'quoted \"content\" quoted'")
-        assertKeyValueRoundtrip("\"squoted 'content' squoted\"", "\"squoted 'content' squoted\"")
-        assertKeyValueRoundtrip(
+        assertKeyValueRoundTrip("\"\"", "\"\"")
+        assertKeyValueRoundTrip("\"a\"", "a")
+        assertKeyValueRoundTrip("\"tab \\t tab\"", "\"tab \\t tab\"")
+        assertKeyValueRoundTrip("\"lf \\n lf\"", "\"lf \\n lf\"")
+        assertKeyValueRoundTrip("\"crlf \\r\\n crlf\"", "\"crlf \\r\\n crlf\"")
+        assertKeyValueRoundTrip("\"bell \\b bell\"", "\"bell \\b bell\"")
+        assertKeyValueRoundTrip("\"feed \\f feed\"", "\"feed \\f feed\"")
+        assertKeyValueRoundTrip("\"backslash \\\\ backslash\"", "'backslash \\ backslash'")
+        assertKeyValueRoundTrip("\"squote ' squote\"", "\"squote ' squote\"")
+        assertKeyValueRoundTrip("\"triple squote ''' triple squote\"", "\"triple squote ''' triple squote\"")
+        assertKeyValueRoundTrip("\"end squote '\"", "\"end squote '\"")
+        assertKeyValueRoundTrip("\"quote \\\" quote\"", "'quote \" quote'")
+        assertKeyValueRoundTrip("\"triple quote \\\"\\\"\\\" triple quote\"", "'triple quote \"\"\" triple quote'")
+        assertKeyValueRoundTrip("\"end quote \\\"\"", "'end quote \"'")
+        assertKeyValueRoundTrip("\"quoted \\\"content\\\" quoted\"", "'quoted \"content\" quoted'")
+        assertKeyValueRoundTrip("\"squoted 'content' squoted\"", "\"squoted 'content' squoted\"")
+        assertKeyValueRoundTrip(
             "\"mixed quoted \\\"start\\\" 'end'' mixed quote\"",
             "\"mixed quoted \\\"start\\\" 'end'' mixed quote\"",
         )
@@ -1344,7 +1344,7 @@ name = "banana"
                     val moved = array[1]!!
                     moved.decor = moved.decor.copy(prefix = "\n")
             }
-            .producesDisplay("""
+            .prints("""
 [[fruit]]
 name = "cherry"
 
@@ -1373,7 +1373,7 @@ name = "banana"
                     newTable.decor = newTable.decor.copy(prefix = "\n")
                     array.add(1, newTable)
             }
-            .producesDisplay("""
+            .prints("""
 [[fruit]]
 name = "apple"
 
@@ -1402,7 +1402,7 @@ name = "banana"
                     newTable.decor = newTable.decor.copy(prefix = "\n")
                     array.add(2, newTable)
             }
-            .producesDisplay("""
+            .prints("""
 [[fruit]]
 name = "apple"
 
@@ -1434,7 +1434,7 @@ foo = { bar = 1 }
                 newFoo.put("baz", Item(Value.Integer(2L)))
                 root.getOrNull("foo")!!.assign(Item(newFoo))
             }
-            .producesDisplay("""
+            .prints("""
 
 # hello i'm a comment
 [foo]
@@ -1458,7 +1458,7 @@ foo = [{ bar = 1 }]
                 arr.add(newFooEntry)
                 root.getOrNull("foo")!!.assign(Item(arr))
             }
-            .producesDisplay("""
+            .prints("""
 
 # hello i'm a comment
 [[foo]]
@@ -1484,7 +1484,7 @@ name = "banana"
                 val old = array.set(1, newTable).getOrFail()
                 assertEquals("banana", old["name"].stringOrNull)
             }
-            .producesDisplay("""
+            .prints("""
 [[fruit]]
 name = "apple"
 

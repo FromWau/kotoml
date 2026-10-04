@@ -8,7 +8,7 @@ import kotlin.test.assertEquals
 
 class LexerTest {
 
-    private fun t(input: String, expected: String) {
+    private fun assertLexes(input: String, expected: String) {
         val source = TomlSource(input)
         val actual = source.lex().toList()
         assertDebugSnapshot(expected, seq(actual.map { it.dbg() }))
@@ -588,7 +588,7 @@ Token {
 
     @Test
     fun `literal strings of every quote count lex into string tokens`() {
-        t(
+        assertLexes(
             "''",
             """
 [
@@ -604,7 +604,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "''''''",
             """
 [
@@ -620,7 +620,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             """'''
 '''""",
             """
@@ -637,7 +637,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "'a'",
             """
 [
@@ -653,7 +653,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "'\"a'",
             """
 [
@@ -669,7 +669,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "''''a'''",
             """
 [
@@ -685,7 +685,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             """'''
 'a
 '''""",
@@ -703,7 +703,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "'''a\n'a\r\n'''",
             """
 [
@@ -723,7 +723,7 @@ Token {
 
     @Test
     fun `basic strings of every quote count and escape lex into string tokens`() {
-        t(
+        assertLexes(
             "\"\"",
             """
 [
@@ -739,7 +739,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"\"\"\"\"\"",
             """
 [
@@ -755,7 +755,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"a\"",
             """
 [
@@ -771,7 +771,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"\"\"a\"\"\"",
             """
 [
@@ -787,7 +787,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"\\t\"",
             """
 [
@@ -803,7 +803,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"\\u0000\"",
             """
 [
@@ -819,7 +819,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"\\U00000000\"",
             """
 [
@@ -835,7 +835,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"\\U000A0000\"",
             """
 [
@@ -851,7 +851,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"\\\\t\"",
             """
 [
@@ -867,7 +867,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"\t\"",
             """
 [
@@ -883,7 +883,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"\"\"\n\t\"\"\"",
             """
 [
@@ -899,7 +899,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"\"\"\\\n\"\"\"",
             """
 [
@@ -915,7 +915,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"\"\"\\\n     \t   \t  \\\r\n  \t \n  \t \r\n\"\"\"",
             """
 [
@@ -931,7 +931,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"\\r\"",
             """
 [
@@ -947,7 +947,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"\\n\"",
             """
 [
@@ -963,7 +963,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"\\b\"",
             """
 [
@@ -979,7 +979,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"a\\fa\"",
             """
 [
@@ -995,7 +995,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"\\\"a\"",
             """
 [
@@ -1011,7 +1011,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"\"\"\na\"\"\"",
             """
 [
@@ -1027,7 +1027,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"\"\"\n\"\"\"",
             """
 [
@@ -1043,7 +1043,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"\"\"a\\\"\"\"b\"\"\"",
             """
 [
@@ -1059,7 +1059,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"\\a",
             """
 [
@@ -1075,7 +1075,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"\\\n",
             """
 [
@@ -1095,7 +1095,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"\\\r\n",
             """
 [
@@ -1115,7 +1115,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"\\",
             """
 [
@@ -1131,7 +1131,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"\u0000",
             """
 [
@@ -1147,7 +1147,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"\\U00\"",
             """
 [
@@ -1163,7 +1163,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"\\U00",
             """
 [
@@ -1179,7 +1179,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"\\uD800",
             """
 [
@@ -1195,7 +1195,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\"\\UFFFFFFFF",
             """
 [
@@ -1215,7 +1215,7 @@ Token {
 
     @Test
     fun `keylike text of letters digits dashes and underscores lexes as one atom`() {
-        t(
+        assertLexes(
             "foo",
             """
 [
@@ -1231,7 +1231,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "0bar",
             """
 [
@@ -1247,7 +1247,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "bar0",
             """
 [
@@ -1263,7 +1263,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "1234",
             """
 [
@@ -1279,7 +1279,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "a-b",
             """
 [
@@ -1295,7 +1295,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "a_B",
             """
 [
@@ -1311,7 +1311,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "-_-",
             """
 [
@@ -1327,7 +1327,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "___",
             """
 [
@@ -1347,7 +1347,7 @@ Token {
 
     @Test
     fun `a line using every token kind lexes into each kind with contiguous spans`() {
-        t(
+        assertLexes(
             " a ",
             """
 [
@@ -1371,7 +1371,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             " a\t [[]] \t [] {} , . =\n# foo \r\n#foo \n ",
             """
 [
@@ -1487,7 +1487,7 @@ Token {
 
     @Test
     fun `a bare carriage return or an unterminated string lexes into tokens covering every byte`() {
-        t(
+        assertLexes(
             "\r",
             """
 [
@@ -1503,7 +1503,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             """'
 """,
             """
@@ -1524,7 +1524,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "'\u0000",
             """
 [
@@ -1540,7 +1540,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "'",
             """
 [
@@ -1556,7 +1556,7 @@ Token {
 
 """,
         )
-        t(
+        assertLexes(
             "\u0000",
             """
 [
@@ -1576,7 +1576,7 @@ Token {
 
     @Test
     fun `a NUL inside a comment stays part of the comment token`() {
-        t(
+        assertLexes(
             "#\u0000",
             """
 [

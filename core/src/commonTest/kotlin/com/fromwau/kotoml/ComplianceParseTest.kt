@@ -210,23 +210,23 @@ name = "plantain"
 
     @Test
     fun `floats with exponents and underscores decode to their values`() {
-        fun t(actual: String, expected: Double) {
+        fun assertDecodesTo(actual: String, expected: Double) {
             val a = parseDocument("foo = $actual")
             assertEquals(expected, a["foo"].doubleOrNull)
         }
 
-        t("1.0", 1.0)
-        t("1.0e0", 1.0)
-        t("1.0e+0", 1.0)
-        t("1.0e-0", 1.0)
-        t("1E-0", 1.0)
-        t("1.001e-0", 1.001)
-        t("2e10", 2e10)
-        t("2e+10", 2e10)
-        t("2e-10", 2e-10)
-        t("2_0.0", 20.0)
-        t("2_0.0_0e1_0", 20.0e10)
-        t("2_0.1_0e1_0", 20.1e10)
+        assertDecodesTo("1.0", 1.0)
+        assertDecodesTo("1.0e0", 1.0)
+        assertDecodesTo("1.0e+0", 1.0)
+        assertDecodesTo("1.0e-0", 1.0)
+        assertDecodesTo("1E-0", 1.0)
+        assertDecodesTo("1.001e-0", 1.001)
+        assertDecodesTo("2e10", 2e10)
+        assertDecodesTo("2e+10", 2e10)
+        assertDecodesTo("2e-10", 2e-10)
+        assertDecodesTo("2_0.0", 20.0)
+        assertDecodesTo("2_0.0_0e1_0", 20.0e10)
+        assertDecodesTo("2_0.1_0e1_0", 20.1e10)
     }
 
     @Test
@@ -287,16 +287,16 @@ name = "plantain"
 
     @Test
     fun `integers with underscores and signs decode to their values`() {
-        fun t(actual: String, expected: Long) {
+        fun assertDecodesTo(actual: String, expected: Long) {
             val table = parseDocument("foo = $actual")
             assertEquals(expected, table["foo"].longOrNull)
         }
 
-        t("1_0", 10)
-        t("1_0_0", 100)
-        t("1_000", 1000)
-        t("+1_000", 1000)
-        t("-1_000", -1000)
+        assertDecodesTo("1_0", 10)
+        assertDecodesTo("1_0_0", 100)
+        assertDecodesTo("1_000", 1000)
+        assertDecodesTo("+1_000", 1000)
+        assertDecodesTo("-1_000", -1000)
     }
 
     @Test
@@ -306,15 +306,15 @@ name = "plantain"
 
     @Test
     fun `offset date-times print back as written`() {
-        fun t(actual: String) {
+        fun assertPrintsBack(actual: String) {
             val toml = parseDocument("foo = $actual")
             assertEquals(actual, toml["foo"].datetimeOrNull.toString())
         }
 
-        t("2016-09-09T09:09:09Z")
-        t("2016-09-09T09:09:09.1Z")
-        t("2016-09-09T09:09:09.2+10:00")
-        t("2016-09-09T09:09:09.123456789-02:00")
+        assertPrintsBack("2016-09-09T09:09:09Z")
+        assertPrintsBack("2016-09-09T09:09:09.1Z")
+        assertPrintsBack("2016-09-09T09:09:09.2+10:00")
+        assertPrintsBack("2016-09-09T09:09:09.123456789-02:00")
     }
 
     @Test
@@ -359,7 +359,7 @@ clippy.exhaustive_enums = "warn"
         assertSnapshot(expected, parseDocument(input).toString())
     }
 
-    private fun assertStringReprRoundtrip(input: String, expected: String) {
+    private fun assertStringSpellingRoundTrip(input: String, expected: String) {
         val value = parseValue(input)
         val actual = value.toString()
         parseValue(actual)
@@ -368,35 +368,35 @@ clippy.exhaustive_enums = "warn"
 
     @Test
     fun `a parsed string prints with its own spelling`() {
-        assertStringReprRoundtrip("\"\"", "\"\"")
-        assertStringReprRoundtrip("\"a\"", "\"a\"")
+        assertStringSpellingRoundTrip("\"\"", "\"\"")
+        assertStringSpellingRoundTrip("\"a\"", "\"a\"")
 
-        assertStringReprRoundtrip("\"tab \\t tab\"", "\"tab \\t tab\"")
-        assertStringReprRoundtrip("\"lf \\n lf\"", "\"lf \\n lf\"")
-        assertStringReprRoundtrip("\"crlf \\r\\n crlf\"", "\"crlf \\r\\n crlf\"")
-        assertStringReprRoundtrip("\"bell \\b bell\"", "\"bell \\b bell\"")
-        assertStringReprRoundtrip("\"feed \\f feed\"", "\"feed \\f feed\"")
-        assertStringReprRoundtrip("\"backslash \\\\ backslash\"", "\"backslash \\\\ backslash\"")
+        assertStringSpellingRoundTrip("\"tab \\t tab\"", "\"tab \\t tab\"")
+        assertStringSpellingRoundTrip("\"lf \\n lf\"", "\"lf \\n lf\"")
+        assertStringSpellingRoundTrip("\"crlf \\r\\n crlf\"", "\"crlf \\r\\n crlf\"")
+        assertStringSpellingRoundTrip("\"bell \\b bell\"", "\"bell \\b bell\"")
+        assertStringSpellingRoundTrip("\"feed \\f feed\"", "\"feed \\f feed\"")
+        assertStringSpellingRoundTrip("\"backslash \\\\ backslash\"", "\"backslash \\\\ backslash\"")
 
-        assertStringReprRoundtrip("\"squote ' squote\"", "\"squote ' squote\"")
-        assertStringReprRoundtrip("\"triple squote ''' triple squote\"", "\"triple squote ''' triple squote\"")
-        assertStringReprRoundtrip("\"end squote '\"", "\"end squote '\"")
+        assertStringSpellingRoundTrip("\"squote ' squote\"", "\"squote ' squote\"")
+        assertStringSpellingRoundTrip("\"triple squote ''' triple squote\"", "\"triple squote ''' triple squote\"")
+        assertStringSpellingRoundTrip("\"end squote '\"", "\"end squote '\"")
 
-        assertStringReprRoundtrip("\"quote \\\" quote\"", "\"quote \\\" quote\"")
-        assertStringReprRoundtrip(
+        assertStringSpellingRoundTrip("\"quote \\\" quote\"", "\"quote \\\" quote\"")
+        assertStringSpellingRoundTrip(
             "\"triple quote \\\"\\\"\\\" triple quote\"",
             "\"triple quote \\\"\\\"\\\" triple quote\"",
         )
-        assertStringReprRoundtrip("\"end quote \\\"\"", "\"end quote \\\"\"")
-        assertStringReprRoundtrip("\"quoted \\\"content\\\" quoted\"", "\"quoted \\\"content\\\" quoted\"")
-        assertStringReprRoundtrip("\"squoted 'content' squoted\"", "\"squoted 'content' squoted\"")
-        assertStringReprRoundtrip(
+        assertStringSpellingRoundTrip("\"end quote \\\"\"", "\"end quote \\\"\"")
+        assertStringSpellingRoundTrip("\"quoted \\\"content\\\" quoted\"", "\"quoted \\\"content\\\" quoted\"")
+        assertStringSpellingRoundTrip("\"squoted 'content' squoted\"", "\"squoted 'content' squoted\"")
+        assertStringSpellingRoundTrip(
             "\"mixed quoted \\\"start\\\" 'end'' mixed quote\"",
             "\"mixed quoted \\\"start\\\" 'end'' mixed quote\"",
         )
     }
 
-    private fun assertStringValueRoundtrip(input: String, expected: String) {
+    private fun assertStringValueRoundTrip(input: String, expected: String) {
         val parsed = parseValue(input)
         // Drops the written spelling.
         val value = Value.String(parsed.stringOrNull!!)
@@ -407,26 +407,26 @@ clippy.exhaustive_enums = "warn"
 
     @Test
     fun `a string built from text picks a spelling that parses back`() {
-        assertStringValueRoundtrip("\"\"", "\"\"")
-        assertStringValueRoundtrip("\"a\"", "\"a\"")
+        assertStringValueRoundTrip("\"\"", "\"\"")
+        assertStringValueRoundTrip("\"a\"", "\"a\"")
 
-        assertStringValueRoundtrip("\"tab \\t tab\"", "\"tab \\t tab\"")
-        assertStringValueRoundtrip("\"lf \\n lf\"", "\n\"\"\"\nlf \n lf\"\"\"\n")
-        assertStringValueRoundtrip("\"crlf \\r\\n crlf\"", "\n\"\"\"\ncrlf \\r\n crlf\"\"\"\n")
-        assertStringValueRoundtrip("\"bell \\b bell\"", "\"bell \\b bell\"")
-        assertStringValueRoundtrip("\"feed \\f feed\"", "\"feed \\f feed\"")
-        assertStringValueRoundtrip("\"backslash \\\\ backslash\"", "'backslash \\ backslash'")
+        assertStringValueRoundTrip("\"tab \\t tab\"", "\"tab \\t tab\"")
+        assertStringValueRoundTrip("\"lf \\n lf\"", "\n\"\"\"\nlf \n lf\"\"\"\n")
+        assertStringValueRoundTrip("\"crlf \\r\\n crlf\"", "\n\"\"\"\ncrlf \\r\n crlf\"\"\"\n")
+        assertStringValueRoundTrip("\"bell \\b bell\"", "\"bell \\b bell\"")
+        assertStringValueRoundTrip("\"feed \\f feed\"", "\"feed \\f feed\"")
+        assertStringValueRoundTrip("\"backslash \\\\ backslash\"", "'backslash \\ backslash'")
 
-        assertStringValueRoundtrip("\"squote ' squote\"", "\"squote ' squote\"")
-        assertStringValueRoundtrip("\"triple squote ''' triple squote\"", "\"triple squote ''' triple squote\"")
-        assertStringValueRoundtrip("\"end squote '\"", "\"end squote '\"")
+        assertStringValueRoundTrip("\"squote ' squote\"", "\"squote ' squote\"")
+        assertStringValueRoundTrip("\"triple squote ''' triple squote\"", "\"triple squote ''' triple squote\"")
+        assertStringValueRoundTrip("\"end squote '\"", "\"end squote '\"")
 
-        assertStringValueRoundtrip("\"quote \\\" quote\"", "'quote \" quote'")
-        assertStringValueRoundtrip("\"triple quote \\\"\\\"\\\" triple quote\"", "'triple quote \"\"\" triple quote'")
-        assertStringValueRoundtrip("\"end quote \\\"\"", "'end quote \"'")
-        assertStringValueRoundtrip("\"quoted \\\"content\\\" quoted\"", "'quoted \"content\" quoted'")
-        assertStringValueRoundtrip("\"squoted 'content' squoted\"", "\"squoted 'content' squoted\"")
-        assertStringValueRoundtrip(
+        assertStringValueRoundTrip("\"quote \\\" quote\"", "'quote \" quote'")
+        assertStringValueRoundTrip("\"triple quote \\\"\\\"\\\" triple quote\"", "'triple quote \"\"\" triple quote'")
+        assertStringValueRoundTrip("\"end quote \\\"\"", "'end quote \"'")
+        assertStringValueRoundTrip("\"quoted \\\"content\\\" quoted\"", "'quoted \"content\" quoted'")
+        assertStringValueRoundTrip("\"squoted 'content' squoted\"", "\"squoted 'content' squoted\"")
+        assertStringValueRoundTrip(
             "\"mixed quoted \\\"start\\\" 'end'' mixed quote\"",
             "\"\"\"mixed quoted \"start\" 'end'' mixed quote\"\"\"",
         )

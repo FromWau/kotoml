@@ -9,7 +9,7 @@ import kotlin.test.Test
 
 class WriterStringTest {
 
-    private fun t(decoded: String, expected: String) {
+    private fun assertWritesInEveryEncoding(decoded: String, expected: String) {
         val key = TomlKeyBuilder(decoded)
         val string = TomlStringBuilder(decoded)
         val keyDefault = key.asDefault().toTomlKey()
@@ -37,7 +37,7 @@ class WriterStringTest {
 
     @Test
     fun `an empty string is quoted as a key and as a value`() {
-        t(
+        assertWritesInEveryEncoding(
             "",
             """
 StringResults {
@@ -74,7 +74,7 @@ StringResults {
 
     @Test
     fun `letters write as a bare key and a basic string`() {
-        t(
+        assertWritesInEveryEncoding(
             "helloworld",
             """
 StringResults {
@@ -113,7 +113,7 @@ StringResults {
 
     @Test
     fun `letters dashes and underscores write as a bare key`() {
-        t(
+        assertWritesInEveryEncoding(
             "_hello-world_",
             """
 StringResults {
@@ -152,7 +152,7 @@ StringResults {
 
     @Test
     fun `a string holding single quotes defaults to basic quotes`() {
-        t(
+        assertWritesInEveryEncoding(
             "'hello'world'",
             """
 StringResults {
@@ -185,7 +185,7 @@ StringResults {
 
     @Test
     fun `a string holding doubled single quotes defaults to basic quotes`() {
-        t(
+        assertWritesInEveryEncoding(
             "''hello''world''",
             """
 StringResults {
@@ -218,7 +218,7 @@ StringResults {
 
     @Test
     fun `a string holding tripled single quotes rules out both literal forms`() {
-        t(
+        assertWritesInEveryEncoding(
             "'''hello'''world'''",
             """
 StringResults {
@@ -249,7 +249,7 @@ StringResults {
 
     @Test
     fun `a string holding double quotes defaults to literal quotes`() {
-        t(
+        assertWritesInEveryEncoding(
             "\"hello\"world\"",
             """
 StringResults {
@@ -282,7 +282,7 @@ StringResults {
 
     @Test
     fun `a string holding doubled double quotes defaults to literal quotes`() {
-        t(
+        assertWritesInEveryEncoding(
             "\"\"hello\"\"world\"\"",
             """
 StringResults {
@@ -315,7 +315,7 @@ StringResults {
 
     @Test
     fun `a string holding tripled double quotes defaults to literal quotes`() {
-        t(
+        assertWritesInEveryEncoding(
             "\"\"\"hello\"\"\"world\"\"\"",
             """
 StringResults {
@@ -346,7 +346,7 @@ StringResults {
 
     @Test
     fun `a double quote then a single quote defaults to a multi-line basic string`() {
-        t(
+        assertWritesInEveryEncoding(
             "\"'",
             """
 StringResults {
@@ -375,7 +375,7 @@ StringResults {
 
     @Test
     fun `escaped double quotes beside doubled single quotes default to a multi-line literal`() {
-        t(
+        assertWritesInEveryEncoding(
             "mixed quoted \\\"start\\\" 'end'' mixed quote",
             """
 StringResults {
@@ -402,7 +402,7 @@ StringResults {
 
     @Test
     fun `a string holding backslashes defaults to literal quotes`() {
-        t(
+        assertWritesInEveryEncoding(
             "\\windows\\system32\\",
             """
 StringResults {
@@ -433,7 +433,7 @@ StringResults {
 
     @Test
     fun `lone carriage returns are escaped and rule out both literal forms`() {
-        t(
+        assertWritesInEveryEncoding(
             "\rhello\rworld\r",
             """
 StringResults {
@@ -458,7 +458,7 @@ StringResults {
 
     @Test
     fun `a string with newlines defaults to a multi-line basic string`() {
-        t(
+        assertWritesInEveryEncoding(
             """
 hello
 world
@@ -490,7 +490,7 @@ StringResults {
 
     @Test
     fun `CRLF breaks write as escaped carriage returns in a multi-line basic string`() {
-        t(
+        assertWritesInEveryEncoding(
             "\r\nhello\r\nworld\r\n",
             """
 StringResults {
@@ -515,7 +515,7 @@ StringResults {
 
     @Test
     fun `tabs are escaped in the default basic string`() {
-        t(
+        assertWritesInEveryEncoding(
             "\thello\tworld\t",
             """
 StringResults {
@@ -552,7 +552,7 @@ StringResults {
 
     @Test
     fun `a run of 256 double quotes defaults to literal quotes`() {
-        t(
+        assertWritesInEveryEncoding(
             "\"".repeat(256),
             "\nStringResults {\n    decoded: \"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\" +
                 "\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\\"\\" +

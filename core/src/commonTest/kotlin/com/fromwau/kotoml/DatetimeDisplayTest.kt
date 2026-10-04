@@ -6,7 +6,7 @@ import kotlin.test.assertIs
 
 class DatetimeDisplayTest {
 
-    private fun t(input: Datetime, expected: String) {
+    private fun assertPrintsAndParsesBack(input: Datetime, expected: String) {
         val actual = input.toString()
         assertDebugSnapshot(expected, str(actual))
         assertIs<Result.Success<Datetime>>(Datetime.parse(actual))
@@ -14,7 +14,7 @@ class DatetimeDisplayTest {
 
     @Test
     fun `a time without seconds prints as hours and minutes`() {
-        t(
+        assertPrintsAndParsesBack(
             Datetime(
                 date = null,
                 time = Time(hour = 13, minute = 37, second = null, nanosecond = null),
@@ -29,7 +29,7 @@ class DatetimeDisplayTest {
 
     @Test
     fun `a time with nanoseconds but no seconds prints zero seconds before the fraction`() {
-        t(
+        assertPrintsAndParsesBack(
             Datetime(
                 date = null,
                 time = Time(hour = 13, minute = 37, second = null, nanosecond = 5),
@@ -44,7 +44,7 @@ class DatetimeDisplayTest {
 
     @Test
     fun `a time with zero seconds and zero nanoseconds prints a one digit fraction`() {
-        t(
+        assertPrintsAndParsesBack(
             Datetime(
                 date = null,
                 time = Time(hour = 13, minute = 37, second = 0, nanosecond = 0),
@@ -59,7 +59,7 @@ class DatetimeDisplayTest {
 
     @Test
     fun `an offset date-time without seconds prints as hours and minutes`() {
-        t(
+        assertPrintsAndParsesBack(
             Datetime(
                 date = Date(year = 1979, month = 5, day = 27),
                 time = Time(hour = 7, minute = 32, second = null, nanosecond = null),

@@ -5,14 +5,14 @@ import kotlin.test.assertTrue
 
 class ParseDocumentTest {
 
-    private fun t(input: String, snapshot: String) {
+    private fun assertEvents(input: String, snapshot: String) {
         val actual = EventResults(input)
         val tokens = TomlSource(input).lex().toList()
         parseDocument(tokens, actual.receiver, actual.sink)
         actual.validate("testsuite__parse_document__$snapshot")
     }
 
-    private fun tRecurse(input: String, maxDepth: UInt, snapshot: String) {
+    private fun assertEventsWithDepthLimit(input: String, maxDepth: UInt, snapshot: String) {
         val actual = EventResults(input)
         val tokens = TomlSource(input).lex().toList()
         parseDocument(tokens, RecursionGuard(actual.receiver, maxDepth), actual.sink)
@@ -21,17 +21,17 @@ class ParseDocumentTest {
 
     @Test
     fun `an empty document emits no events`() {
-        t("", "document_empty")
+        assertEvents("", "document_empty")
     }
 
     @Test
     fun `a document of only spaces emits one whitespace event`() {
-        t("  ", "document_ws")
+        assertEvents("  ", "document_ws")
     }
 
     @Test
     fun `a dotted key with a basic string value parses without errors`() {
-        t(
+        assertEvents(
             """hello.world = "a"
 """,
             "document_key_string",
@@ -40,7 +40,7 @@ class ParseDocumentTest {
 
     @Test
     fun `a key value pair followed by a comment parses without errors`() {
-        t(
+        assertEvents(
             """ hello = 'darkness' # my old friend
 """,
             "document_key_string_comment",
@@ -49,7 +49,7 @@ class ParseDocumentTest {
 
     @Test
     fun `whitespace around the dots of a dotted key parses without errors`() {
-        t(
+        assertEvents(
             """ hello . darkness . my = 'old friend'
 """,
             "document_key_ws",
@@ -58,7 +58,7 @@ class ParseDocumentTest {
 
     @Test
     fun `a table header with a spaced dotted key parses without errors`() {
-        t(
+        assertEvents(
             """[parent . child]
 key = "value"
 """,
@@ -68,7 +68,7 @@ key = "value"
 
     @Test
     fun `an empty table header reports an empty key`() {
-        t(
+        assertEvents(
             """[]
 key = "value"
 """,
@@ -78,7 +78,7 @@ key = "value"
 
     @Test
     fun `a table header of a lone dot reports two empty keys`() {
-        t(
+        assertEvents(
             """[ . ]
 key = "value"
 """,
@@ -88,7 +88,7 @@ key = "value"
 
     @Test
     fun `a table header of two dots reports three empty keys`() {
-        t(
+        assertEvents(
             """[ . . ]
 key = "value"
 """,
@@ -98,7 +98,7 @@ key = "value"
 
     @Test
     fun `a table header starting with a dot reports one empty key`() {
-        t(
+        assertEvents(
             """[ . table ]
 key = "value"
 """,
@@ -108,7 +108,7 @@ key = "value"
 
     @Test
     fun `a table header starting with a dot reports one empty key in the dot dot key snapshot`() {
-        t(
+        assertEvents(
             """[ . table ]
 key = "value"
 """,
@@ -118,7 +118,7 @@ key = "value"
 
     @Test
     fun `a table header ending in a dot reports one empty key`() {
-        t(
+        assertEvents(
             """[ table . ]
 key = "value"
 """,
@@ -128,7 +128,7 @@ key = "value"
 
     @Test
     fun `a table header ending in two dots reports two empty keys`() {
-        t(
+        assertEvents(
             """[ table . . ]
 key = "value"
 """,
@@ -138,7 +138,7 @@ key = "value"
 
     @Test
     fun `a table header with two dots between keys reports one empty key`() {
-        t(
+        assertEvents(
             """[ table . . table ]
 key = "value"
 """,
@@ -148,7 +148,7 @@ key = "value"
 
     @Test
     fun `a value with no key reports an empty key`() {
-        t(
+        assertEvents(
             """
  = "value"
 """,
@@ -158,7 +158,7 @@ key = "value"
 
     @Test
     fun `a key of a lone dot reports two empty keys`() {
-        t(
+        assertEvents(
             """
  . = "value"
 """,
@@ -168,7 +168,7 @@ key = "value"
 
     @Test
     fun `a key of two dots reports three empty keys`() {
-        t(
+        assertEvents(
             """
  . . = "value"
 """,
@@ -178,7 +178,7 @@ key = "value"
 
     @Test
     fun `a key starting with a dot reports one empty key`() {
-        t(
+        assertEvents(
             """
  . key = "value"
 """,
@@ -188,7 +188,7 @@ key = "value"
 
     @Test
     fun `a key starting with two dots reports two empty keys`() {
-        t(
+        assertEvents(
             """
  . . key = "value"
 """,
@@ -198,7 +198,7 @@ key = "value"
 
     @Test
     fun `a key ending in a dot reports one empty key`() {
-        t(
+        assertEvents(
             """
 key . = "value"
 """,
@@ -208,7 +208,7 @@ key . = "value"
 
     @Test
     fun `a key ending in two dots reports two empty keys`() {
-        t(
+        assertEvents(
             """
 key . . = "value"
 """,
@@ -218,7 +218,7 @@ key . . = "value"
 
     @Test
     fun `a key with two dots between its parts reports one empty key`() {
-        t(
+        assertEvents(
             """
 key . . key = "value"
 """,
@@ -228,7 +228,7 @@ key . . key = "value"
 
     @Test
     fun `an inline table entry with no key reports an empty key`() {
-        t(
+        assertEvents(
             """
 parent = { = "value" }
 """,
@@ -238,7 +238,7 @@ parent = { = "value" }
 
     @Test
     fun `an inline table key of a lone dot reports two empty keys`() {
-        t(
+        assertEvents(
             """
 parent = { . = "value" }
 """,
@@ -248,7 +248,7 @@ parent = { . = "value" }
 
     @Test
     fun `an inline table key of two dots reports three empty keys`() {
-        t(
+        assertEvents(
             """
 parent = { . . = "value" }
 """,
@@ -258,7 +258,7 @@ parent = { . . = "value" }
 
     @Test
     fun `an inline table key starting with a dot reports one empty key`() {
-        t(
+        assertEvents(
             """
 parent = { . key = "value" }
 """,
@@ -268,7 +268,7 @@ parent = { . key = "value" }
 
     @Test
     fun `an inline table key starting with two dots reports two empty keys`() {
-        t(
+        assertEvents(
             """
 parent = { . . key = "value" }
 """,
@@ -278,7 +278,7 @@ parent = { . . key = "value" }
 
     @Test
     fun `an inline table key ending in a dot reports one empty key`() {
-        t(
+        assertEvents(
             """
 parent = { key . = "value" }
 """,
@@ -288,7 +288,7 @@ parent = { key . = "value" }
 
     @Test
     fun `an inline table key ending in two dots reports two empty keys`() {
-        t(
+        assertEvents(
             """
 parent = { key . . = "value" }
 """,
@@ -298,7 +298,7 @@ parent = { key . . = "value" }
 
     @Test
     fun `an inline table key with two dots between its parts reports one empty key`() {
-        t(
+        assertEvents(
             """
 parent = { key . . key = "value" }
 """,
@@ -308,7 +308,7 @@ parent = { key . . key = "value" }
 
     @Test
     fun `a local date value followed by a comment parses without errors`() {
-        t(
+        assertEvents(
             """foo = 1979-05-27 # Comment
 """,
             "document_key_datetime",
@@ -317,7 +317,7 @@ parent = { key . . key = "value" }
 
     @Test
     fun `a leading byte order mark is skipped`() {
-        t(
+        assertEvents(
             "\uFEFF\n[package]\nname = \"foo\"\nversion = \"0.0.1\"\nauthors = []\n",
             "document_bom",
         )
@@ -325,7 +325,7 @@ parent = { key . . key = "value" }
 
     @Test
     fun `the TOML example document with tables arrays and multi-line strings parses without errors`() {
-        t(
+        assertEvents(
             "\n# This is a TOML document.\n\ntitle = \"TOML Example\"\n\n    [owner]\n    name = \"Tom Preston-We" +
                 "rner\"\n    dob = 1979-05-27T07:32:00-08:00 # First class dates\n\n    [database]\n    server = \"19" +
                 "2.168.1.1\"\n    ports = [ 8001, 8001, 8002 ]\n    connection_max = 5000\n    enabled = true\n\n    " +
@@ -342,7 +342,7 @@ parent = { key . . key = "value" }
 
     @Test
     fun `a stray dollar sign line reports an invalid key with no value`() {
-        t(
+        assertEvents(
             """ hello = 'darkness' # my old friend
 ${'$'}""",
             "document_invalid",
@@ -351,17 +351,17 @@ ${'$'}""",
 
     @Test
     fun `a NUL inside a comment reports an invalid comment character`() {
-        t(" hello = 'darkness' # my old\u0000 friend\n", "document_invalid_comment")
+        assertEvents(" hello = 'darkness' # my old\u0000 friend\n", "document_invalid_comment")
     }
 
     @Test
     fun `a carriage return without a newline reports the bare carriage return`() {
-        t(" hello = 'darkness' # my old friend\r", "document_invalid_cr")
+        assertEvents(" hello = 'darkness' # my old friend\r", "document_invalid_cr")
     }
 
     @Test
     fun `inline tables nested to the recursion limit parse without errors`() {
-        tRecurse(
+        assertEventsWithDepthLimit(
             """
 key = { a = { b = 1 } }
 after = [10]
@@ -373,7 +373,7 @@ after = [10]
 
     @Test
     fun `inline tables past the recursion limit report it and parsing resumes at the next key`() {
-        tRecurse(
+        assertEventsWithDepthLimit(
             """
 key = { a = { b = { c = { d = 1 } } } }
 after = [10]
@@ -385,7 +385,7 @@ after = [10]
 
     @Test
     fun `arrays nested to the recursion limit parse without errors`() {
-        tRecurse(
+        assertEventsWithDepthLimit(
             """
 key = [[1]]
 after = [10]
@@ -397,7 +397,7 @@ after = [10]
 
     @Test
     fun `arrays nested past the recursion limit report it and parsing resumes at the next key`() {
-        tRecurse(
+        assertEventsWithDepthLimit(
             """
 key = [[[[1]]]]
 after = [10]
@@ -409,7 +409,7 @@ after = [10]
 
     @Test
     fun `an inline table in an array within the recursion limit parses without errors`() {
-        tRecurse(
+        assertEventsWithDepthLimit(
             """
 key = [{ a = 1 }]
 after = [10]
@@ -421,7 +421,7 @@ after = [10]
 
     @Test
     fun `inline tables and arrays nested past the recursion limit report it and parsing resumes`() {
-        tRecurse(
+        assertEventsWithDepthLimit(
             """
 key = [{ a = [{ b = [{ c = 1 }] }] }]
 after = [10]
@@ -433,7 +433,7 @@ after = [10]
 
     @Test
     fun `a hexadecimal prefix followed by a space reports an unquoted string value`() {
-        t(
+        assertEvents(
             """
 v=0x _
 """,
@@ -443,7 +443,7 @@ v=0x _
 
     @Test
     fun `a hexadecimal number with a non-hex digit reports an invalid hexadecimal number`() {
-        t(
+        assertEvents(
             """
 v=0xz_
 """,
@@ -453,7 +453,7 @@ v=0xz_
 
     @Test
     fun `an underscore before a float's dot reports it may only go between digits`() {
-        t(
+        assertEvents(
             """
 v=1_.2
 """,

@@ -9,7 +9,7 @@ import kotlin.test.Test
 
 class WriterIntegerTest {
 
-    private fun t(value: Long, expected: String) {
+    private fun assertWritesInEveryFormat(value: Long, expected: String) {
         val results = struct(
             "IntegerResults",
             "value" to lit(value),
@@ -24,7 +24,7 @@ class WriterIntegerTest {
 
     @Test
     fun `a positive integer writes in every radix`() {
-        t(
+        assertWritesInEveryFormat(
             42,
             """
 IntegerResults {
@@ -52,7 +52,7 @@ IntegerResults {
 
     @Test
     fun `a negative integer writes only in decimal`() {
-        t(
+        assertWritesInEveryFormat(
             -42,
             """
 IntegerResults {

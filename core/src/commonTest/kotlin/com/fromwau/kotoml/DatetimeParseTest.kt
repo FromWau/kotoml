@@ -4,14 +4,14 @@ import kotlin.test.Test
 
 class DatetimeParseTest {
 
-    private fun t(input: String, expected: String) {
+    private fun assertParsesTo(input: String, expected: String) {
         val actual = Datetime.parse(input)
         assertDebugSnapshot(expected, actual.debug({ it.dbg() }, { it.dbg() }))
     }
 
     @Test
     fun `a lone T is refused as missing a year or hour`() {
-        t(
+        assertParsesTo(
             "T",
             """
 Err(
@@ -29,7 +29,7 @@ Err(
 
     @Test
     fun `a lone TZ is refused as missing a year or hour`() {
-        t(
+        assertParsesTo(
             "TZ",
             """
 Err(
@@ -47,7 +47,7 @@ Err(
 
     @Test
     fun `a lone TZ followed by a dot is refused as missing a year or hour`() {
-        t(
+        assertParsesTo(
             "TZ.",
             """
 Err(
@@ -65,7 +65,7 @@ Err(
 
     @Test
     fun `a time without seconds parses with no seconds`() {
-        t(
+        assertParsesTo(
             "13:37",
             """
 Ok(
@@ -89,7 +89,7 @@ Ok(
 
     @Test
     fun `a fraction after minutes without seconds is refused`() {
-        t(
+        assertParsesTo(
             "13:37.0",
             """
 Err(
@@ -105,7 +105,7 @@ Err(
 
     @Test
     fun `an offset date-time without seconds parses with no seconds`() {
-        t(
+        assertParsesTo(
             "1979-05-27 07:32Z",
             """
 Ok(

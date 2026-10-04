@@ -170,7 +170,7 @@ path = "crates/cargo-test-macro"
 version = "0.4"
 """
 
-    private val visitMutOutput = """
+    private val normalizedOutput = """
 [package]
 name = "my-package"
 
@@ -196,13 +196,13 @@ cargo-test-macro = { path = "crates/cargo-test-macro" }
 flate2 = { version = "0.4" }
 """
 
-    private fun visitExample(document: TomlDocument): Set<String> {
+    private fun dependencyNames(document: TomlDocument): Set<String> {
         val names = mutableSetOf<String>()
         collectDependencyNames(document.root, VisitState.Root, names)
         return names
     }
 
-    private fun visitMutExample(document: TomlDocument) {
+    private fun normalizeDependencies(document: TomlDocument) {
         normalizeDependencyTables(document.root, VisitState.Root)
     }
 
@@ -210,7 +210,7 @@ flate2 = { version = "0.4" }
     fun `a recursive walk collects every dependency name of a Cargo manifest`() {
         val document = TomlDocument.parse(input).getOrFail()
 
-        val names = visitExample(document)
+        val names = dependencyNames(document)
         val expected = setOf(
             "atty",
             "cargo-platform",
@@ -228,7 +228,7 @@ flate2 = { version = "0.4" }
     fun `a recursive edit makes dependency tables regular and each dependency inline`() {
         val document = TomlDocument.parse(input).getOrFail()
 
-        visitMutExample(document)
-        assertEquals(visitMutOutput, document.toString())
+        normalizeDependencies(document)
+        assertEquals(normalizedOutput, document.toString())
     }
 }
