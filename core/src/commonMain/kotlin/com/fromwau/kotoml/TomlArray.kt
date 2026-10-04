@@ -9,8 +9,7 @@ import com.fromwau.kern.result.Result
  * An array value, `[1, 2, 3]`, with its formatting: the decor around it, a trailing comma, and the text
  * after the last element.
  *
- * A value added to the array is stored as is, not copied: keep using it only through the array, or add its
- * `copy()`.
+ * A value added to the array is stored as a copy, so changing the original afterwards leaves the array as it is.
  *
  * A [Value] has no content equality, so `contains(value)` and `indexOf(value)` find only that same value
  * object: `array.contains(Value.String("a"))` is false even when the array holds `"a"`. Compare what the
@@ -90,11 +89,17 @@ public class TomlArray() : Iterable<Value> {
     public operator fun get(index: Int): Value? = values.getOrNull(index)?.valueOrNull
 
     /**
-     * Appends [value], keeping its formatting. A value without a prefix of its own starts a line of its own when the
+     * Appends a copy of [value], keeping its formatting. A value without a prefix of its own starts a line of its own when the
      * array's elements do, below the last one and its comment; otherwise it gets the default spacing.
      */
     public fun add(value: Value) {
-        if (value.decor.prefix == null) startOwnLine(value)
+        val stored = value.copy()
+        if (stored.decor.prefix == null) startOwnLine(stored)
+        append(stored)
+    }
+
+    /** Appends [value] itself, for a caller that built it and holds no other reference to it. */
+    internal fun append(value: Value) {
         values.add(Item.inArray(value))
     }
 
@@ -139,7 +144,7 @@ public class TomlArray() : Iterable<Value> {
     }
 
     /**
-     * Inserts [value] at [index], keeping its formatting and shifting later elements right.
+     * Inserts a copy of [value] at [index], keeping its formatting and shifting later elements right.
      *
      * @return [TomlEditError.IndexOutOfBounds], with nothing inserted, when [index] is negative or greater
      *   than [size].
@@ -149,7 +154,7 @@ public class TomlArray() : Iterable<Value> {
         value: Value,
     ): EmptyResult<TomlEditError> {
         if (index < 0 || index > values.size) return Err(TomlEditError.IndexOutOfBounds(index, values.size))
-        values.add(index, Item.inArray(value))
+        values.add(index, Item.inArray(value.copy()))
         return Ok(Unit)
     }
 
@@ -165,9 +170,9 @@ public class TomlArray() : Iterable<Value> {
     ): Result<Value, TomlEditError> = replace(index, value)
 
     /**
-     * Replaces the element at [index] with [value].
+     * Replaces the element at [index] with a copy of [value].
      *
-     * @param keepDecor whether [value] takes over the old element's decor, so it sits where the old one did;
+     * @param keepDecor whether the copy takes over the old element's decor, so it sits where the old one did;
      *   false keeps [value]'s own decor.
      * @return the old element, or [TomlEditError.IndexOutOfBounds], with nothing replaced, when there is no
      *   element at [index].
@@ -178,8 +183,9 @@ public class TomlArray() : Iterable<Value> {
         keepDecor: Boolean = true,
     ): Result<Value, TomlEditError> {
         val old = get(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
-        if (keepDecor) value.rawDecor.assign(old.rawDecor)
-        values[index] = Item.inArray(value)
+        val stored = value.copy()
+        if (keepDecor) stored.rawDecor.assign(old.rawDecor)
+        values[index] = Item.inArray(stored)
         return Ok(old)
     }
 

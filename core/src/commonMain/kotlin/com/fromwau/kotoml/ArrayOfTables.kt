@@ -8,7 +8,7 @@ import com.fromwau.kern.result.Result
 /**
  * A sequence of tables, each under its own `[[header]]`.
  *
- * A table added here is stored as is, not copied: keep using it only through the array, or add its `copy()`.
+ * A table added here is stored as a copy, so changing the original afterwards leaves the array as it is.
  *
  * A [StandardTable] has no content equality, so `contains(table)` and `indexOf(table)` find only that same table
  * object. Compare what the tables hold instead, as in
@@ -28,7 +28,8 @@ public class ArrayOfTables() : Iterable<StandardTable> {
 
     /** Moves the tables into a new inline array of inline tables, formatted anew, leaving this empty. */
     internal fun moveToTomlArray(): TomlArray {
-        val array = values.map { it.moveToValue() }.toTomlArray()
+        val array = TomlArray()
+        for (slot in values) array.append(slot.moveToValue())
         values.clear()
         array.resetFormatting()
         return array
@@ -59,13 +60,18 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     /** The table at [index], or null when the index is out of bounds. */
     public operator fun get(index: Int): StandardTable? = values.getOrNull(index)?.standardTableOrNull
 
-    /** Appends [table], which prints under its own `[[header]]` from now on, even when it was dotted. */
+    /** Appends a copy of [table], which prints under its own `[[header]]`, even when it was dotted. */
     public fun add(table: StandardTable) {
+        append(table.copy())
+    }
+
+    /** Appends [table] itself, for a caller that built it and holds no other reference to it. */
+    internal fun append(table: StandardTable) {
         values.add(Item.inArrayOfTables(table))
     }
 
     /**
-     * Inserts [table] at [index], shifting later tables right.
+     * Inserts a copy of [table] at [index], shifting later tables right.
      *
      * @return [TomlEditError.IndexOutOfBounds], with nothing inserted, when [index] is negative or greater
      *   than [size].
@@ -75,7 +81,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         table: StandardTable,
     ): EmptyResult<TomlEditError> {
         if (index < 0 || index > values.size) return Err(TomlEditError.IndexOutOfBounds(index, values.size))
-        values.add(index, Item.inArrayOfTables(table))
+        values.add(index, Item.inArrayOfTables(table.copy()))
         return Ok(Unit)
     }
 
@@ -93,9 +99,9 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     ): Result<StandardTable, TomlEditError> = replace(index, table)
 
     /**
-     * Replaces the table at [index] with [table].
+     * Replaces the table at [index] with a copy of [table].
      *
-     * @param keepDecor whether [table] takes over the old table's [StandardTable.position] and header decor, the
+     * @param keepDecor whether the copy takes over the old table's [StandardTable.position] and header decor, the
      *   comment and blank lines above its `[[header]]` and the comment after it on its line; false keeps [table]'s
      *   own position and decor.
      * @return the old table, or [TomlEditError.IndexOutOfBounds], with nothing replaced, when there is no table
@@ -107,11 +113,12 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         keepDecor: Boolean = true,
     ): Result<StandardTable, TomlEditError> {
         val old = get(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
+        val stored = table.copy()
         if (keepDecor) {
-            table.rawDecor.assign(old.rawDecor)
-            table.position = old.position
+            stored.rawDecor.assign(old.rawDecor)
+            stored.position = old.position
         }
-        values[index] = Item.inArrayOfTables(table)
+        values[index] = Item.inArrayOfTables(stored)
         return Ok(old)
     }
 

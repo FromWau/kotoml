@@ -76,10 +76,10 @@ references, not places, so the port makes the difference explicit:
 - Storing an item stores a copy of its content (`assign`, `table[key] = item`, `put`, `putAll`, `getOrPut`,
   `putItem`), so two places never share a slot, a table or a value. Rust moves the value into its place; Kotlin
   cannot empty the caller's variable, and moving out of an array element would leave a hole in the array.
-- A `Value` or `StandardTable` handed to a container directly (`TomlArray.add`, `ArrayOfTables.add`, the `Item`
-  constructors) is stored as is; `InlineTable.put`, `set`, `putAll`, `getOrPut` and `inlineTableOf` store copies, so a
-  table cannot hold itself. What is stored as is as Rust moves it: keep using it only through the document, or hand
-  over its `copy()`.
+- Arrays store copies too (`TomlArray.add`, `add(index)`, `set`, `replace`, the same on `ArrayOfTables`, and the
+  `…Of` factories), so a value added to two arrays is two values and an array cannot hold itself. What wraps an
+  object rather than storing it in a container takes it as is: the `Item(…)` constructors, `Value.Array(array)`,
+  `Value.InlineTable(table)` and `TomlDocument(root)`; storing the wrapper anywhere then stores a copy.
 - An array element and an inline-table entry are always values, and an array-of-tables element always a
   table. Writing anything else into one fails with `NotAValue` or `NotATableElement`, so upstream's placeholder
   elements cannot occur, `size` counts what iteration yields, and an inline table never holds a `StandardTable`.

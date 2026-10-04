@@ -180,7 +180,7 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
         )
         val leadingPrefix = old.firstOrNull()?.decor?.prefix
         for (index in plan.removed.asReversed()) array.removeAt(index)
-        val merged = plan.sources.mapIndexed { new, source ->
+        val placed = plan.sources.mapIndexed { new, source ->
             val node = full.elements[new]
             val elementDefaults = defaults.element(new)
             when (source) {
@@ -192,9 +192,11 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
                 ElementSource.Inserted -> writer.value(elementDefaults.written(node))
             }
         }
-        for ((index, value) in merged.withIndex()) {
+        for ((index, value) in placed.withIndex()) {
             if (index < array.size) array.replace(index, value, keepDecor = false) else array.add(value)
         }
+        // The array stores copies, so the layout below works on what it holds.
+        val merged = array.toList()
         if (plan.movesElements) {
             array.carryLineEnds(
                 merged.withIndex().mapNotNull { (new, value) -> plan.sources[new].oldIndex?.let { it to value } },

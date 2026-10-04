@@ -215,20 +215,20 @@ public class ArrayScope internal constructor(private val array: TomlArray) {
     public fun add(value: Datetime): Unit = array.add(value)
 
     /** Appends a copy of [value]. */
-    public fun add(value: Value): Unit = array.add(value.copy())
+    public fun add(value: Value): Unit = array.add(value)
 
     /** Appends an array that [block] fills. */
     public fun array(block: ArrayScope.() -> Unit) {
         val inner = TomlArray()
-        array.add(Value.Array(inner))
         ArrayScope(inner).block()
+        array.add(Value.Array(inner))
     }
 
     /** Appends an inline table that [block] fills. */
     public fun inlineTable(block: InlineTableScope.() -> Unit) {
         val inner = InlineTable()
-        array.add(Value.InlineTable(inner))
         InlineTableScope(inner).block()
+        array.add(Value.InlineTable(inner))
     }
 }
 
@@ -238,7 +238,7 @@ public class ArrayOfTablesScope internal constructor(private val tables: ArrayOf
     /** Appends a table that [block] fills. */
     public fun table(block: TableScope.() -> Unit) {
         val table = StandardTable()
-        tables.add(table)
         TableScope(table).block()
+        tables.add(table)
     }
 }

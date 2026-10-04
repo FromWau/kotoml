@@ -11,6 +11,42 @@ import kotlin.test.assertIs
 class SlotSemanticsTest {
 
     @Test
+    fun `a value added to two arrays is two values`() {
+        val shared = Value.Array(tomlArrayOf(Value.Integer(1L)))
+        val first = TomlArray()
+        val second = TomlArray()
+        first.add(shared)
+        second.add(shared)
+        first[0]!!.arrayOrNull!!.add(2L)
+        assertEquals("[[1, 2]] [[1]]", "$first $second")
+    }
+
+    @Test
+    fun `an array added into itself holds a copy and prints`() {
+        val array = tomlArrayOf(Value.Integer(1L))
+        array.add(Value.Array(array))
+        assertEquals("[1, [1]]", array.toString())
+    }
+
+    @Test
+    fun `a table added to an array of tables is a copy`() {
+        val doc = TomlDocument.parse("[t]\nx = 1\n").getOrFail()
+        val tables = ArrayOfTables()
+        tables.add(doc["t"].getOrFail().standardTableOrNull!!)
+        doc["t"]["x"] = 2L
+        assertEquals(1L, tables[0]!!.getOrNull("x")?.longOrNull)
+    }
+
+    @Test
+    fun `replacing an element keeps the decor on the stored copy and leaves the given value alone`() {
+        val doc = TomlDocument.parse("a = [ 1 ]\n").getOrFail()
+        val given = Value.Integer(2L)
+        doc["a"].getOrFail().arrayOrNull!!.replace(0, given).getOrFail()
+        assertEquals("a = [ 2 ]\n", doc.toString())
+        assertEquals(Decor(), given.decor)
+    }
+
+    @Test
     fun `assigning a key after copying it into another leaves the copy alone`() {
         val doc = TomlDocument.parse("a = 1\n").getOrFail()
         doc["b"] = doc["a"].getOrFail()

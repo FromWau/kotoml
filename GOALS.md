@@ -57,8 +57,9 @@ official toml-test runner for TOML 1.0 and 1.1.
    and column.
    Check: `ErrorJsonTest` in core and in serialization.
 9. **One way to do each thing.** An `Item` always holds a value, a table or an array of tables. Writing never deletes a
-   key. Storing stores a copy, so two places never share a slot. Indexing returns a `Result` that stops at the first
-   missing key.
+   key. Storing into a table or an array stores a copy, so two places never share a slot; only a wrapper made from an
+   object (`Item(…)`, `Value.Array(…)`, `TomlDocument(root)`) holds that object itself. Indexing a table or an item
+   returns a `Result` that stops at the first missing key.
    Check: `IndexingTest`, `SlotSemanticsTest`, `SlotFixesTest`.
 10. **Kotlin-first.** The public API uses Kotlin's vocabulary (collections, `xOrNull`, operators), not upstream's Rust
     names.

@@ -279,7 +279,9 @@ public class Item private constructor(
             if (array == null || array.isEmpty() || !array.all { it is Value.InlineTable }) {
                 null
             } else {
-                array.mapNotNull { it.inlineTableOrNull?.moveToStandardTable() }.toArrayOfTables()
+                ArrayOfTables().also { tables ->
+                    for (value in array) value.inlineTableOrNull?.moveToStandardTable()?.let(tables::append)
+                }
             }
         }
         else -> null

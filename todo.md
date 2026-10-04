@@ -8,9 +8,6 @@ reproduced on `dev` at `2781090` before it was filed.
 
 ## Decided: enforce (owner, 2026-10-05)
 
-- [ ] **11. Arrays and arrays of tables store a copy.** `TomlArray.add` / `add(index)` / `set` / `replace`,
-  `ArrayOfTables.add` / `replace` store the object as is, so one `Value` added to two arrays changes both. Store a
-  copy, as the table setters and the DSL do. Removes the self-containing array as a side effect. Goal 9.
 - [ ] **12. A typed error past the nesting limit when encoding or storing.** A recursive model 100 deep encodes to
   text kotoml refuses (`KeyTooDeep`); thousands deep throws `StackOverflowError` (`NodeEncoder` catches
   `Exception`). Return a typed `TooDeep` from serialization and from storing through the API. Goals 3, 5, 6, 14.
@@ -56,6 +53,14 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **11. Arrays and arrays of tables store a copy.** `TomlArray.add` / `add(index)` / `set` / `replace`,
+  `ArrayOfTables.add` / `replace` store the object as is, so one `Value` added to two arrays changes both. Store a
+  copy, as the table setters and the DSL do. Removes the self-containing array as a side effect. Goal 9.
+  **Verdict 2026-10-05:** fixed. `add`, `add(index)`, `set`, `replace` and the factories store copies; the parser and
+  internal moves use an internal `append` that stores what they own. The builder fills a nested array or table before
+  adding it, and the merger works on the array's stored values after placing them. PARITY and goal 9 now say what
+  copies and what wraps. Four tests in `SlotSemanticsTest`; core, serialization and app JVM green.
 
 - [x] **10. CLI stdin treats `EINTR` as an I/O error instead of retrying.** `app/.../Stdin.native.kt`. Goal 15.
   **Verdict 2026-10-05:** fixed. A read that returns -1 with `EINTR` is retried. Compiled for linuxX64 and

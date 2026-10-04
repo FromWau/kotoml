@@ -331,7 +331,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
                 )
                 return
             }
-            array.add(previousTable)
+            array.append(previousTable)
             val first = array.values.firstOrNull()?.standardTableOrNull?.span
             val last = array.values.lastOrNull()?.standardTableOrNull?.span
             array.span = if (first != null && last != null) Span(first.start, last.end) else null
@@ -687,7 +687,7 @@ private fun arrayBody(openEvent: Event, input: EventStream, context: ParseContex
         val decor = value.rawDecor
         decor.prefix = KeptText.withSpan(prefix)
         decor.suffix = KeptText.withSpan(suffix)
-        result.add(value)
+        result.append(value)
     }
 
     while (true) {
