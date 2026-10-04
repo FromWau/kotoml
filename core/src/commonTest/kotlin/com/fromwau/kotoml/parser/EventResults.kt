@@ -5,7 +5,7 @@ import com.fromwau.kotoml.Datetime
 import com.fromwau.kotoml.Dbg
 import com.fromwau.kotoml.ScalarKind
 import com.fromwau.kotoml.Span
-import com.fromwau.kotoml.assertFileData
+import com.fromwau.kotoml.assertFileSnapshot
 import com.fromwau.kotoml.parseTomlFloat
 import com.fromwau.kotoml.parseTomlLong
 import com.fromwau.kotoml.pretty
@@ -25,7 +25,7 @@ internal class EventResults(val input: String) {
 
     fun validate(snapshot: String) {
         decodeEvents()
-        assertFileData(readSnapshot("toml_parser/$snapshot.txt"), debug())
+        assertFileSnapshot(readSnapshot("toml_parser/$snapshot.txt"), debug())
 
         if (events.isNotEmpty()) {
             val spans = events.map { it.span }

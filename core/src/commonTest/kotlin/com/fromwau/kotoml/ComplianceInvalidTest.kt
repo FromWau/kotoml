@@ -11,7 +11,7 @@ class ComplianceInvalidTest {
     private fun t(toml: String, expected: String) {
         when (val parsed = TomlDocument.parse(toml)) {
             is Result.Success -> fail("parsed to: ${parsed.value}")
-            is Result.Error -> assertData(expected, parsed.error.render(toml))
+            is Result.Error -> assertSnapshot(expected, parsed.error.render(toml))
         }
     }
 

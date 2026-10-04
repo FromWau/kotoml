@@ -6,7 +6,7 @@ class DatetimeParseTest {
 
     private fun t(input: String, expected: String) {
         val actual = Datetime.parse(input)
-        assertDebug(expected, actual.debug({ it.dbg() }, { it.dbg() }))
+        assertDebugSnapshot(expected, actual.debug({ it.dbg() }, { it.dbg() }))
     }
 
     @Test

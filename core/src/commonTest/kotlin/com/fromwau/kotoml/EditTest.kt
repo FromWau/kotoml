@@ -21,7 +21,7 @@ class EditTest {
         }
 
         fun producesDisplay(expected: String): Given {
-            assertData(expected, doc.toString())
+            assertSnapshot(expected, doc.toString())
             return this
         }
     }
@@ -34,7 +34,7 @@ class EditTest {
         val value = Key.parse(input).getOrFail()
         val actual = value.toString()
         if (Key.parse(actual) is Result.Error) fail("invalid `Key`:\n```\n$actual\n```\n")
-        assertData(expected, actual)
+        assertSnapshot(expected, actual)
     }
 
     private fun assertKeyValueRoundtrip(input: String, expected: String) {
@@ -43,7 +43,7 @@ class EditTest {
         val value = Key(parsed.name)
         val actual = value.toString()
         if (Key.parse(actual) is Result.Error) fail("invalid `Key`:\n```\n$actual\n```\n")
-        assertData(expected, actual)
+        assertSnapshot(expected, actual)
     }
     @Test
     fun `a parsed document prints its input unchanged and keeps a value's decor across an edit`() {
@@ -90,7 +90,7 @@ class EditTest {
             "nt\n ] # after empty array comment\n key . array = [ # start of array comment\n   'one' , # one comment" +
             "\n   'two' , # two comment\n] # after array comment\n # table-table sep comment\n [ another . table ]  #" +
             " table comment\n # final comment\n"
-        assertDebug(
+        assertDebugSnapshot(
             "\nDocumentMut {\n    root: Table(\n        Table {\n            decor: Decor {\n                pref" +
                 "ix: \"default\",\n                suffix: \"default\",\n            },\n            implicit: false," +
                 "\n            dotted: false,\n            doc_position: None,\n            span: None,\n            " +
@@ -713,7 +713,7 @@ name = "dep"
                 assertTrue(value.valueOrNull != null)
                 val version = value.valueOrNull!!
                 assertTrue(version is Value.String)
-                assertData("1.0.0", version.stringOrNull!!)
+                assertSnapshot("1.0.0", version.stringOrNull!!)
             }
             .producesDisplay("""
 
@@ -1139,7 +1139,7 @@ src.git = "https://github.com/nixos/nixpkgs"
         val bookmarkTable = Table()
         bookmarkTable["name"] = "test.swf"
         table.add(bookmarkTable)
-        assertData("""
+        assertSnapshot("""
 [[bookmark]]
 name = "test.swf"
 
@@ -1155,7 +1155,7 @@ name = "test.swf"
         val bookmarkTable = Table()
         bookmarkTable["name"] = "test.swf"
         table.add(bookmarkTable)
-        assertData("""
+        assertSnapshot("""
 [[  bookmark   ]]
 name = "test.swf"
 
@@ -1177,7 +1177,7 @@ other = "world"
         doc.getOrNull("table")!!.makeValue().getOrFail()
         val actual = doc.toString()
         // `table=` is because the table key was not re-formatted, only the value.
-        assertData(
+        assertSnapshot(
             "\ntable= { string = \"value\", array = [1, 2, 3], inline = { \"1\" = 1, \"2\" = 2 }, child = { other = " +
             "\"world\" } }\n\n", actual)
     }
@@ -1193,7 +1193,7 @@ other = "world"
         val table = inline.toTable()
         doc.put("table", Item(table))
         val actual = doc.toString()
-        assertData("""
+        assertSnapshot("""
 [table]
 string = "value"
 array = [1, 2, 3]
@@ -1226,7 +1226,7 @@ other = "world"
         doc.getOrNull("table")!!.makeValue().getOrFail()
         val actual = doc.toString()
         // `table=` is because the table key was not re-formatted, only the value.
-        assertData(
+        assertSnapshot(
             "\ntable= [{ string = \"value\", array = [1, 2, 3], inline = { \"1\" = 1, \"2\" = 2 }, child = { other = " +
             "\"world\" } }, { string = \"value\", array = [1, 2, 3], inline = { \"1\" = 1, \"2\" = 2 }, child = { oth" +
             "er = \"world\" } }]\n\n", actual)
@@ -1320,7 +1320,7 @@ other = "world"
         dotted.isDotted = true
         doc["tool"]["typst-test"] = Value.InlineTable(dotted)
         doc["tool"]["typst-test"]["tests"] = "tests"
-        assertData("""
+        assertSnapshot("""
 tool = { typst-test.tests = "tests" }
 
 """, doc.toString())

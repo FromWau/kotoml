@@ -1,6 +1,6 @@
 package com.fromwau.kotoml.writer
 
-import com.fromwau.kotoml.assertDebug
+import com.fromwau.kotoml.assertDebugSnapshot
 import com.fromwau.kotoml.lit
 import com.fromwau.kotoml.option
 import com.fromwau.kotoml.str
@@ -19,7 +19,7 @@ class WriterIntegerTest {
             "octal" to option(TomlIntegerFormat().asOctal().format(value)?.toTomlValue()) { str(it) },
             "binary" to option(TomlIntegerFormat().asBinary().format(value)?.toTomlValue()) { str(it) },
         )
-        assertDebug(expected, results)
+        assertDebugSnapshot(expected, results)
     }
 
     @Test

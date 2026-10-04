@@ -3,8 +3,8 @@ package com.fromwau.kotoml.parser
 import com.fromwau.kotoml.EMPTY
 import com.fromwau.kotoml.Encoding
 import com.fromwau.kotoml.Span
-import com.fromwau.kotoml.assertData
-import com.fromwau.kotoml.assertDebug
+import com.fromwau.kotoml.assertSnapshot
+import com.fromwau.kotoml.assertDebugSnapshot
 import kotlin.test.Test
 
 class DecoderStringTest {
@@ -53,8 +53,8 @@ class DecoderStringTest {
                 actual,
                 ErrorSink { error += it },
             )
-            assertData(expected, actual.toString())
-            assertDebug(expectedError, error.dbg())
+            assertSnapshot(expected, actual.toString())
+            assertDebugSnapshot(expectedError, error.dbg())
         }
     }
 
@@ -105,8 +105,8 @@ trimmed in raw strings.
                 actual,
                 ErrorSink { error += it },
             )
-            assertData(expected, actual.toString())
-            assertDebug(expectedError, error.dbg())
+            assertSnapshot(expected, actual.toString())
+            assertDebugSnapshot(expectedError, error.dbg())
         }
     }
 
@@ -232,8 +232,8 @@ trailing
                 actual,
                 ErrorSink { error += it },
             )
-            assertData(expected, actual.toString())
-            assertDebug(expectedError, error.dbg())
+            assertSnapshot(expected, actual.toString())
+            assertDebugSnapshot(expectedError, error.dbg())
         }
     }
 
@@ -388,8 +388,8 @@ Violets are blue
                 actual,
                 ErrorSink { error += it },
             )
-            assertData(expected, actual.toString())
-            assertDebug(expectedError, error.dbg())
+            assertSnapshot(expected, actual.toString())
+            assertDebugSnapshot(expectedError, error.dbg())
         }
     }
 
@@ -487,8 +487,8 @@ Violets are blue
                 actual,
                 ErrorSink { error += it },
             )
-            assertData(expected, actual.toString())
-            assertDebug(expectedError, error.dbg())
+            assertSnapshot(expected, actual.toString())
+            assertDebugSnapshot(expectedError, error.dbg())
         }
     }
 }

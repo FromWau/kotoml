@@ -125,7 +125,7 @@ c = { d = "hello" }
         val error = TomlDocument.parse(input).errorOrFail()
         assertEquals(TomlParseError.Reason.DuplicateKey("a"), error.reason)
         assertEquals(TextPosition(line = 2, column = 1), error.position)
-        assertData(
+        assertSnapshot(
             """
 TOML parse error at line 2, column 1
   |

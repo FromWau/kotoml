@@ -10,7 +10,7 @@ class TomlVersionTest {
 
     private fun refusedIn10(input: String, expected: String) {
         assertIs<Result.Success<*>>(TomlDocument.parse(input), "TOML 1.1 accepts:\n$input")
-        assertData(expected, TomlDocument.parse(input, TomlVersion.V1_0).errorOrFail().render(input))
+        assertSnapshot(expected, TomlDocument.parse(input, TomlVersion.V1_0).errorOrFail().render(input))
     }
 
     @Test
@@ -91,7 +91,7 @@ missing escaped value, expected `b`, `f`, `n`, `r`, `t`, `\`, `"`, `u`, `U`
     @Test
     fun `V1_0 lists only its own escapes after an unknown one in a string`() {
         val input = "s = \"\\q\"\n"
-        assertData(
+        assertSnapshot(
             """
 TOML parse error at line 1, column 7
   |
@@ -107,7 +107,7 @@ missing escaped value, expected `b`, `f`, `n`, `r`, `t`, `\`, `"`, `u`, `U`
     @Test
     fun `V1_0 lists only its own escapes after an unknown one in a quoted key`() {
         val input = "\"a\\q\" = 1\n"
-        assertData(
+        assertSnapshot(
             """
 TOML parse error at line 1, column 4
   |

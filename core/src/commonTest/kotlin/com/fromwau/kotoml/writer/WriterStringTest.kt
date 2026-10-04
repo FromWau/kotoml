@@ -1,6 +1,6 @@
 package com.fromwau.kotoml.writer
 
-import com.fromwau.kotoml.assertDebug
+import com.fromwau.kotoml.assertDebugSnapshot
 import com.fromwau.kotoml.option
 import com.fromwau.kotoml.str
 import com.fromwau.kotoml.struct
@@ -30,7 +30,7 @@ class WriterStringTest {
             "string_basic" to str(string.asBasic().toTomlValue()),
             "string_ml_basic" to str(string.asMlBasic().toTomlValue()),
         )
-        assertDebug(expected, results)
+        assertDebugSnapshot(expected, results)
 
         assertParsesBack(keyDefault, stringDefault, decoded)
     }

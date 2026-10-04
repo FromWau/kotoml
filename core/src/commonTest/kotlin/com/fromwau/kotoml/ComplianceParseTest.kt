@@ -59,7 +59,7 @@ string'''""",
 [a.b.c.d]
 
 """
-        assertData(expected, TomlDocument.parse(toml).getOrFail().toString())
+        assertSnapshot(expected, TomlDocument.parse(toml).getOrFail().toString())
     }
 
     @Test
@@ -150,7 +150,7 @@ metadata.msrv = "1.65.0"
 
 """
         val document = parseDocument(input)
-        assertData(expected, document.toString())
+        assertSnapshot(expected, document.toString())
     }
 
     @Test
@@ -328,7 +328,7 @@ p.a=4
 [p.o]
 
 """
-        assertData(expected, parseDocument(input).toString())
+        assertSnapshot(expected, parseDocument(input).toString())
     }
 
     @Test
@@ -355,14 +355,14 @@ clippy.doc_markdown = "warn"
 clippy.exhaustive_enums = "warn"
 
 """
-        assertData(expected, parseDocument(input).toString())
+        assertSnapshot(expected, parseDocument(input).toString())
     }
 
     private fun assertStringReprRoundtrip(input: String, expected: String) {
         val value = parseValue(input)
         val actual = value.toString()
         parseValue(actual)
-        assertData(expected, actual)
+        assertSnapshot(expected, actual)
     }
 
     @Test
@@ -401,7 +401,7 @@ clippy.exhaustive_enums = "warn"
         val value = Value.String(parsed.stringOrNull!!)
         val actual = value.toString()
         parseValue(actual)
-        assertData(expected, actual)
+        assertSnapshot(expected, actual)
     }
 
     @Test
@@ -468,7 +468,7 @@ clippy.exhaustive_enums = "warn"
     fun `garbage inside an inline table reports an extra assignment at column 5`() {
         val input = "={=<=u=="
         val err = TomlDocument.parse(input).errorOrFail()
-        assertData(
+        assertSnapshot(
             """
 TOML parse error at line 1, column 5
   |
@@ -485,7 +485,7 @@ extra assignment between key-value pairs, expected `,`
     fun `garbage inside a closed inline table reports an extra assignment at column 5`() {
         val input = "={=<=u==}"
         val err = TomlDocument.parse(input).errorOrFail()
-        assertData(
+        assertSnapshot(
             """
 TOML parse error at line 1, column 5
   |
@@ -502,7 +502,7 @@ extra assignment between key-value pairs, expected `,`
     fun `a line of two equals signs reports an extra equals sign at column 2`() {
         val input = "==\n[._[._"
         val err = TomlDocument.parse(input).errorOrFail()
-        assertData(
+        assertSnapshot(
             """
 TOML parse error at line 1, column 2
   |

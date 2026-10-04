@@ -1,13 +1,13 @@
 package com.fromwau.kotoml.writer
 
-import com.fromwau.kotoml.assertData
+import com.fromwau.kotoml.assertSnapshot
 import kotlin.math.withSign
 import kotlin.test.Test
 
 class WriterFloatTest {
 
     private fun t(decoded: WriteTomlValue, expected: String) {
-        assertData(expected, decoded.toTomlValue())
+        assertSnapshot(expected, decoded.toTomlValue())
     }
 
     @Test

@@ -172,30 +172,28 @@ internal fun codePointToString(codePoint: Int): String = if (codePoint > 0xFFFF)
     codePoint.toChar().toString()
 }
 
+/** Compares [actual] with the Debug snapshot [expected], as [assertSnapshot] does. */
+internal fun assertDebugSnapshot(expected: String, actual: Dbg) {
+    assertSnapshot(expected, actual.pretty() + "\n")
+}
+
 /**
- * snapbox's `str![[r#"..."#]]`: a literal holding a newline loses one leading and one trailing newline.
+ * Compares [actual] with the inline snapshot [expected], whose one leading and one trailing newline are only there
+ * to put the snapshot on its own lines. Upstream's snapshots compare with CRLF and a lone CR read as LF on both
+ * sides, so these do too.
  */
-internal fun inline(literal: String): String {
+internal fun assertSnapshot(expected: String, actual: String) {
+    assertEquals(normalizeNewlines(trimSnapshotNewlines(expected)), normalizeNewlines(actual))
+}
+
+/** Compares [actual] with a snapshot file's text, newlines read as in [assertSnapshot]. */
+internal fun assertFileSnapshot(expected: String, actual: String) {
+    assertEquals(normalizeNewlines(expected), normalizeNewlines(actual))
+}
+
+private fun trimSnapshotNewlines(literal: String): String {
     if (!literal.contains('\n')) return literal
     return literal.removePrefix("\n").removeSuffix("\n")
-}
-
-/** snapbox's `assert_data_eq!(actual.to_debug(), str![[...]])`. */
-internal fun assertDebug(expected: String, actual: Dbg) {
-    assertData(expected, actual.pretty() + "\n")
-}
-
-/**
- * snapbox's `assert_data_eq!(actual, str![[...]].raw())` on plain text. Even a raw comparison turns CRLF and a
- * lone CR into LF on both sides.
- */
-internal fun assertData(expected: String, actual: String) {
-    assertEquals(normalizeNewlines(inline(expected)), normalizeNewlines(actual))
-}
-
-/** snapbox's `assert_data_eq!(actual, file![_].raw())`. */
-internal fun assertFileData(expected: String, actual: String) {
-    assertEquals(normalizeNewlines(expected), normalizeNewlines(actual))
 }
 
 internal fun normalizeNewlines(text: String): String = text.replace("\r\n", "\n").replace('\r', '\n')

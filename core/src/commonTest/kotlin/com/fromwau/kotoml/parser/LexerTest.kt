@@ -1,7 +1,7 @@
 package com.fromwau.kotoml.parser
 
-import com.fromwau.kotoml.assertData
-import com.fromwau.kotoml.assertDebug
+import com.fromwau.kotoml.assertSnapshot
+import com.fromwau.kotoml.assertDebugSnapshot
 import com.fromwau.kotoml.seq
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -11,7 +11,7 @@ class LexerTest {
     private fun t(input: String, expected: String) {
         val source = TomlSource(input)
         val actual = source.lex().toList()
-        assertDebug(expected, seq(actual.map { it.dbg() }))
+        assertDebugSnapshot(expected, seq(actual.map { it.dbg() }))
 
         if (actual.isNotEmpty()) {
             val spans = actual.map { it.span }
@@ -41,8 +41,8 @@ Token {
         for ((input, expectedTokens, expectedStream) in cases) {
             val stream = LexStream(input.encodeToByteArray())
             val actualTokens = stream.lexAsciiChar(TokenKind.Dot)
-            assertDebug(expectedTokens, actualTokens.dbg())
-            assertData(expectedStream, stream.rest())
+            assertDebugSnapshot(expectedTokens, actualTokens.dbg())
+            assertSnapshot(expectedStream, stream.rest())
         }
     }
 
@@ -112,8 +112,8 @@ Token {
         for ((input, expectedTokens, expectedStream) in cases) {
             val stream = LexStream(input.encodeToByteArray())
             val actualTokens = stream.lexWhitespace()
-            assertDebug(expectedTokens, actualTokens.dbg())
-            assertData(expectedStream, stream.rest())
+            assertDebugSnapshot(expectedTokens, actualTokens.dbg())
+            assertSnapshot(expectedStream, stream.rest())
         }
     }
 
@@ -186,8 +186,8 @@ Token {
         for ((input, expectedTokens, expectedStream) in cases) {
             val stream = LexStream(input.encodeToByteArray())
             val actualTokens = stream.lexComment()
-            assertDebug(expectedTokens, actualTokens.dbg())
-            assertData(expectedStream, stream.rest())
+            assertDebugSnapshot(expectedTokens, actualTokens.dbg())
+            assertSnapshot(expectedStream, stream.rest())
         }
     }
 
@@ -220,8 +220,8 @@ Token {
         for ((input, expectedTokens, expectedStream) in cases) {
             val stream = LexStream(input.encodeToByteArray())
             val actualTokens = stream.lexCrlf()
-            assertDebug(expectedTokens, actualTokens.dbg())
-            assertData(expectedStream, stream.rest())
+            assertDebugSnapshot(expectedTokens, actualTokens.dbg())
+            assertSnapshot(expectedStream, stream.rest())
         }
     }
 
@@ -291,8 +291,8 @@ trailing
         for ((input, expectedTokens, expectedStream) in cases) {
             val stream = LexStream(input.encodeToByteArray())
             val actualTokens = stream.lexLiteralString()
-            assertDebug(expectedTokens, actualTokens.dbg())
-            assertData(expectedStream, stream.rest())
+            assertDebugSnapshot(expectedTokens, actualTokens.dbg())
+            assertSnapshot(expectedStream, stream.rest())
         }
     }
 
@@ -447,8 +447,8 @@ Token {
         for ((input, expectedTokens, expectedStream) in cases) {
             val stream = LexStream(input.encodeToByteArray())
             val actualTokens = stream.lexMlLiteralString()
-            assertDebug(expectedTokens, actualTokens.dbg())
-            assertData(expectedStream, stream.rest())
+            assertDebugSnapshot(expectedTokens, actualTokens.dbg())
+            assertSnapshot(expectedStream, stream.rest())
         }
     }
 
@@ -514,8 +514,8 @@ Token {
         for ((input, expectedTokens, expectedStream) in cases) {
             val stream = LexStream(input.encodeToByteArray())
             val actualTokens = stream.lexBasicString()
-            assertDebug(expectedTokens, actualTokens.dbg())
-            assertData(expectedStream, stream.rest())
+            assertDebugSnapshot(expectedTokens, actualTokens.dbg())
+            assertSnapshot(expectedStream, stream.rest())
         }
     }
 
@@ -581,8 +581,8 @@ Token {
         for ((input, expectedTokens, expectedStream) in cases) {
             val stream = LexStream(input.encodeToByteArray())
             val actualTokens = stream.lexAtom()
-            assertDebug(expectedTokens, actualTokens.dbg())
-            assertData(expectedStream, stream.rest())
+            assertDebugSnapshot(expectedTokens, actualTokens.dbg())
+            assertSnapshot(expectedStream, stream.rest())
         }
     }
 

@@ -8,7 +8,7 @@ class DatetimeDisplayTest {
 
     private fun t(input: Datetime, expected: String) {
         val actual = input.toString()
-        assertDebug(expected, str(actual))
+        assertDebugSnapshot(expected, str(actual))
         assertIs<Result.Success<Datetime>>(Datetime.parse(actual))
     }
 
