@@ -725,7 +725,7 @@ name = "dep"
     }
 
     @Test
-    fun `an implicit table left empty prints nothing`() {
+    fun `an implicit table left holding nothing prints its header`() {
         given("""
         [a]
         b = 1""")
@@ -737,7 +737,7 @@ name = "dep"
                 assertNotNull(value)
                 assertEquals(1L, assertNotNull(value.valueOrNull).longOrNull)
             }
-            .prints("")
+            .prints("\n\n        [a]\n\n")
     }
 
     @Test

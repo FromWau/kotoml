@@ -8,10 +8,6 @@ reproduced on `dev` at `2781090` before it was filed.
 
 ## Decided: enforce (owner, 2026-10-05)
 
-- [ ] **14. An empty dotted or implicit table still prints.** Removing `a.b` from `a = { a.b = 1 }`, emptying an
-  implicit table, or an empty dotted inline table makes the key vanish from the text while the model keeps it.
-  Print it as `key = {}` or its header. Goal 3.
-
 ## Docs and goals
 
 - [ ] **15. `GOALS.md` wording.** State the deliberate-misuse rule; goal 3 excludes raw formatting text
@@ -53,6 +49,14 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **14. An empty dotted or implicit table still prints.** Removing `a.b` from `a = { a.b = 1 }`, emptying an
+  implicit table, or an empty dotted inline table makes the key vanish from the text while the model keeps it.
+  Print it as `key = {}` or its header. Goal 3.
+  **Verdict 2026-10-05:** fixed. A dotted table left holding nothing prints its key as `{}`, below the comments kept
+  from its keys; an implicit table left holding nothing prints its header (hidden only while tables under it print).
+  Upstream's `test_remove_last_value_from_implicit` now expects `[a]`; PARITY row, `isImplicit` KDoc, three tests in
+  `RemovalKeepsCommentsTest`; core, serialization and app JVM green.
 
 - [x] **13. `parse(String)` refuses a lone surrogate.** Today it becomes `?` on the JVM and U+FFFD on Kotlin/Native,
   so the value changes silently and differs by platform; `PARITY.md:727` and `TomlSource.kt:14` claim U+FFFD.

@@ -24,7 +24,8 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     internal val rawDecor: RawDecor = RawDecor()
 
     /**
-     * Whether the table is hidden while it holds no values. Its sub-tables still print.
+     * Whether the table's header is hidden while it holds no values of its own and tables under it print theirs. A
+     * table left holding nothing prints its header, so its key stays in the text.
      *
      * ```kotlin
      * val doc = TomlDocument.parse("[a]\n[a.b]\n").getOrElse { error(it) }
@@ -88,11 +89,11 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     }
 
     /**
-     * Whether the table prints a header. An implicit table with no values of its own is hidden, so deleting every
-     * table under it hides it too.
+     * Whether the table prints a header. An implicit table with no values of its own is hidden while tables under it
+     * print their own headers; one left holding nothing prints its header, so its key stays in the text.
      */
-    internal fun printsHeader(isArrayOfTables: Boolean): Boolean =
-        isArrayOfTables || !(isImplicit && visualValues().isEmpty())
+    internal fun printsHeader(isArrayOfTables: Boolean): Boolean = isArrayOfTables ||
+        !(isImplicit && visualValues().isEmpty() && items.entries.any { it.item.printsOwnHeader() })
 
     private fun appendValues(path: MutableList<Key>, values: MutableList<BodyLine>) {
         for (entry in items.entries) {
@@ -100,8 +101,13 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
             val table = entry.item.standardTableOrNull
             val value = entry.item.valueOrNull
             when {
-                table != null && table.isDotted -> table.appendValues(path, values)
-                value is Value.InlineTable && value.table.isDotted -> value.table.appendValues(path, values)
+                table != null && table.isDotted -> {
+                    table.appendValues(path, values)
+                    if (table.items.size == 0) values.add(emptyTableLine(path, entry, table.items.keptLines))
+                }
+                value is Value.InlineTable && value.table.isDotted -> {
+                    value.table.appendDottedValues(path, values, entry)
+                }
                 value != null -> values.add(VisualValue(path.toList(), value, entry))
             }
             path.removeAt(path.size - 1)
@@ -116,7 +122,9 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
             val value = entry.item.valueOrNull
             when {
                 table != null -> table.appendAllValues(path, values)
-                value is Value.InlineTable && value.table.isDotted -> value.table.appendValues(path, values)
+                value is Value.InlineTable && value.table.isDotted -> {
+                    value.table.appendDottedValues(path, values, entry)
+                }
                 value != null -> values.add(VisualValue(path.toList(), value, entry))
             }
             path.removeAt(path.size - 1)
@@ -429,7 +437,8 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     internal fun settleHeaderSpellings(path: List<Key>) {
         for (entry in items.entries) {
             val childPath = path + entry.key
-            val tables = entry.item.standardTableOrNull?.let(::listOf) ?: entry.item.arrayOfTablesOrNull?.toList().orEmpty()
+            val tables = entry.item.standardTableOrNull?.let(::listOf)
+                ?: entry.item.arrayOfTablesOrNull?.toList().orEmpty()
             for (table in tables) {
                 table.headerSpelling?.settle(childPath)
                 table.settleHeaderSpellings(childPath)
@@ -472,9 +481,14 @@ public fun Iterable<Pair<String, Item>>.toStandardTable(): StandardTable {
 private fun Item.printsOwnHeader(): Boolean = standardTableOrNull?.let { !it.isDotted } ?: (arrayOfTablesOrNull != null)
 
 /** A value as it prints under a header: the key path that reaches it, and the entry that holds it. */
-internal class VisualValue(val path: List<Key>, val value: Value, val entry: KeyValue) : BodyLine {
+internal class VisualValue(
+    val path: List<Key>,
+    val value: Value,
+    val entry: KeyValue,
+    private val placedAt: Long? = null,
+) : BodyLine {
     override val order: Long?
-        get() = entry.order
+        get() = placedAt ?: entry.order
 
     /** The path's keys as spelled on this value's own line. */
     fun spelledPath(): List<Key> {
@@ -504,3 +518,16 @@ internal val DEFAULT_ROOT_DECOR: Pair<String, String> = "" to ""
 internal val DEFAULT_KEY_DECOR: Pair<String, String> = "" to " "
 internal val DEFAULT_TABLE_DECOR: Pair<String, String> = "\n" to ""
 internal val DEFAULT_KEY_PATH_DECOR: Pair<String, String> = "" to ""
+
+/**
+ * The line a dotted table left holding nothing prints, as `{}` under its key, below the lines [kept] from its removed
+ * keys so that a comment above them stays above it.
+ */
+internal fun emptyTableLine(
+    path: List<Key>,
+    entry: KeyValue,
+    kept: List<KeptLines>,
+): VisualValue {
+    val belowKept = kept.mapNotNull { it.order }.maxOrNull()
+    return VisualValue(path.toList(), Value.InlineTable(InlineTable()), entry, belowKept)
+}

@@ -571,7 +571,7 @@ Beyond upstream's tests, `FloatFormatTest` compares the shortest digits, `Displa
 | `tests/testsuite/edit.rs::test_remove_array_entry` | `` EditTest.`removing an array of tables element removes only its header and body` `` |
 | `tests/testsuite/edit.rs::test_remove_array` | `` EditTest.`removing an array of tables removes every header and body it printed` `` |
 | `tests/testsuite/edit.rs::test_remove_value` | `` EditTest.`removing a key returns its value and keeps the comment above it` `` |
-| `tests/testsuite/edit.rs::test_remove_last_value_from_implicit` | `` EditTest.`an implicit table left empty prints nothing` `` |
+| `tests/testsuite/edit.rs::test_remove_last_value_from_implicit` | `` EditTest.`an implicit table left holding nothing prints its header` `` |
 | `tests/testsuite/edit.rs::test_sort_values` | `` EditTest.`sorting a table's keys moves each key with its comments` `` |
 | `tests/testsuite/edit.rs::test_sort_values_by` | `` EditTest.`sorting a table's keys by a comparator orders them by their spelling` `` |
 | `tests/testsuite/edit.rs::test_set_position` | `` EditTest.`a table's position sets the order of its header in the document` `` |
@@ -704,6 +704,7 @@ commands of [`:app`](../app/README.md) and compares their output by its own rule
 | A dotted table stored as an array-of-tables element or made a document's root | prints nothing | `isDotted` is cleared there, and the root and elements always print | the table would vanish from the text |
 | Sorting a table | sorts hand-made sub-tables with the values | sub-tables and arrays of tables keep their order, hand-made ones included | as its documentation says |
 | A leading byte order mark | dropped when printing | printed back | an unchanged document prints byte for byte |
+| An implicit or dotted table left holding nothing | prints nothing, so its key disappears from the text (`test_remove_last_value_from_implicit` expects an empty document) | an implicit table prints its header; a dotted one prints its key as `{}` where its keys stood (`` EditTest.`an implicit table left holding nothing prints its header` ``, `RemovalKeepsCommentsTest`) | the text keeps every key the document holds |
 | An error's column on the line a byte order mark starts | counts the mark | starts after it, and `render` shows the line without it (changes the `bom-not-at-start-02` and `-03` snapshots; `` ParseFixesTest.`an error after a byte order mark is placed by the visible columns` ``) | the mark shows nothing, so counting it puts the caret one place right |
 | The blank line above an inserted header in a CRLF document | a bare `\n` | the document's line ending | an inserted line ends like the line before it |
 | Replacing a `[table]` or `[[table]]` key (`put`, `set`, `assign`, `makeValue`) | drops the comment lines above its header | keeps them, above the new header or above the key; blank-only lines are not carried to a `key = value` line | they describe the place, like the comments above a key |

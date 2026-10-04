@@ -16,6 +16,27 @@ class RemovalKeepsCommentsTest {
     }
 
     @Test
+    fun `a dotted table left empty prints its key as an empty table below the comment kept from it`() {
+        val doc = TomlDocument.parse("[t]\n# about b\na.b = 1\nz = 2\n").getOrFail()
+        doc["t"]["a"].getOrFail().standardTableOrNull!!.remove("b")
+        assertEquals("[t]\n# about b\na = {}\nz = 2\n", doc.toString())
+    }
+
+    @Test
+    fun `a dotted table in an inline table left empty prints its key as an empty table`() {
+        val doc = TomlDocument.parse("a = { a.b = 1 }\n").getOrFail()
+        doc["a"].getOrFail().inlineTableOrNull!!.getItem("a")!!.inlineTableOrNull!!.remove("b")
+        assertEquals("a = { a = {} }\n", doc.toString())
+    }
+
+    @Test
+    fun `an implicit table left holding nothing prints its header`() {
+        val doc = TomlDocument.parse("[a.b]\nx = 1\n").getOrFail()
+        doc["a"].getOrFail().standardTableOrNull!!.remove("b")
+        assertEquals("[a]\n", doc.toString())
+    }
+
+    @Test
     fun `a table added after a removal prints below the comment kept from the removed table`() {
         val doc = TomlDocument.parse("[b]\ny = 1\n\n# about a\n[a]\nx = 1\n").getOrFail()
         doc.remove("a")
@@ -124,7 +145,7 @@ class RemovalKeepsCommentsTest {
         document["pool"].getOrFail().standardTableOrNull!!.remove("size")
         assertEquals("# size\n# idle\npool.idle = 2\ntimeout = 3\n", document.toString())
         document["pool"].getOrFail().standardTableOrNull!!.remove("idle")
-        assertEquals("# size\n# idle\ntimeout = 3\n", document.toString())
+        assertEquals("# size\n# idle\npool = {}\ntimeout = 3\n", document.toString())
     }
 
     @Test

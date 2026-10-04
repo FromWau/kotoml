@@ -58,6 +58,12 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         return inPrintOrder(lines)
     }
 
+    /** Appends the lines this dotted table prints under [entry]'s key at [path]. */
+    internal fun appendDottedValues(path: MutableList<Key>, values: MutableList<BodyLine>, entry: KeyValue) {
+        appendValues(path, values)
+        if (items.size == 0) values.add(emptyTableLine(path, entry, items.keptLines))
+    }
+
     internal fun appendValues(path: MutableList<Key>, values: MutableList<BodyLine>) {
         for (entry in items.entries) {
             path.add(entry.key)
@@ -65,7 +71,9 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
             val value = item.valueOrNull
             val table = item.standardTableOrNull
             when {
-                value is Value.InlineTable && value.table.isDotted -> value.table.appendValues(path, values)
+                value is Value.InlineTable && value.table.isDotted -> {
+                    value.table.appendDottedValues(path, values, entry)
+                }
                 value != null -> values.add(VisualValue(path.toList(), value, entry))
                 table != null -> table.appendAllValues(path, values)
             }

@@ -99,7 +99,7 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
         when {
             full is TomlNode.Struct && existingTable != null -> {
                 mergeTable(existingTable, full, defaults)
-                // An emptied dotted or implicit table prints nothing, which reads back as a missing key.
+                // Written anew, an emptied dotted table's `{}` takes its first line's place, above later kept comments.
                 if (existingTable.isEmpty() && existingTable.isHiddenWhenEmpty) {
                     put(parent, key, Item(writer.value(full)))
                 }
@@ -255,7 +255,7 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
     }
 }
 
-/** Whether the table prints nothing while it holds no keys: a dotted key's part, or a table deeper headers name. */
+/** Whether the table, holding no keys, would print apart from where its keys stood: a dotted or implicit table. */
 private val Table.isHiddenWhenEmpty: Boolean
     get() = isDotted || (this is StandardTable && isImplicit)
 
