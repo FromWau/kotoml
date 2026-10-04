@@ -65,6 +65,12 @@ public class Item private constructor(
                 is ArrayOfTablesContent -> TomlType.ArrayOfTables
             }
 
+        // An element of an array of tables prints its values under its own header, so it never stands for a dotted key.
+        fun placedIn(holds: Holds): Content {
+            if (holds == Holds.Table && this is TableContent) table.isDotted = false
+            return this
+        }
+
         fun deepCopy(): Content = when (this) {
             is ValueContent -> ValueContent(value.copy())
             is TableContent -> TableContent(table.copy())
@@ -103,7 +109,7 @@ public class Item private constructor(
      * tables and [item] holds no table.
      */
     public fun assign(item: Item): EmptyResult<TomlEditError> {
-        val next = item.content.deepCopy()
+        val next = item.content.deepCopy().placedIn(holds)
         refusal(next)?.let { return Err(it) }
         val entry = entry
         if (entry == null) {
@@ -240,14 +246,17 @@ public class Item private constructor(
 
     /**
      * Turns a table in this slot into an inline table and an array of tables into an array of inline tables,
-     * formatted anew; a value stays as it is. The comment lines above the header move above the key.
+     * formatted anew; a value stays as it is. The comment lines above the header move above the key. A table taken
+     * from this slot earlier keeps its content and no longer belongs to the document.
      *
      * @return [TomlEditError.NotATableElement], changing nothing, when this is a table in an array of tables.
      */
     public fun makeValue(): EmptyResult<TomlEditError> {
         if (holds == Holds.Table) return Err(TomlEditError.NotATableElement(TomlType.InlineTable))
         val linesAbove = entry?.linesAboveHeader().orEmpty()
-        content = Content.ValueContent(moveToValue())
+        val value = copy().moveToValue()
+        entry?.prepareFor(Item(value))
+        content = Content.ValueContent(value)
         entry?.keepLinesAbove(linesAbove)
         return Ok(Unit)
     }
@@ -337,6 +346,7 @@ public class Item private constructor(
         fun inInlineTable(value: Value): Item = Item(Content.ValueContent(value), Holds.Value)
 
         /** A slot of an [ArrayOfTables], which only ever holds a table. */
-        fun inArrayOfTables(table: StandardTable): Item = Item(Content.TableContent(table), Holds.Table)
+        fun inArrayOfTables(table: StandardTable): Item =
+            Item(Content.TableContent(table).placedIn(Holds.Table), Holds.Table)
     }
 }

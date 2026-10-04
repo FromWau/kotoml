@@ -37,7 +37,7 @@ class SlotFixesTest {
     fun `a table made a value keeps the comment above its header`() {
         val doc = parse("a = 1\n\n# about t\n[t]\nx = 1\n")
         doc["t"].getOrFail().makeValue().getOrFail()
-        assertEquals("a = 1\n\n# about t\nt= { x = 1 }\n", doc.toString())
+        assertEquals("a = 1\n\n# about t\nt = { x = 1 }\n", doc.toString())
     }
 
     @Test
@@ -48,15 +48,29 @@ class SlotFixesTest {
     }
 
     @Test
-    fun `a slot in a table refuses a table once the table became inline`() {
-        val doc = TomlDocument()
-        doc["p"] = StandardTable()
-        doc["p"]["x"] = 1L
-        val x = doc["p"]["x"].getOrFail()
-        doc["p"].getOrFail().makeValue().getOrFail()
-        assertEquals(TomlEditError.NotAValue(TomlType.Table), x.assign(Item(StandardTable())).errorOrFail())
-        x.assign(Item(Value.Integer(2L))).getOrFail()
-        assertEquals("p = { x = 2 }\n", doc.toString())
+    fun `a table made a value prints the key with its default spacing`() {
+        val doc = parse("[t]\nx = 1\n")
+        doc["t"].getOrFail().makeValue().getOrFail()
+        assertEquals("t = { x = 1 }\n", doc.toString())
+    }
+
+    @Test
+    fun `a table taken before it was made a value keeps its content and no longer writes into the document`() {
+        val doc = parse("[t]\nx = 1\n")
+        val taken = doc["t"].getOrFail().standardTableOrNull!!
+        doc["t"].getOrFail().makeValue().getOrFail()
+        taken["y"] = 2L
+        assertEquals(1L, taken.getOrNull("x")?.longOrNull)
+        assertEquals("t = { x = 1 }\n", doc.toString())
+    }
+
+    @Test
+    fun `a dotted table stored as an array of tables element is no longer dotted`() {
+        val doc = parse("[[a]]\nx = 1\n")
+        val dotted = parse("t.y = 2\n")["t"].getOrFail()
+        doc["a"].set(0, dotted).getOrFail()
+        assertEquals(false, doc["a"][0].getOrFail().standardTableOrNull!!.isDotted)
+        assertEquals("[[a]]\ny = 2\n", doc.toString())
     }
 
     @Test

@@ -61,7 +61,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
 
     /** Appends [table], which prints under its own `[[header]]` from now on, even when it was dotted. */
     public fun add(table: StandardTable) {
-        values.add(slotOf(table))
+        values.add(Item.inArrayOfTables(table))
     }
 
     /**
@@ -75,7 +75,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         table: StandardTable,
     ): EmptyResult<TomlEditError> {
         if (index < 0 || index > values.size) return Err(TomlEditError.IndexOutOfBounds(index, values.size))
-        values.add(index, slotOf(table))
+        values.add(index, Item.inArrayOfTables(table))
         return Ok(Unit)
     }
 
@@ -111,7 +111,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
             table.rawDecor.assign(old.rawDecor)
             table.position = old.position
         }
-        values[index] = slotOf(table)
+        values[index] = Item.inArrayOfTables(table)
         return Ok(old)
     }
 
@@ -166,15 +166,9 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     public fun copy(): ArrayOfTables {
         val copy = ArrayOfTables()
         copy.span = span
-        for (table in this) copy.values.add(slotOf(table.copy()))
+        for (table in this) copy.values.add(Item.inArrayOfTables(table.copy()))
         keptHeaderLines.mapTo(copy.keptHeaderLines) { it.copy() }
         return copy
-    }
-
-    // An element prints its values under its own header, so it cannot stand for the parts of a dotted key.
-    private fun slotOf(table: StandardTable): Item {
-        table.isDotted = false
-        return Item.inArrayOfTables(table)
     }
 
     /** The tables as an inline array; without a header there is no better way to print them. */

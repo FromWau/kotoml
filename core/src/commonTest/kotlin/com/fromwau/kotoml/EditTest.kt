@@ -1178,9 +1178,8 @@ other = "world"
         val doc = TomlDocument.parse(toml).getOrFail()
         doc.getOrNull("table")!!.makeValue().getOrFail()
         val actual = doc.toString()
-        // `table=` is because the table key was not re-formatted, only the value.
         assertSnapshot(
-            "\ntable= { string = \"value\", array = [1, 2, 3], inline = { \"1\" = 1, \"2\" = 2 }, child = { other = " +
+            "\ntable = { string = \"value\", array = [1, 2, 3], inline = { \"1\" = 1, \"2\" = 2 }, child = { other = " +
             "\"world\" } }\n\n", actual)
     }
 
@@ -1227,9 +1226,9 @@ other = "world"
         val doc = TomlDocument.parse(toml).getOrFail()
         doc.getOrNull("table")!!.makeValue().getOrFail()
         val actual = doc.toString()
-        // `table=` is because the table key was not re-formatted, only the value.
         assertSnapshot(
-            "\ntable= [{ string = \"value\", array = [1, 2, 3], inline = { \"1\" = 1, \"2\" = 2 }, child = { other = " +
+            "\ntable = [{ string = \"value\", array = [1, 2, 3], inline = { \"1\" = 1, \"2\" = 2 }, " +
+            "child = { other = " +
             "\"world\" } }, { string = \"value\", array = [1, 2, 3], inline = { \"1\" = 1, \"2\" = 2 }, child = { oth" +
             "er = \"world\" } }]\n\n", actual)
     }

@@ -63,7 +63,9 @@ internal class NodeDecoder(
     override fun decodeFloat(): Float {
         val double = decodeDouble()
         val float = double.toFloat()
-        if (float.isInfinite() && double.isFinite()) {
+        val overflows = float.isInfinite() && double.isFinite()
+        val underflows = float == 0f && double != 0.0
+        if (overflows || underflows) {
             throw DecodeFailure(TomlDecodeError.OutOfRange("$path", "$double", "kotlin.Float"))
         }
         return float

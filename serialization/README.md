@@ -182,7 +182,7 @@ the defaults, so `Toml.decodeFromString<T>(text)` uses them.
 | `Pair`, `Triple`, other classes            | as their serializers say: `first`, `second`, …                                                           |
 | `Byte`, `Short`, `Int`, `Long`             | integer; reading checks the range (`OutOfRange`)                                                         |
 | `UByte`, `UShort`, `UInt`, `ULong`         | integer holding the unsigned value; a `ULong` above `Long.MAX_VALUE` is `OutOfRange` when writing        |
-| `Float`, `Double`                          | float, `nan` and `inf` included; reading also takes an integer                                           |
+| `Float`, `Double`                          | float, `nan` and `inf` included; reads an integer too; a `Float` that rounds to 0 or inf is `OutOfRange` |
 | `Char`                                     | one-character string                                                                                     |
 | `String`                                   | string; reading a native date-time gives its TOML text                                                   |
 | `kotlin.time.Duration`                     | string in Kotlin's form, `"1m 30s"`; reading also takes ISO-8601, `"PT1M30S"`                            |

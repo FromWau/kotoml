@@ -70,6 +70,25 @@ class ScalarTest {
     }
 
     @Test
+    fun `a non-zero float too small for Float is out of range`() {
+        assertEquals(
+            TomlDecodeError.OutOfRange("float", "1.0E-50", "kotlin.Float"),
+            Toml.decodeFromString<Numbers>("float = 1e-50\n").errorOrFail(),
+        )
+        assertEquals(
+            TomlDecodeError.OutOfRange("float", "-1.0E-50", "kotlin.Float"),
+            Toml.decodeFromString<Numbers>("float = -1e-50\n").errorOrFail(),
+        )
+    }
+
+    @Test
+    fun `zero and the smallest Float read as themselves`() {
+        assertEquals(0.0f, Toml.decodeFromString<Numbers>("float = 0.0\n").getOrFail().float)
+        assertEquals(-0.0f, Toml.decodeFromString<Numbers>("float = -0.0\n").getOrFail().float)
+        assertEquals(Float.MIN_VALUE, Toml.decodeFromString<Numbers>("float = 1.4e-45\n").getOrFail().float)
+    }
+
+    @Test
     fun `a Float is written as its decimal text`() {
         assertEquals("float = 0.1\n", Toml { encodeDefaults = false }.encodeToString(Numbers(float = 0.1f)).getOrFail())
     }
