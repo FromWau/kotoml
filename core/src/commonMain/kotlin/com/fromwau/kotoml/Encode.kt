@@ -206,12 +206,16 @@ internal fun encodeDocument(buf: StringBuilder, document: TomlDocument) {
 }
 
 /**
- * The parts of a document in the order its tables nest. A part made by hand follows the last table walked that
- * has a slot, and the elements of an array of tables print in array order.
+ * The parts of a document in the order its tables nest. A table made by hand follows the last table walked that has
+ * a slot, or the lines kept from its parent's removed tables when they stand later, and the elements of an array of
+ * tables print in array order.
  */
 private class DocumentParts {
     val parts = mutableListOf<DocumentPart>()
     private var lastTable: DocumentPart? = null
+
+    // The kept lines of each table being walked, innermost last.
+    private val keptOfParents = ArrayDeque<List<DocumentPart>>()
 
     fun visitTable(
         table: StandardTable,
@@ -224,8 +228,10 @@ private class DocumentParts {
             add(part)
             if (part.slot != null) lastTable = part
         }
-        for (kept in table.keptHeaderLines) add(KeptHeaderLines(kept.order, kept.text))
+        val kept = table.keptHeaderLines.map { KeptHeaderLines(it.order, it.text) }
+        kept.forEach(::add)
 
+        keptOfParents.addLast(kept)
         for (entry in table.items.entries) {
             val child = entry.item.standardTableOrNull
             val array = entry.item.arrayOfTablesOrNull
@@ -234,6 +240,7 @@ private class DocumentParts {
             if (array != null) visitArray(array, path)
             path.removeAt(path.size - 1)
         }
+        keptOfParents.removeLast()
     }
 
     private fun visitArray(
@@ -250,7 +257,10 @@ private class DocumentParts {
     }
 
     private fun add(part: DocumentPart) {
-        if (part.slot == null) part.anchor = lastTable
+        if (part.slot == null) {
+            val candidates = listOfNotNull(lastTable) + keptOfParents.lastOrNull().orEmpty().filter { it.slot != null }
+            part.anchor = candidates.maxByOrNull { it.position }
+        }
         parts += part
     }
 }

@@ -6,8 +6,6 @@ reproduced on `dev` at `2781090` before it was filed.
 
 ## Defects
 
-- [ ] **7. A comment kept from a removed table prints below a table added later.** `# about a\n[a]\nx=1\n`, remove
-  `a`, add `[c]`: `[c]\nz = 1\n# about a`. Goal 4.
 - [ ] **8. After an `encodeInto` reorder of an array of tables the blank lines shift.** The text starts with a
   blank line and the one between two elements is gone. Goal 4.
 - [ ] **9. A parse error after a byte order mark is one column off.** `"﻿a = = 1"` reports column 6; the
@@ -64,6 +62,12 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **7. A comment kept from a removed table prints below a table added later.** `# about a\n[a]\nx=1\n`, remove
+  `a`, add `[c]`: `[c]\nz = 1\n# about a`. Goal 4.
+  **Verdict 2026-10-05:** fixed. A table made by hand follows the last table walked or the lines kept from its
+  parent's removed tables, whichever stands later (`DocumentParts.add`). A test in `RemovalKeepsCommentsTest`; core
+  and serialization JVM green.
 
 - [x] **6. Adding to an inline table puts a space before the comma.** `{ x = 1 }` plus `y` prints
   `{ x = 1 , y = 2 }`. Goal 4.
