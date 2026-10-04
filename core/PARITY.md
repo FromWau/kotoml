@@ -138,7 +138,7 @@ section 1.
 
 | upstream | Kotlin | status | tests |
 |---|---|---|---|
-| `Source::new`, `lex`, `input` | `TomlSource(String)`, `lex()`, `input()` | done | `LexerTest`, `ParseDocumentTest` |
+| `Source::new`, `lex`, `input` | `TomlSource(String)`, `lex()`, `input` | done | `LexerTest`, `ParseDocumentTest` |
 | `Source::get(impl SourceIndex)` | `TomlSource.get(Span)`, `get(Token)`, `get(Event)` | done | `ParseDocumentTest` (every event is sliced) |
 | `Source::get_unchecked` | | n/a | behind the `unsafe` feature |
 | `SourceIndex` (sealed trait over `Span`, `Token`, `Event`) | the three `TomlSource.get` overloads | done | |

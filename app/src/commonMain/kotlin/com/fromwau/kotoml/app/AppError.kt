@@ -104,7 +104,8 @@ internal enum class FilterExpected {
 }
 
 /** The exit status for [error]: 2 for a malformed invocation, 1 for an input that failed. */
-internal fun AppError.exitCode(): Int = if (this is AppError.FilterSyntax) 2 else 1
+internal val AppError.exitCode: Int
+    get() = if (this is AppError.FilterSyntax) 2 else 1
 
 /** [error] as a person reads it. */
 internal fun AppError.describe(): String = when (this) {

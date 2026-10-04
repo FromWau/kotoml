@@ -65,7 +65,7 @@ internal fun parseSimpleKeyItem(source: TomlSource, errors: TomlSink, version: T
         return Key(key).withSpelling(Spelling(raw))
     }
     val raw = KeptText.withSpan(0, source.bytes.size)
-    return Key(source.input()).withSpelling(Spelling(raw))
+    return Key(source.input).withSpelling(Spelling(raw))
 }
 
 internal fun parseKeyPath(source: TomlSource, errors: TomlSink, version: TomlVersion): List<Key> {
@@ -173,7 +173,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
                     val value = value(input, context)
                     val (suffixSpan, newline) = wsCommentNewline(input)
                     val valueSuffix = suffixSpan?.let { KeptText.withSpan(it) } ?: KeptText()
-                    val decor = value.rawDecor()
+                    val decor = value.rawDecor
                     decor.prefix = valuePrefix
                     decor.suffix = valueSuffix
 
@@ -186,7 +186,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
 
         finishTable()
 
-        val text = source.input()
+        val text = source.input
         val input = SourceText(text)
         root.resolveSpans(input)
         return TomlDocument(root, takeTrailing().resolveSpans(input), lineEnding, text)
@@ -260,7 +260,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
             errors.report(
                 Reason.DuplicateKey(key.name),
                 unexpected = keySpan(key),
-                context = existing.key.span(),
+                context = existing.key.span,
             )
             return null
         }
@@ -291,7 +291,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
                 errors.report(
                     Reason.DuplicateKey(key.name),
                     unexpected = keySpan,
-                    context = entry.item.span(),
+                    context = entry.item.span,
                 )
                 return
             }
@@ -319,7 +319,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
                     errors.report(
                         Reason.DuplicateKey(key.name),
                         unexpected = keySpan(key),
-                        context = old.key.span(),
+                        context = old.key.span,
                     )
                     if (oldTable != null) currentTable = oldTable
                 }
@@ -358,7 +358,7 @@ private fun descendPath(
         val existing = table.items.getEntry(key.name)
         if (existing == null) {
             val newTable = Table()
-            newTable.span = key.span()
+            newTable.span = key.span
             newTable.isImplicit = true
             newTable.isDotted = dotted
             val held = key.copy()
@@ -391,7 +391,7 @@ private fun descendPath(
                 errors.report(
                     Reason.DottedKeyExtendsValue(key.name, value.type),
                     unexpected = keySpan(key),
-                    context = value.span(),
+                    context = value.span,
                 )
                 return null
             }
@@ -401,7 +401,7 @@ private fun descendPath(
     return table
 }
 
-private fun keySpan(key: Key): Span = key.written?.span() ?: Span.EMPTY
+private fun keySpan(key: Key): Span = key.written?.span ?: Span.EMPTY
 
 /** The whitespace and comment to the end of the line, and the newline ending it, if the input did not end first. */
 private fun wsCommentNewline(input: EventStream): Pair<Span?, Event?> {
@@ -635,7 +635,7 @@ private fun onArray(openEvent: Event, input: EventStream, context: ParseContext)
         currentPrefix = null
         val suffix = currentSuffix ?: event.span.before()
         currentSuffix = null
-        val decor = value.rawDecor()
+        val decor = value.rawDecor
         decor.prefix = KeptText.withSpan(prefix)
         decor.suffix = KeptText.withSpan(suffix)
         result.add(value)
@@ -716,13 +716,13 @@ private fun onInlineTable(openEvent: Event, input: EventStream, context: ParseCo
         val shared = mutableListOf<Key>()
         val table = descendInlinePath(result, path, true, errors, shared) ?: return
 
-        val decor = value.rawDecor()
+        val decor = value.rawDecor
         decor.prefix = KeptText.withSpan(prefix)
         decor.suffix = KeptText.withSpan(suffix)
 
         // "Likewise, using dotted keys to redefine tables already defined in [table] form is not allowed"
         val mixedTableTypes = table.isDotted == path.isEmpty()
-        val keySpan = key.written?.span() ?: event.span
+        val keySpan = key.written?.span ?: event.span
         if (mixedTableTypes) {
             errors.report(Reason.DuplicateKey(key.name), unexpected = keySpan)
         } else {
@@ -733,7 +733,7 @@ private fun onInlineTable(openEvent: Event, input: EventStream, context: ParseCo
                 entry?.order = context.nextOrder()
                 if (path.isNotEmpty()) entry?.pathSpelling = PathSpelling.of(path, shared)
             } else {
-                val oldSpan = existing.key.written?.span() ?: event.span
+                val oldSpan = existing.key.written?.span ?: event.span
                 errors.report(Reason.DuplicateKey(key.name), unexpected = keySpan, context = oldSpan)
             }
         }
@@ -837,7 +837,7 @@ private fun descendInlinePath(
         val existing = table.items.getEntry(key.name)
         if (existing == null) {
             val newTable = InlineTable()
-            newTable.span = key.span()
+            newTable.span = key.span
             newTable.isImplicit = true
             newTable.isDotted = dotted
             val held = key.copy()

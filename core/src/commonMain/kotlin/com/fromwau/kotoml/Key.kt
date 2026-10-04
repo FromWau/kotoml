@@ -70,7 +70,8 @@ public class Key(
             rawDottedDecor.set(value)
         }
 
-    internal fun span(): Span? = written?.span()
+    internal val span: Span?
+        get() = written?.span
 
     internal fun resolveSpans(input: SourceText) {
         rawLeafDecor.resolveSpans(input)
@@ -114,7 +115,7 @@ public class Key(
             val source = TomlSource(text)
             val sink = TomlSink(text)
             val key = parseSimpleKeyItem(source, sink, version)
-            sink.error()?.let { return Err(it) }
+            sink.error?.let { return Err(it) }
             key.resolveSpans(SourceText(text))
             return Ok(key)
         }
@@ -130,7 +131,7 @@ public class Key(
             val source = TomlSource(text)
             val sink = TomlSink(text)
             val keys = parseKeyPath(source, sink, version)
-            sink.error()?.let { return Err(it) }
+            sink.error?.let { return Err(it) }
             val input = SourceText(text)
             for (key in keys) key.resolveSpans(input)
             return Ok(keys)

@@ -26,7 +26,7 @@ internal class Lexer internal constructor(bytes: ByteArray) : Iterator<Token> {
 
     /** Lexes the rest of the input into a list, the [TokenKind.Eof] token included. */
     fun toList(): List<Token> {
-        val tokens = ArrayList<Token>((stream.remaining() + 3) / 4)
+        val tokens = ArrayList<Token>((stream.remaining + 3) / 4)
         while (hasNext()) tokens.add(next())
         return tokens
     }
@@ -36,7 +36,8 @@ internal class Lexer internal constructor(bytes: ByteArray) : Iterator<Token> {
 internal class LexStream(val bytes: ByteArray, var position: Int = 0) {
     fun isEmpty(): Boolean = position >= bytes.size
 
-    fun remaining(): Int = bytes.size - position
+    val remaining: Int
+        get() = bytes.size - position
 
     fun peek(): Int = byteAt(position)
 
@@ -270,13 +271,14 @@ internal enum class TokenKind {
     ;
 
     /** The string encoding a token of this kind is written in, or null when it is not a string. */
-    fun encoding(): Encoding? = when (this) {
-        LiteralString -> Encoding.LiteralString
-        BasicString -> Encoding.BasicString
-        MultilineLiteralString -> Encoding.MultilineLiteralString
-        MultilineBasicString -> Encoding.MultilineBasicString
-        else -> null
-    }
+    val encoding: Encoding?
+        get() = when (this) {
+            LiteralString -> Encoding.LiteralString
+            BasicString -> Encoding.BasicString
+            MultilineLiteralString -> Encoding.MultilineLiteralString
+            MultilineBasicString -> Encoding.MultilineBasicString
+            else -> null
+        }
 
 }
 

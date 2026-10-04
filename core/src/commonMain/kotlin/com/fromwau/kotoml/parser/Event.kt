@@ -182,7 +182,8 @@ internal class RecursionGuard(
 ) : EventReceiver {
     private var depth = 0L
 
-    private fun withinDepth(): Boolean = depth <= maxDepth.toLong()
+    private val withinDepth: Boolean
+        get() = depth <= maxDepth.toLong()
 
     override fun stdTableOpen(span: Span, error: ErrorSink): Unit = receiver.stdTableOpen(span, error)
 
@@ -195,7 +196,7 @@ internal class RecursionGuard(
     override fun inlineTableOpen(span: Span, error: ErrorSink): Boolean {
         val allowed = receiver.inlineTableOpen(span, error)
         depth += 1
-        val withinDepth = withinDepth()
+        val withinDepth = withinDepth
         if (allowed && !withinDepth) {
             error.reportError(ParseError(ParseErrorReason.RecursionLimit, unexpected = span))
         }
@@ -210,7 +211,7 @@ internal class RecursionGuard(
     override fun arrayOpen(span: Span, error: ErrorSink): Boolean {
         val allowed = receiver.arrayOpen(span, error)
         depth += 1
-        val withinDepth = withinDepth()
+        val withinDepth = withinDepth
         if (allowed && !withinDepth) {
             error.reportError(ParseError(ParseErrorReason.RecursionLimit, unexpected = span))
         }

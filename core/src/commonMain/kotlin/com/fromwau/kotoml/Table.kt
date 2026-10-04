@@ -134,7 +134,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
             val value = entry.item.valueOrNull ?: continue
             entry.key.rawLeafDecor.clear()
             entry.key.rawDottedDecor.clear()
-            value.rawDecor().clear()
+            value.rawDecor.clear()
         }
     }
 

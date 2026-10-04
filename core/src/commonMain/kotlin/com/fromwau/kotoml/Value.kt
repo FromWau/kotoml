@@ -44,7 +44,7 @@ public sealed interface Value {
 
         /** The text the value was written as, such as `0x10` for 16, or null when it has none of its own. */
         public val spelling: kotlin.String?
-            get() = formatted.spelling()
+            get() = formatted.spelling
 
         /** The text the value prints as: its [spelling], or the default one when it has none. */
         public val displaySpelling: kotlin.String
@@ -75,7 +75,7 @@ public sealed interface Value {
 
         /** The text the value was written as, such as `0x10` for 16, or null when it has none of its own. */
         public val spelling: kotlin.String?
-            get() = formatted.spelling()
+            get() = formatted.spelling
 
         /** The text the value prints as: its [spelling], or the default one when it has none. */
         public val displaySpelling: kotlin.String
@@ -106,7 +106,7 @@ public sealed interface Value {
 
         /** The text the value was written as, such as `0x10` for 16, or null when it has none of its own. */
         public val spelling: kotlin.String?
-            get() = formatted.spelling()
+            get() = formatted.spelling
 
         /** The text the value prints as: its [spelling], or the default one when it has none. */
         public val displaySpelling: kotlin.String
@@ -137,7 +137,7 @@ public sealed interface Value {
 
         /** The text the value was written as, such as `0x10` for 16, or null when it has none of its own. */
         public val spelling: kotlin.String?
-            get() = formatted.spelling()
+            get() = formatted.spelling
 
         /** The text the value prints as: its [spelling], or the default one when it has none. */
         public val displaySpelling: kotlin.String
@@ -168,7 +168,7 @@ public sealed interface Value {
 
         /** The text the value was written as, such as `0x10` for 16, or null when it has none of its own. */
         public val spelling: kotlin.String?
-            get() = formatted.spelling()
+            get() = formatted.spelling
 
         /** The text the value prints as: its [spelling], or the default one when it has none. */
         public val displaySpelling: kotlin.String
@@ -265,9 +265,9 @@ public sealed interface Value {
      * ```
      */
     public var decor: Decor
-        get() = rawDecor().toDecor()
+        get() = rawDecor.toDecor()
         set(value) {
-            rawDecor().set(value)
+            rawDecor.set(value)
         }
 
     /**
@@ -312,37 +312,39 @@ public sealed interface Value {
             val source = TomlSource(text)
             val sink = TomlSink(text)
             val value = parseValueItem(source, sink, version)
-            sink.error()?.let { return Err(it) }
+            sink.error?.let { return Err(it) }
             // Keep the spelling, not the decor: whitespace around the text is probably not intended.
-            value.rawDecor().clear()
+            value.rawDecor.clear()
             value.resolveSpans(SourceText(text))
             return Ok(value)
         }
     }
 }
 
-internal fun Value.rawDecor(): RawDecor = when (this) {
-    is Value.String -> formatted.decor
-    is Value.Integer -> formatted.decor
-    is Value.Float -> formatted.decor
-    is Value.Boolean -> formatted.decor
-    is Value.Datetime -> formatted.decor
-    is Value.Array -> array.rawDecor
-    is Value.InlineTable -> table.rawDecor
-}
+internal val Value.rawDecor: RawDecor
+    get() = when (this) {
+        is Value.String -> formatted.decor
+        is Value.Integer -> formatted.decor
+        is Value.Float -> formatted.decor
+        is Value.Boolean -> formatted.decor
+        is Value.Datetime -> formatted.decor
+        is Value.Array -> array.rawDecor
+        is Value.InlineTable -> table.rawDecor
+    }
 
-internal fun Value.span(): Span? = when (this) {
-    is Value.String -> formatted.span()
-    is Value.Integer -> formatted.span()
-    is Value.Float -> formatted.span()
-    is Value.Boolean -> formatted.span()
-    is Value.Datetime -> formatted.span()
-    is Value.Array -> array.span
-    is Value.InlineTable -> table.span
-}
+internal val Value.span: Span?
+    get() = when (this) {
+        is Value.String -> formatted.span
+        is Value.Integer -> formatted.span
+        is Value.Float -> formatted.span
+        is Value.Boolean -> formatted.span
+        is Value.Datetime -> formatted.span
+        is Value.Array -> array.span
+        is Value.InlineTable -> table.span
+    }
 
 internal fun Value.decorate(prefix: String, suffix: String) {
-    val decor = rawDecor()
+    val decor = rawDecor
     decor.prefix = KeptText.from(prefix)
     decor.suffix = KeptText.from(suffix)
 }

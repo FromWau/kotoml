@@ -29,7 +29,7 @@ private fun <T> Result<T, AppError>.orCliError(): Result<T, CliError> = mapError
     CliError.Domain(
         error = error,
         detail = error.describe(),
-        exitCode = error.exitCode(),
+        exitCode = error.exitCode,
         json = Json.encodeToJsonElement(AppError.serializer(), error),
     )
 }

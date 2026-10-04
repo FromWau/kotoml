@@ -91,7 +91,7 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
             val value = entry.item.valueOrNull ?: continue
             entry.key.rawLeafDecor.clear()
             entry.key.rawDottedDecor.clear()
-            value.rawDecor().clear()
+            value.rawDecor.clear()
         }
     }
 
@@ -125,7 +125,7 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
     public fun sortWith(comparator: Comparator<Pair<Key, Value>>) {
         // On one line the spacing belongs to the position, not to the entry, so it stays where it was.
         val spacing = if (printsOnOneLine()) {
-            visualValues().map { it.path.last().rawLeafDecor.prefix to it.value.rawDecor().suffix }
+            visualValues().map { it.path.last().rawLeafDecor.prefix to it.value.rawDecor.suffix }
         } else {
             null
         }
@@ -134,7 +134,7 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
         if (spacing == null) return
         for ((line, around) in visualValues().zip(spacing)) {
             line.path.last().rawLeafDecor.prefix = around.first
-            line.value.rawDecor().suffix = around.second
+            line.value.rawDecor.suffix = around.second
         }
     }
 
@@ -365,7 +365,7 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
                 is KeptLines -> line.text + textBefore(next)
                 is VisualValue -> textAfterRemovedElement(
                     prefix = line.entry.key.rawLeafDecor.prefix?.textOrNull.orEmpty(),
-                    suffix = line.value.rawDecor().suffix?.textOrNull.orEmpty(),
+                    suffix = line.value.rawDecor.suffix?.textOrNull.orEmpty(),
                     next = textBefore(next),
                     nextIsElement = next is VisualValue,
                 ) ?: continue

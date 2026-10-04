@@ -176,7 +176,8 @@ internal fun utf8Error(bytes: ByteArray): TomlParseError.Reason.InvalidUtf8? {
 internal class TomlSink(private val input: String) : ErrorSink {
     private var first: TomlParseError? = null
 
-    fun error(): TomlParseError? = first
+    val error: TomlParseError?
+        get() = first
 
     override fun reportError(error: ParseError) {
         report(

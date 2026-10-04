@@ -703,10 +703,10 @@ internal class DocumentParser(
 
     private fun inlineKey(current: Token) {
         if (current.kind == TokenKind.Dot) {
-            receiver.simpleKey(current.span.before(), current.kind.encoding(), error)
+            receiver.simpleKey(current.span.before(), current.kind.encoding, error)
             tokens.seek(-1)
         } else {
-            receiver.simpleKey(current.span, current.kind.encoding(), error)
+            receiver.simpleKey(current.span, current.kind.encoding, error)
         }
         optDotKeys()
     }

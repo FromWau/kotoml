@@ -214,7 +214,7 @@ public class TomlDocument internal constructor(
         ): Result<TomlDocument, TomlParseError> {
             val errors = TomlSink(text)
             val document = parseDocumentModel(TomlSource(text), errors, version)
-            errors.error()?.let { return Err(it) }
+            errors.error?.let { return Err(it) }
             return Ok(document)
         }
 

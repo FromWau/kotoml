@@ -5,7 +5,7 @@ import com.fromwau.kotoml.writer.rustDebug
 // Upstream's derived and hand-written `Debug` for the document model, field for field.
 
 internal fun KeptText.dbg(): Dbg {
-    val span = span()
+    val span = span
     val text = textOrNull
     return when {
         span != null -> lit("${span.start}..${span.end}")

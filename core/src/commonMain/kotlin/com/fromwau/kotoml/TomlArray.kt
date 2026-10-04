@@ -159,7 +159,7 @@ public class TomlArray() : Iterable<Value> {
         keepDecor: Boolean = true,
     ): Result<Value, TomlEditError> {
         val old = get(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
-        if (keepDecor) value.rawDecor().assign(old.rawDecor())
+        if (keepDecor) value.rawDecor.assign(old.rawDecor)
         values[index] = Item.inArray(value)
         return Ok(old)
     }
@@ -204,7 +204,7 @@ public class TomlArray() : Iterable<Value> {
     }
 
     private fun removeSlot(index: Int) {
-        val decor = values[index].valueOrNull?.rawDecor()
+        val decor = values[index].valueOrNull?.rawDecor
         if (decor != null) {
             val next = values
                 .subList(index + 1, values.size)
@@ -212,11 +212,11 @@ public class TomlArray() : Iterable<Value> {
             val replacement = textAfterRemovedElement(
                 prefix = decor.prefix?.textOrNull.orEmpty(),
                 suffix = decor.suffix?.textOrNull.orEmpty(),
-                next = next?.rawDecor()?.prefix?.textOrNull ?: trailing,
+                next = next?.rawDecor?.prefix?.textOrNull ?: trailing,
                 nextIsElement = next != null,
             )
             if (replacement != null && next != null) {
-                next.rawDecor().prefix = KeptText.from(replacement)
+                next.rawDecor.prefix = KeptText.from(replacement)
             } else if (replacement != null) {
                 trailing = replacement
                 // The comma before the removed element ends its line now, ahead of the lines kept.
@@ -242,12 +242,12 @@ public class TomlArray() : Iterable<Value> {
 
     private fun sortItemsWith(comparator: Comparator<Item>) {
         // On one line the spacing belongs to the position, not to the value, so it stays where it was.
-        val spacing = if (printsOnOneLine()) printedValues().map { it.rawDecor().prefix to it.rawDecor().suffix } else null
+        val spacing = if (printsOnOneLine()) printedValues().map { it.rawDecor.prefix to it.rawDecor.suffix } else null
         values.sortWith(comparator)
         if (spacing == null) return
         for ((value, around) in printedValues().zip(spacing)) {
-            value.rawDecor().prefix = around.first
-            value.rawDecor().suffix = around.second
+            value.rawDecor.prefix = around.first
+            value.rawDecor.suffix = around.second
         }
     }
 

@@ -13,15 +13,15 @@ import com.fromwau.kotoml.Span
  * The text is held as UTF-8 bytes, which is what every [Span] counts. A `String` holding an unpaired
  * surrogate, which UTF-8 cannot encode, is read as if it held U+FFFD there.
  */
-internal class TomlSource(private val input: String) {
+internal class TomlSource(
+    /** The text this source was made from. */
+    val input: String,
+) {
 
     internal val bytes: ByteArray = input.encodeToByteArray()
 
     /** Starts lexing the text into [Token]s. */
     fun lex(): Lexer = Lexer(bytes)
-
-    /** The text this source was made from. */
-    fun input(): String = input
 
     /**
      * The bytes under [span], or null when the span reaches past the input or does not start and end on
@@ -30,7 +30,7 @@ internal class TomlSource(private val input: String) {
     fun get(span: Span): Raw? = get(span, encoding = null)
 
     /** The text of [token], carrying the string encoding its kind implies. */
-    fun get(token: Token): Raw? = get(token.span, token.kind.encoding())
+    fun get(token: Token): Raw? = get(token.span, token.kind.encoding)
 
     /** The text of [event], carrying the string encoding it was reported with. */
     fun get(event: Event): Raw? = get(event.span, event.encoding)

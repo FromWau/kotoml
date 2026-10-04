@@ -27,14 +27,15 @@ internal class KeyValue(var key: Key, item: Item) {
      * key's spacing behind, since it belongs to the line it stood on; the comments above it come along.
      */
     fun prepareFor(next: Item) {
-        if (item.isMissing || item.printsHeader() == next.printsHeader()) return
+        if (item.isMissing || item.printsHeader == next.printsHeader) return
         val decor = key.rawLeafDecor
         if (decor.prefix?.textOrNull.isNullOrBlank()) decor.prefix = null
         if (decor.suffix?.textOrNull.isNullOrBlank()) decor.suffix = null
     }
 }
 
-private fun Item.printsHeader(): Boolean = tableOrNull?.let { !it.isDotted } ?: (arrayOfTablesOrNull != null)
+private val Item.printsHeader: Boolean
+    get() = tableOrNull?.let { !it.isDotted } ?: (arrayOfTablesOrNull != null)
 
 /**
  * How one occurrence of a key path was spelled, and what the shared keys it stands for looked like then. It is

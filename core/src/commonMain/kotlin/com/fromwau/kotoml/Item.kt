@@ -329,12 +329,13 @@ public class Item private constructor(
     public val inlineTableOrNull: InlineTable?
         get() = valueOrNull?.inlineTableOrNull
 
-    internal fun span(): Span? = when (val content = content) {
-        Content.None -> null
-        is Content.ValueContent -> content.value.span()
-        is Content.TableContent -> content.table.span
-        is Content.ArrayOfTablesContent -> content.array.span
-    }
+    internal val span: Span?
+        get() = when (val content = content) {
+            Content.None -> null
+            is Content.ValueContent -> content.value.span
+            is Content.TableContent -> content.table.span
+            is Content.ArrayOfTablesContent -> content.array.span
+        }
 
     internal fun resolveSpans(input: SourceText) {
         when (val content = content) {

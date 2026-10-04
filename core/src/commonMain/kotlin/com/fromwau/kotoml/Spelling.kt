@@ -25,7 +25,8 @@ internal class KeptText private constructor(private val state: State) {
             is State.Spanned -> null
         }
 
-    fun span(): Span? = (state as? State.Spanned)?.span
+    val span: Span?
+        get() = (state as? State.Spanned)?.span
 
     fun text(input: SourceText): String = when (state) {
         State.Empty -> ""
@@ -83,7 +84,8 @@ internal class SourceText(val text: String) {
 internal data class Spelling(val raw: KeptText) {
     constructor(text: String) : this(KeptText.from(text))
 
-    fun span(): Span? = raw.span()
+    val span: Span?
+        get() = raw.span
 
     fun resolveSpans(input: SourceText): Spelling = Spelling(raw.resolveSpans(input))
 
@@ -185,13 +187,15 @@ internal class Formatted<T : Any> private constructor(
     fun defaultSpelling(): Spelling = toSpelling(value)
 
     /** The spelling as written, or null when it has none or it is still a span. */
-    fun spelling(): String? = written?.raw?.textOrNull
+    val spelling: String?
+        get() = written?.raw?.textOrNull
 
     /** The spelling printed: the original one when there is one, otherwise the default. */
     val displaySpelling: String
-        get() = spelling() ?: defaultSpelling().raw.textOrNull.orEmpty()
+        get() = spelling ?: defaultSpelling().raw.textOrNull.orEmpty()
 
-    fun span(): Span? = written?.span()
+    val span: Span?
+        get() = written?.span
 
     fun resolveSpans(input: SourceText) {
         decor.resolveSpans(input)

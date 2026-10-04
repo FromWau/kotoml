@@ -158,14 +158,15 @@ public sealed interface Offset : Comparable<Offset> {
     /** Orders [Z] first, then [Unknown], then each [Custom] by its minutes. */
     override fun compareTo(other: Offset): Int = when {
         this is Custom && other is Custom -> minutes.compareTo(other.minutes)
-        else -> rank().compareTo(other.rank())
+        else -> rank.compareTo(other.rank)
     }
 
-    private fun rank(): Int = when (this) {
-        Z -> 0
-        Unknown -> 1
-        is Custom -> 2
-    }
+    private val rank: Int
+        get() = when (this) {
+            Z -> 0
+            Unknown -> 1
+            is Custom -> 2
+        }
 }
 
 /**
