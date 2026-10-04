@@ -1,6 +1,6 @@
 package com.fromwau.kotoml.parser
 
-import com.fromwau.kotoml.DEFAULT
+import com.fromwau.kotoml.EMPTY
 import com.fromwau.kotoml.Encoding
 import com.fromwau.kotoml.Span
 import com.fromwau.kotoml.assertData
@@ -49,7 +49,7 @@ class DecoderStringTest {
             val error = mutableListOf<ParseError>()
             val actual = StringOutput()
             decodeLiteralString(
-                Raw.newUnchecked(input, Encoding.LiteralString, Span.DEFAULT),
+                Raw(input, Encoding.LiteralString, Span.EMPTY),
                 actual,
                 ErrorSink { error += it },
             )
@@ -101,7 +101,7 @@ trimmed in raw strings.
             val error = mutableListOf<ParseError>()
             val actual = StringOutput()
             decodeMlLiteralString(
-                Raw.newUnchecked(input, Encoding.MultilineLiteralString, Span.DEFAULT),
+                Raw(input, Encoding.MultilineLiteralString, Span.EMPTY),
                 actual,
                 ErrorSink { error += it },
             )
@@ -228,7 +228,7 @@ trailing
             val error = mutableListOf<ParseError>()
             val actual = StringOutput()
             decodeBasicString(
-                Raw.newUnchecked(input, Encoding.BasicString, Span.DEFAULT),
+                Raw(input, Encoding.BasicString, Span.EMPTY),
                 actual,
                 ErrorSink { error += it },
             )
@@ -384,7 +384,7 @@ Violets are blue
             val error = mutableListOf<ParseError>()
             val actual = StringOutput()
             decodeMlBasicString(
-                Raw.newUnchecked(input, Encoding.MultilineBasicString, Span.DEFAULT),
+                Raw(input, Encoding.MultilineBasicString, Span.EMPTY),
                 actual,
                 ErrorSink { error += it },
             )
@@ -483,7 +483,7 @@ Violets are blue
             val error = mutableListOf<ParseError>()
             val actual = StringOutput()
             decodeUnquotedKey(
-                Raw.newUnchecked(input, null, Span.DEFAULT),
+                Raw(input, null, Span.EMPTY),
                 actual,
                 ErrorSink { error += it },
             )

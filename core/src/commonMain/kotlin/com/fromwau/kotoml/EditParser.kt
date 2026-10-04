@@ -23,7 +23,7 @@ private fun collectEvents(
     errors: TomlSink,
     parse: (List<Token>, EventReceiver, ErrorSink) -> Unit,
 ): List<Event> {
-    val tokens = source.lex().intoVec()
+    val tokens = source.lex().toList()
     val events = ArrayList<Event>(tokens.size)
     val receiver = RecursionGuard(ValidateWhitespace(eventReceiver { events += it }, source), TomlDocument.NESTING_LIMIT.toUInt())
     parse(tokens, receiver, errors)
@@ -46,20 +46,20 @@ internal class ParseContext(val source: TomlSource, val errors: TomlSink, val ve
 
     fun nextOrder(): Long = nextOrder++
 
-    fun text(span: Span): String = source.get(span)?.asStr().orEmpty()
+    fun text(span: Span): String = source.get(span)?.text.orEmpty()
 }
 
 internal fun parseDocumentModel(source: TomlSource, errors: TomlSink, version: TomlVersion): TomlDocument {
     val events = collectEvents(source, errors, ::parseDocumentEvents)
     val context = ParseContext(source, errors, version)
-    val lineEnding = events.firstOrNull { it.kind() == EventKind.Newline }?.let { context.text(it.span()) } ?: "\n"
+    val lineEnding = events.firstOrNull { it.kind == EventKind.Newline }?.let { context.text(it.span) } ?: "\n"
     return DocumentBuilder(EventStream(events), context).document(lineEnding)
 }
 
 internal fun parseSimpleKeyItem(source: TomlSource, errors: TomlSink, version: TomlVersion): Key {
     val events = collectEvents(source, errors, ::parseSimpleKeyEvents)
     val context = ParseContext(source, errors, version)
-    val event = events.firstOrNull { it.kind() == EventKind.SimpleKey }
+    val event = events.firstOrNull { it.kind == EventKind.SimpleKey }
     if (event != null) {
         val (raw, key) = onSimpleKey(event, context)
         return Key(key).withSpelling(Spelling(raw))
@@ -77,9 +77,9 @@ internal fun parseKeyPath(source: TomlSource, errors: TomlSink, version: TomlVer
     var key: Key? = null
     var suffix: KeptText? = null
     while (true) {
-        val event = input.nextToken() ?: break
-        if (event.kind() == EventKind.Whitespace) {
-            val raw = KeptText.withSpan(event.span())
+        val event = input.next() ?: break
+        if (event.kind == EventKind.Whitespace) {
+            val raw = KeptText.withSpan(event.span)
             if (prefix == null) {
                 prefix = raw
             } else if (suffix == null) {
@@ -106,9 +106,9 @@ internal fun parseValueItem(source: TomlSource, errors: TomlSink, version: TomlV
 internal class EventStream(private val events: List<Event>) {
     private var position = 0
 
-    fun nextToken(): Event? = if (position < events.size) events[position++] else null
+    fun next(): Event? = if (position < events.size) events[position++] else null
 
-    fun first(): Event? = events.getOrNull(position)
+    fun peek(): Event? = events.getOrNull(position)
 
     fun get(offset: Int): Event? = events.getOrNull(position + offset)
 }
@@ -127,8 +127,8 @@ private class DocumentBuilder(private val input: EventStream, private val contex
 
     fun document(lineEnding: String): TomlDocument {
         while (true) {
-            val event = input.nextToken() ?: break
-            when (event.kind()) {
+            val event = input.next() ?: break
+            when (event.kind) {
                 EventKind.InlineTableOpen,
                 EventKind.InlineTableClose,
                 EventKind.ArrayOpen,
@@ -149,24 +149,24 @@ private class DocumentBuilder(private val input: EventStream, private val contex
                     val (suffixSpan, newline) = wsCommentNewline(input)
                     val suffix = suffixSpan?.let { KeptText.withSpan(it) } ?: KeptText()
                     startTable(header, RawDecor(prefix, suffix))
-                    currentTable.headerLineEnding = newline?.let { context.text(it.span()) }
+                    currentTable.headerLineEnding = newline?.let { context.text(it.span) }
                 }
                 EventKind.SimpleKey -> {
                     val keyPrefix = takeTrailing()
                     val (path, parsedKey) = onKey(event, input, context)
                     val key = parsedKey ?: break
-                    var next = input.nextToken() ?: break
+                    var next = input.next() ?: break
                     var keySuffix: Event? = null
-                    if (next.kind() == EventKind.Whitespace) {
+                    if (next.kind == EventKind.Whitespace) {
                         keySuffix = next
-                        next = input.nextToken() ?: break
+                        next = input.next() ?: break
                     }
-                    if (next.kind() != EventKind.KeyValSep) break
+                    if (next.kind != EventKind.KeyValSep) break
                     key.rawLeafDecor.prefix = keyPrefix
-                    key.rawLeafDecor.suffix = keySuffix?.let { KeptText.withSpan(it.span()) } ?: KeptText()
+                    key.rawLeafDecor.suffix = keySuffix?.let { KeptText.withSpan(it.span) } ?: KeptText()
 
-                    val valuePrefix = if (input.first()?.kind() == EventKind.Whitespace) {
-                        input.nextToken()?.let { KeptText.withSpan(it.span()) }
+                    val valuePrefix = if (input.peek()?.kind == EventKind.Whitespace) {
+                        input.next()?.let { KeptText.withSpan(it.span) }
                     } else {
                         null
                     } ?: KeptText()
@@ -178,7 +178,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
                     decor.suffix = valueSuffix
 
                     val entry = captureKeyValue(path, key, value)
-                    entry?.lineEnding = newline?.let { context.text(it.span()) }
+                    entry?.lineEnding = newline?.let { context.text(it.span) }
                 }
                 EventKind.Whitespace, EventKind.Comment, EventKind.Newline -> captureTrailing(event)
             }
@@ -193,39 +193,39 @@ private class DocumentBuilder(private val input: EventStream, private val contex
     }
 
     private fun onTable(openEvent: Event): TableHeader {
-        val isArray = openEvent.kind() == EventKind.ArrayTableOpen
+        val isArray = openEvent.kind == EventKind.ArrayTableOpen
         var currentPath: List<Key>? = null
         var currentKey: Key? = null
-        var currentSpan = openEvent.span()
+        var currentSpan = openEvent.span
         var currentPrefix: Span? = null
         var currentSuffix: Span? = null
 
         while (true) {
-            val event = input.nextToken() ?: break
-            when (event.kind()) {
+            val event = input.next() ?: break
+            when (event.kind) {
                 EventKind.ArrayTableClose, EventKind.StdTableClose -> {
-                    currentSpan = currentSpan.append(event.span())
+                    currentSpan = currentSpan.append(event.span)
                     break
                 }
                 EventKind.SimpleKey -> {
-                    if (currentPrefix == null) currentPrefix = event.span().before()
+                    if (currentPrefix == null) currentPrefix = event.span.before()
                     val (path, key) = onKey(event, input, context)
                     currentPath = path
                     currentKey = key
-                    if (currentSuffix == null) currentSuffix = event.span().after()
+                    if (currentSuffix == null) currentSuffix = event.span.after()
                 }
                 EventKind.Whitespace -> if (currentKey != null) {
-                    currentSuffix = event.span()
+                    currentSuffix = event.span
                 } else {
-                    currentPrefix = event.span()
+                    currentPrefix = event.span
                 }
                 else -> continue
             }
         }
 
         // The event parser reports a key, if only an empty one, inside every header.
-        val prefix = currentPrefix ?: openEvent.span().after()
-        val suffix = currentSuffix ?: openEvent.span().after()
+        val prefix = currentPrefix ?: openEvent.span.after()
+        val suffix = currentSuffix ?: openEvent.span.after()
         currentKey?.rawLeafDecor?.assign(RawDecor(KeptText.withSpan(prefix), KeptText.withSpan(suffix)))
 
         return TableHeader(currentPath ?: emptyList(), currentKey, currentSpan, isArray)
@@ -233,7 +233,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
 
     private fun captureTrailing(event: Event) {
         val trailing = currentTrailing
-        currentTrailing = trailing?.append(event.span()) ?: event.span()
+        currentTrailing = trailing?.append(event.span) ?: event.span
     }
 
     /** Adds a key/value line to the current table; returns its entry, unless the line was refused. */
@@ -271,7 +271,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
         currentTable = Table()
         val header = currentHeader
         if (header == null) {
-            previousTable.span = Span.DEFAULT
+            previousTable.span = Span.EMPTY
             root = previousTable
             return
         }
@@ -401,17 +401,17 @@ private fun descendPath(
     return table
 }
 
-private fun keySpan(key: Key): Span = key.written?.span() ?: Span.DEFAULT
+private fun keySpan(key: Key): Span = key.written?.span() ?: Span.EMPTY
 
 /** The whitespace and comment to the end of the line, and the newline ending it, if the input did not end first. */
 private fun wsCommentNewline(input: EventStream): Pair<Span?, Event?> {
     var currentSpan: Span? = null
     while (true) {
-        val event = input.nextToken() ?: break
-        when (event.kind()) {
+        val event = input.next() ?: break
+        when (event.kind) {
             EventKind.Whitespace, EventKind.Comment -> {
                 val span = currentSpan
-                currentSpan = span?.append(event.span()) ?: event.span()
+                currentSpan = span?.append(event.span) ?: event.span
             }
             EventKind.Newline -> return currentSpan to event
             else -> {}
@@ -433,9 +433,9 @@ internal fun onKey(keyEvent: Event, input: EventStream, context: ParseContext): 
     fun closeKey() {
         val key = currentKey ?: return
         currentKey = null
-        val prefixSpan = currentPrefix ?: key.span().before()
+        val prefixSpan = currentPrefix ?: key.span.before()
         currentPrefix = null
-        val suffixSpan = currentSuffix ?: key.span().after()
+        val suffixSpan = currentSuffix ?: key.span.after()
         currentSuffix = null
 
         val raw = context.source.get(key)
@@ -444,7 +444,7 @@ internal fun onKey(keyEvent: Event, input: EventStream, context: ParseContext): 
         checkEscapes(key, context)
 
         val parsed = Key(decoded.toString())
-            .withSpelling(Spelling(KeptText.withSpan(key.span())))
+            .withSpelling(Spelling(KeptText.withSpan(key.span)))
         parsed.rawDottedDecor.assign(RawDecor(KeptText.withSpan(prefixSpan), KeptText.withSpan(suffixSpan)))
         resultKey?.let { resultPath.add(it) }
         resultKey = parsed
@@ -452,16 +452,16 @@ internal fun onKey(keyEvent: Event, input: EventStream, context: ParseContext): 
 
     if (moreKey(input)) {
         while (true) {
-            val event = input.nextToken() ?: break
-            when (event.kind()) {
+            val event = input.next() ?: break
+            when (event.kind) {
                 EventKind.SimpleKey -> {
                     currentKey = event
                     if (!moreKey(input)) break
                 }
                 EventKind.Whitespace -> if (currentKey != null) {
-                    currentSuffix = event.span()
+                    currentSuffix = event.span
                 } else {
-                    currentPrefix = event.span()
+                    currentPrefix = event.span
                 }
                 EventKind.KeySep -> closeKey()
                 else -> continue
@@ -472,7 +472,7 @@ internal fun onKey(keyEvent: Event, input: EventStream, context: ParseContext): 
     closeKey()
 
     if (TomlDocument.NESTING_LIMIT <= resultPath.size) {
-        errors.report(Reason.KeyTooDeep, unexpected = keyEvent.span())
+        errors.report(Reason.KeyTooDeep, unexpected = keyEvent.span)
         return emptyList<Key>() to null
     }
 
@@ -480,8 +480,8 @@ internal fun onKey(keyEvent: Event, input: EventStream, context: ParseContext): 
 }
 
 private fun moreKey(input: EventStream): Boolean {
-    val first = input.get(0)?.kind()
-    val second = input.get(1)?.kind()
+    val first = input.get(0)?.kind
+    val second = input.get(1)?.kind
     return first == EventKind.KeySep || (first == EventKind.Whitespace && second == EventKind.KeySep)
 }
 
@@ -490,14 +490,14 @@ private fun onSimpleKey(event: Event, context: ParseContext): Pair<KeptText, Str
     val decoded = StringOutput()
     context.source.get(event)?.decodeKey(decoded, context.decodeErrors)
     checkEscapes(event, context)
-    return KeptText.withSpan(event.span()) to decoded.toString()
+    return KeptText.withSpan(event.span) to decoded.toString()
 }
 
 /** `val = string / boolean / array / inline-table / date-time / float / integer` */
 private fun value(input: EventStream, context: ParseContext): Value {
-    val event = input.nextToken()
+    val event = input.next()
     if (event != null) {
-        when (event.kind()) {
+        when (event.kind) {
             EventKind.InlineTableOpen -> return onInlineTable(event, input, context)
             EventKind.ArrayOpen -> return onArray(event, input, context)
             EventKind.Scalar -> return onScalar(event, context)
@@ -512,7 +512,7 @@ private fun value(input: EventStream, context: ParseContext): Value {
 
 private fun onScalar(event: Event, context: ParseContext): Value {
     val errors = context.errors
-    val valueRaw = KeptText.withSpan(event.span())
+    val valueRaw = KeptText.withSpan(event.span)
     val decoded = StringOutput()
     val kind = context.source.get(event)?.decodeScalar(decoded, context.decodeErrors) ?: ScalarKind.String
     val text = decoded.toString()
@@ -526,24 +526,24 @@ private fun onScalar(event: Event, context: ParseContext): Value {
             val datetime = when (val parsed = Datetime.parse(text)) {
                 is com.fromwau.kern.result.Result.Success -> parsed.value
                 is com.fromwau.kern.result.Result.Error -> {
-                    errors.report(Reason.InvalidDatetime(parsed.error), unexpected = event.span())
+                    errors.report(Reason.InvalidDatetime(parsed.error), unexpected = event.span)
                     Datetime(date = null, time = null, offset = null)
                 }
             }
             if (context.version == TomlVersion.V1_0 && datetime.time != null && datetime.time.second == null) {
-                errors.report(Reason.NotInToml10(Toml11Feature.TimeWithoutSeconds), unexpected = event.span())
+                errors.report(Reason.NotInToml10(Toml11Feature.TimeWithoutSeconds), unexpected = event.span)
             }
             Value.Datetime(Formatted.of(datetime).withSpelling(valueRaw))
         }
         ScalarKind.Float -> {
             val parsed = parseRustF64(text)
             val float = if (parsed == null) {
-                errors.reportError(ParseError(ParseErrorReason.InvalidScalar(kind), unexpected = event.span()))
+                errors.reportError(ParseError(ParseErrorReason.InvalidScalar(kind), unexpected = event.span))
                 Double.NaN
             } else {
                 val unsigned = if (text.startsWith('+') || text.startsWith('-')) text.substring(1) else text
                 if (parsed.isInfinite() && !unsigned.all { it in 'a'..'z' || it in 'A'..'Z' }) {
-                    errors.report(Reason.FloatOverflow, unexpected = event.span())
+                    errors.report(Reason.FloatOverflow, unexpected = event.span)
                 }
                 parsed
             }
@@ -554,7 +554,7 @@ private fun onScalar(event: Event, context: ParseContext): Value {
             val integer = parseRustI64(text, kind.radix.base) ?: run {
                 val digits = text.removePrefix("-").removePrefix("+")
                 val reason = if (digits.isEmpty()) Reason.MissingDigits(kind.radix) else Reason.IntegerOverflow
-                errors.report(reason, unexpected = event.span())
+                errors.report(reason, unexpected = event.span)
                 Long.MAX_VALUE
             }
             Value.Integer(Formatted.of(integer).withSpelling(valueRaw))
@@ -577,14 +577,14 @@ private val EXPECTED_ESCAPES_V1_0 = listOf(
 /** Refuses the `\x` and `\e` escapes of a basic string or key when reading TOML 1.0, which has neither. */
 private fun checkEscapes(event: Event, context: ParseContext) {
     if (context.version != TomlVersion.V1_0) return
-    val encoding = event.encoding()
+    val encoding = event.encoding
     if (encoding != Encoding.BasicString &&
         encoding != Encoding.MultilineBasicString
     ) {
         return
     }
     val bytes = context.source.bytes
-    val span = event.span()
+    val span = event.span
     var index = span.start
     while (index < span.end - 1) {
         if (bytes[index] != '\\'.code.toByte()) {
@@ -615,25 +615,25 @@ private fun <T : Any> Formatted<T>.withSpelling(raw: KeptText): Formatted<T> {
 /** `array = array-open array-values array-close` */
 private fun onArray(openEvent: Event, input: EventStream, context: ParseContext): Value {
     val result = TomlArray()
-    var closeSpan = openEvent.span()
+    var closeSpan = openEvent.span
 
     var currentPrefix: Span? = null
     var currentValue: Value? = null
-    var trailingStart: Int? = openEvent.span().end
+    var trailingStart: Int? = openEvent.span.end
     var currentSuffix: Span? = null
 
     fun captureValue(event: Event, value: Value) {
         trailingStart = null
-        if (currentPrefix == null) currentPrefix = event.span().before()
+        if (currentPrefix == null) currentPrefix = event.span.before()
         currentValue = value
     }
 
     fun finishValue(event: Event) {
         val value = currentValue ?: return
         currentValue = null
-        val prefix = currentPrefix ?: event.span().before()
+        val prefix = currentPrefix ?: event.span.before()
         currentPrefix = null
-        val suffix = currentSuffix ?: event.span().before()
+        val suffix = currentSuffix ?: event.span.before()
         currentSuffix = null
         val decor = value.rawDecor()
         decor.prefix = KeptText.withSpan(prefix)
@@ -642,9 +642,9 @@ private fun onArray(openEvent: Event, input: EventStream, context: ParseContext)
     }
 
     while (true) {
-        val event = input.nextToken() ?: break
-        closeSpan = event.span()
-        when (event.kind()) {
+        val event = input.next() ?: break
+        closeSpan = event.span
+        when (event.kind) {
             EventKind.StdTableOpen,
             EventKind.ArrayTableOpen,
             EventKind.InlineTableClose,
@@ -660,27 +660,27 @@ private fun onArray(openEvent: Event, input: EventStream, context: ParseContext)
             EventKind.Scalar -> captureValue(event, onScalar(event, context))
             EventKind.ValueSep -> {
                 finishValue(event)
-                trailingStart = event.span().end
+                trailingStart = event.span.end
             }
             EventKind.Whitespace, EventKind.Comment, EventKind.Newline -> {
                 if (currentValue == null) {
-                    currentPrefix = currentPrefix?.append(event.span()) ?: event.span()
+                    currentPrefix = currentPrefix?.append(event.span) ?: event.span
                 } else {
-                    currentSuffix = currentSuffix?.append(event.span()) ?: event.span()
+                    currentSuffix = currentSuffix?.append(event.span) ?: event.span
                 }
             }
             EventKind.ArrayClose -> {
                 finishValue(event)
                 val trailingComma = trailingStart != null && result.isNotEmpty()
-                val start = trailingStart ?: event.span().start
+                val start = trailingStart ?: event.span.start
                 result.trailingComma = trailingComma
-                result.rawTrailing = KeptText.withSpan(start, event.span().start)
-                result.span = openEvent.span().append(event.span())
+                result.rawTrailing = KeptText.withSpan(start, event.span.start)
+                result.span = openEvent.span.append(event.span)
                 break
             }
         }
     }
-    if (result.span == null) result.span = Span(openEvent.span().start, closeSpan.end)
+    if (result.span == null) result.span = Span(openEvent.span.start, closeSpan.end)
 
     return Value.Array(result)
 }
@@ -689,13 +689,13 @@ private fun onArray(openEvent: Event, input: EventStream, context: ParseContext)
 private fun onInlineTable(openEvent: Event, input: EventStream, context: ParseContext): Value {
     val errors = context.errors
     val result = InlineTable()
-    var closeSpan = openEvent.span()
+    var closeSpan = openEvent.span
 
     var currentPrefix: Span? = null
     var currentKey: Pair<List<Key>, Key>? = null
     var seenKeyvalSep = false
     var currentValue: Value? = null
-    var trailingStart: Int? = openEvent.span().end
+    var trailingStart: Int? = openEvent.span.end
     var lastSeparator: Span? = null
     var currentSuffix: Span? = null
 
@@ -709,9 +709,9 @@ private fun onInlineTable(openEvent: Event, input: EventStream, context: ParseCo
         currentValue = null
         if (keyed == null || value == null) return
         val (path, key) = keyed
-        val prefix = currentPrefix ?: event.span().before()
+        val prefix = currentPrefix ?: event.span.before()
         currentPrefix = null
-        val suffix = currentSuffix ?: event.span().before()
+        val suffix = currentSuffix ?: event.span.before()
         currentSuffix = null
         val shared = mutableListOf<Key>()
         val table = descendInlinePath(result, path, true, errors, shared) ?: return
@@ -722,7 +722,7 @@ private fun onInlineTable(openEvent: Event, input: EventStream, context: ParseCo
 
         // "Likewise, using dotted keys to redefine tables already defined in [table] form is not allowed"
         val mixedTableTypes = table.isDotted == path.isEmpty()
-        val keySpan = key.written?.span() ?: event.span()
+        val keySpan = key.written?.span() ?: event.span
         if (mixedTableTypes) {
             errors.report(Reason.DuplicateKey(key.name), unexpected = keySpan)
         } else {
@@ -733,16 +733,16 @@ private fun onInlineTable(openEvent: Event, input: EventStream, context: ParseCo
                 entry?.order = context.nextOrder()
                 if (path.isNotEmpty()) entry?.pathSpelling = PathSpelling.of(path, shared)
             } else {
-                val oldSpan = existing.key.written?.span() ?: event.span()
+                val oldSpan = existing.key.written?.span() ?: event.span
                 errors.report(Reason.DuplicateKey(key.name), unexpected = keySpan, context = oldSpan)
             }
         }
     }
 
     while (true) {
-        val event = input.nextToken() ?: break
-        closeSpan = event.span()
-        when (event.kind()) {
+        val event = input.next() ?: break
+        closeSpan = event.span
+        when (event.kind) {
             EventKind.StdTableOpen,
             EventKind.ArrayTableOpen,
             EventKind.StdTableClose,
@@ -754,52 +754,52 @@ private fun onInlineTable(openEvent: Event, input: EventStream, context: ParseCo
             EventKind.SimpleKey -> {
                 val (path, key) = onKey(event, input, context)
                 trailingStart = null
-                if (currentPrefix == null) currentPrefix = event.span().before()
+                if (currentPrefix == null) currentPrefix = event.span.before()
                 if (key != null) currentKey = path to key
             }
             EventKind.KeyValSep -> {
                 seenKeyvalSep = true
                 val lastKey = currentKey?.second
                 if (lastKey != null) {
-                    val prefix = currentPrefix ?: event.span().before()
+                    val prefix = currentPrefix ?: event.span.before()
                     currentPrefix = null
-                    val suffix = currentSuffix ?: event.span().before()
+                    val suffix = currentSuffix ?: event.span.before()
                     currentSuffix = null
                     lastKey.rawLeafDecor.assign(RawDecor(KeptText.withSpan(prefix), KeptText.withSpan(suffix)))
                 }
             }
             EventKind.InlineTableOpen -> {
                 val value = onInlineTable(event, input, context)
-                if (currentPrefix == null) currentPrefix = event.span().before()
+                if (currentPrefix == null) currentPrefix = event.span.before()
                 currentValue = value
             }
             EventKind.ArrayOpen -> {
                 val value = onArray(event, input, context)
-                if (currentPrefix == null) currentPrefix = event.span().before()
+                if (currentPrefix == null) currentPrefix = event.span.before()
                 currentValue = value
             }
             EventKind.Scalar -> {
                 val value = onScalar(event, context)
-                if (currentPrefix == null) currentPrefix = event.span().before()
+                if (currentPrefix == null) currentPrefix = event.span.before()
                 currentValue = value
             }
             EventKind.ValueSep -> {
                 finishValue(event)
-                trailingStart = event.span().end
-                lastSeparator = event.span()
+                trailingStart = event.span.end
+                lastSeparator = event.span
             }
             EventKind.Whitespace, EventKind.Comment, EventKind.Newline -> {
-                if (context.version == TomlVersion.V1_0 && event.kind() != EventKind.Whitespace) {
+                if (context.version == TomlVersion.V1_0 && event.kind != EventKind.Whitespace) {
                     errors.report(
                         Reason.NotInToml10(Toml11Feature.MultilineInlineTable),
-                        context = openEvent.span(),
-                        unexpected = event.span(),
+                        context = openEvent.span,
+                        unexpected = event.span,
                     )
                 }
                 if (isPrefix()) {
-                    currentPrefix = currentPrefix?.append(event.span()) ?: event.span()
+                    currentPrefix = currentPrefix?.append(event.span) ?: event.span
                 } else {
-                    currentSuffix = currentSuffix?.append(event.span()) ?: event.span()
+                    currentSuffix = currentSuffix?.append(event.span) ?: event.span
                 }
             }
             EventKind.InlineTableClose -> {
@@ -808,19 +808,19 @@ private fun onInlineTable(openEvent: Event, input: EventStream, context: ParseCo
                 if (context.version == TomlVersion.V1_0 && trailingComma) {
                     errors.report(
                         Reason.NotInToml10(Toml11Feature.InlineTableTrailingComma),
-                        context = openEvent.span(),
-                        unexpected = lastSeparator ?: event.span(),
+                        context = openEvent.span,
+                        unexpected = lastSeparator ?: event.span,
                     )
                 }
-                val start = trailingStart ?: event.span().start
+                val start = trailingStart ?: event.span.start
                 result.trailingComma = trailingComma
-                result.rawTrailing = KeptText.withSpan(start, event.span().start)
-                result.span = openEvent.span().append(event.span())
+                result.rawTrailing = KeptText.withSpan(start, event.span.start)
+                result.span = openEvent.span.append(event.span)
                 break
             }
         }
     }
-    if (result.span == null) result.span = Span(openEvent.span().start, closeSpan.end)
+    if (result.span == null) result.span = Span(openEvent.span.start, closeSpan.end)
 
     return Value.InlineTable(result)
 }

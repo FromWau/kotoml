@@ -244,40 +244,11 @@ internal class RecursionGuard(
 }
 
 /** One parse event: its [kind], the string [encoding] of a key or scalar, and the [span] it covers. */
-internal class Event(
-    private val kind: EventKind,
-    private val encoding: Encoding?,
-    private val span: Span,
-) : Comparable<Event> {
-
-    /** What kind of event this is. */
-    fun kind(): EventKind = kind
-
-    /** How a quoted key or scalar was written, or null for anything else. */
-    fun encoding(): Encoding? = encoding
-
-    /** The bytes of input this event covers. */
-    fun span(): Span = span
-
-    override fun compareTo(other: Event): Int {
-        val byKind = kind.compareTo(other.kind)
-        if (byKind != 0) return byKind
-        val byEncoding = when {
-            encoding == other.encoding -> 0
-            encoding == null -> -1
-            other.encoding == null -> 1
-            else -> encoding.compareTo(other.encoding)
-        }
-        return if (byEncoding != 0) byEncoding else span.compareTo(other.span)
-    }
-
-    override fun equals(other: Any?): Boolean =
-        other is Event && kind == other.kind && encoding == other.encoding && span == other.span
-
-    override fun hashCode(): Int = 31 * (31 * kind.hashCode() + encoding.hashCode()) + span.hashCode()
-
-    override fun toString(): String = "Event(kind=$kind, encoding=$encoding, span=$span)"
-}
+internal data class Event(
+    val kind: EventKind,
+    val encoding: Encoding?,
+    val span: Span,
+)
 
 /** The kinds of [Event]. */
 internal enum class EventKind {

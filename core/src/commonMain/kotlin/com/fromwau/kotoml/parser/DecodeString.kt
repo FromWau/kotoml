@@ -49,7 +49,7 @@ private fun isUnquotedChar(byte: Int): Boolean = byte in 'A'.code..'Z'.code ||
     byte == '_'.code
 
 private fun Raw.startsWithBytes(at: Int, prefix: ByteArray): Boolean = startsWith(bytes, from + at, prefix) &&
-    at + prefix.size <= len()
+    at + prefix.size <= length
 
 private fun Raw.pushText(output: DecodedStringBuilder, start: Int, end: Int) {
     output.append(text(start, end))
@@ -79,7 +79,7 @@ private fun Raw.codePointAt(offset: Int): Int {
 /** `literal-string = apostrophe *literal-char apostrophe` */
 internal fun decodeLiteralString(raw: Raw, output: DecodedStringBuilder, error: ErrorSink) {
     val invalidString = ParseErrorReason.InvalidString(Encoding.LiteralString)
-    val length = raw.len()
+    val length = raw.length
 
     output.clear()
 
@@ -135,7 +135,7 @@ private fun Raw.stripStartNewline(start: Int, end: Int): Int = when {
 /** `ml-literal-string = ml-literal-string-delim [ newline ] ml-literal-body ml-literal-string-delim` */
 internal fun decodeMlLiteralString(raw: Raw, output: DecodedStringBuilder, error: ErrorSink) {
     val invalidString = ParseErrorReason.InvalidString(Encoding.MultilineLiteralString)
-    val length = raw.len()
+    val length = raw.length
 
     output.clear()
 
@@ -217,7 +217,7 @@ private class Stream(val raw: Raw, var position: Int, val end: Int) {
 /** `basic-string = quotation-mark *basic-char quotation-mark` */
 internal fun decodeBasicString(raw: Raw, output: DecodedStringBuilder, error: ErrorSink) {
     val invalidString = ParseErrorReason.InvalidString(Encoding.BasicString)
-    val length = raw.len()
+    val length = raw.length
 
     output.clear()
 
@@ -281,7 +281,7 @@ internal fun decodeBasicString(raw: Raw, output: DecodedStringBuilder, error: Er
 
 /** `escape-seq-char`: the character after a `\`, which [stream] is positioned at. */
 private fun escapeSeqChar(stream: Stream, error: ErrorSink): Int {
-    val length = stream.raw.len()
+    val length = stream.raw.length
     val start = stream.position
     if (stream.isEmpty()) {
         error.reportError(
@@ -324,7 +324,7 @@ private fun escapeSeqChar(stream: Stream, error: ErrorSink): Int {
 }
 
 private fun hexEscape(stream: Stream, digits: Int, error: ErrorSink): Int {
-    val length = stream.raw.len()
+    val length = stream.raw.length
     val start = stream.position
     while (stream.position < stream.end && stream.position - start < digits && isHexDigit(stream.peek())) {
         stream.position++
@@ -368,7 +368,7 @@ private fun hexEscape(stream: Stream, digits: Int, error: ErrorSink): Int {
 /** `ml-basic-string = ml-basic-string-delim [ newline ] ml-basic-body ml-basic-string-delim` */
 internal fun decodeMlBasicString(raw: Raw, output: DecodedStringBuilder, error: ErrorSink) {
     val invalidString = ParseErrorReason.InvalidString(Encoding.MultilineBasicString)
-    val length = raw.len()
+    val length = raw.length
 
     var start = 0
     var end = length
@@ -455,7 +455,7 @@ private fun isMlbUnescaped(byte: Int): Boolean = isBasicUnescaped(byte) || byte 
 /** `mlb-escaped-nl = escape ws newline *( wschar / newline )`, with [stream] just past the escape. */
 private fun mlbEscapedNl(stream: Stream, error: ErrorSink) {
     val invalidString = ParseErrorReason.InvalidString(Encoding.MultilineBasicString)
-    val length = stream.raw.len()
+    val length = stream.raw.length
     stream.takeWhile(::isWsChar)
 
     val start = stream.position
@@ -517,7 +517,7 @@ private fun mlbEscapedNl(stream: Stream, error: ErrorSink) {
 
 /** `unquoted-key = 1*( ALPHA / DIGIT / %x2D / %x5F )` */
 internal fun decodeUnquotedKey(raw: Raw, output: DecodedStringBuilder, error: ErrorSink) {
-    val length = raw.len()
+    val length = raw.length
 
     if (length == 0) {
         error.reportError(
@@ -560,7 +560,7 @@ private fun reportInvalidUnquotedKey(error: ErrorSink, length: Int, start: Int, 
 
 /** `comment = comment-start-symbol *non-eol` */
 internal fun decodeCommentText(raw: Raw, error: ErrorSink) {
-    val length = raw.len()
+    val length = raw.length
     if (length == 0 || raw.byteAt(0) != COMMENT_START_SYMBOL) {
         error.reportError(
             ParseError(
@@ -590,7 +590,7 @@ internal fun decodeCommentText(raw: Raw, error: ErrorSink) {
 
 /** `newline = %x0A / %x0D.0A` */
 internal fun decodeNewlineText(raw: Raw, error: ErrorSink) {
-    val length = raw.len()
+    val length = raw.length
     if (length == 1 && raw.byteAt(0) == '\r'.code) {
         error.reportError(
             ParseError(

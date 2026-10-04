@@ -24,10 +24,10 @@ internal fun assertParsesBack(key: String, value: String, decoded: String) {
     val events = mutableListOf<Event>()
     val errors = mutableListOf<ParseError>()
     val sink = ErrorSink { errors += it }
-    parseDocument(source.lex().intoVec(), eventReceiver { events += it }, sink)
+    parseDocument(source.lex().toList(), eventReceiver { events += it }, sink)
 
-    val keys = events.filter { it.kind() == EventKind.SimpleKey }
-    val scalars = events.filter { it.kind() == EventKind.Scalar }
+    val keys = events.filter { it.kind == EventKind.SimpleKey }
+    val scalars = events.filter { it.kind == EventKind.Scalar }
     assertEquals(1, keys.size, "could not parse: $toml")
     assertEquals(1, scalars.size, "could not parse: $toml")
 

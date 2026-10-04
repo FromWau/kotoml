@@ -6,14 +6,14 @@ class ParseValueTest {
 
     private fun t(input: String, snapshot: String) {
         val actual = EventResults(input)
-        val tokens = TomlSource(input).lex().intoVec()
+        val tokens = TomlSource(input).lex().toList()
         parseValue(tokens, actual.receiver, actual.sink)
         actual.validate("testsuite__parse_value__$snapshot")
     }
 
     private fun tRecurse(input: String, maxDepth: UInt, snapshot: String) {
         val actual = EventResults(input)
-        val tokens = TomlSource(input).lex().intoVec()
+        val tokens = TomlSource(input).lex().toList()
         parseValue(tokens, RecursionGuard(actual.receiver, maxDepth), actual.sink)
         actual.validate("testsuite__parse_value__$snapshot")
     }

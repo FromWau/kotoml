@@ -17,7 +17,7 @@ private val EXPECTED_NOTHING = emptyList<Expected>()
 private fun isDigit(byte: Int): Boolean = byte in '0'.code..'9'.code
 
 private fun Raw.containsByte(from: Int, byte: Int): Boolean {
-    for (offset in from until len()) {
+    for (offset in from until length) {
         if (byteAt(offset) == byte) return true
     }
     return false
@@ -25,16 +25,16 @@ private fun Raw.containsByte(from: Int, byte: Int): Boolean {
 
 private fun Raw.endsWithText(suffix: String): Boolean {
     val bytes = suffix.encodeToByteArray()
-    if (bytes.size > len()) return false
+    if (bytes.size > length) return false
     for (index in bytes.indices) {
-        if (byteAt(len() - bytes.size + index) != (bytes[index].toInt() and 0xFF)) return false
+        if (byteAt(length - bytes.size + index) != (bytes[index].toInt() and 0xFF)) return false
     }
     return true
 }
 
-private fun Raw.textEquals(from: Int, expected: String): Boolean = text(from, len()) == expected
+private fun Raw.textEquals(from: Int, expected: String): Boolean = text(from, length) == expected
 
-private fun Raw.wholeContext(): Span = Span(0, len())
+private fun Raw.wholeContext(): Span = Span(0, length)
 
 internal fun decodeUnquotedScalar(raw: Raw, output: DecodedStringBuilder, error: ErrorSink): ScalarKind {
     if (raw.isEmpty()) return decodeInvalid(raw, output, error)
@@ -65,7 +65,7 @@ private fun decodeSignPrefix(raw: Raw, valueStart: Int, output: DecodedStringBui
     var value = valueStart
     var first: Int
     while (true) {
-        if (value >= raw.len()) return decodeInvalid(raw, output, error)
+        if (value >= raw.length) return decodeInvalid(raw, output, error)
         first = raw.byteAt(value)
         if (first != '+'.code && first != '-'.code) break
         error.reportError(
@@ -107,12 +107,12 @@ private fun decodeSignedSymbol(
                 ParseErrorReason.InvalidScalar(kind),
                 context = raw.wholeContext(),
                 expected = listOf(Expected.Literal(symbol)),
-                unexpected = Span(value, raw.len()),
+                unexpected = Span(value, raw.length),
             ),
         )
         decodeAs(raw, symbol, kind, output, error)
     } else {
-        decodeAs(raw, raw.asStr(), kind, output, error)
+        decodeAs(raw, raw.text, kind, output, error)
     }
 }
 
@@ -123,7 +123,7 @@ private fun decodeZeroPrefix(
     output: DecodedStringBuilder,
     error: ErrorSink,
 ): ScalarKind {
-    if (raw.len() - value == 1) {
+    if (raw.length - value == 1) {
         // No extra validation needed
         return decodeFloatOrInteger(0, raw, ScalarKind.Integer(IntegerRadix.Dec), output, error)
     }
@@ -185,8 +185,8 @@ private fun decodeDatetimeOrFloatOrInteger(
     error: ErrorSink,
 ): ScalarKind {
     var digitEnd = value
-    while (digitEnd < raw.len() && isDigit(raw.byteAt(digitEnd))) digitEnd++
-    if (digitEnd == raw.len()) {
+    while (digitEnd < raw.length && isDigit(raw.byteAt(digitEnd))) digitEnd++
+    if (digitEnd == raw.length) {
         val kind = ScalarKind.Integer(IntegerRadix.Dec)
         return if (ensureNoLeadingZero(value, raw, error)) {
             decodeFloatOrInteger(0, raw, kind, output, error)
@@ -198,7 +198,7 @@ private fun decodeDatetimeOrFloatOrInteger(
     val rest = digitEnd
     val restFirst = raw.byteAt(rest)
     return when {
-        restFirst == '-'.code || restFirst == ':'.code -> decodeAs(raw, raw.asStr(), ScalarKind.DateTime, output, error)
+        restFirst == '-'.code || restFirst == ':'.code -> decodeAs(raw, raw.text, ScalarKind.DateTime, output, error)
         raw.containsByte(rest, ' '.code) -> decodeInvalid(raw, output, error)
         isFloat(raw, rest) -> {
             val kind = ScalarKind.Float
@@ -235,7 +235,7 @@ private fun ensureFloat(valueStart: Int, raw: Raw, error: ErrorSink): Boolean {
         isValid = isValid and valid
     }
 
-    if (value < raw.len() && raw.byteAt(value) == '.'.code) {
+    if (value < raw.length && raw.byteAt(value) == '.'.code) {
         value += 1
         ensureDecUint(
             value,
@@ -249,9 +249,9 @@ private fun ensureFloat(valueStart: Int, raw: Raw, error: ErrorSink): Boolean {
         }
     }
 
-    if (value < raw.len() && (raw.byteAt(value) == 'e'.code || raw.byteAt(value) == 'E'.code)) {
+    if (value < raw.length && (raw.byteAt(value) == 'e'.code || raw.byteAt(value) == 'E'.code)) {
         value += 1
-        if (value < raw.len() && (raw.byteAt(value) == '+'.code || raw.byteAt(value) == '-'.code)) value += 1
+        if (value < raw.length && (raw.byteAt(value) == '+'.code || raw.byteAt(value) == '-'.code)) value += 1
         ensureDecUint(
             value,
             raw,
@@ -264,13 +264,13 @@ private fun ensureFloat(valueStart: Int, raw: Raw, error: ErrorSink): Boolean {
         }
     }
 
-    if (value < raw.len()) {
+    if (value < raw.length) {
         error.reportError(
             ParseError(
                 ParseErrorReason.InvalidScalar(ScalarKind.Float),
                 context = raw.wholeContext(),
                 expected = EXPECTED_NOTHING,
-                unexpected = Span(value, raw.len()),
+                unexpected = Span(value, raw.length),
             ),
         )
         isValid = false
@@ -290,7 +290,7 @@ private fun ensureDecUint(
     var isValid = true
     var value = start
     var digitCount = 0
-    while (value < raw.len()) {
+    while (value < raw.length) {
         val current = raw.byteAt(value)
         if (isDigit(current)) {
             digitCount += 1
@@ -330,7 +330,7 @@ private fun ensureDecUint(
 }
 
 private fun ensureNoLeadingZero(value: Int, raw: Raw, error: ErrorSink): Boolean {
-    if (value < raw.len() && raw.byteAt(value) == '0'.code) {
+    if (value < raw.length && raw.byteAt(value) == '0'.code) {
         error.reportError(
             ParseError(
                 ParseErrorReason.UnexpectedLeadingZero,
@@ -348,7 +348,7 @@ private fun ensureRadixedValue(valueStart: Int, raw: Raw, radix: IntegerRadix, e
     var isValid = true
 
     var value = valueStart
-    if (value < raw.len() && (raw.byteAt(value) == '+'.code || raw.byteAt(value) == '-'.code)) {
+    if (value < raw.length && (raw.byteAt(value) == '+'.code || raw.byteAt(value) == '-'.code)) {
         var position = 0
         while (raw.byteAt(position) != '+'.code && raw.byteAt(position) != '-'.code) position++
         error.reportError(
@@ -364,7 +364,7 @@ private fun ensureRadixedValue(valueStart: Int, raw: Raw, radix: IntegerRadix, e
     }
 
     var offset = value
-    while (offset < raw.len()) {
+    while (offset < raw.length) {
         val byte = raw.byteAt(offset)
         if (!radix.isValid(byte) && byte != '_'.code) {
             error.reportError(
@@ -392,10 +392,10 @@ private fun decodeFloatOrInteger(
     output.clear()
 
     var stream = streamStart
-    while (stream < raw.len()) {
+    while (stream < raw.length) {
         var separator = stream
-        while (separator < raw.len() && raw.byteAt(separator) != '_'.code) separator++
-        val hasSeparator = separator < raw.len()
+        while (separator < raw.length && raw.byteAt(separator) != '_'.code) separator++
+        val hasSeparator = separator < raw.length
 
         val partStart = stream
         val partEnd = separator
@@ -411,7 +411,7 @@ private fun decodeFloatOrInteger(
                 isInvalidSeparator = true
             }
 
-            if (stream < raw.len()) {
+            if (stream < raw.length) {
                 if (!isAnyDigit(raw.byteAt(stream), kind)) isInvalidSeparator = true
             } else {
                 isInvalidSeparator = true
@@ -507,6 +507,6 @@ private fun decodeInvalid(raw: Raw, output: DecodedStringBuilder, error: ErrorSi
     }
 
     output.clear()
-    output.append(raw.asStr())
+    output.append(raw.text)
     return ScalarKind.String
 }

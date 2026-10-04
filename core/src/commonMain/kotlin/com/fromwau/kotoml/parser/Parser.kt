@@ -1,6 +1,6 @@
 package com.fromwau.kotoml.parser
 
-import com.fromwau.kotoml.DEFAULT
+import com.fromwau.kotoml.EMPTY
 import com.fromwau.kotoml.Encoding
 import com.fromwau.kotoml.Expected
 import com.fromwau.kotoml.ExpectedToken
@@ -51,9 +51,9 @@ internal fun parseValue(tokens: List<Token>, receiver: EventReceiver, error: Err
 internal class TokenStream(private val tokens: List<Token>) {
     private var position = 0
 
-    fun nextToken(): Token? = if (position < tokens.size) tokens[position++] else null
+    fun next(): Token? = if (position < tokens.size) tokens[position++] else null
 
-    fun first(): Token? = tokens.getOrNull(position)
+    fun peek(): Token? = tokens.getOrNull(position)
 
     fun get(offset: Int): Token? = tokens.getOrNull(position + offset)
 
@@ -69,21 +69,21 @@ internal class TokenStream(private val tokens: List<Token>) {
     /** The span of the last consumed token that is not whitespace, a comment, a newline or the end. */
     fun previousSignificantSpan(): Span {
         for (index in position - 1 downTo 0) {
-            val kind = tokens[index].kind()
+            val kind = tokens[index].kind
             if (kind != TokenKind.Whitespace &&
                 kind != TokenKind.Comment &&
                 kind != TokenKind.Newline &&
                 kind != TokenKind.Eof
             ) {
-                return tokens[index].span()
+                return tokens[index].span
             }
         }
-        return Span.DEFAULT
+        return Span.EMPTY
     }
 
     fun previousNonWhitespace(): Token? {
         for (index in position - 1 downTo 0) {
-            if (tokens[index].kind() != TokenKind.Whitespace) return tokens[index]
+            if (tokens[index].kind != TokenKind.Whitespace) return tokens[index]
         }
         return null
     }
@@ -134,8 +134,8 @@ internal class DocumentParser(
 
     fun document() {
         while (true) {
-            val current = tokens.nextToken() ?: break
-            when (current.kind()) {
+            val current = tokens.next() ?: break
+            when (current.kind) {
                 TokenKind.LeftSquareBracket -> onTable(current)
                 TokenKind.RightSquareBracket -> onMissingStdTable(current)
                 TokenKind.LiteralString -> onExpressionKey(current, Encoding.LiteralString)
@@ -144,14 +144,14 @@ internal class DocumentParser(
                 TokenKind.MultilineBasicString -> onExpressionKey(current, Encoding.MultilineBasicString)
                 TokenKind.Atom -> onExpressionKey(current, null)
                 TokenKind.Equals -> {
-                    receiver.simpleKey(current.span().before(), null, error)
+                    receiver.simpleKey(current.span.before(), null, error)
                     onExpressionKeyValSep(current)
                 }
                 TokenKind.Dot -> onExpressionDot(current)
                 TokenKind.Comma, TokenKind.RightCurlyBracket, TokenKind.LeftCurlyBracket ->
                     onMissingExpressionKey(current)
-                TokenKind.Whitespace -> receiver.whitespace(current.span(), error)
-                TokenKind.Newline -> receiver.newline(current.span(), error)
+                TokenKind.Whitespace -> receiver.whitespace(current.span, error)
+                TokenKind.Newline -> receiver.newline(current.span, error)
                 TokenKind.Comment -> onComment(current)
                 TokenKind.Eof -> break
             }
@@ -161,10 +161,10 @@ internal class DocumentParser(
     private fun onTable(openToken: Token) {
         val secondOpen = nextTokenIf { it == TokenKind.LeftSquareBracket }
         val isArrayTable = if (secondOpen != null) {
-            receiver.arrayTableOpen(openToken.span().append(secondOpen.span()), error)
+            receiver.arrayTableOpen(openToken.span.append(secondOpen.span), error)
             true
         } else {
-            receiver.stdTableOpen(openToken.span(), error)
+            receiver.stdTableOpen(openToken.span, error)
             false
         }
 
@@ -180,32 +180,32 @@ internal class DocumentParser(
             if (isArrayTable) {
                 val secondClose = nextTokenIf { it == TokenKind.RightSquareBracket }
                 if (secondClose != null) {
-                    receiver.arrayTableClose(closeToken.span().append(secondClose.span()), error)
+                    receiver.arrayTableClose(closeToken.span.append(secondClose.span), error)
                     success = true
                 } else {
                     error.reportError(
                         ParseError(
                             ParseErrorReason.UnclosedArrayTable,
-                            context = openToken.span().append(closeToken.span()),
+                            context = openToken.span.append(closeToken.span),
                             expected = listOf(Expected.Literal("]")),
-                            unexpected = closeToken.span().after(),
+                            unexpected = closeToken.span.after(),
                         ),
                     )
                 }
             } else {
-                receiver.stdTableClose(closeToken.span(), error)
+                receiver.stdTableClose(closeToken.span, error)
                 success = true
             }
         } else if (validKey) {
             val lastKeyToken = tokens.previousNonWhitespace() ?: openToken
-            val context = openToken.span().append(lastKeyToken.span())
+            val context = openToken.span.append(lastKeyToken.span)
             if (isArrayTable) {
                 error.reportError(
                     ParseError(
                         ParseErrorReason.UnclosedArrayTable,
                         context = context,
                         expected = listOf(Expected.Literal("]]")),
-                        unexpected = lastKeyToken.span().after(),
+                        unexpected = lastKeyToken.span.after(),
                     ),
                 )
             } else {
@@ -214,7 +214,7 @@ internal class DocumentParser(
                         ParseErrorReason.UnclosedTable,
                         context = context,
                         expected = listOf(Expected.Literal("]")),
-                        unexpected = lastKeyToken.span().after(),
+                        unexpected = lastKeyToken.span.after(),
                     ),
                 )
             }
@@ -229,8 +229,8 @@ internal class DocumentParser(
 
     fun key(invalidReason: ParseErrorReason): Boolean {
         while (true) {
-            val current = tokens.nextToken() ?: break
-            val encoding = when (current.kind()) {
+            val current = tokens.next() ?: break
+            val encoding = when (current.kind) {
                 TokenKind.RightSquareBracket,
                 TokenKind.Comment,
                 TokenKind.Equals,
@@ -241,17 +241,17 @@ internal class DocumentParser(
                 TokenKind.Newline,
                 TokenKind.Eof,
                 -> {
-                    receiver.simpleKey(current.span().before(), null, error)
+                    receiver.simpleKey(current.span.before(), null, error)
                     tokens.seek(-1)
                     return false
                 }
                 TokenKind.Whitespace -> {
-                    receiver.whitespace(current.span(), error)
+                    receiver.whitespace(current.span, error)
                     continue
                 }
                 TokenKind.Dot -> {
-                    receiver.simpleKey(current.span().before(), null, error)
-                    receiver.keySep(current.span(), error)
+                    receiver.simpleKey(current.span.before(), null, error)
+                    receiver.keySep(current.span, error)
                     continue
                 }
                 TokenKind.LiteralString -> Encoding.LiteralString
@@ -260,7 +260,7 @@ internal class DocumentParser(
                 TokenKind.MultilineBasicString -> Encoding.MultilineBasicString
                 TokenKind.Atom -> null
             }
-            receiver.simpleKey(current.span(), encoding, error)
+            receiver.simpleKey(current.span, encoding, error)
             return optDotKeys()
         }
 
@@ -277,15 +277,15 @@ internal class DocumentParser(
     }
 
     private fun onExpressionKey(keyToken: Token, encoding: Encoding?) {
-        receiver.simpleKey(keyToken.span(), encoding, error)
+        receiver.simpleKey(keyToken.span, encoding, error)
         optDotKeys()
 
         optWhitespace()
 
         val eqToken = nextTokenIf { it == TokenKind.Equals }
         if (eqToken == null) {
-            tokens.first()?.let { peek ->
-                val span = peek.span().before()
+            tokens.peek()?.let { peek ->
+                val span = peek.span.before()
                 error.reportError(
                     ParseError(
                         ParseErrorReason.KeyWithoutValue,
@@ -302,7 +302,7 @@ internal class DocumentParser(
     }
 
     private fun onExpressionDot(dotToken: Token) {
-        receiver.simpleKey(dotToken.span().before(), null, error)
+        receiver.simpleKey(dotToken.span.before(), null, error)
         tokens.seek(-1)
         optDotKeys()
 
@@ -310,8 +310,8 @@ internal class DocumentParser(
 
         val eqToken = nextTokenIf { it == TokenKind.Equals }
         if (eqToken == null) {
-            tokens.first()?.let { peek ->
-                val span = peek.span().before()
+            tokens.peek()?.let { peek ->
+                val span = peek.span.before()
                 error.reportError(
                     ParseError(
                         ParseErrorReason.MissingValueForKey,
@@ -328,7 +328,7 @@ internal class DocumentParser(
     }
 
     private fun onExpressionKeyValSep(eqToken: Token) {
-        receiver.keyValSep(eqToken.span(), error)
+        receiver.keyValSep(eqToken.span, error)
 
         optWhitespace()
 
@@ -338,7 +338,7 @@ internal class DocumentParser(
     }
 
     fun simpleKey(invalidReason: ParseErrorReason) {
-        val current = tokens.nextToken()
+        val current = tokens.next()
         if (current == null) {
             val previousSpan = tokens.previousSignificantSpan()
             error.reportError(
@@ -352,7 +352,7 @@ internal class DocumentParser(
             return
         }
 
-        val kind = when (current.kind()) {
+        val kind = when (current.kind) {
             TokenKind.Dot,
             TokenKind.RightSquareBracket,
             TokenKind.Comment,
@@ -374,9 +374,9 @@ internal class DocumentParser(
                 error.reportError(
                     ParseError(
                         invalidReason,
-                        context = current.span(),
+                        context = current.span,
                         expected = EXPECTED_KEYS,
-                        unexpected = current.span(),
+                        unexpected = current.span,
                     ),
                 )
                 Encoding.MultilineLiteralString
@@ -385,16 +385,16 @@ internal class DocumentParser(
                 error.reportError(
                     ParseError(
                         invalidReason,
-                        context = current.span(),
+                        context = current.span,
                         expected = EXPECTED_KEYS,
-                        unexpected = current.span(),
+                        unexpected = current.span,
                     ),
                 )
                 Encoding.MultilineBasicString
             }
             TokenKind.Atom -> null
         }
-        receiver.simpleKey(current.span(), kind, error)
+        receiver.simpleKey(current.span, kind, error)
     }
 
     private fun optDotKeys(): Boolean {
@@ -403,11 +403,11 @@ internal class DocumentParser(
         var success = true
         dot@ while (true) {
             val dotToken = nextTokenIf { it == TokenKind.Dot } ?: break
-            receiver.keySep(dotToken.span(), error)
+            receiver.keySep(dotToken.span, error)
 
             while (true) {
-                val current = tokens.nextToken() ?: break
-                val kind = when (current.kind()) {
+                val current = tokens.next() ?: break
+                val kind = when (current.kind) {
                     TokenKind.Equals,
                     TokenKind.Comma,
                     TokenKind.LeftSquareBracket,
@@ -418,19 +418,19 @@ internal class DocumentParser(
                     TokenKind.Newline,
                     TokenKind.Eof,
                     -> {
-                        receiver.simpleKey(current.span().before(), null, error)
+                        receiver.simpleKey(current.span.before(), null, error)
                         tokens.seek(-1)
 
                         success = false
                         break@dot
                     }
                     TokenKind.Whitespace -> {
-                        receiver.whitespace(current.span(), error)
+                        receiver.whitespace(current.span, error)
                         continue
                     }
                     TokenKind.Dot -> {
-                        receiver.simpleKey(current.span().before(), null, error)
-                        receiver.keySep(current.span(), error)
+                        receiver.simpleKey(current.span.before(), null, error)
+                        receiver.keySep(current.span, error)
                         continue
                     }
                     TokenKind.LiteralString -> Encoding.LiteralString
@@ -439,12 +439,12 @@ internal class DocumentParser(
                     TokenKind.MultilineBasicString -> Encoding.MultilineBasicString
                     TokenKind.Atom -> null
                 }
-                receiver.simpleKey(current.span(), kind, error)
+                receiver.simpleKey(current.span, kind, error)
                 optWhitespace()
                 continue@dot
             }
 
-            receiver.simpleKey(dotToken.span().after(), null, error)
+            receiver.simpleKey(dotToken.span.after(), null, error)
         }
 
         return success
@@ -453,7 +453,7 @@ internal class DocumentParser(
     fun value() {
         var current: Token
         while (true) {
-            current = tokens.nextToken() ?: run {
+            current = tokens.next() ?: run {
                 val previousSpan = tokens.previousSignificantSpan()
                 error.reportError(
                     ParseError(
@@ -465,26 +465,26 @@ internal class DocumentParser(
                 )
                 return
             }
-            if (current.kind() != TokenKind.Equals) break
+            if (current.kind != TokenKind.Equals) break
             error.reportError(
                 ParseError(
                     ParseErrorReason.ExtraEquals,
-                    context = current.span(),
+                    context = current.span,
                     expected = EXPECTED_NOTHING,
-                    unexpected = current.span(),
+                    unexpected = current.span,
                 ),
             )
-            receiver.error(current.span(), error)
+            receiver.error(current.span, error)
         }
 
-        when (current.kind()) {
+        when (current.kind) {
             TokenKind.Comment,
             TokenKind.Comma,
             TokenKind.Newline,
             TokenKind.Eof,
             TokenKind.Whitespace,
             -> {
-                receiver.scalar(current.span().before(), null, error)
+                receiver.scalar(current.span.before(), null, error)
                 tokens.seek(-1)
             }
             TokenKind.Equals -> {}
@@ -493,28 +493,28 @@ internal class DocumentParser(
                 error.reportError(
                     ParseError(
                         ParseErrorReason.MissingInlineTableOpening,
-                        context = current.span(),
+                        context = current.span,
                         expected = listOf(Expected.Literal("{")),
-                        unexpected = current.span().before(),
+                        unexpected = current.span.before(),
                     ),
                 )
 
-                receiver.inlineTableOpen(current.span().before(), error)
-                receiver.inlineTableClose(current.span(), error)
+                receiver.inlineTableOpen(current.span.before(), error)
+                receiver.inlineTableClose(current.span, error)
             }
             TokenKind.LeftSquareBracket -> onNestedOpen(current, isArray = true)
             TokenKind.RightSquareBracket -> {
                 error.reportError(
                     ParseError(
                         ParseErrorReason.MissingArrayOpening,
-                        context = current.span(),
+                        context = current.span,
                         expected = listOf(Expected.Literal("[")),
-                        unexpected = current.span().before(),
+                        unexpected = current.span.before(),
                     ),
                 )
 
-                receiver.arrayOpen(current.span().before(), error)
-                receiver.arrayClose(current.span(), error)
+                receiver.arrayOpen(current.span.before(), error)
+                receiver.arrayClose(current.span, error)
             }
             TokenKind.LiteralString,
             TokenKind.BasicString,
@@ -527,28 +527,28 @@ internal class DocumentParser(
     }
 
     private fun onScalar(scalar: Token) {
-        var span = scalar.span()
-        val encoding = when (scalar.kind()) {
+        var span = scalar.span
+        val encoding = when (scalar.kind) {
             TokenKind.LiteralString -> Encoding.LiteralString
             TokenKind.BasicString -> Encoding.BasicString
             TokenKind.MultilineLiteralString -> Encoding.MultilineLiteralString
             TokenKind.MultilineBasicString -> Encoding.MultilineBasicString
             else -> {
                 while (true) {
-                    val next = tokens.first() ?: break
-                    when (next.kind()) {
+                    val next = tokens.peek() ?: break
+                    when (next.kind) {
                         TokenKind.Whitespace -> {
                             val second = tokens.get(1)
-                            if (second != null && second.kind() == TokenKind.Atom) {
-                                span = span.append(second.span())
+                            if (second != null && second.kind == TokenKind.Atom) {
+                                span = span.append(second.span)
                                 tokens.skip(2)
                                 continue
                             }
                             break
                         }
                         TokenKind.Dot, TokenKind.Atom -> {
-                            span = span.append(next.span())
-                            tokens.nextToken()
+                            span = span.append(next.span)
+                            tokens.next()
                         }
                         else -> break
                     }
@@ -577,13 +577,13 @@ internal class DocumentParser(
 
     private fun enter(open: Token, isArray: Boolean, stack: ArrayDeque<Frame>) {
         if (isArray) {
-            if (receiver.arrayOpen(open.span(), error)) {
+            if (receiver.arrayOpen(open.span, error)) {
                 stack.addLast(ArrayFrame(open))
             } else {
                 ignoreToValueClose(TokenKind.RightSquareBracket)
             }
         } else {
-            if (receiver.inlineTableOpen(open.span(), error)) {
+            if (receiver.inlineTableOpen(open.span, error)) {
                 stack.addLast(InlineFrame(open))
             } else {
                 ignoreToValueClose(TokenKind.RightCurlyBracket)
@@ -596,37 +596,37 @@ internal class DocumentParser(
             error.reportError(
                 ParseError(
                     ParseErrorReason.MissingArrayComma,
-                    context = frame.open.span(),
+                    context = frame.open.span,
                     expected = EXPECTED_COMMA,
-                    unexpected = current.span().before(),
+                    unexpected = current.span.before(),
                 ),
             )
-            receiver.valueSep(current.span().before(), error)
+            receiver.valueSep(current.span.before(), error)
         }
     }
 
     /** Consumes one token of the array in [frame]; returns whether the array is finished. */
     private fun stepArray(frame: ArrayFrame, stack: ArrayDeque<Frame>): Boolean {
-        val current = tokens.nextToken() ?: return finishUnclosedArray(frame)
-        when (current.kind()) {
+        val current = tokens.next() ?: return finishUnclosedArray(frame)
+        when (current.kind) {
             TokenKind.Comment -> onComment(current)
-            TokenKind.Whitespace -> receiver.whitespace(current.span(), error)
-            TokenKind.Newline -> receiver.newline(current.span(), error)
+            TokenKind.Whitespace -> receiver.whitespace(current.span, error)
+            TokenKind.Newline -> receiver.newline(current.span, error)
             TokenKind.Eof -> return finishUnclosedArray(frame)
             TokenKind.Comma -> when (frame.state) {
                 ArrayState.NeedsValue -> {
                     error.reportError(
                         ParseError(
                             ParseErrorReason.ExtraArrayComma,
-                            context = frame.open.span(),
+                            context = frame.open.span,
                             expected = EXPECTED_VALUE,
-                            unexpected = current.span(),
+                            unexpected = current.span,
                         ),
                     )
-                    receiver.error(current.span(), error)
+                    receiver.error(current.span, error)
                 }
                 ArrayState.NeedsComma -> {
-                    receiver.valueSep(current.span(), error)
+                    receiver.valueSep(current.span, error)
                     frame.state = ArrayState.NeedsValue
                 }
             }
@@ -634,12 +634,12 @@ internal class DocumentParser(
                 error.reportError(
                     ParseError(
                         ParseErrorReason.UnexpectedEqualsInArray,
-                        context = frame.open.span(),
+                        context = frame.open.span,
                         expected = listOf(Expected.Token(ExpectedToken.Value), Expected.Literal("]")),
-                        unexpected = current.span(),
+                        unexpected = current.span,
                     ),
                 )
-                receiver.error(current.span(), error)
+                receiver.error(current.span, error)
             }
             TokenKind.LeftCurlyBracket -> {
                 missingArrayComma(frame, current)
@@ -652,14 +652,14 @@ internal class DocumentParser(
                 error.reportError(
                     ParseError(
                         ParseErrorReason.MissingInlineTableOpening,
-                        context = current.span(),
+                        context = current.span,
                         expected = listOf(Expected.Literal("{")),
-                        unexpected = current.span().before(),
+                        unexpected = current.span.before(),
                     ),
                 )
 
-                receiver.inlineTableOpen(current.span().before(), error)
-                receiver.inlineTableClose(current.span(), error)
+                receiver.inlineTableOpen(current.span.before(), error)
+                receiver.inlineTableClose(current.span, error)
 
                 frame.state = ArrayState.NeedsComma
             }
@@ -669,7 +669,7 @@ internal class DocumentParser(
                 enter(current, isArray = true, stack)
             }
             TokenKind.RightSquareBracket -> {
-                receiver.arrayClose(current.span(), error)
+                receiver.arrayClose(current.span, error)
                 return true
             }
             TokenKind.LiteralString,
@@ -692,7 +692,7 @@ internal class DocumentParser(
         error.reportError(
             ParseError(
                 ParseErrorReason.UnclosedArray,
-                context = frame.open.span(),
+                context = frame.open.span,
                 expected = listOf(Expected.Literal("]")),
                 unexpected = previousSpan.after(),
             ),
@@ -702,11 +702,11 @@ internal class DocumentParser(
     }
 
     private fun inlineKey(current: Token) {
-        if (current.kind() == TokenKind.Dot) {
-            receiver.simpleKey(current.span().before(), current.kind().encoding(), error)
+        if (current.kind == TokenKind.Dot) {
+            receiver.simpleKey(current.span.before(), current.kind.encoding(), error)
             tokens.seek(-1)
         } else {
-            receiver.simpleKey(current.span(), current.kind().encoding(), error)
+            receiver.simpleKey(current.span, current.kind.encoding(), error)
         }
         optDotKeys()
     }
@@ -714,49 +714,49 @@ internal class DocumentParser(
     /** Consumes one token of the inline table in [frame]; returns whether the table is finished. */
     private fun stepInlineTable(frame: InlineFrame, stack: ArrayDeque<Frame>): Boolean {
         val open = frame.open
-        val current = tokens.nextToken() ?: return finishUnclosedInlineTable(frame)
-        when (current.kind()) {
+        val current = tokens.next() ?: return finishUnclosedInlineTable(frame)
+        when (current.kind) {
             TokenKind.Comment -> onComment(current)
-            TokenKind.Whitespace -> receiver.whitespace(current.span(), error)
-            TokenKind.Newline -> receiver.newline(current.span(), error)
+            TokenKind.Whitespace -> receiver.whitespace(current.span, error)
+            TokenKind.Newline -> receiver.newline(current.span, error)
             TokenKind.Eof -> return finishUnclosedInlineTable(frame)
             TokenKind.Comma -> when (frame.state) {
                 InlineState.NeedsKey, InlineState.NeedsEquals, InlineState.NeedsValue -> {
                     error.reportError(
                         ParseError(
                             ParseErrorReason.ExtraInlineTableComma,
-                            context = open.span(),
+                            context = open.span,
                             expected = frame.state.expected(),
-                            unexpected = current.span().before(),
+                            unexpected = current.span.before(),
                         ),
                     )
-                    receiver.error(current.span(), error)
+                    receiver.error(current.span, error)
                 }
                 InlineState.NeedsComma -> {
-                    receiver.valueSep(current.span(), error)
+                    receiver.valueSep(current.span, error)
                     frame.state = InlineState.NeedsKey
                 }
             }
             TokenKind.Equals -> when (frame.state) {
                 InlineState.NeedsKey -> {
-                    receiver.simpleKey(current.span().before(), null, error)
-                    receiver.keyValSep(current.span(), error)
+                    receiver.simpleKey(current.span.before(), null, error)
+                    receiver.keyValSep(current.span, error)
                     frame.state = InlineState.NeedsValue
                 }
                 InlineState.NeedsEquals -> {
-                    receiver.keyValSep(current.span(), error)
+                    receiver.keyValSep(current.span, error)
                     frame.state = InlineState.NeedsValue
                 }
                 InlineState.NeedsValue, InlineState.NeedsComma -> {
                     error.reportError(
                         ParseError(
                             ParseErrorReason.ExtraAssignment,
-                            context = open.span(),
+                            context = open.span,
                             expected = frame.state.expected(),
-                            unexpected = current.span().before(),
+                            unexpected = current.span.before(),
                         ),
                     )
-                    receiver.error(current.span(), error)
+                    receiver.error(current.span, error)
                 }
             }
             TokenKind.LeftCurlyBracket -> when (frame.state) {
@@ -764,21 +764,21 @@ internal class DocumentParser(
                     error.reportError(
                         ParseError(
                             ParseErrorReason.MissingInlineTableKey,
-                            context = open.span(),
+                            context = open.span,
                             expected = frame.state.expected(),
-                            unexpected = current.span().before(),
+                            unexpected = current.span.before(),
                         ),
                     )
-                    receiver.error(current.span(), error)
+                    receiver.error(current.span, error)
                     ignoreToValueClose(TokenKind.RightCurlyBracket)
                 }
                 InlineState.NeedsEquals -> {
                     error.reportError(
                         ParseError(
                             ParseErrorReason.MissingAssignment,
-                            context = open.span(),
+                            context = open.span,
                             expected = frame.state.expected(),
-                            unexpected = current.span().before(),
+                            unexpected = current.span.before(),
                         ),
                     )
                     frame.state = InlineState.NeedsComma
@@ -793,14 +793,14 @@ internal class DocumentParser(
                 when (frame.state) {
                     InlineState.NeedsKey, InlineState.NeedsComma -> {}
                     InlineState.NeedsEquals -> {
-                        receiver.keyValSep(current.span().before(), error)
-                        receiver.scalar(current.span().before(), Encoding.LiteralString, error)
+                        receiver.keyValSep(current.span.before(), error)
+                        receiver.scalar(current.span.before(), Encoding.LiteralString, error)
                     }
                     InlineState.NeedsValue -> {
-                        receiver.scalar(current.span().before(), Encoding.LiteralString, error)
+                        receiver.scalar(current.span.before(), Encoding.LiteralString, error)
                     }
                 }
-                receiver.inlineTableClose(current.span(), error)
+                receiver.inlineTableClose(current.span, error)
                 return true
             }
             TokenKind.LeftSquareBracket -> when (frame.state) {
@@ -808,21 +808,21 @@ internal class DocumentParser(
                     error.reportError(
                         ParseError(
                             ParseErrorReason.MissingInlineTableKey,
-                            context = open.span(),
+                            context = open.span,
                             expected = frame.state.expected(),
-                            unexpected = current.span().before(),
+                            unexpected = current.span.before(),
                         ),
                     )
-                    receiver.error(current.span(), error)
+                    receiver.error(current.span, error)
                     ignoreToValueClose(TokenKind.RightSquareBracket)
                 }
                 InlineState.NeedsEquals -> {
                     error.reportError(
                         ParseError(
                             ParseErrorReason.MissingAssignment,
-                            context = open.span(),
+                            context = open.span,
                             expected = frame.state.expected(),
-                            unexpected = current.span().before(),
+                            unexpected = current.span.before(),
                         ),
                     )
                     frame.state = InlineState.NeedsComma
@@ -838,25 +838,25 @@ internal class DocumentParser(
                     error.reportError(
                         ParseError(
                             ParseErrorReason.InvalidInlineTableElement,
-                            context = open.span(),
+                            context = open.span,
                             expected = frame.state.expected(),
-                            unexpected = current.span().before(),
+                            unexpected = current.span.before(),
                         ),
                     )
-                    receiver.error(current.span(), error)
+                    receiver.error(current.span, error)
                 }
                 InlineState.NeedsValue -> {
                     error.reportError(
                         ParseError(
                             ParseErrorReason.MissingArrayOpening,
-                            context = current.span(),
+                            context = current.span,
                             expected = listOf(Expected.Literal("[")),
-                            unexpected = current.span().before(),
+                            unexpected = current.span.before(),
                         ),
                     )
 
-                    receiver.arrayOpen(current.span().before(), error)
-                    receiver.arrayClose(current.span(), error)
+                    receiver.arrayOpen(current.span.before(), error)
+                    receiver.arrayClose(current.span, error)
 
                     frame.state = InlineState.NeedsComma
                 }
@@ -876,9 +876,9 @@ internal class DocumentParser(
                     error.reportError(
                         ParseError(
                             ParseErrorReason.MissingAssignment,
-                            context = open.span(),
+                            context = open.span,
                             expected = frame.state.expected(),
-                            unexpected = current.span().before(),
+                            unexpected = current.span.before(),
                         ),
                     )
                     onScalar(current)
@@ -892,9 +892,9 @@ internal class DocumentParser(
                     error.reportError(
                         ParseError(
                             ParseErrorReason.MissingInlineTableComma,
-                            context = open.span(),
+                            context = open.span,
                             expected = frame.state.expected(),
-                            unexpected = current.span().before(),
+                            unexpected = current.span.before(),
                         ),
                     )
                     inlineKey(current)
@@ -920,7 +920,7 @@ internal class DocumentParser(
         error.reportError(
             ParseError(
                 ParseErrorReason.UnclosedInlineTable,
-                context = frame.open.span(),
+                context = frame.open.span,
                 expected = listOf(Expected.Literal("}")),
                 unexpected = previousSpan.after(),
             ),
@@ -930,15 +930,15 @@ internal class DocumentParser(
     }
 
     private fun optWhitespace() {
-        nextTokenIf { it == TokenKind.Whitespace }?.let { receiver.whitespace(it.span(), error) }
+        nextTokenIf { it == TokenKind.Whitespace }?.let { receiver.whitespace(it.span, error) }
     }
 
     private fun wsCommentNewline() {
         var first: Span? = null
         while (true) {
-            val current = tokens.nextToken() ?: break
-            val firstSpan = first ?: current.span().also { first = it }
-            when (current.kind()) {
+            val current = tokens.next() ?: break
+            val firstSpan = first ?: current.span.also { first = it }
+            when (current.kind) {
                 TokenKind.Dot,
                 TokenKind.Equals,
                 TokenKind.Comma,
@@ -955,13 +955,13 @@ internal class DocumentParser(
                     error.reportError(
                         ParseError(
                             ParseErrorReason.UnexpectedKeyOrValue,
-                            context = firstSpan.append(current.span()),
+                            context = firstSpan.append(current.span),
                             expected = listOf(Expected.Literal("\n"), Expected.Literal("#")),
-                            unexpected = current.span().before(),
+                            unexpected = current.span.before(),
                         ),
                     )
 
-                    receiver.error(current.span(), error)
+                    receiver.error(current.span, error)
                     ignoreToNewline()
                     break
                 }
@@ -969,9 +969,9 @@ internal class DocumentParser(
                     onComment(current)
                     break
                 }
-                TokenKind.Whitespace -> receiver.whitespace(current.span(), error)
+                TokenKind.Whitespace -> receiver.whitespace(current.span, error)
                 TokenKind.Newline -> {
-                    receiver.newline(current.span(), error)
+                    receiver.newline(current.span, error)
                     break
                 }
                 TokenKind.Eof -> break
@@ -980,64 +980,64 @@ internal class DocumentParser(
     }
 
     private fun onComment(commentToken: Token) {
-        receiver.comment(commentToken.span(), error)
+        receiver.comment(commentToken.span, error)
 
-        val current = tokens.nextToken() ?: return
-        when (current.kind()) {
-            TokenKind.Newline -> receiver.newline(current.span(), error)
+        val current = tokens.next() ?: return
+        when (current.kind) {
+            TokenKind.Newline -> receiver.newline(current.span, error)
             TokenKind.Eof -> {}
             else -> {
                 error.reportError(
                     ParseError(
                         ParseErrorReason.ContentAfterComment,
-                        context = commentToken.span().append(current.span()),
+                        context = commentToken.span.append(current.span),
                         expected = listOf(Expected.Literal("\n")),
-                        unexpected = current.span().before(),
+                        unexpected = current.span.before(),
                     ),
                 )
 
-                receiver.error(current.span(), error)
+                receiver.error(current.span, error)
                 ignoreToNewline()
             }
         }
     }
 
     fun eof() {
-        val current = tokens.nextToken() ?: return
-        if (current.kind() == TokenKind.Eof) return
+        val current = tokens.next() ?: return
+        if (current.kind == TokenKind.Eof) return
 
         error.reportError(
             ParseError(
                 ParseErrorReason.UnexpectedContent,
-                context = current.span(),
+                context = current.span,
                 expected = EXPECTED_NOTHING,
-                unexpected = current.span().before(),
+                unexpected = current.span.before(),
             ),
         )
 
-        receiver.error(current.span(), error)
+        receiver.error(current.span, error)
         while (true) {
-            val next = tokens.nextToken() ?: break
-            if (next.kind() == TokenKind.Eof) continue
-            receiver.error(next.span(), error)
+            val next = tokens.next() ?: break
+            if (next.kind == TokenKind.Eof) continue
+            receiver.error(next.span, error)
         }
     }
 
     private fun ignoreToNewline() {
         while (true) {
-            val current = tokens.nextToken() ?: break
-            when (current.kind()) {
+            val current = tokens.next() ?: break
+            when (current.kind) {
                 TokenKind.Comment -> {
                     onComment(current)
                     break
                 }
-                TokenKind.Whitespace -> receiver.whitespace(current.span(), error)
+                TokenKind.Whitespace -> receiver.whitespace(current.span, error)
                 TokenKind.Newline -> {
-                    receiver.newline(current.span(), error)
+                    receiver.newline(current.span, error)
                     break
                 }
                 TokenKind.Eof -> break
-                else -> receiver.error(current.span(), error)
+                else -> receiver.error(current.span, error)
             }
         }
     }
@@ -1046,8 +1046,8 @@ internal class DocumentParser(
         var arrayCount = 0
         var inlineTableCount = 0
         while (true) {
-            val current = tokens.nextToken() ?: break
-            when (current.kind()) {
+            val current = tokens.next() ?: break
+            when (current.kind) {
                 TokenKind.Dot,
                 TokenKind.Equals,
                 TokenKind.Comma,
@@ -1056,33 +1056,33 @@ internal class DocumentParser(
                 TokenKind.MultilineLiteralString,
                 TokenKind.MultilineBasicString,
                 TokenKind.Atom,
-                -> receiver.error(current.span(), error)
+                -> receiver.error(current.span, error)
                 TokenKind.Comment -> onComment(current)
-                TokenKind.Whitespace -> receiver.whitespace(current.span(), error)
-                TokenKind.Newline -> receiver.newline(current.span(), error)
+                TokenKind.Whitespace -> receiver.whitespace(current.span, error)
+                TokenKind.Newline -> receiver.newline(current.span, error)
                 TokenKind.LeftSquareBracket -> {
-                    receiver.error(current.span(), error)
+                    receiver.error(current.span, error)
                     arrayCount += 1
                 }
                 TokenKind.RightSquareBracket -> {
-                    if (arrayCount == 0 && current.kind() == closingKind) {
-                        receiver.arrayClose(current.span(), error)
+                    if (arrayCount == 0 && current.kind == closingKind) {
+                        receiver.arrayClose(current.span, error)
                         break
                     } else {
-                        receiver.error(current.span(), error)
+                        receiver.error(current.span, error)
                         arrayCount = maxOf(arrayCount - 1, 0)
                     }
                 }
                 TokenKind.LeftCurlyBracket -> {
-                    receiver.error(current.span(), error)
+                    receiver.error(current.span, error)
                     inlineTableCount += 1
                 }
                 TokenKind.RightCurlyBracket -> {
-                    if (inlineTableCount == 0 && current.kind() == closingKind) {
-                        receiver.inlineTableClose(current.span(), error)
+                    if (inlineTableCount == 0 && current.kind == closingKind) {
+                        receiver.inlineTableClose(current.span, error)
                         break
                     } else {
-                        receiver.error(current.span(), error)
+                        receiver.error(current.span, error)
                         inlineTableCount = maxOf(inlineTableCount - 1, 0)
                     }
                 }
@@ -1095,17 +1095,17 @@ internal class DocumentParser(
         error.reportError(
             ParseError(
                 invalidReason,
-                context = token.span(),
+                context = token.span,
                 expected = EXPECTED_KEY,
-                unexpected = token.span().before(),
+                unexpected = token.span.before(),
             ),
         )
 
-        when (token.kind()) {
+        when (token.kind) {
             TokenKind.Eof -> {}
-            TokenKind.Newline -> receiver.newline(token.span(), error)
+            TokenKind.Newline -> receiver.newline(token.span, error)
             TokenKind.Comment -> onComment(token)
-            else -> receiver.error(token.span(), error)
+            else -> receiver.error(token.span, error)
         }
     }
 
@@ -1113,13 +1113,13 @@ internal class DocumentParser(
         error.reportError(
             ParseError(
                 ParseErrorReason.InvalidKeyValuePair,
-                context = token.span(),
+                context = token.span,
                 expected = EXPECTED_KEY,
-                unexpected = token.span().before(),
+                unexpected = token.span.before(),
             ),
         )
 
-        receiver.error(token.span(), error)
+        receiver.error(token.span, error)
         ignoreToNewline()
     }
 
@@ -1127,18 +1127,18 @@ internal class DocumentParser(
         error.reportError(
             ParseError(
                 ParseErrorReason.MissingTableOpen,
-                context = token.span(),
+                context = token.span,
                 expected = listOf(Expected.Literal("[")),
-                unexpected = token.span().before(),
+                unexpected = token.span.before(),
             ),
         )
 
-        receiver.error(token.span(), error)
+        receiver.error(token.span, error)
         ignoreToNewline()
     }
 
     private inline fun nextTokenIf(predicate: (TokenKind) -> Boolean): Token? {
-        val next = tokens.first() ?: return null
-        return if (predicate(next.kind())) tokens.nextToken() else null
+        val next = tokens.peek() ?: return null
+        return if (predicate(next.kind)) tokens.next() else null
     }
 }

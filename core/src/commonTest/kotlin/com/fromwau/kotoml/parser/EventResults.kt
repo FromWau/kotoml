@@ -28,7 +28,7 @@ internal class EventResults(val input: String) {
         assertFileData(readSnapshot("toml_parser/$snapshot.txt"), debug())
 
         if (events.isNotEmpty()) {
-            val spans = events.map { it.span() }
+            val spans = events.map { it.span }
             if (!input.startsWith('﻿')) {
                 assertEquals(0, spans.first().start, "first span needs to start at 0")
             }
@@ -37,7 +37,7 @@ internal class EventResults(val input: String) {
                 assertEquals(spans[i].end, spans[i + 1].start, "events must not have gaps in spans")
             }
         }
-        if (events.any { it.kind() == EventKind.Error }) {
+        if (events.any { it.kind == EventKind.Error }) {
             assertTrue(errors.isNotEmpty())
         }
     }
@@ -47,7 +47,7 @@ internal class EventResults(val input: String) {
         val doc = TomlSource(input)
         for (event in events) {
             val raw = doc.get(event) ?: error("event $event does not slice the input")
-            when (event.kind()) {
+            when (event.kind) {
                 EventKind.SimpleKey -> raw.decodeKey(DecodedStringBuilder.DISCARD, sink)
                 EventKind.Comment -> raw.decodeComment(sink)
                 EventKind.Newline -> raw.decodeNewline(sink)
@@ -81,7 +81,7 @@ internal class EventResults(val input: String) {
         }
         if (failure != null) {
             errors += parseErrorDbg(
-                context = Span(0, raw.len()),
+                context = Span(0, raw.length),
                 description = failure,
                 expected = null,
                 unexpected = Span(0, 2),

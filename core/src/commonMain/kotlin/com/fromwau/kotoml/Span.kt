@@ -26,7 +26,7 @@ public data class Span(
 }
 
 /** The empty span at the start of the input, upstream's `Span::default()`. */
-internal val Span.Companion.DEFAULT: Span get() = Span(0, 0)
+internal val Span.Companion.EMPTY: Span get() = Span(0, 0)
 
 /** The empty span where this one starts. */
 internal fun Span.before(): Span = Span(start, start)

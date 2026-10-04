@@ -25,7 +25,7 @@ internal class Lexer internal constructor(bytes: ByteArray) : Iterator<Token> {
     }
 
     /** Lexes the rest of the input into a list, the [TokenKind.Eof] token included. */
-    fun intoVec(): List<Token> {
+    fun toList(): List<Token> {
         val tokens = ArrayList<Token>((stream.remaining() + 3) / 4)
         while (hasNext()) tokens.add(next())
         return tokens
@@ -208,28 +208,10 @@ private fun isAtomEnd(byte: Int): Boolean = when (byte) {
 }
 
 /** One unvalidated token: its [kind] and the [span] of input it covers. */
-internal class Token internal constructor(
-    private val kind: TokenKind,
-    private val span: Span,
-) : Comparable<Token> {
-
-    /** What kind of token this is. */
-    fun kind(): TokenKind = kind
-
-    /** The bytes of input this token covers. */
-    fun span(): Span = span
-
-    override fun compareTo(other: Token): Int {
-        val byKind = kind.compareTo(other.kind)
-        return if (byKind != 0) byKind else span.compareTo(other.span)
-    }
-
-    override fun equals(other: Any?): Boolean = other is Token && kind == other.kind && span == other.span
-
-    override fun hashCode(): Int = 31 * kind.hashCode() + span.hashCode()
-
-    override fun toString(): String = "Token(kind=$kind, span=$span)"
-}
+internal data class Token(
+    val kind: TokenKind,
+    val span: Span,
+)
 
 /**
  * The kinds of [Token].

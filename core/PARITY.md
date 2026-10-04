@@ -40,7 +40,7 @@ points there, never UTF-16 units: the error column, the key ordering of `sort_va
 
 ### Naming
 
-- Types and functions keep upstream's names in Kotlin casing, accessors included: `token.kind()`. A Rust `new`
+- Types and functions keep upstream's names in Kotlin casing; an accessor is a property (`token.kind`). A Rust `new`
   constructor is the Kotlin constructor. The document model is the exception: it reads like Kotlin's own
   collections. Values have constructors, `OrNull` properties and a `var decor`; tables and arrays have `size`,
   `put`, `getOrPut`, `add`, `removeAt` and `var` properties for each setter/getter pair; an `Item` has
@@ -142,12 +142,12 @@ section 1.
 | `Source::get(impl SourceIndex)` | `TomlSource.get(Span)`, `get(Token)`, `get(Event)` | done | `ParseDocumentTest` (every event is sliced) |
 | `Source::get_unchecked` | | n/a | behind the `unsafe` feature |
 | `SourceIndex` (sealed trait over `Span`, `Token`, `Event`) | the three `TomlSource.get` overloads | done | |
-| `Raw::new_unchecked` | `Raw.newUnchecked(String, Encoding?, Span)` | done | `DecoderStringTest`, `DecoderScalarTest` |
+| `Raw::new_unchecked` | `Raw(String, Encoding?, Span)` | done | `DecoderStringTest`, `DecoderScalarTest` |
 | `Raw::decode_key / decode_scalar / decode_whitespace / decode_comment / decode_newline` | same names; `decode_whitespace` is not ported, as it checks nothing | done | `ParseDocumentTest`, `ParseValueTest`, `ParseSimpleKeyTest` |
-| `Raw::as_str / as_bytes / len / is_empty` | `asStr()`, `len()` (bytes), `isEmpty()`; `as_bytes` not ported, as nothing reads it | done | |
+| `Raw::as_str / as_bytes / len / is_empty` | `text`, `length` (bytes), `isEmpty()`; `as_bytes` not ported, as nothing reads it | done | |
 | `Span::new_unchecked`, `is_empty`, `len`, `start`, `end`, `before`, `after`, `append` | `data class Span(start, end)` with a `length` property; `before`, `after`, `append` internal | done | every snapshot prints spans |
 | `impl Add<usize> / AddAssign<usize> for Span`, `impl Add<Span> for usize` | `Span.plus(Int)`, internal | done | |
-| `impl Default for Span` | `Span.DEFAULT`, internal | done | |
+| `impl Default for Span` | `Span.EMPTY`, internal | done | |
 | `impl Debug for Span` (`start..end`) | `toString()` | done | |
 | `ErrorSink` | `fun interface ErrorSink` | done | all parser tests |
 | `impl ErrorSink for FnMut(ParseError)` / `Vec<ParseError>` | a lambda: `ErrorSink { errors += it }` | done | all parser tests |
@@ -156,8 +156,8 @@ section 1.
 | `ParseError::new`, `with_context`, `with_expected`, `with_unexpected` | `data class ParseError(reason, unexpected, context, expected)` and `copy` | done | `DecoderStringTest` |
 | `ParseError::context / description / expected / unexpected` | properties; `description` is the typed `reason: ParseErrorReason` | done | `DecoderStringTest` |
 | `Expected::Literal`, `Expected::Description` | `Expected.Literal`, `Expected.Token(ExpectedToken)` | done | `DecoderStringTest` |
-| `lexer::Lexer` (`Iterator<Item = Token>`), `into_vec` | `Lexer : Iterator<Token>`, `intoVec()` | done | `LexerTest` |
-| `lexer::Token::kind / span` | same names | done | `LexerTest` |
+| `lexer::Lexer` (`Iterator<Item = Token>`), `into_vec` | `Lexer : Iterator<Token>`, `toList()` | done | `LexerTest` |
+| `lexer::Token::kind / span` | a data class with `kind` and `span` | done | `LexerTest` |
 | `lexer::TokenKind` (16 kinds), `description`, `encoding` | `TokenKind`, `encoding`; `description` n/a, `TomlParseError.render` words the kinds | done | `LexerTest` |
 | `parser::parse_document / parse_key / parse_simple_key / parse_value` | `parseDocument`, `parseKey`, `parseSimpleKey`, `parseValue` | done | `ParseDocumentTest`, `ParseValueTest`, `ParseSimpleKeyTest` |
 | `parser::EventReceiver` (17 callbacks with defaults) | `interface EventReceiver` | done | all parser tests |
@@ -165,7 +165,7 @@ section 1.
 | `impl EventReceiver for ()` | `EventReceiver.IGNORE` | done | |
 | `parser::ValidateWhitespace::new` | `ValidateWhitespace(EventReceiver, TomlSource)` | done | toml_edit's parser |
 | `parser::RecursionGuard::new(_, u32)` | `RecursionGuard(EventReceiver, UInt)` | done | `` ParseDocumentTest.`*recursion limit*` `` |
-| `parser::Event::new_unchecked / kind / encoding / span` | `Event(...)`, same names | done | all parser tests |
+| `parser::Event::new_unchecked / kind / encoding / span` | a data class with `kind`, `encoding` and `span` | done | all parser tests |
 | `parser::EventKind` (17 kinds), `description` | `EventKind`; `description` n/a, as for `TokenKind` | done | |
 | `decoder::Encoding`, `description` | `Encoding`, with `MlLiteralString` / `MlBasicString` spelled `MultilineLiteralString` / `MultilineBasicString` (also in `TokenKind`); `description` n/a, as for `TokenKind` | done | |
 | `decoder::StringBuilder` (`clear`, `push_str`, `push_char`) | `DecodedStringBuilder` (`clear`, `append`, `appendCodePoint`), which always accepts | done | `DecoderStringTest` |
@@ -174,7 +174,7 @@ section 1.
 | `impl StringBuilder for ()` | `DecodedStringBuilder.DISCARD` | done | `ParseDocumentTest` (keys) |
 | `decoder::ScalarKind` (`String`, `Boolean`, `DateTime`, `Float`, `Integer`), `description`, `invalid_description` | `ScalarKind` sealed interface; `description` n/a, as for `TokenKind`; `invalid_description` is `ParseErrorReason.InvalidScalar(kind)` | done | `ParseValueTest` |
 | `decoder::IntegerRadix`, `description`, `value`, `invalid_description`, `Default` | `IntegerRadix`, `base`; `description` n/a, as for `TokenKind`; `Default` is `IntegerRadix.Dec`; `invalid_description` as for `ScalarKind` | done | `ParseValueTest` |
-| derived `Ord` / `Hash` / `Eq` on `Span`, `Token`, `TokenKind`, `Event`, `EventKind`, `Encoding`, `ScalarKind`, `IntegerRadix`, `ParseError` | `Comparable` / `equals` / `hashCode`; `ScalarKind` is not `Comparable`, as nothing orders it | done | |
+| derived `Ord` / `Hash` / `Eq` on `Span`, `Token`, `TokenKind`, `Event`, `EventKind`, `Encoding`, `ScalarKind`, `IntegerRadix`, `ParseError` | `Comparable` / `equals` / `hashCode`; `Token`, `Event` and `ScalarKind` are not `Comparable`, as nothing orders them | done | |
 
 ### `toml_writer`
 

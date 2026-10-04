@@ -128,10 +128,10 @@ class RemovalPropertyTest {
         val source = TomlSource(text)
         val bytes = source.bytes
         val events = mutableListOf<Event>()
-        parseDocument(source.lex().intoVec(), eventReceiver { events += it }, ErrorSink.IGNORE)
+        parseDocument(source.lex().toList(), eventReceiver { events += it }, ErrorSink.IGNORE)
 
         fun keyName(event: Event): String {
-            val span = event.span()
+            val span = event.span
             return Key.parse(bytes.decodeToString(span.start, span.end), version).unwrap().name
         }
 
@@ -141,24 +141,24 @@ class RemovalPropertyTest {
         var start: Event? = null
         var owner: String? = null
         for (event in events) {
-            when (event.kind()) {
+            when (event.kind) {
                 EventKind.ArrayOpen, EventKind.InlineTableOpen -> depth++
                 EventKind.ArrayClose, EventKind.InlineTableClose -> depth--
                 else -> {}
             }
-            val begins = event.kind() in listOf(EventKind.SimpleKey, EventKind.StdTableOpen, EventKind.ArrayTableOpen)
+            val begins = event.kind in listOf(EventKind.SimpleKey, EventKind.StdTableOpen, EventKind.ArrayTableOpen)
             if (depth == 0 && start == null && begins) {
                 start = event
-                if (event.kind() == EventKind.SimpleKey) owner = section ?: keyName(event)
-            } else if (start != null && owner == null && event.kind() == EventKind.SimpleKey) {
+                if (event.kind == EventKind.SimpleKey) owner = section ?: keyName(event)
+            } else if (start != null && owner == null && event.kind == EventKind.SimpleKey) {
                 owner = keyName(event)
                 section = owner
             }
-            val ends = event.kind() == EventKind.Newline && depth == 0
+            val ends = event.kind == EventKind.Newline && depth == 0
             if (start != null && (ends || event === events.last())) {
-                val lineStart = bytes.lastIndexOf('\n'.code.toByte(), start.span().start) + 1
-                val isHeader = start.kind() != EventKind.SimpleKey
-                statements += Statement(owner.orEmpty(), lineStart, event.span().end, isHeader)
+                val lineStart = bytes.lastIndexOf('\n'.code.toByte(), start.span.start) + 1
+                val isHeader = start.kind != EventKind.SimpleKey
+                statements += Statement(owner.orEmpty(), lineStart, event.span.end, isHeader)
                 start = null
                 owner = null
             }

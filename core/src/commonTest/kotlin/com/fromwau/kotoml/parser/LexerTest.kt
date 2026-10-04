@@ -10,11 +10,11 @@ class LexerTest {
 
     private fun t(input: String, expected: String) {
         val source = TomlSource(input)
-        val actual = source.lex().intoVec()
+        val actual = source.lex().toList()
         assertDebug(expected, seq(actual.map { it.dbg() }))
 
         if (actual.isNotEmpty()) {
-            val spans = actual.map { it.span() }
+            val spans = actual.map { it.span }
             assertEquals(0, spans.first().start)
             assertEquals(input.encodeToByteArray().size, spans.last().end)
             for (i in 0 until spans.size - 1) {

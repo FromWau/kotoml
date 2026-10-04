@@ -30,10 +30,10 @@ internal class TomlSource(private val input: String) {
     fun get(span: Span): Raw? = get(span, encoding = null)
 
     /** The text of [token], carrying the string encoding its kind implies. */
-    fun get(token: Token): Raw? = get(token.span(), token.kind().encoding())
+    fun get(token: Token): Raw? = get(token.span, token.kind.encoding())
 
     /** The text of [event], carrying the string encoding it was reported with. */
-    fun get(event: Event): Raw? = get(event.span(), event.encoding())
+    fun get(event: Event): Raw? = get(event.span, event.encoding)
 
     private fun get(span: Span, encoding: Encoding?): Raw? {
         val start = span.start
@@ -64,6 +64,13 @@ internal class Raw internal constructor(
     private val encoding: Encoding?,
     private val span: Span,
 ) {
+    /**
+     * A slice holding [raw] as if it had been cut from a source at [span], without checking that it was. Errors
+     * from decoding it are rebased by [span]'s start.
+     */
+    constructor(raw: String, encoding: Encoding?, span: Span) : this(raw.encodeToByteArray(), encoding, span)
+
+    private constructor(bytes: ByteArray, encoding: Encoding?, span: Span) : this(bytes, 0, bytes.size, encoding, span)
 
     /** Decodes this text as a key, which may be a bare key or a basic or literal string. */
     fun decodeKey(output: DecodedStringBuilder, error: ErrorSink) {
@@ -76,7 +83,7 @@ internal class Raw internal constructor(
                     ParseError(
                         ParseErrorReason.MultilineKey(Encoding.MultilineLiteralString),
                         expected = KEY_STRING_KINDS,
-                        unexpected = Span(0, len()),
+                        unexpected = Span(0, length),
                     ),
                 )
                 decodeMlLiteralString(this, output, rebased)
@@ -86,7 +93,7 @@ internal class Raw internal constructor(
                     ParseError(
                         ParseErrorReason.MultilineKey(Encoding.MultilineBasicString),
                         expected = KEY_STRING_KINDS,
-                        unexpected = Span(0, len()),
+                        unexpected = Span(0, length),
                     ),
                 )
                 decodeMlBasicString(this, output, rebased)
@@ -133,10 +140,12 @@ internal class Raw internal constructor(
     }
 
     /** The text of this slice. */
-    fun asStr(): String = bytes.decodeToString(from, to)
+    val text: String
+        get() = bytes.decodeToString(from, to)
 
     /** The length of this slice in bytes. */
-    fun len(): Int = to - from
+    val length: Int
+        get() = to - from
 
     /** Whether this slice is empty. */
     fun isEmpty(): Boolean = from == to
@@ -147,18 +156,9 @@ internal class Raw internal constructor(
 
     private fun rebasing(error: ErrorSink): ErrorSink = ErrorSink { error.reportError(it.rebaseSpans(span.start)) }
 
-    override fun toString(): String = "Raw(raw=${asStr()}, encoding=$encoding, span=$span)"
+    override fun toString(): String = "Raw(raw=$text, encoding=$encoding, span=$span)"
 
     companion object {
-        /**
-         * A slice holding [raw] as if it had been cut from a source at [span], without checking that it
-         * was. Errors from decoding it are rebased by [span]'s start.
-         */
-        fun newUnchecked(raw: String, encoding: Encoding?, span: Span): Raw {
-            val bytes = raw.encodeToByteArray()
-            return Raw(bytes, 0, bytes.size, encoding, span)
-        }
-
         private val KEY_STRING_KINDS = listOf(
             Expected.Token(ExpectedToken.BasicString),
             Expected.Token(ExpectedToken.LiteralString),
