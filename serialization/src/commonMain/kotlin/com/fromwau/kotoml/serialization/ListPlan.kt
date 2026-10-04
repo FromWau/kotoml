@@ -66,8 +66,11 @@ internal fun planList(
         source.oldIndex?.let { used[it] = true }
     }
 
+    // Every old element before firstUnused is used, so a list that kept its order matches each element at once.
+    var firstUnused = 0
     for (new in 0 until newCount) {
-        val old = (0 until oldCount).firstOrNull { !used[it] && isSame(new, it) } ?: continue
+        while (firstUnused < oldCount && used[firstUnused]) firstUnused++
+        val old = (firstUnused until oldCount).firstOrNull { !used[it] && isSame(new, it) } ?: continue
         take(new, ElementSource.Kept(old))
     }
     val unmatched = (0 until newCount).filter { sources[it] == null }

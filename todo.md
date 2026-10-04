@@ -8,7 +8,6 @@ Every defect, ruling and docs item from that pass is closed; see **Done**.
 
 ## Candidate work
 
-- [ ] **23. `encodeInto`'s list merge is quadratic.** 2000 tables: 877 ms; 10 000 integers: 1.4 s. Should 5.
 - [ ] **24. Exit codes are barely tested.** Only `FilterTest` asserts one; nothing pins `check --json` output or exits
   0 and 1. Goal 15.
 - [ ] **25. Printing and copying recurse once per nesting level.** `Encode.kt`, `Value.copy`,
@@ -25,6 +24,13 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **23. `encodeInto`'s list merge is quadratic.** 2000 tables: 877 ms; 10 000 integers: 1.4 s. Should 5.
+  **Verdict 2026-10-05:** fixed for every list but a wholly changed one. The cost was not the planner but
+  `holdsKeyAtDefault`, which paired every new element with every old one; it now groups by kind and key, linear in the
+  elements. Measured on the JVM, `encodeInto` of 10 000 unchanged integers: 769 ms to 8 ms; 2000 unchanged tables:
+  139 ms to 26 ms; 100 appended: 27 ms. The planner also skips its used prefix. A list whose every element changed
+  stays quadratic (10 000 integers: 2.5 s): a hash would have to agree exactly with "reads the same" across types.
 
 - [x] **22. `TomlType.Missing` is a public kind nothing has.** No `Item` or `Value` has it since `Item::None` went;
   only serialization reports it for an absent field. Goal 10.

@@ -417,13 +417,32 @@ private fun TomlInput.sharedValues(
  * field left out at its default, which the merge then needs the default value for. A list counts every pairing of a
  * new element with an old one, since the merge compares each with each.
  */
-internal fun TomlInput.holdsKeyAtDefault(sparse: TomlNode): Boolean = when {
-    this is TomlInput.Table && sparse is TomlNode.Struct ->
-        sparse.defaulted.any { it in entries } ||
-            sparse.entries.any { (key, child) -> entries[key]?.toInput()?.holdsKeyAtDefault(child) == true }
-    this is TomlInput.Sequence && sparse is TomlNode.Sequence ->
-        sparse.leavesOutDefaults || sparse.elements.any { new -> elements.any { old -> old.holdsKeyAtDefault(new) } }
-    else -> false
+internal fun TomlInput.holdsKeyAtDefault(sparse: TomlNode): Boolean = holdsKeyAtDefault(listOf(this), listOf(sparse))
+
+/**
+ * Whether pairing any of [olds] with any of [news] meets a key left out at its default. Grouping by kind and by key
+ * answers that for every pairing at once, so the work grows with the elements rather than with their pairs.
+ */
+private fun holdsKeyAtDefault(
+    olds: List<TomlInput>,
+    news: List<TomlNode>,
+): Boolean {
+    val oldTables = olds.filterIsInstance<TomlInput.Table>()
+    val newStructs = news.filterIsInstance<TomlNode.Struct>()
+    if (oldTables.isNotEmpty() && newStructs.isNotEmpty()) {
+        val oldKeys = oldTables.flatMapTo(HashSet()) { it.entries.keys }
+        if (newStructs.any { struct -> struct.defaulted.any { it in oldKeys } }) return true
+        for (key in newStructs.flatMapTo(LinkedHashSet()) { it.entries.keys }) {
+            val oldChildren = oldTables.mapNotNull { it.entries[key]?.toInput() }
+            val newChildren = newStructs.mapNotNull { it.entries[key] }
+            if (oldChildren.isNotEmpty() && holdsKeyAtDefault(oldChildren, newChildren)) return true
+        }
+    }
+    val oldLists = olds.filterIsInstance<TomlInput.Sequence>()
+    val newLists = news.filterIsInstance<TomlNode.Sequence>()
+    if (oldLists.isEmpty() || newLists.isEmpty()) return false
+    return newLists.any { it.leavesOutDefaults } ||
+        holdsKeyAtDefault(oldLists.flatMap { it.elements }, newLists.flatMap { it.elements })
 }
 
 /** Whether the document already holds what [full] would write, a missing key counting when it holds a default. */
