@@ -116,7 +116,6 @@ internal fun ParseErrorReason.describe(): String = when (this) {
     ParseErrorReason.ExtraArrayComma -> "extra comma in array"
     ParseErrorReason.ExtraInlineTableComma -> "extra comma in inline table"
     ParseErrorReason.RecursionLimit -> "cannot recurse further; max recursion depth met"
-    ParseErrorReason.AllocationFailed -> "could not allocate for string"
 }
 
 internal fun Reason.describe(): String = when (this) {

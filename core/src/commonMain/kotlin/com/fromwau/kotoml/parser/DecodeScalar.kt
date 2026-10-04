@@ -429,9 +429,7 @@ private fun decodeFloatOrInteger(
             }
         }
 
-        if (partEnd > partStart && !output.pushStr(raw.text(partStart, partEnd))) {
-            error.reportError(ParseError(ParseErrorReason.AllocationFailed, unexpected = Span(partStart, partEnd)))
-        }
+        if (partEnd > partStart) output.append(raw.text(partStart, partEnd))
     }
 
     return kind
@@ -454,9 +452,7 @@ private fun decodeAs(
     error: ErrorSink,
 ): ScalarKind {
     output.clear()
-    if (!output.pushStr(symbol)) {
-        error.reportError(ParseError(ParseErrorReason.AllocationFailed, unexpected = raw.wholeContext()))
-    }
+    output.append(symbol)
     return kind
 }
 
@@ -511,8 +507,6 @@ private fun decodeInvalid(raw: Raw, output: DecodedStringBuilder, error: ErrorSi
     }
 
     output.clear()
-    if (!output.pushStr(raw.asStr())) {
-        error.reportError(ParseError(ParseErrorReason.AllocationFailed, unexpected = raw.wholeContext()))
-    }
+    output.append(raw.asStr())
     return ScalarKind.String
 }

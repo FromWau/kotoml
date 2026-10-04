@@ -218,11 +218,6 @@ public sealed interface ParseErrorReason {
     @Serializable
     @SerialName("RecursionLimit")
     public data object RecursionLimit : ParseErrorReason
-
-    /** The decoded text could not be stored. */
-    @Serializable
-    @SerialName("AllocationFailed")
-    public data object AllocationFailed : ParseErrorReason
 }
 
 /** A part of a float, as named by [ParseErrorReason.InvalidFloatPart]. */

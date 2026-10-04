@@ -33,8 +33,6 @@ internal fun seq(items: List<Dbg>): Dbg = Dbg.Seq(items)
 internal fun <T> option(value: T?, render: (T) -> Dbg): Dbg =
     if (value == null) lit("None") else tuple("Some", render(value))
 
-internal fun range(start: Int, end: Int): Dbg = lit("$start..$end")
-
 internal fun <S, E : com.fromwau.kern.result.IError> Result<S, E>.debug(
     success: (S) -> Dbg,
     error: (E) -> Dbg,

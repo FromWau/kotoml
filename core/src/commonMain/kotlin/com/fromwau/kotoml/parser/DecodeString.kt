@@ -51,10 +51,8 @@ private fun isUnquotedChar(byte: Int): Boolean = byte in 'A'.code..'Z'.code ||
 private fun Raw.startsWithBytes(at: Int, prefix: ByteArray): Boolean = startsWith(bytes, from + at, prefix) &&
     at + prefix.size <= len()
 
-private fun Raw.pushText(output: DecodedStringBuilder, start: Int, end: Int): Boolean = output.pushStr(text(start, end))
-
-private fun Raw.reportAllocation(error: ErrorSink, start: Int, end: Int) {
-    error.reportError(ParseError(ParseErrorReason.AllocationFailed, unexpected = Span(start, end)))
+private fun Raw.pushText(output: DecodedStringBuilder, start: Int, end: Int) {
+    output.append(text(start, end))
 }
 
 /** The number of bytes in the UTF-8 sequence starting with [lead]. */
@@ -125,7 +123,7 @@ internal fun decodeLiteralString(raw: Raw, output: DecodedStringBuilder, error: 
         }
     }
 
-    if (!raw.pushText(output, start, end)) raw.reportAllocation(error, 0, length)
+    raw.pushText(output, start, end)
 }
 
 private fun Raw.stripStartNewline(start: Int, end: Int): Int = when {
@@ -197,7 +195,7 @@ internal fun decodeMlLiteralString(raw: Raw, output: DecodedStringBuilder, error
         }
     }
 
-    if (!raw.pushText(output, start, end)) raw.reportAllocation(error, 0, length)
+    raw.pushText(output, start, end)
 }
 
 /** A cursor over the bytes of a [Raw] that are still to be decoded. */
@@ -252,13 +250,13 @@ internal fun decodeBasicString(raw: Raw, output: DecodedStringBuilder, error: Er
 
     val stream = Stream(raw, start, end)
     val first = stream.takeWhile(::isBasicUnescaped)
-    if (!raw.pushText(output, first, stream.position)) raw.reportAllocation(error, 0, length)
+    raw.pushText(output, first, stream.position)
     while (!stream.isEmpty()) {
         if (stream.startsWith(ESCAPE)) {
             stream.position += 1
 
             val char = escapeSeqChar(stream, error)
-            if (!output.pushChar(char)) raw.reportAllocation(error, 0, length)
+            output.appendCodePoint(char)
         } else {
             val invalidStart = stream.takeWhile { !isBasicUnescaped(it) && it != ESCAPE }
             error.reportError(
@@ -277,7 +275,7 @@ internal fun decodeBasicString(raw: Raw, output: DecodedStringBuilder, error: Er
         }
 
         val segment = stream.takeWhile(::isBasicUnescaped)
-        if (!raw.pushText(output, segment, stream.position)) raw.reportAllocation(error, segment, stream.position)
+        raw.pushText(output, segment, stream.position)
     }
 }
 
@@ -402,7 +400,7 @@ internal fun decodeMlBasicString(raw: Raw, output: DecodedStringBuilder, error: 
 
     val stream = Stream(raw, start, end)
     val first = stream.takeWhile(::isMlbUnescaped)
-    if (!raw.pushText(output, first, stream.position)) raw.reportAllocation(error, 0, length)
+    raw.pushText(output, first, stream.position)
     while (!stream.isEmpty()) {
         if (stream.startsWith(ESCAPE)) {
             stream.position += 1
@@ -412,7 +410,7 @@ internal fun decodeMlBasicString(raw: Raw, output: DecodedStringBuilder, error: 
                 mlbEscapedNl(stream, error)
             } else {
                 val char = escapeSeqChar(stream, error)
-                if (!output.pushChar(char)) raw.reportAllocation(error, 0, length)
+                output.appendCodePoint(char)
             }
         } else if (stream.startsWith('\r'.code)) {
             val newlineStart = stream.position
@@ -430,9 +428,7 @@ internal fun decodeMlBasicString(raw: Raw, output: DecodedStringBuilder, error: 
                 1
             }
             stream.position += newlineLength
-            if (!raw.pushText(output, newlineStart, stream.position)) {
-                raw.reportAllocation(error, newlineStart, stream.position)
-            }
+            raw.pushText(output, newlineStart, stream.position)
         } else {
             val invalidStart = stream.takeWhile {
                 !(isBasicUnescaped(it) || it == '"'.code || it == '\n'.code || it == ESCAPE || it == '\r'.code)
@@ -449,7 +445,7 @@ internal fun decodeMlBasicString(raw: Raw, output: DecodedStringBuilder, error: 
         }
 
         val segment = stream.takeWhile(::isMlbUnescaped)
-        if (!raw.pushText(output, segment, stream.position)) raw.reportAllocation(error, segment, stream.position)
+        raw.pushText(output, segment, stream.position)
     }
 }
 
@@ -548,7 +544,7 @@ internal fun decodeUnquotedKey(raw: Raw, output: DecodedStringBuilder, error: Er
     }
     if (runStart >= 0) reportInvalidUnquotedKey(error, length, runStart, runEnd)
 
-    if (!raw.pushText(output, 0, length)) raw.reportAllocation(error, 0, length)
+    raw.pushText(output, 0, length)
 }
 
 private fun reportInvalidUnquotedKey(error: ErrorSink, length: Int, start: Int, end: Int) {

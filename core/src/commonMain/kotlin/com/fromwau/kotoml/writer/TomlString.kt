@@ -1,7 +1,5 @@
 package com.fromwau.kotoml.writer
 
-import com.fromwau.kern.result.EmptyResult
-
 /**
  * Chooses how a string value is written: as a basic, literal, multi-line basic or multi-line literal string.
  *
@@ -61,14 +59,15 @@ internal class TomlStringBuilder(private val decoded: String) {
     override fun toString(): String = "TomlStringBuilder(decoded=$decoded)"
 }
 
-/** A string value with its encoding chosen by [TomlStringBuilder]. Write it with [FmtWrite.value]. */
+/** A string value with its encoding chosen by [TomlStringBuilder]. Write it with [StringBuilder.value]. */
 internal class TomlString internal constructor(
     private val decoded: String,
     private val encoding: StringEncoding,
     private val newline: Boolean,
 ) : WriteTomlValue {
-    override fun writeTomlValue(writer: FmtWrite): EmptyResult<FmtError> =
+    override fun writeTomlValue(writer: StringBuilder) {
         writeEncoded(decoded, encoding, newline, writer)
+    }
 
     override fun equals(other: Any?): Boolean =
         other is TomlString && decoded == other.decoded && encoding == other.encoding && newline == other.newline
@@ -110,13 +109,14 @@ internal class TomlKeyBuilder(private val decoded: String) {
     override fun toString(): String = "TomlKeyBuilder(decoded=$decoded)"
 }
 
-/** A key with its encoding chosen by [TomlKeyBuilder]. Write it with [FmtWrite.key]. */
+/** A key with its encoding chosen by [TomlKeyBuilder]. Write it with [StringBuilder.key]. */
 internal class TomlKey internal constructor(
     private val decoded: String,
     private val encoding: StringEncoding?,
 ) : WriteTomlKey {
-    override fun writeTomlKey(writer: FmtWrite): EmptyResult<FmtError> =
+    override fun writeTomlKey(writer: StringBuilder) {
         writeEncoded(decoded, encoding, newline = false, writer)
+    }
 
     override fun equals(other: Any?): Boolean =
         other is TomlKey && decoded == other.decoded && encoding == other.encoding
@@ -145,8 +145,8 @@ private fun writeEncoded(
     decoded: String,
     encoding: StringEncoding?,
     newline: Boolean,
-    writer: FmtWrite,
-): EmptyResult<FmtError> {
+    writer: StringBuilder,
+) {
     val delimiter = when (encoding) {
         StringEncoding.LiteralString -> "'"
         StringEncoding.BasicString -> "\""
@@ -157,8 +157,8 @@ private fun writeEncoded(
     val escaped = encoding == StringEncoding.BasicString || encoding == StringEncoding.MultilineBasicString
     val isMl = encoding == StringEncoding.MultilineLiteralString || encoding == StringEncoding.MultilineBasicString
 
-    writer.writeStr(delimiter).orBail { return it }
-    if (newline && isMl) writer.newline().orBail { return it }
+    writer.append(delimiter)
+    if (newline && isMl) writer.newline()
     if (escaped) {
         // basic-unescaped = wschar / %x21 / %x23-5B / %x5D-7E / non-ascii
         val maxSeqDoubleQuotes = if (isMl) 2 else 0
@@ -192,19 +192,19 @@ private fun writeEncoded(
 
                 unescapedEnd = index + 1
             }
-            writer.writeStr(decoded.substring(position, unescapedEnd)).orBail { return it }
-            if (escape != null) writer.writeStr(escape).orBail { return it }
+            writer.append(decoded.substring(position, unescapedEnd))
+            if (escape != null) writer.append(escape)
             position = unescapedEnd + if (escape != null) 1 else 0
             if (escape == null && position < decoded.length) {
                 val code = decoded[position].code
-                writer.writeStr("\\u" + code.toString(16).uppercase().padStart(4, '0')).orBail { return it }
+                writer.append("\\u" + code.toString(16).uppercase().padStart(4, '0'))
                 position += 1
             }
         }
     } else {
-        writer.writeStr(decoded).orBail { return it }
+        writer.append(decoded)
     }
-    return writer.writeStr(delimiter)
+    writer.append(delimiter)
 }
 
 private class ValueMetrics(

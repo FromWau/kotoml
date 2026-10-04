@@ -1,7 +1,5 @@
 package com.fromwau.kotoml.writer
 
-import com.fromwau.kern.result.EmptyResult
-
 /**
  * How an integer is written: decimal, hexadecimal in either case, octal or binary.
  *
@@ -50,7 +48,7 @@ internal class TomlIntegerFormat private constructor(private val radix: Radix) {
     private enum class Radix { Decimal, HexUpper, HexLower, Octal, Binary }
 }
 
-/** An integer with its [TomlIntegerFormat] applied. Write it with [FmtWrite.value]. */
+/** An integer with its [TomlIntegerFormat] applied. Write it with [StringBuilder.value]. */
 internal class TomlInteger internal constructor(
     private val negative: Boolean,
     private val magnitude: ULong,
@@ -60,15 +58,11 @@ internal class TomlInteger internal constructor(
     /** [value] in decimal. */
     constructor(value: Long) : this(value < 0, value.absoluteMagnitude(), TomlIntegerFormat())
 
-    override fun writeTomlValue(writer: FmtWrite): EmptyResult<FmtError> =
-        writer.writeStr(format.write(negative, magnitude))
+    override fun writeTomlValue(writer: StringBuilder) {
+        writer.append(format.write(negative, magnitude))
+    }
 
     override fun toString(): String = "TomlInteger(${format.write(negative, magnitude)})"
-
-    companion object {
-        /** [value] in decimal. A constructor would clash on the JVM with the `Long` one. */
-        fun of(value: ULong): TomlInteger = TomlInteger(false, value, TomlIntegerFormat())
-    }
 }
 
 // The magnitude of Long.MIN_VALUE does not fit a Long, so it is taken in two's complement.

@@ -122,10 +122,6 @@ internal class Raw internal constructor(
         }
     }
 
-    /** Checks this text as whitespace, which is always valid. */
-    fun decodeWhitespace(error: ErrorSink) {
-    }
-
     /** Checks this text as a comment, reporting any character a comment may not hold. */
     fun decodeComment(error: ErrorSink) {
         decodeCommentText(this, rebasing(error))
@@ -138,9 +134,6 @@ internal class Raw internal constructor(
 
     /** The text of this slice. */
     fun asStr(): String = bytes.decodeToString(from, to)
-
-    /** The UTF-8 bytes of this slice, as a copy. */
-    fun asBytes(): ByteArray = bytes.copyOfRange(from, to)
 
     /** The length of this slice in bytes. */
     fun len(): Int = to - from

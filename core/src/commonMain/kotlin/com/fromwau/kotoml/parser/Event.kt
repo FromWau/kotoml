@@ -155,10 +155,7 @@ internal class ValidateWhitespace(
 
     override fun valueSep(span: Span, error: ErrorSink): Unit = receiver.valueSep(span, error)
 
-    override fun whitespace(span: Span, error: ErrorSink) {
-        source.get(span)?.decodeWhitespace(error)
-        receiver.whitespace(span, error)
-    }
+    override fun whitespace(span: Span, error: ErrorSink): Unit = receiver.whitespace(span, error)
 
     override fun comment(span: Span, error: ErrorSink) {
         source.get(span)?.decodeComment(error)
@@ -280,11 +277,6 @@ internal class Event(
     override fun hashCode(): Int = 31 * (31 * kind.hashCode() + encoding.hashCode()) + span.hashCode()
 
     override fun toString(): String = "Event(kind=$kind, encoding=$encoding, span=$span)"
-
-    companion object {
-        /** An event built by hand, not checked against any input. */
-        fun newUnchecked(kind: EventKind, encoding: Encoding?, span: Span): Event = Event(kind, encoding, span)
-    }
 }
 
 /** The kinds of [Event]. */

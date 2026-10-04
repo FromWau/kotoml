@@ -13,9 +13,6 @@ internal fun readSnapshot(relativePath: String): String =
 internal fun readBytes(path: String): ByteArray =
     SystemFileSystem.source(Path(path)).buffered().use { it.readByteArray() }
 
-/** Whether [path] names an existing file. */
-internal fun fileExists(path: String): Boolean = SystemFileSystem.exists(Path(path))
-
 /** Every file under [directory], as paths relative to it with `/` separators, sorted. */
 internal fun walkFiles(directory: String): List<String> {
     val files = mutableListOf<String>()

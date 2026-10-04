@@ -1,7 +1,5 @@
 package com.fromwau.kotoml.writer
 
-import com.fromwau.kern.result.EmptyResult
-
 /**
  * Something that can be written as a TOML key.
  *
@@ -9,7 +7,7 @@ import com.fromwau.kern.result.EmptyResult
  */
 internal fun interface WriteTomlKey {
     /** Writes this key, encoded, to [writer]. */
-    fun writeTomlKey(writer: FmtWrite): EmptyResult<FmtError>
+    fun writeTomlKey(writer: StringBuilder)
 
     companion object {
         /** [key] in its default encoding: bare when it can be, otherwise quoted. */
@@ -18,11 +16,7 @@ internal fun interface WriteTomlKey {
 }
 
 /** This key as TOML text. */
-internal fun WriteTomlKey.toTomlKey(): String {
-    val writer = StringWriter()
-    writeTomlKey(writer)
-    return writer.toString()
-}
+internal fun WriteTomlKey.toTomlKey(): String = buildString { writeTomlKey(this) }
 
 /**
  * Something that can be written as a TOML value.
@@ -32,42 +26,42 @@ internal fun WriteTomlKey.toTomlKey(): String {
  */
 internal fun interface WriteTomlValue {
     /** Writes this value, encoded, to [writer]. */
-    fun writeTomlValue(writer: FmtWrite): EmptyResult<FmtError>
+    fun writeTomlValue(writer: StringBuilder)
 
     companion object {
         /** `true` or `false`. */
-        fun of(value: Boolean): WriteTomlValue = WriteTomlValue { it.writeStr(value.toString()) }
+        fun of(value: Boolean): WriteTomlValue = WriteTomlValue { it.append(value.toString()) }
 
         /** A decimal integer. */
-        fun of(value: Byte): WriteTomlValue = WriteTomlValue { it.writeStr(value.toString()) }
+        fun of(value: Byte): WriteTomlValue = WriteTomlValue { it.append(value.toString()) }
 
         /** A decimal integer. */
-        fun of(value: Short): WriteTomlValue = WriteTomlValue { it.writeStr(value.toString()) }
+        fun of(value: Short): WriteTomlValue = WriteTomlValue { it.append(value.toString()) }
 
         /** A decimal integer. */
-        fun of(value: Int): WriteTomlValue = WriteTomlValue { it.writeStr(value.toString()) }
+        fun of(value: Int): WriteTomlValue = WriteTomlValue { it.append(value.toString()) }
 
         /** A decimal integer. */
-        fun of(value: Long): WriteTomlValue = WriteTomlValue { it.writeStr(value.toString()) }
+        fun of(value: Long): WriteTomlValue = WriteTomlValue { it.append(value.toString()) }
 
         /** A decimal integer. */
-        fun of(value: UByte): WriteTomlValue = WriteTomlValue { it.writeStr(value.toString()) }
+        fun of(value: UByte): WriteTomlValue = WriteTomlValue { it.append(value.toString()) }
 
         /** A decimal integer. */
-        fun of(value: UShort): WriteTomlValue = WriteTomlValue { it.writeStr(value.toString()) }
+        fun of(value: UShort): WriteTomlValue = WriteTomlValue { it.append(value.toString()) }
 
         /** A decimal integer. */
-        fun of(value: UInt): WriteTomlValue = WriteTomlValue { it.writeStr(value.toString()) }
+        fun of(value: UInt): WriteTomlValue = WriteTomlValue { it.append(value.toString()) }
 
         /** A decimal integer. */
-        fun of(value: ULong): WriteTomlValue = WriteTomlValue { it.writeStr(value.toString()) }
+        fun of(value: ULong): WriteTomlValue = WriteTomlValue { it.append(value.toString()) }
 
         /**
          * A float in its shortest round-tripping form, with `.0` added to a whole number and `inf`, `nan` and
          * their negative forms for the special values. The sign of zero and of NaN is kept.
          */
         fun of(value: Float): WriteTomlValue = WriteTomlValue { writer ->
-            writer.writeStr(
+            writer.append(
                 formatFloat(
                     isNegative = value.toRawBits() < 0,
                     isNaN = value.isNaN(),
@@ -84,7 +78,7 @@ internal fun interface WriteTomlValue {
          * their negative forms for the special values. The sign of zero and of NaN is kept.
          */
         fun of(value: Double): WriteTomlValue = WriteTomlValue { writer ->
-            writer.writeStr(
+            writer.append(
                 formatFloat(
                     isNegative = value.toRawBits() < 0,
                     isNaN = value.isNaN(),
@@ -104,15 +98,15 @@ internal fun interface WriteTomlValue {
 
         /** An array, `[a, b, c]`. */
         fun of(values: Iterable<WriteTomlValue>): WriteTomlValue = WriteTomlValue { writer ->
-            writer.openArray().orBail { return@WriteTomlValue it }
+            writer.openArray()
             var first = true
             for (value in values) {
                 if (!first) {
-                    writer.valSep().orBail { return@WriteTomlValue it }
-                    writer.space().orBail { return@WriteTomlValue it }
+                    writer.valSep()
+                    writer.space()
                 }
                 first = false
-                writer.value(value).orBail { return@WriteTomlValue it }
+                writer.value(value)
             }
             writer.closeArray()
         }
@@ -122,34 +116,30 @@ internal fun interface WriteTomlValue {
          * `BTreeMap` sorted and a `HashMap` in hash order; pass a sorted map for the former.
          */
         fun of(table: Map<out WriteTomlKey, WriteTomlValue>): WriteTomlValue = WriteTomlValue { writer ->
-            writer.openInlineTable().orBail { return@WriteTomlValue it }
+            writer.openInlineTable()
             var first = true
             for ((key, value) in table) {
                 if (first) {
-                    writer.space().orBail { return@WriteTomlValue it }
+                    writer.space()
                 } else {
-                    writer.valSep().orBail { return@WriteTomlValue it }
-                    writer.space().orBail { return@WriteTomlValue it }
+                    writer.valSep()
+                    writer.space()
                 }
                 first = false
-                writer.key(key).orBail { return@WriteTomlValue it }
-                writer.space().orBail { return@WriteTomlValue it }
-                writer.keyvalSep().orBail { return@WriteTomlValue it }
-                writer.space().orBail { return@WriteTomlValue it }
-                writer.value(value).orBail { return@WriteTomlValue it }
+                writer.key(key)
+                writer.space()
+                writer.keyvalSep()
+                writer.space()
+                writer.value(value)
             }
-            if (!first) writer.space().orBail { return@WriteTomlValue it }
+            if (!first) writer.space()
             writer.closeInlineTable()
         }
     }
 }
 
 /** This value as TOML text. */
-internal fun WriteTomlValue.toTomlValue(): String {
-    val writer = StringWriter()
-    writeTomlValue(writer)
-    return writer.toString()
-}
+internal fun WriteTomlValue.toTomlValue(): String = buildString { writeTomlValue(this) }
 
 private inline fun formatFloat(
     isNegative: Boolean,

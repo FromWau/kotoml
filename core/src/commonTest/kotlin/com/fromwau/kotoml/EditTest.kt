@@ -1,11 +1,6 @@
 package com.fromwau.kotoml
 
-import com.fromwau.kern.result.EmptyResult
-import com.fromwau.kern.result.Err
-import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
-import com.fromwau.kotoml.writer.FmtError
-import com.fromwau.kotoml.writer.FmtWrite
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -77,33 +72,15 @@ class EditTest {
     }
 
     @Test
-    fun `writing a document fails when the writer refuses any part of its text`() {
-        class LimitedWriter(var remaining: Int) : FmtWrite {
-            override fun writeStr(text: String): EmptyResult<FmtError> {
-                val length = text.encodeToByteArray().size
-                if (length > remaining) return Err(FmtError)
-                remaining -= length
-                return Ok(Unit)
-            }
-        }
-
+    fun `a line inserted into a CRLF document ends with CRLF`() {
         val document = TomlDocument.parse("# comment\r\n[table]\r\nvalue = { dotted.key = [1, 2] }\r\n").unwrap()
         document["table"]["new key"] = "new value"
-        val output = document.toString()
         // Upstream prints CRLF input with LF line endings; this port keeps each line's ending, which the toml-test
         // round trip requires (valid/newline-crlf), and an inserted line ends like the line before it.
         assertEquals(
             "# comment\r\n[table]\r\nvalue = { dotted.key = [1, 2] }\r\n\"new key\" = \"new value\"\r\n",
-            output,
+            document.toString(),
         )
-        val length = output.encodeToByteArray().size
-        for (limit in 0 until length) {
-            val writer = LimitedWriter(limit)
-            assertTrue(writer.writeStr(document.toString()) is Result.Error, "$limit")
-        }
-        val writer = LimitedWriter(length)
-        writer.writeStr(document.toString()).unwrap()
-        assertEquals(0, writer.remaining)
     }
 
     @Test

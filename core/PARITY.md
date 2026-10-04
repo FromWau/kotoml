@@ -143,8 +143,8 @@ section 1.
 | `Source::get_unchecked` | | n/a | behind the `unsafe` feature |
 | `SourceIndex` (sealed trait over `Span`, `Token`, `Event`) | the three `TomlSource.get` overloads | done | |
 | `Raw::new_unchecked` | `Raw.newUnchecked(String, Encoding?, Span)` | done | `DecoderStringTest`, `DecoderScalarTest` |
-| `Raw::decode_key / decode_scalar / decode_whitespace / decode_comment / decode_newline` | same names | done | `ParseDocumentTest`, `ParseValueTest`, `ParseSimpleKeyTest` |
-| `Raw::as_str / as_bytes / len / is_empty` | `asStr()`, `asBytes()` (a copy), `len()` (bytes), `isEmpty()` | done | |
+| `Raw::decode_key / decode_scalar / decode_whitespace / decode_comment / decode_newline` | same names; `decode_whitespace` is not ported, as it checks nothing | done | `ParseDocumentTest`, `ParseValueTest`, `ParseSimpleKeyTest` |
+| `Raw::as_str / as_bytes / len / is_empty` | `asStr()`, `len()` (bytes), `isEmpty()`; `as_bytes` not ported, as nothing reads it | done | |
 | `Span::new_unchecked`, `is_empty`, `len`, `start`, `end`, `before`, `after`, `append` | `data class Span(start, end)` with a `length` property; `before`, `after`, `append` internal | done | every snapshot prints spans |
 | `impl Add<usize> / AddAssign<usize> for Span`, `impl Add<Span> for usize` | `Span.plus(Int)`, internal | done | |
 | `impl Default for Span` | `Span.DEFAULT`, internal | done | |
@@ -152,7 +152,7 @@ section 1.
 | `ErrorSink` | `fun interface ErrorSink` | done | all parser tests |
 | `impl ErrorSink for FnMut(ParseError)` / `Vec<ParseError>` | a lambda: `ErrorSink { errors += it }` | done | all parser tests |
 | `impl ErrorSink for ()` | `ErrorSink.IGNORE` | done | |
-| `impl ErrorSink for Option<ParseError>` | `FirstErrorSink` | done | |
+| `impl ErrorSink for Option<ParseError>` | | not ported | nothing in kotoml keeps only the first error |
 | `ParseError::new`, `with_context`, `with_expected`, `with_unexpected` | `data class ParseError(reason, unexpected, context, expected)` and `copy` | done | `DecoderStringTest` |
 | `ParseError::context / description / expected / unexpected` | properties; `description` is the typed `reason: ParseErrorReason` | done | `DecoderStringTest` |
 | `Expected::Literal`, `Expected::Description` | `Expected.Literal`, `Expected.Token(ExpectedToken)` | done | `DecoderStringTest` |
@@ -165,12 +165,12 @@ section 1.
 | `impl EventReceiver for ()` | `EventReceiver.IGNORE` | done | |
 | `parser::ValidateWhitespace::new` | `ValidateWhitespace(EventReceiver, TomlSource)` | done | toml_edit's parser |
 | `parser::RecursionGuard::new(_, u32)` | `RecursionGuard(EventReceiver, UInt)` | done | `` ParseDocumentTest.`*recursion limit*` `` |
-| `parser::Event::new_unchecked / kind / encoding / span` | `Event(...)`, `Event.newUnchecked`, same names | done | all parser tests |
+| `parser::Event::new_unchecked / kind / encoding / span` | `Event(...)`, same names | done | all parser tests |
 | `parser::EventKind` (17 kinds), `description` | `EventKind`; `description` n/a, as for `TokenKind` | done | |
 | `decoder::Encoding`, `description` | `Encoding`, with `MlLiteralString` / `MlBasicString` spelled `MultilineLiteralString` / `MultilineBasicString` (also in `TokenKind`); `description` n/a, as for `TokenKind` | done | |
-| `decoder::StringBuilder` | `DecodedStringBuilder` | done | `DecoderStringTest` |
+| `decoder::StringBuilder` (`clear`, `push_str`, `push_char`) | `DecodedStringBuilder` (`clear`, `append`, `appendCodePoint`), which always accepts | done | `DecoderStringTest` |
 | `impl StringBuilder for String` / `Cow<str>` | `StringOutput` | done | `DecoderStringTest`, `ParseValueTest` |
-| `impl StringBuilder for &str` | `BorrowedOutput` | done | |
+| `impl StringBuilder for &str` | | not ported | the only builder that refuses text; kotoml never borrows the input |
 | `impl StringBuilder for ()` | `DecodedStringBuilder.DISCARD` | done | `ParseDocumentTest` (keys) |
 | `decoder::ScalarKind` (`String`, `Boolean`, `DateTime`, `Float`, `Integer`), `description`, `invalid_description` | `ScalarKind` sealed interface; `description` n/a, as for `TokenKind`; `invalid_description` is `ParseErrorReason.InvalidScalar(kind)` | done | `ParseValueTest` |
 | `decoder::IntegerRadix`, `description`, `value`, `invalid_description`, `Default` | `IntegerRadix`, `base`; `description` n/a, as for `TokenKind`; `Default` is `IntegerRadix.Dec`; `invalid_description` as for `ScalarKind` | done | `ParseValueTest` |
@@ -180,9 +180,9 @@ section 1.
 
 | upstream | Kotlin | status | tests |
 |---|---|---|---|
-| `core::fmt::Write` (the writer every function writes to), `fmt::Error`, `fmt::Result` | `fun interface FmtWrite`, `FmtError`, `EmptyResult<FmtError>`; `StringWriter` for `String` | done | `WriterDocTest`, `WriterStringTest` |
-| `TomlWrite::open_table_header`, `close_table_header`, `open_array_of_tables_header`, `close_array_of_tables_header`, `open_inline_table`, `close_inline_table`, `open_array`, `close_array`, `key_sep`, `keyval_sep`, `key`, `value`, `val_sep`, `space`, `open_comment`, `newline` | extension functions on `FmtWrite`, same names | done | `` WriterDocTest.`a table header and a key value pair write through the writer calls` `` |
-| `impl TomlWrite for W: fmt::Write` | the extensions apply to every `FmtWrite` | done | |
+| `core::fmt::Write` (the writer every function writes to), `fmt::Error`, `fmt::Result` | `StringBuilder`, which cannot refuse text, so no error type | done | `WriterDocTest`, `WriterStringTest` |
+| `TomlWrite::open_table_header`, `close_table_header`, `open_array_of_tables_header`, `close_array_of_tables_header`, `open_inline_table`, `close_inline_table`, `open_array`, `close_array`, `key_sep`, `keyval_sep`, `key`, `value`, `val_sep`, `space`, `open_comment`, `newline` | extension functions on `StringBuilder`, same names; `open_array_of_tables_header`, `close_array_of_tables_header` and `open_comment` are not ported, as nothing writes them | done | `` WriterDocTest.`a table header and a key value pair write through the writer calls` `` |
+| `impl TomlWrite for W: fmt::Write` | the extensions apply to every `StringBuilder` | done | |
 | `WriteTomlKey`, `ToTomlKey::to_toml_key` | `fun interface WriteTomlKey`, `WriteTomlKey.toTomlKey()` | done | `WriterStringTest` |
 | `impl WriteTomlKey for str / String / Cow<str> / &V` | `WriteTomlKey.of(String)` | done | `` WriterDocTest.`a table header and a key value pair write through the writer calls` `` |
 | `WriteTomlValue`, `ToTomlValue::to_toml_value` | `fun interface WriteTomlValue`, `WriteTomlValue.toTomlValue()` | done | `WriterFloatTest`, `WriterStringTest` |
@@ -199,7 +199,7 @@ section 1.
 | `TomlKey` (`WriteTomlKey`, derived `Eq` / `Hash`) | `TomlKey` | done | `WriterStringTest` |
 | derived `Ord` on `TomlString`, `TomlKey` | | n/a | the order of private fields is not a contract; Kotlin offers no comparison |
 | `TomlIntegerFormat::new`, `as_decimal`, `as_hex_upper`, `as_hex_lower`, `as_octal`, `as_binary`, `format`, `Default` | `TomlIntegerFormat()`, same names; `format(Long): TomlInteger?`, `format(ULong): TomlInteger` | done | `WriterIntegerTest`, `WriterDocTest` |
-| `TomlInteger::new` | `TomlInteger(Long)`, `TomlInteger.of(ULong)` | done | `` WriterDocTest.`an integer format writes ten as lower-case hex` `` |
+| `TomlInteger::new` | `TomlInteger(Long)` | done | `` WriterDocTest.`an integer format writes ten as lower-case hex` `` |
 | `impl WriteTomlValue for TomlInteger<N>` (every integer width) | `TomlInteger : WriteTomlValue` over `Long` and `ULong` | done | `WriterIntegerTest` |
 
 ### `toml_edit`
@@ -550,7 +550,7 @@ Beyond upstream's tests, `FloatFormatTest` compares the shortest digits, `Displa
 |---|---|
 | `tests/testsuite/edit.rs::parsed_document_outlives_input` | `` EditTest.`a parsed document prints its input unchanged and keeps a value's decor across an edit` `` |
 | `tests/testsuite/edit.rs::parse_error_outlives_input` | `` EditTest.`a parse error renders against the input it came from` `` |
-| `tests/testsuite/edit.rs::document_display_propagates_write_errors` | `` EditTest.`writing a document fails when the writer refuses any part of its text` `` |
+| `tests/testsuite/edit.rs::document_display_propagates_write_errors` | `` EditTest.`a line inserted into a CRLF document ends with CRLF` ``, `` TomlDocumentTest.`writeTo flushes so a failing sink is reported as TomlIoError` `` |
 | `tests/testsuite/edit.rs::assign_whitespace` | `` EditTest.`a parsed document keeps the whitespace and comments around every key and value` `` |
 | `tests/testsuite/edit.rs::test_add_root_decor` | `` EditTest.`a document's decor and trailing text print around its tables` `` |
 | `tests/testsuite/edit.rs::test_no_root_decor` | `` EditTest.`a parsed document has no decor and prints its trailing text at the end` `` |
@@ -695,6 +695,7 @@ commands of [`:app`](../app/README.md) and compares their output by its own rule
 
 | where | upstream | Kotlin | why |
 |---|---|---|---|
+| a decoder's output refusing text | `push_str` / `push_char` return `false` and the decoder reports `could not allocate for string` | the builder always accepts, and there is no `AllocationFailed` reason | only a borrowed `&str` builder refused, and kotoml has none |
 | `Offset::Custom` display | `minutes *= -1` overflows (panics in debug builds) for `i16::MIN` | prints the magnitude computed in `Int` | an `i16::MIN` offset is not a TOML value; Kotlin has no panic to copy |
 | `TomlSource` over a `String` with an unpaired surrogate | not representable: `&str` is always valid UTF-8 | lexed as if U+FFFD stood there, which is what `encodeToByteArray` writes | Kotlin strings can hold what Rust strings cannot |
 | `ValidateWhitespace` given a span that does not slice its source | panics (`expect("token spans are valid")`) | skips validating that span | spans come from the lexer, so only a misused receiver reaches this |
@@ -750,7 +751,7 @@ commands of [`:app`](../app/README.md) and compares their output by its own rule
 | `Document` | a read-only parse result that borrows its input, turned editable with `into_mut` | not public | Kotlin cannot hand out a read-only view of mutable classes, so a second type would only add a step |
 | The root of a `DocumentMut` | an `Item`, reached as an item or a table, that can be made to hold a non-table | `root: Table` | a document's root is always a table, and one property says so |
 | Reading and writing a document | `&str` in through `FromStr`, text out through `Display` | also `TomlDocument.read(Source)` and `writeTo(Sink)`, failing with typed `TomlReadError` and `TomlIoError` | a Kotlin caller holding a file or stream uses kotlinx-io, and an I/O failure arrives as a value like a parse failure |
-| `Display` into a writer that refuses text | stops part-way, propagating `fmt::Error` | `toString()` cannot fail; writing that string to an `FmtWrite` fails before anything is written | Kotlin's `toString` has no error channel |
+| `Display` into a writer that refuses text | stops part-way, propagating `fmt::Error` | `toString()` cannot fail; `writeTo(sink)` reports a failing sink as `TomlIoError` | Kotlin's `toString` has no error channel |
 | Line endings | every line printed with LF | each line keeps its own ending; an inserted line ends like the line before | the suite's round trip (`valid/newline-crlf`); upstream's `document_display_propagates_write_errors` therefore expects CRLF kept |
 | A key spelled differently on several lines | every occurrence printed with the first spelling | each line keeps its own while the shared keys are unchanged | the suite's round trip (`valid/key/dotted-01`, `valid/table/with-literal-string`); upstream's `test_key_unification` therefore expects each header as written |
 | Removing a key, a table or an element (`remove`, `removeItem`, `removeAt`, `retainAll`, `removeAll`, `clear`) | the comment and blank lines above it go with it | the comment and blank lines above it stay where they printed, above whatever follows; what belongs to it goes: the comment on its own line, every comment inside its value or body, and for a table or an array of tables the lines above every header after its first, those of its sub-tables and later elements | a comment above a key may be about something else, such as a commented-out alternative; upstream's `test_remove_leaf_table`, `test_remove_nonleaf_table`, `test_remove_array_entry`, `test_remove_array` and `test_remove_value` therefore expect the lines above kept, and `RemovalCommentScopeTest`, `RemovalKeepsCommentsTest` and `RemovalPropertyTest` pin the rule |

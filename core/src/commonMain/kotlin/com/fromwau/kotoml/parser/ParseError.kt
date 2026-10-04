@@ -23,20 +23,6 @@ internal fun interface ErrorSink {
 }
 
 /**
- * Keeps the first error reported and drops the rest, as upstream's `Option<ParseError>` sink does.
- */
-internal class FirstErrorSink : ErrorSink {
-    private var first: ParseError? = null
-
-    /** The first error reported, or null when none was. */
-    fun error(): ParseError? = first
-
-    override fun reportError(error: ParseError) {
-        if (first == null) first = error
-    }
-}
-
-/**
  * One problem found in TOML text.
  *
  * [unexpected] points at the offending bytes, [context] at the surrounding construct, and [expected] lists

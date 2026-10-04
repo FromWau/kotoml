@@ -8,7 +8,7 @@ class WriterDocTest {
 
     @Test
     fun `a table header and a key value pair write through the writer calls`() {
-        val output = StringWriter()
+        val output = StringBuilder()
         output.newline()
         output.openTableHeader()
         output.key(WriteTomlKey.of("table"))

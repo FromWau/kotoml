@@ -1,39 +1,36 @@
 package com.fromwau.kotoml.parser
 
-import com.fromwau.kotoml.Encoding
 import com.fromwau.kotoml.IntegerRadix
-import com.fromwau.kotoml.ScalarKind
 
 /**
  * Where a decoder writes the text it decodes.
  *
- * A decoder may [clear] it, then appends whole decoded pieces with [pushStr] and single characters from
- * escapes with [pushChar]. A push returning false means the builder could not take it, which the decoder
- * reports as `could not allocate for string`.
+ * A decoder may [clear] it, then appends whole decoded pieces with [append] and single characters from escapes
+ * with [appendCodePoint].
  */
 internal interface DecodedStringBuilder {
-    /** Drops everything pushed so far. */
+    /** Drops everything appended so far. */
     fun clear()
 
-    /** Appends [append], returning whether it was accepted. */
-    fun pushStr(append: String): Boolean
+    /** Appends [text]. */
+    fun append(text: String)
 
-    /** Appends the character with code point [append], returning whether it was accepted. */
-    fun pushChar(append: Int): Boolean
+    /** Appends the character with code point [codePoint]. */
+    fun appendCodePoint(codePoint: Int)
 
     companion object {
-        /** A builder that accepts and drops everything, for validating text without keeping it. */
+        /** A builder that drops everything, for validating text without keeping it. */
         val DISCARD: DecodedStringBuilder = object : DecodedStringBuilder {
             override fun clear() {}
 
-            override fun pushStr(append: String): Boolean = true
+            override fun append(text: String) {}
 
-            override fun pushChar(append: Int): Boolean = true
+            override fun appendCodePoint(codePoint: Int) {}
         }
     }
 }
 
-/** A [DecodedStringBuilder] that keeps everything pushed, read back with [toString]. */
+/** A [DecodedStringBuilder] that keeps everything appended, read back with [toString]. */
 internal class StringOutput : DecodedStringBuilder {
     private val buffer = StringBuilder()
 
@@ -41,44 +38,16 @@ internal class StringOutput : DecodedStringBuilder {
         buffer.clear()
     }
 
-    override fun pushStr(append: String): Boolean {
-        buffer.append(append)
-        return true
+    override fun append(text: String) {
+        buffer.append(text)
     }
 
-    override fun pushChar(append: Int): Boolean {
-        appendCodePoint(buffer, append)
-        return true
+    override fun appendCodePoint(codePoint: Int) {
+        appendCodePoint(buffer, codePoint)
     }
 
-    /** Everything pushed since the last [clear]. */
+    /** Everything appended since the last [clear]. */
     override fun toString(): String = buffer.toString()
-}
-
-/**
- * A [DecodedStringBuilder] that accepts only text that needs no decoding: a single [pushStr] into an empty
- * builder. Every other push is refused. This is upstream's builder over a borrowed `&str`, which can
- * point at the input but cannot own new text.
- */
-internal class BorrowedOutput : DecodedStringBuilder {
-    private var value = ""
-
-    override fun clear() {
-        value = ""
-    }
-
-    override fun pushStr(append: String): Boolean {
-        if (value.isEmpty()) {
-            value = append
-            return true
-        }
-        return false
-    }
-
-    override fun pushChar(append: Int): Boolean = false
-
-    /** The text accepted since the last [clear]. */
-    override fun toString(): String = value
 }
 
 internal fun appendCodePoint(builder: StringBuilder, codePoint: Int) {
