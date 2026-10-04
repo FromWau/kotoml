@@ -169,7 +169,7 @@ public sealed class Toml(
         val full = if (encodeDefaults || !document.root.toInput().holdsKeyAtDefault(written)) {
             written
         } else {
-            when (val encoded = encodeNode(serializer, value, encodeDefaults = true)) {
+            when (val encoded = encodeNode(serializer, value, encodeDefaults = true, sparse = written)) {
                 is Result.Success -> encoded.value
                 is Result.Error -> return encoded
             }
@@ -183,6 +183,7 @@ public sealed class Toml(
         serializer: SerializationStrategy<T>,
         value: T,
         encodeDefaults: Boolean,
+        sparse: TomlNode? = null,
     ): Result<TomlNode.Struct, TomlEncodeError> {
         val descriptor = serializer.descriptor
         val unsupported = TomlEncodeError.UnsupportedRoot(descriptor.serialName)
@@ -190,7 +191,7 @@ public sealed class Toml(
         firstNullableType(descriptor, serializersModule)?.let { return Err(TomlEncodeError.NullableType("$it")) }
         var node: TomlNode? = null
         return try {
-            NodeEncoder(EncodeSettings(this, encodeDefaults), TomlPath.Root) { node = it }
+            NodeEncoder(EncodeSettings(this, encodeDefaults), TomlPath.Root, sparse = sparse) { node = it }
                 .encodeSerializableValue(serializer, value)
             (node as? TomlNode.Struct)?.let { Ok(it) } ?: Err(unsupported)
         } catch (failure: EncodeFailure) {

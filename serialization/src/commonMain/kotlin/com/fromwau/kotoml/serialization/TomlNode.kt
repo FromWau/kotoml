@@ -26,11 +26,14 @@ internal sealed interface TomlNode {
      * @param ownsAllKeys whether the value accounts for every key of its table, as a map does.
      * @param defaulted the keys left out because their field holds its default and defaults are not written.
      * @param discriminator the key naming a polymorphic value's subclass, which leads [entries].
+     * @param defaultedSparse for a key a run without defaults left out, its value encoded without defaults, which
+     *   tells the fields of that default that differ from their own class's defaults.
      */
     class Struct(
         val entries: Map<String, TomlNode>,
         val ownsAllKeys: Boolean,
         val defaulted: Set<String>,
         val discriminator: String? = null,
+        val defaultedSparse: Map<String, TomlNode> = emptyMap(),
     ) : TomlNode
 }

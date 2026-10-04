@@ -15,11 +15,16 @@ internal class EncodeSettings(
     val encodeDefaults: Boolean,
 )
 
-/** Encodes one value at [path] into a [TomlNode], handing it to [emit]. */
+/**
+ * Encodes one value at [path] into a [TomlNode], handing it to [emit].
+ *
+ * @param sparse the same value encoded without defaults, when defaults are written for `encodeInto`'s merge.
+ */
 internal class NodeEncoder(
     private val settings: EncodeSettings,
     private val path: TomlPath,
     private val isMapKey: Boolean = false,
+    private val sparse: TomlNode? = null,
     private val emit: (TomlNode) -> Unit,
 ) : Encoder {
     override val serializersModule: SerializersModule
@@ -63,10 +68,10 @@ internal class NodeEncoder(
         if (descriptor.isUnsignedInteger) UnsignedEncoder(this, path) else this
 
     override fun beginStructure(descriptor: SerialDescriptor): CompositeEncoder = when (descriptor.kind) {
-        StructureKind.LIST -> ListEncoder(settings, path, emit)
-        StructureKind.MAP -> MapEncoder(settings, path, emit)
-        is PolymorphicKind -> PolymorphicEncoder(settings, path, emit)
-        else -> ClassEncoder(settings, path, emit)
+        StructureKind.LIST -> ListEncoder(settings, path, sparse, emit)
+        StructureKind.MAP -> MapEncoder(settings, path, sparse, emit)
+        is PolymorphicKind -> PolymorphicEncoder(settings, path, sparse, emit)
+        else -> ClassEncoder(settings, path, sparse, emit)
     }
 
     override fun <T : Any> encodeNullableSerializableValue(
@@ -112,6 +117,7 @@ private fun String.hasLoneSurrogate(): Boolean {
 internal abstract class NodeCompositeEncoder(
     protected val settings: EncodeSettings,
     protected val path: TomlPath,
+    protected val sparse: TomlNode?,
     private val emit: (TomlNode) -> Unit,
 ) : CompositeEncoder {
     override val serializersModule: SerializersModule
@@ -144,12 +150,46 @@ internal abstract class NodeCompositeEncoder(
     protected val defaulted: Set<String>
         get() = skipped.values.toSet()
 
+    /** The element at [index] as [sparse] holds it. */
+    protected open fun sparseChild(
+        descriptor: SerialDescriptor,
+        index: Int,
+    ): TomlNode? = null
+
+    /** The key of the element at [index] when [sparse] left it out at its default. */
+    protected open fun defaultedKey(
+        descriptor: SerialDescriptor,
+        index: Int,
+    ): String? = null
+
+    private val defaultedSparse = mutableMapOf<String, TomlNode>()
+
+    /** For each key [sparse] left out at its default, its value encoded without defaults. */
+    protected val sparseOfDefaulted: Map<String, TomlNode>
+        get() = defaultedSparse
+
     private fun child(
         descriptor: SerialDescriptor,
         index: Int,
+        childSparse: TomlNode? = sparseChild(descriptor, index),
     ): NodeEncoder {
         skipped.remove(index)
-        return NodeEncoder(settings, childPath(descriptor, index), isMapKey(index)) { put(descriptor, index, it) }
+        return NodeEncoder(settings, childPath(descriptor, index), isMapKey(index), childSparse) {
+            put(descriptor, index, it)
+        }
+    }
+
+    // A field at its parent's default may still differ from its own class's defaults, which only a run without
+    // defaults of that value itself tells, so the merge can add exactly those keys.
+    private fun <T> sparseOf(
+        serializer: SerializationStrategy<T>,
+        value: T,
+        path: TomlPath,
+    ): TomlNode? {
+        var node: TomlNode? = null
+        NodeEncoder(EncodeSettings(settings.toml, encodeDefaults = false), path) { node = it }
+            .encodeSerializableValue(serializer, value)
+        return node
     }
 
     // Asked before comparing with the default, so an element asked about and then not encoded holds its default.
@@ -227,7 +267,13 @@ internal abstract class NodeCompositeEncoder(
         index: Int,
         serializer: SerializationStrategy<T>,
         value: T,
-    ) = child(descriptor, index).encodeSerializableValue(serializer, value)
+    ) {
+        val key = if (settings.encodeDefaults) defaultedKey(descriptor, index) else null
+        val childSparse = key?.let { sparseOf(serializer, value, childPath(descriptor, index)) }
+        if (key != null && childSparse != null) defaultedSparse[key] = childSparse
+        val encoder = if (key == null) child(descriptor, index) else child(descriptor, index, childSparse)
+        encoder.encodeSerializableValue(serializer, value)
+    }
 
     override fun <T : Any> encodeNullableSerializableElement(
         descriptor: SerialDescriptor,
@@ -240,14 +286,25 @@ internal abstract class NodeCompositeEncoder(
 private class ClassEncoder(
     settings: EncodeSettings,
     path: TomlPath,
+    sparse: TomlNode?,
     emit: (TomlNode) -> Unit,
-) : NodeCompositeEncoder(settings, path, emit) {
+) : NodeCompositeEncoder(settings, path, sparse, emit) {
     private val entries = linkedMapOf<String, TomlNode>()
 
     override fun childPath(
         descriptor: SerialDescriptor,
         index: Int,
     ): TomlPath = path.key(descriptor.getElementName(index))
+
+    override fun sparseChild(
+        descriptor: SerialDescriptor,
+        index: Int,
+    ): TomlNode? = (sparse as? TomlNode.Struct)?.entries?.get(descriptor.getElementName(index))
+
+    override fun defaultedKey(
+        descriptor: SerialDescriptor,
+        index: Int,
+    ): String? = descriptor.getElementName(index).takeIf { (sparse as? TomlNode.Struct)?.defaulted?.contains(it) == true }
 
     override fun put(
         descriptor: SerialDescriptor,
@@ -261,20 +318,27 @@ private class ClassEncoder(
         entries = entries,
         ownsAllKeys = false,
         defaulted = defaulted,
+        defaultedSparse = sparseOfDefaulted,
     )
 }
 
 private class ListEncoder(
     settings: EncodeSettings,
     path: TomlPath,
+    sparse: TomlNode?,
     emit: (TomlNode) -> Unit,
-) : NodeCompositeEncoder(settings, path, emit) {
+) : NodeCompositeEncoder(settings, path, sparse, emit) {
     private val elements = mutableListOf<TomlNode>()
 
     override fun childPath(
         descriptor: SerialDescriptor,
         index: Int,
     ): TomlPath = path.index(index)
+
+    override fun sparseChild(
+        descriptor: SerialDescriptor,
+        index: Int,
+    ): TomlNode? = (sparse as? TomlNode.Sequence)?.takeUnless { it.leavesOutDefaults }?.elements?.getOrNull(index)
 
     override fun put(
         descriptor: SerialDescriptor,
@@ -291,8 +355,9 @@ private class ListEncoder(
 private class MapEncoder(
     settings: EncodeSettings,
     path: TomlPath,
+    sparse: TomlNode?,
     emit: (TomlNode) -> Unit,
-) : NodeCompositeEncoder(settings, path, emit) {
+) : NodeCompositeEncoder(settings, path, sparse, emit) {
     private val entries = linkedMapOf<String, TomlNode>()
     private var key: String? = null
 
@@ -310,6 +375,11 @@ private class MapEncoder(
         descriptor: SerialDescriptor,
         index: Int,
     ): TomlPath = if (isMapKey(index)) path else path.key(currentKey)
+
+    override fun sparseChild(
+        descriptor: SerialDescriptor,
+        index: Int,
+    ): TomlNode? = if (isMapKey(index)) null else (sparse as? TomlNode.Struct)?.entries?.get(currentKey)
 
     override fun put(
         descriptor: SerialDescriptor,
@@ -335,8 +405,9 @@ private class MapEncoder(
 private class PolymorphicEncoder(
     settings: EncodeSettings,
     path: TomlPath,
+    sparse: TomlNode?,
     emit: (TomlNode) -> Unit,
-) : NodeCompositeEncoder(settings, path, emit) {
+) : NodeCompositeEncoder(settings, path, sparse, emit) {
     private var name: TomlNode? = null
     private var value: TomlNode? = null
 
@@ -344,6 +415,12 @@ private class PolymorphicEncoder(
         descriptor: SerialDescriptor,
         index: Int,
     ): TomlPath = path
+
+    // The subclass's value and its discriminator share one table, which the run without defaults holds too.
+    override fun sparseChild(
+        descriptor: SerialDescriptor,
+        index: Int,
+    ): TomlNode? = if (index == 1) sparse else null
 
     override fun put(
         descriptor: SerialDescriptor,
@@ -379,6 +456,7 @@ private class PolymorphicEncoder(
             ownsAllKeys = struct.ownsAllKeys,
             defaulted = struct.defaulted,
             discriminator = key,
+            defaultedSparse = struct.defaultedSparse,
         )
     }
 }

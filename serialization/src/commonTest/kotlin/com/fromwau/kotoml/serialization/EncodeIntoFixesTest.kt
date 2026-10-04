@@ -53,6 +53,24 @@ private object ZeroSkippingList : KSerializer<List<Int>> {
 private data class Readings(@Serializable(with = ZeroSkippingList::class) val counts: List<Int>)
 
 /** What `encodeInto` writes for defaults that are not their type's own, moved array elements and emptied maps. */
+@Serializable
+private data class Listener(val host: String = "localhost", val port: Int = 8080)
+
+@Serializable
+private data class ListenerConfig(val listener: Listener = Listener(port = 9090))
+
+@Serializable
+private data class ServiceLimits(val retries: Int = 3, val timeout: Int = 30)
+
+@Serializable
+private data class Service(val name: String = "api", val limits: ServiceLimits = ServiceLimits(timeout = 5))
+
+@Serializable
+private data class Deployment(val service: Service = Service())
+
+@Serializable
+private data class PlainConfig(val listener: Listener = Listener())
+
 class EncodeIntoFixesTest {
 
     private fun <T> encoded(
@@ -112,4 +130,30 @@ class EncodeIntoFixesTest {
         "counts = [0, 5]\n",
         encoded("counts = [7]\n", Readings.serializer(), Readings(listOf(0, 5))),
     )
+
+    @Test
+    fun `a nested class at a default that differs from its own defaults writes the keys that differ`() {
+        val document = TomlDocument.parse("[listener]\nhost = \"localhost\"\n").getOrFail()
+        Toml.encodeInto(document, ListenerConfig()).getOrFail()
+        assertEquals("[listener]\nhost = \"localhost\"\nport = 9090\n", document.toString())
+        assertEquals(ListenerConfig(), Toml.decodeFromDocument<ListenerConfig>(document).getOrFail())
+    }
+
+    @Test
+    fun `a default two levels down that differs from its class's defaults is written`() {
+        val document = TomlDocument.parse("[service]\nname = \"api\"\n\n[service.limits]\nretries = 3\n").getOrFail()
+        Toml.encodeInto(document, Deployment()).getOrFail()
+        assertEquals(
+            "[service]\nname = \"api\"\n\n[service.limits]\nretries = 3\ntimeout = 5\n",
+            document.toString(),
+        )
+        assertEquals(Deployment(), Toml.decodeFromDocument<Deployment>(document).getOrFail())
+    }
+
+    @Test
+    fun `a nested class at its own class's defaults adds no keys`() {
+        val document = TomlDocument.parse("[listener]\nhost = \"localhost\"\n").getOrFail()
+        Toml.encodeInto(document, PlainConfig()).getOrFail()
+        assertEquals("[listener]\nhost = \"localhost\"\n", document.toString())
+    }
 }

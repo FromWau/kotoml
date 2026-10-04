@@ -39,9 +39,13 @@ internal sealed interface Defaults {
         is Sparse -> node is TomlNode.Struct && key in node.defaulted
     }
 
-    fun child(key: String): Defaults = when (this) {
+    /** The defaults of [key] in [full], the value encoded with defaults. */
+    fun child(
+        key: String,
+        full: TomlNode.Struct,
+    ): Defaults = when (this) {
         Written, All -> this
-        is Sparse -> (node as? TomlNode.Struct)?.entries?.get(key)?.let(::Sparse) ?: All
+        is Sparse -> ((node as? TomlNode.Struct)?.entries?.get(key) ?: full.defaultedSparse[key])?.let(::Sparse) ?: All
     }
 
     fun element(index: Int): Defaults = when (this) {
@@ -76,7 +80,7 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
         if (full.ownsAllKeys || subtypeChanged) table.removeKeysOutside(full.entries.keys)
         for ((key, child) in full.entries) {
             val existing = table.getItem(key)
-            val childDefaults = defaults.child(key)
+            val childDefaults = defaults.child(key, full)
             when {
                 existing != null -> mergeItem(table, key, existing, child, childDefaults)
                 !defaults.isDefault(full, key) -> put(table, key, newItem(table, childDefaults.written(child)))
@@ -381,7 +385,7 @@ private fun TomlInput.sharedValues(
     defaults: Defaults,
 ): Int {
     if (this !is TomlInput.Table || new !is TomlNode.Struct) return 0
-    return new.entries.count { (key, child) -> entries[key]?.toInput()?.sameAs(child, defaults.child(key)) == true }
+    return new.entries.count { (key, child) -> entries[key]?.toInput()?.sameAs(child, defaults.child(key, new)) == true }
 }
 
 /**
@@ -411,7 +415,11 @@ private fun TomlInput.sameAs(
         full.entries.keys.containsAll(entries.keys) &&
         full.entries.all { (key, child) ->
             val item = entries[key]
-            if (item == null) defaults.isDefault(full, key) else item.toInput()?.sameAs(child, defaults.child(key)) == true
+            if (item == null) {
+                defaults.isDefault(full, key)
+            } else {
+                item.toInput()?.sameAs(child, defaults.child(key, full)) == true
+            }
         }
 }
 
