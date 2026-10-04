@@ -10,8 +10,8 @@ import com.fromwau.kern.result.Result
  *
  * A table added here is stored as is, not copied: keep using it only through the array, or add its `copy()`.
  *
- * A [StandardTable] has no content equality, so `contains(table)` and `indexOf(table)` find only that same table object.
- * Compare what the tables hold instead, as in `tables.indexOfFirst { it["name"].stringOrNull == "a" }`.
+ * A [StandardTable] has no content equality, so `contains(table)` and `indexOf(table)` find only that same table
+ * object. Compare what the tables hold instead, as in `tables.indexOfFirst { it["name"].stringOrNull == "a" }`.
  */
 public class ArrayOfTables() : Iterable<StandardTable> {
     internal var span: Span? = null
@@ -143,7 +143,9 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         values.filter { item -> item.standardTableOrNull?.let(predicate) ?: false }
 
     private fun removeSlots(removed: List<Item>): Boolean {
-        for (item in removed) item.standardTableOrNull?.let { keepHeaderLinesOf(it, isArrayOfTables = true, keptHeaderLines) }
+        for (item in removed) {
+            item.standardTableOrNull?.let { keepHeaderLinesOf(it, isArrayOfTables = true, keptHeaderLines) }
+        }
         val removedSlots = removed.toHashSet()
         values.removeAll { it in removedSlots }
         return removed.isNotEmpty()

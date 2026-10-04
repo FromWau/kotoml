@@ -159,7 +159,8 @@ public class Item private constructor(
     }
 
     /**
-     * Stores a copy of [item] at [key]: in a table as [StandardTable.set] does, elsewhere as `this[key].assign(item)` does.
+     * Stores a copy of [item] at [key]: in a table as [StandardTable.set] does, elsewhere as `this[key].assign(item)`
+     * does.
      *
      * @return [TomlEditError.NotATable] when this item holds neither a table nor an inline table, or
      *   [TomlEditError.NotAValue] when this is an inline table, or empty, and [item] holds no value.

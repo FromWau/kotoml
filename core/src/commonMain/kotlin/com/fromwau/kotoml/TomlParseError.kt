@@ -199,7 +199,13 @@ internal class TomlSink(private val input: String) : ErrorSink {
             val (line, column) = translatePosition(bytes, it.start)
             TextPosition(line + 1, column + 1)
         }
-        first = TomlParseError(reason, unexpected?.toTextIndices(bytes), position, context?.toTextIndices(bytes), expected)
+        first = TomlParseError(
+            reason = reason,
+            span = unexpected?.toTextIndices(bytes),
+            position = position,
+            context = context?.toTextIndices(bytes),
+            expected = expected,
+        )
     }
 }
 
