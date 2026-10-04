@@ -97,6 +97,30 @@ c = { d = "hello" }
     }
 
     @Test
+    fun `the module README builder example builds a document and edits it`() {
+        val doc = buildTomlDocument {
+            "title" to "kotoml"
+            table("server") {
+                "port" to 8080
+                array("tags") { add("fast") }
+            }
+            arrayOfTables("bin") {
+                table { "name" to "kotoml" }
+            }
+        }.getOrElse { error(it) }
+
+        doc.edit {
+            table("server") { "port" to 9090 }
+            table("database") { "url" to "postgres://" }
+        }.getOrFail()
+        assertEquals(
+            "title = \"kotoml\"\n\n[server]\nport = 9090\ntags = [\"fast\"]\n\n[[bin]]\nname = \"kotoml\"\n\n" +
+                "[database]\nurl = \"postgres://\"\n",
+            doc.toString(),
+        )
+    }
+
+    @Test
     fun `the module README example of writing a key into a string fails with NotATable`() {
         val doc = TomlDocument.parse("a = 'text'\n").getOrFail()
         assertTrue(doc["a"].set("key", 1L).errorOrFail() is TomlEditError.NotATable)

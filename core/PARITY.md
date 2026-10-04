@@ -296,6 +296,7 @@ section 1.
 | `toml_datetime::*` re-export | the date-time types in the same package | done | |
 | (none: an addition) | `TomlVersion`, and a `version` parameter on `TomlDocument.parse`, `TomlDocument.read`, `Value.parse`, `Key.parse`, `Key.parsePath` | added | `TomlVersionTest`, `` SuiteTest.`* V1_0 *` `` |
 | (none: an addition) | `removeAll(predicate)` on `StandardTable`, `InlineTable`, `TomlArray`, `ArrayOfTables` and `TomlDocument`, returning whether it removed anything; `keys` on `Table` and `TomlDocument`; `isNotEmpty()` on every container | added | `CollectionApiTest` |
+| (none: an addition) | `buildTomlDocument { }` and `TomlDocument.edit { }`, a builder over `TableScope`, `InlineTableScope`, `ArrayScope` and `ArrayOfTablesScope`; `edit` is all or nothing and fails with `TomlEditError.TypeMismatch` | added | `TomlDslTest`, `` EditDocTest.`the module README builder example builds a document and edits it` `` |
 | (none: an addition) | `TomlDocument.read(Source)` and `TomlDocument.writeTo(Sink)` over kotlinx-io, failing with `TomlReadError` (`TomlIoError` or `Parse`) and `TomlWriteError` (`TomlIoError` or `NotUnicode`) | added | `TomlDocumentTest`, `` EditDocTest.`the module README example reads a document from a source and writes it to a sink` `` |
 
 ## 4. Upstream tests

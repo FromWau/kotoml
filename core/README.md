@@ -96,6 +96,43 @@ A document's top-level keys live in its `root` table. The document itself offers
 `size`) and iterates over the root's pairs; everything else a `StandardTable` does, such as `sortBy { (key, _) -> key }`
 or `keyOrNull(name)`, goes through `doc.root`.
 
+## Build and edit with blocks
+
+```kotlin
+val doc = buildTomlDocument {
+    "title" to "kotoml"
+    table("server") {
+        "port" to 8080
+        array("tags") { add("fast") }
+    }
+    arrayOfTables("bin") {
+        table { "name" to "kotoml" }
+    }
+}.getOrElse { error(it) }
+
+doc.edit {
+    table("server") { "port" to 9090 }
+    table("database") { "url" to "postgres://" }
+}
+// title = "kotoml"
+//
+// [server]
+// port = 9090
+// tags = ["fast"]
+//
+// [[bin]]
+// name = "kotoml"
+//
+// [database]
+// url = "postgres://"
+```
+
+Inside a block a key is written `"key" to value`, and `table`, `inlineTable`, `array` and `arrayOfTables` open the
+key's container, creating it when it is missing. Opening a key that holds another kind is
+`TomlEditError.TypeMismatch`. `edit` is all or nothing: when it fails the document is left as it was, and when it
+succeeds an `Item` taken from the document earlier no longer belongs to it, so index again. Inside a block `to` is
+the builder's, so write a `Pair` there as `Pair("a", 1)`.
+
 ## Read and write files
 
 ```kotlin

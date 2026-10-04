@@ -14,6 +14,11 @@ public sealed interface TomlEditError : IError {
     @SerialName("NotFound")
     public data class NotFound(val key: String) : TomlEditError
 
+    /** A builder opened [key] as a [expected], but the key holds a [found]. */
+    @Serializable
+    @SerialName("TypeMismatch")
+    public data class TypeMismatch(val key: String, val expected: TomlType, val found: TomlType) : TomlEditError
+
     /** [index] is past the end of a sequence of [length] elements. */
     @Serializable
     @SerialName("IndexOutOfBounds")

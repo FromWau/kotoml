@@ -425,6 +425,20 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         return copy
     }
 
+    /** Takes [other]'s whole state, its entries moved rather than copied, leaving [other] not to be used again. */
+    internal fun takeStateOf(other: StandardTable) {
+        items = other.items
+        rawDecor.assign(other.rawDecor)
+        isImplicit = other.isImplicit
+        isDotted = other.isDotted
+        position = other.position
+        span = other.span
+        keptHeaderLines.clear()
+        keptHeaderLines += other.keptHeaderLines
+        headerLineEnding = other.headerLineEnding
+        headerSpelling = other.headerSpelling
+    }
+
     /** The key/value pairs under this table, one per line, without its header or sub-tables. */
     override fun toString(): String = buildString { encodeTableBody(this, this@StandardTable) }
 
