@@ -214,19 +214,19 @@ public class Item private constructor(
         when (val content = content) {
             Content.None -> {
                 val table = InlineTable()
-                table.items.insert(Key(key), child)
+                table.items.put(Key(key), child)
                 return write(Content.ValueContent(Value.InlineTable(table)))
             }
             is Content.TableContent -> {
                 val attached = ensureAttached()
                 if (attached is Result.Error) return attached
-                content.table.items.insert(Key(key), child)
+                content.table.items.put(Key(key), child)
             }
             is Content.ValueContent -> {
                 val table = content.value.inlineTableOrNull ?: return Err(TomlEditError.NotATable(key, type))
                 val attached = ensureAttached()
                 if (attached is Result.Error) return attached
-                table.items.insert(Key(key), child)
+                table.items.put(Key(key), child)
             }
             is Content.ArrayOfTablesContent -> return Err(TomlEditError.NotATable(key, type))
         }
@@ -253,11 +253,11 @@ public class Item private constructor(
      * This item as a value: a table becomes an inline table and an array of tables an array, both moving
      * their content. Null when this item is empty.
      */
-    internal fun intoValue(): Value? = when (val content = content) {
+    internal fun moveToValue(): Value? = when (val content = content) {
         Content.None -> null
         is Content.ValueContent -> content.value
-        is Content.TableContent -> Value.InlineTable(content.table.intoInlineTable())
-        is Content.ArrayOfTablesContent -> Value.Array(content.array.intoTomlArray())
+        is Content.TableContent -> Value.InlineTable(content.table.moveToInlineTable())
+        is Content.ArrayOfTablesContent -> Value.Array(content.array.moveToTomlArray())
     }
 
     /**
@@ -268,15 +268,15 @@ public class Item private constructor(
      */
     public fun makeValue(): EmptyResult<TomlEditError> {
         if (holds == Holds.Table) return Err(TomlEditError.NotATableElement(TomlType.InlineTable))
-        val value = intoValue()
+        val value = moveToValue()
         content = if (value != null) Content.ValueContent(value) else Content.None
         return Ok(Unit)
     }
 
     /** This item as a table, moving an inline table's entries into one; null for anything else. */
-    internal fun intoTable(): Table? = when (val content = content) {
+    internal fun moveToTable(): Table? = when (val content = content) {
         is Content.TableContent -> content.table
-        is Content.ValueContent -> content.value.inlineTableOrNull?.intoTable()
+        is Content.ValueContent -> content.value.inlineTableOrNull?.moveToTable()
         else -> null
     }
 
@@ -284,14 +284,14 @@ public class Item private constructor(
      * This item as an array of tables, moving a non-empty array of inline tables into one; null for anything
      * else.
      */
-    internal fun intoArrayOfTables(): ArrayOfTables? = when (val content = content) {
+    internal fun moveToArrayOfTables(): ArrayOfTables? = when (val content = content) {
         is Content.ArrayOfTablesContent -> content.array
         is Content.ValueContent -> {
             val array = content.value.arrayOrNull
             if (array == null || array.isEmpty() || !array.all { it is Value.InlineTable }) {
                 null
             } else {
-                array.mapNotNull { it.inlineTableOrNull?.intoTable() }.toArrayOfTables()
+                array.mapNotNull { it.inlineTableOrNull?.moveToTable() }.toArrayOfTables()
             }
         }
         else -> null

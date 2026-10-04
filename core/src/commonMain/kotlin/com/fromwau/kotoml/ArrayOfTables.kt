@@ -23,11 +23,11 @@ public class ArrayOfTables() : Iterable<Table> {
     internal val keptHeaderLines: MutableList<KeptLines> = mutableListOf()
 
     /** An inline array of inline tables holding copies of these tables, formatted anew; this stays as it is. */
-    public fun toTomlArray(): TomlArray = copy().intoTomlArray()
+    public fun toTomlArray(): TomlArray = copy().moveToTomlArray()
 
     /** Moves the tables into a new inline array of inline tables, formatted anew, leaving this empty. */
-    internal fun intoTomlArray(): TomlArray {
-        val array = values.mapNotNull { it.intoValue() }.toTomlArray()
+    internal fun moveToTomlArray(): TomlArray {
+        val array = values.mapNotNull { it.moveToValue() }.toTomlArray()
         values.clear()
         array.resetFormatting()
         return array

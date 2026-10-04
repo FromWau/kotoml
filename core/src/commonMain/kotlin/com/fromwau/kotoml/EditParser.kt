@@ -249,7 +249,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
         }
         val existing = parentTable.items.getEntry(key.name)
         if (existing == null) {
-            parentTable.items.insert(key, Item(value))
+            parentTable.items.put(key, Item(value))
             val entry = parentTable.items.getEntry(key.name)
             entry?.order = context.nextOrder()
             if (dotted) entry?.pathSpelling = PathSpelling.of(path, shared)
@@ -285,7 +285,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
         if (header.isArray) {
             val keySpan = keySpan(key)
             val entry = parentTable.items.getEntry(key.name)
-                ?: KeyValue(key, Item(ArrayOfTables())).also { parentTable.items.insert(key, it.item) }
+                ?: KeyValue(key, Item(ArrayOfTables())).also { parentTable.items.put(key, it.item) }
             val array = entry.item.arrayOfTablesOrNull
             if (array == null) {
                 errors.report(
@@ -300,7 +300,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
             val last = array.values.lastOrNull()?.tableOrNull?.span
             array.span = if (first != null && last != null) Span(first.start, last.end) else null
         } else {
-            parentTable.items.insert(key, Item(previousTable))
+            parentTable.items.put(key, Item(previousTable))
         }
     }
 
@@ -310,7 +310,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
             // tables an implicit table already has.
             val parentTable = descendPath(root, header.path, false, errors)
             val key = header.key
-            val old = if (key != null) parentTable?.items?.shiftRemove(key.name) else null
+            val old = if (key != null) parentTable?.items?.remove(key.name) else null
             if (old != null && key != null) {
                 val oldTable = old.item.tableOrNull
                 if (oldTable != null && oldTable.isImplicit && !oldTable.isDotted) {
@@ -362,7 +362,7 @@ private fun descendPath(
             newTable.isImplicit = true
             newTable.isDotted = dotted
             val held = key.copy()
-            table.items.insert(held, Item(newTable))
+            table.items.put(held, Item(newTable))
             shared += held
             table = newTable
             continue
@@ -728,7 +728,7 @@ private fun onInlineTable(openEvent: Event, input: EventStream, context: ParseCo
         } else {
             val existing = table.items.getEntry(key.name)
             if (existing == null) {
-                table.items.insert(key, Item.inInlineTable(value))
+                table.items.put(key, Item.inInlineTable(value))
                 val entry = table.items.getEntry(key.name)
                 entry?.order = context.nextOrder()
                 if (path.isNotEmpty()) entry?.pathSpelling = PathSpelling.of(path, shared)
@@ -841,14 +841,14 @@ private fun descendInlinePath(
             newTable.isImplicit = true
             newTable.isDotted = dotted
             val held = key.copy()
-            table.items.insert(held, Item.inInlineTable(Value.InlineTable(newTable)))
+            table.items.put(held, Item.inInlineTable(Value.InlineTable(newTable)))
             shared += held
             table = newTable
             continue
         }
         shared += existing.key
         // An occupied entry always holds a value, as InlineTable.entryFormat guarantees upstream.
-        val value = existing.item.intoValue() ?: Value.InlineTable(InlineTable())
+        val value = existing.item.moveToValue() ?: Value.InlineTable(InlineTable())
         existing.item = Item.inInlineTable(value)
         table = when (value) {
             is Value.InlineTable -> {

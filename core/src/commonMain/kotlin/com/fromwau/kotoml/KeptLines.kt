@@ -80,7 +80,7 @@ internal class RemovedLines(removed: Collection<KeyValue>) {
             ?: item.inlineTableOrNull?.takeIf { it.isDotted }?.items
             ?: return
         keptAmong += pairs.keptLines
-        for (entry in pairs.entries()) collectKeptBodyLines(entry.item)
+        for (entry in pairs.entries) collectKeptBodyLines(entry.item)
     }
 
     operator fun contains(line: BodyLine): Boolean = when (line) {
@@ -182,7 +182,7 @@ private fun collectHeaderParts(
         parts += HeaderPart(table.position, linesAbove(table.rawDecor.prefix), isHeader = true)
     }
     table.keptHeaderLines.mapTo(parts) { HeaderPart(it.order, it.text, isHeader = false) }
-    for (entry in table.items.entries()) collectHeaderParts(entry.item, parts)
+    for (entry in table.items.entries) collectHeaderParts(entry.item, parts)
 }
 
 // Parts made by hand have no position and print right after the part before them, as the document prints them.

@@ -58,7 +58,7 @@ internal fun TomlArray.dbg(): Dbg = struct(
     "values" to seq(values.map { it.dbg() }),
 )
 
-private fun KeyValuePairs.dbg(): Dbg = Dbg.MapOf(entries().map { it.key.dbg() to it.item.dbg() })
+private fun KeyValuePairs.dbg(): Dbg = Dbg.MapOf(entries.map { it.key.dbg() to it.item.dbg() })
 
 internal fun InlineTable.dbg(): Dbg = struct(
     "InlineTable",

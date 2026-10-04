@@ -76,64 +76,64 @@ internal class PathSpelling private constructor(
     }
 }
 
-
 /**
- * An insertion-ordered map from key text to entries, upstream's `IndexMap<Key, Item>`: inserting an existing
- * key keeps its position and its key, removing shifts the rest up, and sorting is stable.
+ * An insertion-ordered map from key text to entries: putting an existing key keeps its position and its key,
+ * removing shifts the rest up, and sorting is stable.
  */
 internal class KeyValuePairs {
-    private val entries = LinkedHashMap<String, KeyValue>()
+    private val byName = LinkedHashMap<String, KeyValue>()
 
     /** Lines kept from removed entries, printed among the entries' lines; see [KeptLines]. */
     val keptLines: MutableList<KeptLines> = mutableListOf()
 
-    val size: Int get() = entries.size
+    val size: Int get() = byName.size
 
-    fun get(key: String): Item? = entries[key]?.item
+    fun get(key: String): Item? = byName[key]?.item
 
-    fun getEntry(key: String): KeyValue? = entries[key]
+    fun getEntry(key: String): KeyValue? = byName[key]
 
-    fun containsKey(key: String): Boolean = entries.containsKey(key)
+    fun containsKey(key: String): Boolean = byName.containsKey(key)
 
     /** Inserts or replaces the item under [key]'s text; a replaced entry keeps its own key and position. */
-    fun insert(key: Key, item: Item): Item? {
-        val existing = entries[key.name]
+    fun put(key: Key, item: Item): Item? {
+        val existing = byName[key.name]
         if (existing != null) {
             val old = existing.item
             existing.item = item
             return old
         }
-        entries[key.name] = KeyValue(key, item)
+        byName[key.name] = KeyValue(key, item)
         return null
     }
 
-    fun shiftRemove(key: String): KeyValue? = entries.remove(key)
+    fun remove(key: String): KeyValue? = byName.remove(key)
 
-    fun entries(): Collection<KeyValue> = entries.values
+    val entries: Collection<KeyValue>
+        get() = byName.values
 
-    fun snapshot(): List<KeyValue> = entries.values.toList()
+    fun snapshot(): List<KeyValue> = byName.values.toList()
 
-    fun retain(keep: (KeyValue) -> Boolean) {
-        val iterator = entries.values.iterator()
+    fun retainAll(keep: (KeyValue) -> Boolean) {
+        val iterator = byName.values.iterator()
         while (iterator.hasNext()) {
             if (!keep(iterator.next())) iterator.remove()
         }
     }
 
     fun sortBy(comparator: Comparator<KeyValue>) {
-        val sorted = entries.values.sortedWith(comparator)
-        entries.clear()
-        for (entry in sorted) entries[entry.key.name] = entry
+        val sorted = byName.values.sortedWith(comparator)
+        byName.clear()
+        for (entry in sorted) byName[entry.key.name] = entry
     }
 
-    fun deepClone(): KeyValuePairs {
+    fun deepCopy(): KeyValuePairs {
         val copy = KeyValuePairs()
-        for (entry in entries.values) {
-            val clone = KeyValue(entry.key.copy(), entry.item.copySlot())
-            clone.lineEnding = entry.lineEnding
-            clone.order = entry.order
-            clone.pathSpelling = entry.pathSpelling?.copy()
-            copy.entries[entry.key.name] = clone
+        for (entry in byName.values) {
+            val copied = KeyValue(entry.key.copy(), entry.item.copySlot())
+            copied.lineEnding = entry.lineEnding
+            copied.order = entry.order
+            copied.pathSpelling = entry.pathSpelling?.copy()
+            copy.byName[entry.key.name] = copied
         }
         keptLines.mapTo(copy.keptLines) { it.copy() }
         return copy
@@ -142,8 +142,8 @@ internal class KeyValuePairs {
     /** Moves every entry out, leaving this map empty. */
     fun takeAll(): KeyValuePairs {
         val taken = KeyValuePairs()
-        taken.entries.putAll(entries)
-        entries.clear()
+        taken.byName.putAll(byName)
+        byName.clear()
         return taken
     }
 }

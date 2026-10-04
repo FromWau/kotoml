@@ -213,7 +213,7 @@ private fun visitNestedTables(
     if (!table.isDotted) onTable(table, path, isArrayOfTables)
     table.keptHeaderLines.forEach(onKeptLines)
 
-    for (entry in table.items.entries()) {
+    for (entry in table.items.entries) {
         val child = entry.item.tableOrNull
         val array = entry.item.arrayOfTablesOrNull
         if (child != null) {

@@ -32,15 +32,15 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
     internal var items: KeyValuePairs = KeyValuePairs()
 
     internal constructor(items: KeyValuePairs) : this() {
-        for (entry in items.entries()) entry.item = entry.item.movedTo(Item.Holds.Value)
+        for (entry in items.entries) entry.item = entry.item.movedTo(Item.Holds.Value)
         this.items = items
     }
 
     /** A standard table holding copies of this table's entries, formatted anew; this table stays as it is. */
-    public fun toTable(): Table = copy().intoTable()
+    public fun toTable(): Table = copy().moveToTable()
 
     /** Moves the entries into a new standard table, formatted anew, leaving this table empty. */
-    internal fun intoTable(): Table {
+    internal fun moveToTable(): Table {
         val table = Table(items.takeAll())
         table.resetFormatting()
         return table
@@ -60,7 +60,7 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
     }
 
     internal fun appendValues(path: MutableList<Key>, values: MutableList<BodyLine>) {
-        for (entry in items.entries()) {
+        for (entry in items.entries) {
             path.add(entry.key)
             val item = entry.item
             val value = item.valueOrNull
@@ -78,7 +78,7 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
     // A sort sets the order, so the order entries were read in no longer applies.
     private fun forgetOrder() {
         for (kept in items.keptLines) kept.order = null
-        for (entry in items.entries()) {
+        for (entry in items.entries) {
             entry.order = null
             val table = entry.item.inlineTableOrNull
             if (table != null && table.isDotted) table.forgetOrder()
@@ -87,7 +87,7 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
 
     /** Drops the formatting of every key and value, for the default `{ a = 1, b = 2 }` layout. */
     override fun resetFormatting() {
-        for (entry in items.entries()) {
+        for (entry in items.entries) {
             val value = entry.item.valueOrNull ?: continue
             entry.key.rawLeafDecor.clear()
             entry.key.rawDottedDecor.clear()
@@ -153,7 +153,7 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
                 else -> 0
             }
         }
-        for (entry in items.entries()) {
+        for (entry in items.entries) {
             val table = entry.item.inlineTableOrNull
             if (table != null && table.isDotted) table.sortEntriesWith(comparator)
         }
@@ -173,20 +173,20 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
         span = null
         rawDecor.resolveSpans(input)
         rawTrailing = rawTrailing.resolveSpans(input)
-        for (entry in items.entries()) {
+        for (entry in items.entries) {
             entry.key.resolveSpans(input)
             entry.pathSpelling?.resolveSpans(input)
             entry.item.resolveSpans(input)
         }
     }
 
-    override fun iterator(): Iterator<Pair<String, Value>> = items.entries()
+    override fun iterator(): Iterator<Pair<String, Value>> = items.entries
         .mapNotNull { entry -> entry.item.valueOrNull?.let { entry.key.name to it } }
         .iterator()
 
     /** The key/item pairs, in order; each item holds a value. */
     override val entries: List<Pair<String, Item>>
-        get() = items.entries()
+        get() = items.entries
         .filter { !it.item.isMissing }
         .map { it.key.name to it.item }
 
@@ -196,7 +196,7 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
 
     /** The number of key/value pairs. */
     override val size: Int
-        get() = items.entries().count { it.item.valueOrNull != null }
+        get() = items.entries.count { it.item.valueOrNull != null }
 
     /** Whether the table has no key/value pairs. */
     override fun isEmpty(): Boolean = size == 0
@@ -246,7 +246,7 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
     ): Value {
         get(key.name)?.let { return it }
         val value = default()
-        items.insert(key.copy(), Item.inInlineTable(value))
+        items.put(key.copy(), Item.inInlineTable(value))
         return value
     }
 
@@ -259,7 +259,7 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
     public fun put(
         key: String,
         value: Value,
-    ): Value? = items.insert(Key(key), Item.inInlineTable(value))?.valueOrNull
+    ): Value? = items.put(Key(key), Item.inInlineTable(value))?.valueOrNull
 
     /**
      * Sets [key], with its spelling and decor, to [value]. A key already there keeps its position but takes the
@@ -272,14 +272,14 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
         value: Value,
     ): Value? {
         items.getEntry(key.name)?.key = key.copy()
-        return items.insert(key.copy(), Item.inInlineTable(value))?.valueOrNull
+        return items.put(key.copy(), Item.inInlineTable(value))?.valueOrNull
     }
 
     override fun putItem(
         key: String,
         item: Item,
     ): Result<Item?, TomlEditError> {
-        val value = item.copy().intoValue() ?: return Err(TomlEditError.NotAValue(item.type))
+        val value = item.copy().moveToValue() ?: return Err(TomlEditError.NotAValue(item.type))
         return Ok(put(key, value)?.let { Item(it) })
     }
 
@@ -293,7 +293,7 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
     public fun remove(key: String): Value? {
         val entry = items.getEntry(key) ?: return null
         keepLinesAbove(listOf(entry))
-        items.shiftRemove(key)
+        items.remove(key)
         return entry.item.valueOrNull
     }
 
@@ -323,7 +323,7 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
         removeEntries(entriesWhere(predicate))
 
     private fun entriesWhere(predicate: (Pair<String, Value>) -> Boolean): List<KeyValue> =
-        items.entries().filter { entry ->
+        items.entries.filter { entry ->
             entry.item.valueOrNull?.let { predicate(entry.key.name to it) } ?: false
         }
 
@@ -331,7 +331,7 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
         if (removed.isEmpty()) return false
         keepLinesAbove(removed)
         val names = removed.mapTo(HashSet()) { it.key.name }
-        items.retain { it.key.name !in names }
+        items.retainAll { it.key.name !in names }
         return true
     }
 
@@ -396,7 +396,7 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
 
     /** A deep copy of this table. */
     public fun copy(): InlineTable {
-        val copy = InlineTable(items.deepClone())
+        val copy = InlineTable(items.deepCopy())
         copy.rawTrailing = rawTrailing
         copy.trailingComma = trailingComma
         copy.isImplicit = isImplicit

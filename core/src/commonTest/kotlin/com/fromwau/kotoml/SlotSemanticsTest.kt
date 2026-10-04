@@ -183,7 +183,7 @@ class SlotSemanticsTest {
     @Test
     fun `an array turned into an array of tables keeps its own slots`() {
         val doc = TomlDocument.parse("a = [{ x = 1 }]\n").unwrap()
-        val tables = doc["a"].copy().intoArrayOfTables()!!
+        val tables = doc["a"].copy().moveToArrayOfTables()!!
         assertIs<TomlEditError.NotATableElement>(Item(tables)[0].assign(Item(Value.Integer(1L))).unwrapErr())
         assertEquals("a = [{ x = 1 }]\n", doc.toString())
     }

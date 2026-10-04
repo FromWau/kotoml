@@ -54,16 +54,16 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     internal var headerSpelling: PathSpelling? = null
 
     internal constructor(items: KeyValuePairs) : this() {
-        for (entry in items.entries()) entry.item = entry.item.movedTo(Item.Holds.Anything)
+        for (entry in items.entries) entry.item = entry.item.movedTo(Item.Holds.Anything)
         this.items = items
     }
 
     /** An inline table holding copies of this table's values, formatted anew; the table stays as it is. */
-    public fun toInlineTable(): InlineTable = copy().intoInlineTable()
+    public fun toInlineTable(): InlineTable = copy().moveToInlineTable()
 
     /** Moves the entries into a new inline table, formatted anew, leaving this table empty. */
-    internal fun intoInlineTable(): InlineTable {
-        for (entry in items.entries()) entry.item.makeValue()
+    internal fun moveToInlineTable(): InlineTable {
+        for (entry in items.entries) entry.item.makeValue()
         val table = InlineTable(items.takeAll())
         table.resetFormatting()
         return table
@@ -90,7 +90,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
         isArrayOfTables || !(isImplicit && visualValues().isEmpty())
 
     private fun appendValues(path: MutableList<Key>, values: MutableList<BodyLine>) {
-        for (entry in items.entries()) {
+        for (entry in items.entries) {
             path.add(entry.key)
             val table = entry.item.tableOrNull
             val value = entry.item.valueOrNull
@@ -105,7 +105,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     }
 
     internal fun appendAllValues(path: MutableList<Key>, values: MutableList<BodyLine>) {
-        for (entry in items.entries()) {
+        for (entry in items.entries) {
             path.add(entry.key)
             val table = entry.item.tableOrNull
             val value = entry.item.valueOrNull
@@ -121,7 +121,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     // A sort sets the order, so the order lines were read in no longer applies.
     private fun forgetOrder() {
         for (kept in items.keptLines) kept.order = null
-        for (entry in items.entries()) {
+        for (entry in items.entries) {
             entry.order = null
             val table = entry.item.tableOrNull
             if (table != null && table.isDotted) table.forgetOrder()
@@ -130,7 +130,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
 
     /** Drops the formatting of the keys and values directly in this table. */
     override fun resetFormatting() {
-        for (entry in items.entries()) {
+        for (entry in items.entries) {
             val value = entry.item.valueOrNull ?: continue
             entry.key.rawLeafDecor.clear()
             entry.key.rawDottedDecor.clear()
@@ -168,7 +168,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
 
     private fun sortEntriesWith(comparator: Comparator<Pair<Key, Item>>) {
         items.sortBy { left, right -> comparator.compare(left.key to left.item, right.key to right.item) }
-        for (entry in items.entries()) {
+        for (entry in items.entries) {
             val table = entry.item.tableOrNull
             if (table != null && table.isDotted) table.sortEntriesWith(comparator)
         }
@@ -191,7 +191,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
         span = null
         rawDecor.resolveSpans(input)
         headerSpelling?.resolveSpans(input)
-        for (entry in items.entries()) {
+        for (entry in items.entries) {
             entry.key.resolveSpans(input)
             entry.pathSpelling?.resolveSpans(input)
             entry.item.resolveSpans(input)
@@ -200,7 +200,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
 
     /** The key/item pairs with an item, in order. */
     override val entries: List<Pair<String, Item>>
-        get() = items.entries()
+        get() = items.entries
         .filter { !it.item.isMissing }
         .map { it.key.name to it.item }
 
@@ -212,7 +212,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
 
     /** The number of keys holding an item. */
     override val size: Int
-        get() = items.entries().count { !it.item.isMissing }
+        get() = items.entries.count { !it.item.isMissing }
 
     /** Whether no key holds an item. */
     override fun isEmpty(): Boolean = size == 0
@@ -235,7 +235,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
      * is first written to. Reading never adds a key.
      */
     public operator fun get(key: String): Item = items.get(key) ?: Item.detached(Item.Holds.Anything) { child ->
-        items.insert(Key(key), child)
+        items.put(Key(key), child)
         Ok(Unit)
     }
 
@@ -290,7 +290,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
         item: Item,
     ): Item? {
         items.getEntry(key)?.prepareFor(item)
-        return items.insert(Key(key), item.copy())?.takeIf { !it.isMissing }
+        return items.put(Key(key), item.copy())?.takeIf { !it.isMissing }
     }
 
     /**
@@ -304,7 +304,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
         item: Item,
     ): Item? {
         items.getEntry(key.name)?.key = key.copy()
-        return items.insert(key.copy(), item.copy())?.takeIf { !it.isMissing }
+        return items.put(key.copy(), item.copy())?.takeIf { !it.isMissing }
     }
 
     override fun putItem(
@@ -330,7 +330,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     ): Item {
         getOrNull(key.name)?.let { return it }
         val stored = default().copy()
-        items.insert(key.copy(), stored)
+        items.put(key.copy(), stored)
         return stored
     }
 
@@ -347,7 +347,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     public fun remove(key: String): Item? {
         val entry = items.getEntry(key) ?: return null
         keepLinesAbove(listOf(entry))
-        items.shiftRemove(key)
+        items.remove(key)
         return entry.item.takeIf { !it.isMissing }
     }
 
@@ -375,14 +375,14 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
      */
     public fun removeAll(predicate: (Pair<String, Item>) -> Boolean): Boolean = removeEntries(entriesWhere(predicate))
 
-    private fun entriesWhere(predicate: (Pair<String, Item>) -> Boolean): List<KeyValue> = items.entries()
+    private fun entriesWhere(predicate: (Pair<String, Item>) -> Boolean): List<KeyValue> = items.entries
         .filter { !it.item.isMissing && predicate(it.key.name to it.item) }
 
     private fun removeEntries(removed: List<KeyValue>): Boolean {
         if (removed.isEmpty()) return false
         keepLinesAbove(removed)
         val names = removed.mapTo(HashSet()) { it.key.name }
-        items.retain { it.key.name !in names }
+        items.retainAll { it.key.name !in names }
         return true
     }
 
@@ -405,7 +405,7 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
 
     /** A deep copy of this table. */
     public fun copy(): Table {
-        val copy = Table(items.deepClone())
+        val copy = Table(items.deepCopy())
         copy.rawDecor.assign(rawDecor)
         copy.isImplicit = isImplicit
         copy.isDotted = isDotted
