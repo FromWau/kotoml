@@ -154,7 +154,7 @@ duplicate key `a`
 
     @Test
     fun `an empty array can be created`() {
-        TomlArray()
+        assertEquals("[]", TomlArray().toString())
     }
 
     @Test
@@ -180,6 +180,7 @@ duplicate key `a`
         val arr = TomlArray()
         arr.add(1L)
         arr.add("foo")
+        assertEquals("[1, \"foo\"]", arr.toString())
     }
 
     @Test
@@ -187,6 +188,7 @@ duplicate key `a`
         val formattedValue = Value.parse("'literal'").getOrFail()
         val arr = TomlArray()
         arr.add(formattedValue)
+        assertEquals("['literal']", arr.toString())
     }
 
     @Test
@@ -196,6 +198,7 @@ duplicate key `a`
         arr.add("foo")
 
         arr.add(0, Value.String("start")).getOrFail()
+        assertEquals("[\"start\", 1, \"foo\"]", arr.toString())
     }
 
     @Test
@@ -206,6 +209,7 @@ duplicate key `a`
 
         val formattedValue = Value.parse("'start'").getOrFail()
         arr.add(0, formattedValue).getOrFail()
+        assertEquals("['start', 1, \"foo\"]", arr.toString())
     }
 
     @Test
@@ -215,6 +219,7 @@ duplicate key `a`
         arr.add("foo")
 
         arr.replace(0, Value.String("start")).getOrFail()
+        assertEquals("[\"start\", \"foo\"]", arr.toString())
     }
 
     @Test
@@ -225,6 +230,7 @@ duplicate key `a`
 
         val formattedValue = Value.parse("'start'").getOrFail()
         arr.replace(0, formattedValue, keepDecor = false).getOrFail()
+        assertEquals("['start', \"foo\"]", arr.toString())
     }
 
     @Test
@@ -243,6 +249,7 @@ duplicate key `a`
         arr.add(tableOf("name" to Item(Value.String("apple"))))
 
         arr.set(0, tableOf("name" to Item(Value.String("banana")))).getOrFail()
+        assertEquals("banana", arr[0]?.get("name")?.stringOrNull)
     }
 
     @Test
@@ -303,8 +310,7 @@ duplicate key `a`
 
     @Test
     fun `a new value's decor reads as default`() {
-        val v = Value.Boolean(true)
-        assertNull(v.decor.suffix)
+        assertEquals(Decor(), Value.Boolean(true).decor)
     }
 
     @Test

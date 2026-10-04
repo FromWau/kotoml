@@ -1128,6 +1128,7 @@ src.git = "https://github.com/nixos/nixpkgs"
         val values = listOf("foo", "qux", "bar")
         val array = values.map { Value.String(it) }.toTomlArray()
         array.sortWith { lhs, rhs -> compareValues(lhs.stringOrNull, rhs.stringOrNull) }
+        assertEquals("[\"bar\", \"foo\", \"qux\"]", array.toString())
     }
 
     @Test
