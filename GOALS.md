@@ -4,7 +4,11 @@ What kotoml promises, written for reviewers and QA. A **must** goal is a release
 A **should** goal is a quality target that may be traded off, with the trade written down.
 
 Each goal names how it is checked. A **gap** marks a goal that no automated check covers yet; test it by hand and
-treat closing the gap as open work.
+treat closing the gap as open work. Open items live in [todo.md](todo.md).
+
+The goals cover what a caller can do by accident in normal use. Deliberate misuse is not a defect: a caller's own
+exception thrown inside a builder block, catching the library's exceptions inside one, an array added into itself,
+or an endless stream piped into the CLI.
 
 Run every automated check with `./gradlew clean build --rerun-tasks`: all modules on the JVM and linuxX64, and the
 official toml-test runner for TOML 1.0 and 1.1.
@@ -21,7 +25,8 @@ official toml-test runner for TOML 1.0 and 1.1.
    newline.
    Check: `SuiteTest` over every valid file, `PreservationTest`.
 3. **Never invalid TOML.** No sequence of public calls produces text that does not parse back. Text that UTF-8 cannot
-   write, such as half of a surrogate pair, is a typed error when written, never broken output.
+   write, such as half of a surrogate pair, is a typed error when written, never broken output. Raw formatting text
+   a caller writes itself (`Decor`, `trailing`, a key's decor) is the caller's to keep valid.
    Check: `RemovalPropertyTest` (removal only), `PrintingFixesTest` (`NotUnicode`). Gap: no property test over other
    edits.
 4. **An edit touches only what it changes.** Comments and formatting are kept, except:
@@ -37,8 +42,9 @@ official toml-test runner for TOML 1.0 and 1.1.
 5. **Nothing throws.** Every public call returns its failure as a typed value, whatever the input: parsing, editing,
    decoding, encoding and the CLI. Only internal checks of conditions that cannot happen may throw.
    Check: review every `throw`, `!!`, `require`, `check` and `error` in main code. Gap: no fuzzing.
-6. **Bounded depth on every target.** Arrays, inline tables and the dots of keys count toward one nesting limit,
-   `TomlDocument.NESTING_LIMIT`, so no input overflows the stack. Deeper input is a typed parse error.
+6. **Bounded depth on every target.** Arrays, inline tables and the dots of a line's keys count toward one nesting
+   limit, `TomlDocument.NESTING_LIMIT`; a table header's path is bounded by the same limit on its own. So no input
+   overflows the stack, and deeper input is a typed parse error.
    Check: `NestingLimitTest`, and `TaggedJsonTest` for the CLI's `encode`.
 7. **Edits are all or nothing.** `doc.edit { }` either applies completely or leaves the document byte for byte as it
    was.
@@ -47,7 +53,8 @@ official toml-test runner for TOML 1.0 and 1.1.
 ### API contract
 
 8. **Typed, stable errors.** Every error is a `@Serializable` type whose wire name and fields are stable; renaming
-   one is a breaking change. Parse errors carry a line, a column and spans in `String` indices.
+   one is a breaking change. A parse error's `span` and `position`, when it has them, are `String` indices and a line
+   and column.
    Check: `ErrorJsonTest` in core and in serialization.
 9. **One way to do each thing.** An `Item` always holds a value, a table or an array of tables. Writing never deletes a
    key. Storing stores a copy, so two places never share a slot. Indexing returns a `Result` that stops at the first
@@ -68,14 +75,17 @@ official toml-test runner for TOML 1.0 and 1.1.
 
 ### Platforms and modules
 
-13. **The same behaviour on every target.** Tests live in `commonTest`.
-    Check: every test runs on the JVM and linuxX64. Gap: Android, Windows and Apple targets are compiled, not tested.
+13. **The same behaviour on every target.** Tests live in `commonTest`, except those of platform code such as the
+    CLI's file access (`ReadFailureTest` on native, `PermissionTest` on the JVM).
+    Check: every common test runs on the JVM and linuxX64. Gap: Android, Windows and Apple targets are compiled, not
+    tested.
 14. **Serialization.** A model round-trips through TOML. `encodeInto` keeps the document's formatting. A nullable
     type is refused. Every failure is a typed `Result`.
     Check: `EncodeIntoFixesTest`, `ListMergeTest`, `NullabilityTest`, `ReadmeTest`.
 15. **CLI.** Exit 0 on success, 1 for errors about the data, 2 for usage errors. `--json` prints errors as JSON. No
     input crashes it, including invalid UTF-8 and deep nesting.
-    Check: `CheckTest`, `InputTest`, `TaggedJsonTest`, `ReadFailureTest`. Gap: only `FilterTest` asserts an exit code.
+    Check: `CheckTest`, `InputTest`, `TaggedJsonTest`, `ReadFailureTest` (native only). Gap: only `FilterTest`
+    asserts an exit code.
 
 ## Should
 
