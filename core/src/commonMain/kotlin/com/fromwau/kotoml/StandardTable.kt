@@ -49,7 +49,11 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     public var position: Long? = null
 
     internal var span: Span? = null
-    internal var items: KeyValuePairs = KeyValuePairs()
+    internal var items: KeyValuePairs = KeyValuePairs().also { it.keepLinesOfRemoved = { removed -> keepLinesAbove(removed) } }
+        set(value) {
+            field = value
+            value.keepLinesOfRemoved = { removed -> keepLinesAbove(removed) }
+        }
 
     // Lines above the headers of tables removed from this one, printed among the tables by their position.
     internal val keptHeaderLines: MutableList<KeptLines> = mutableListOf()

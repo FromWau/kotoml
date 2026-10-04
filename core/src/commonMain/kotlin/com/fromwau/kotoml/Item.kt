@@ -140,7 +140,7 @@ public class Item private constructor(
         val entry = entry ?: return write(next)
         refusal(next)?.let { return Err(it) }
         entry.prepareFor(item)
-        val linesAbove = entry.linesAboveHeader()
+        val linesAbove = entry.takeLinesAbove(item)
         content = next
         entry.keepLinesAbove(linesAbove)
         return Ok(Unit)

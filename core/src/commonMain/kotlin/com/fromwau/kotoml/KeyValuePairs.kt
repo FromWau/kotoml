@@ -18,6 +18,9 @@ internal class KeyValue(var key: Key, item: Item) {
     var order: Long? = null
     var pathSpelling: PathSpelling? = null
 
+    /** The pairs holding this entry, whose table keeps the lines a replacement leaves where they print. */
+    var pairs: KeyValuePairs? = null
+
     init {
         item.entry = this
     }
@@ -36,10 +39,50 @@ internal class KeyValue(var key: Key, item: Item) {
 
     /** Puts [next]'s content, not copied, in this entry's slot, keeping the lines above; returns the old content. */
     fun replace(next: Item): Item {
-        val lines = linesAboveHeader()
+        val lines = takeLinesAbove(next)
         val old = item.takeContentOf(next)
         keepLinesAbove(lines)
         return old
+    }
+
+    /**
+     * Readies the comment and blank lines above what the item prints for its replacement, returning those that go
+     * above what replaces it: the lines above its header, or above the first of its dotted-key lines. The lines
+     * above its later dotted-key lines stay where they print. When [next] is empty, nothing replaces it, and every
+     * line stays as removing the key keeps it.
+     */
+    fun takeLinesAbove(next: Item): String {
+        if (item.isMissing) return ""
+        if (next.isMissing) {
+            pairs?.keepLinesOfRemoved(listOf(this))
+            val prefix = key.rawLeafDecor.prefix?.textOrNull
+            if (prefix != null) key.rawLeafDecor.prefix = KeptText.from(prefix.substringAfterLast('\n'))
+            return ""
+        }
+        item.headerTable?.let { return linesAbove(it.rawDecor.prefix) }
+        val dottedTable = item.standardTableOrNull?.takeIf { it.isDotted }
+        val dottedInline = item.inlineTableOrNull?.takeIf { it.isDotted }
+        val lines = dottedTable?.bodyLines() ?: dottedInline?.bodyLines() ?: return ""
+        val above: (KeptText?) -> String = if (dottedInline != null) ::linesAboveElement else ::linesAbove
+        if (order == null) order = lines.firstOrNull()?.order
+        var carried = ""
+        for ((index, line) in lines.withIndex()) {
+            val text = when (line) {
+                is VisualValue -> above(line.entry.key.rawLeafDecor.prefix)
+                is KeptLines -> line.text
+            }
+            val pairs = pairs
+            val order = line.order
+            when {
+                text.isEmpty() -> continue
+                index == 0 || order == null || pairs == null -> carried += text
+                else -> pairs.keptLines += KeptLines(text, order)
+            }
+        }
+        // The key's own prefix prints below a header's default spacing, as a replaced value's comment does.
+        if (!next.printsHeader) return carried
+        if (carried.isNotEmpty()) key.rawLeafDecor.prependToPrefix(carried, DEFAULT_KEY_DECOR.first)
+        return ""
     }
 
     /** The comment and blank lines above the header the item prints, which stay when the item is replaced. */
@@ -129,6 +172,9 @@ internal class KeyValuePairs {
     /** Lines kept from removed entries, printed among the entries' lines; see [KeptLines]. */
     val keptLines: MutableList<KeptLines> = mutableListOf()
 
+    /** Keeps the lines that removing these entries leaves, as the table holding the pairs keeps them. */
+    var keepLinesOfRemoved: (Collection<KeyValue>) -> Unit = {}
+
     val size: Int get() = byName.size
 
     fun get(key: String): Item? = byName[key]?.item
@@ -148,7 +194,7 @@ internal class KeyValuePairs {
     fun put(key: Key, item: Item): Item? {
         val existing = byName[key.name]
         if (existing == null) {
-            byName[key.name] = KeyValue(key, item)
+            byName[key.name] = KeyValue(key, item).also { it.pairs = this }
             return null
         }
         if (!item.isDetached && !existing.item.isMissing) return existing.replace(item)
@@ -185,6 +231,7 @@ internal class KeyValuePairs {
             copied.lineEnding = entry.lineEnding
             copied.order = entry.order
             copied.pathSpelling = entry.pathSpelling?.copy()
+            copied.pairs = copy
             copy.byName[entry.key.name] = copied
         }
         keptLines.mapTo(copy.keptLines) { it.copy() }
@@ -195,6 +242,7 @@ internal class KeyValuePairs {
     fun takeAll(): KeyValuePairs {
         val taken = KeyValuePairs()
         taken.byName.putAll(byName)
+        for (entry in byName.values) entry.pairs = taken
         byName.clear()
         return taken
     }

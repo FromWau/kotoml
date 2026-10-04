@@ -106,6 +106,12 @@ class EncodeIntoFixesTest {
     )
 
     @Test
+    fun `a map emptied in a dotted key keeps the comments above its lines`() = assertEquals(
+        "z = 0\n# about a\nm = {}\n# about b\n",
+        encoded("z = 0\n# about a\nm.a = 1\n# about b\nm.b = 2\n", TallyMap.serializer(), TallyMap(emptyMap())),
+    )
+
+    @Test
     fun `a map emptied in a table only deeper headers name is written as an empty inline table`() = assertEquals(
         "m = {}\n",
         encoded("[m.a]\nx = 1\n", ShelfMap.serializer(), ShelfMap(emptyMap())),

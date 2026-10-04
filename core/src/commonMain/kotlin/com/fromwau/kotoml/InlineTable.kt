@@ -32,7 +32,11 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     /** Whether this table stands for the parts of a dotted key rather than for `{ ... }`. */
     override var isDotted: Boolean = false
 
-    internal var items: KeyValuePairs = KeyValuePairs()
+    internal var items: KeyValuePairs = KeyValuePairs().also { it.keepLinesOfRemoved = { removed -> keepLinesAbove(removed) } }
+        set(value) {
+            field = value
+            value.keepLinesOfRemoved = { removed -> keepLinesAbove(removed) }
+        }
 
     internal constructor(items: KeyValuePairs) : this() {
         for (entry in items.entries) entry.item = entry.item.movedTo(Item.Holds.Value)
