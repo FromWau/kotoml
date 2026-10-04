@@ -8,6 +8,7 @@ import com.fromwau.kotoml.Value
 import com.fromwau.kotoml.toInlineTable
 import com.fromwau.kotoml.toTomlArray
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
@@ -56,27 +57,8 @@ internal object SelectionSerializer : KSerializer<Selection> {
         encoder.encodeSerializableValue(JsonElement.serializer(), value.toJson())
     }
 
-    override fun deserialize(decoder: Decoder): Selection {
-        val json = decoder.decodeSerializableValue(JsonElement.serializer())
-        val item = json.toValue()?.let { Item(it) } ?: Item()
-        return Selection(listOf(Selected(item, emptyList())), false)
-    }
-}
-
-/** Plain JSON as the TOML value closest to it; null for JSON `null`, which TOML cannot hold. */
-private fun JsonElement.toValue(): Value? = when (this) {
-    JsonNull -> null
-    is JsonPrimitive -> when {
-        isString -> Value.String(content)
-        content == "true" || content == "false" -> Value.Boolean(content == "true")
-        else -> content.toLongOrNull()?.let { Value.Integer(it) } ?: content.toDoubleOrNull()?.let { Value.Float(it) }
-    }
-    is JsonArray -> Value.Array(mapNotNull { it.toValue() }.toTomlArray())
-    is JsonObject -> Value.InlineTable(
-        entries
-            .mapNotNull { (key, element) -> element.toValue()?.let { key to it } }
-            .toInlineTable(),
-    )
+    // klap only writes a command's result, so a selection is never read back.
+    override fun deserialize(decoder: Decoder): Selection = throw SerializationException("a selection is only written")
 }
 
 /** An empty item prints as `null`, which TOML has no word for, as jq prints a missing key. */

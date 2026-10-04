@@ -177,12 +177,6 @@ class GetTest {
     }
 
     @Test
-    fun `a selection reads back from plain JSON`() {
-        val read = Json.decodeFromString(SelectionSerializer, """{"a":[1,2.5,"x",true],"n":null}""")
-        assertEquals("{ a = [1, 2.5, \"x\", true] }", read.print(raw = false))
-    }
-
-    @Test
     fun `a step a scalar cannot take is an error`() {
         assertEquals(
             Result.Error(AppError.CannotApply(Step.Key("x"), TomlType.String)),

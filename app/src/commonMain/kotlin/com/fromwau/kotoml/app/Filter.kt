@@ -71,8 +71,8 @@ internal fun parseFilter(text: String): Result<Filter, AppError.FilterSyntax> {
                 't' -> "\t"
                 'u' -> text
                     .substring(minOf(position + 2, text.length), minOf(position + 6, text.length))
-                    .takeIf { it.length == 4 }
-                    ?.toIntOrNull(16)
+                    .takeIf { hex -> hex.length == 4 && hex.all { it.isHexDigit() } }
+                    ?.toInt(16)
                     ?.toChar()
                     ?.toString()
                 else -> null
@@ -148,5 +148,8 @@ internal fun parseFilter(text: String): Result<Filter, AppError.FilterSyntax> {
     }
 }
 
-private fun Char.isBareKeyChar(): Boolean =
+/** Whether jq reads this character as part of a bare key, as TOML's bare keys allow it too. */
+internal fun Char.isBareKeyChar(): Boolean =
     this in 'a'..'z' || this in 'A'..'Z' || this in '0'..'9' || this == '_' || this == '-'
+
+private fun Char.isHexDigit(): Boolean = this in '0'..'9' || this in 'a'..'f' || this in 'A'..'F'

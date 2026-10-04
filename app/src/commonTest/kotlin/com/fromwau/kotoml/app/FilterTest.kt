@@ -18,6 +18,14 @@ class FilterTest {
     }
 
     @Test
+    fun `a unicode escape takes exactly four hex digits`() {
+        assertEquals(listOf(listOf(Step.Key("é"))), steps(".\"\\u00e9\""))
+        assertEquals(FilterExpected.Escape, refused(".\"\\u-041\"").expected)
+        assertEquals(FilterExpected.Escape, refused(".\"\\u+041\"").expected)
+        assertEquals(FilterExpected.Escape, refused(".\"\\u12\"").expected)
+    }
+
+    @Test
     fun `a lone dot is the identity filter`() {
         assertEquals(listOf(emptyList()), steps("."))
     }

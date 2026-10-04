@@ -22,7 +22,7 @@ internal sealed interface AppError : IError {
     @SerialName("InvalidToml")
     data class InvalidToml(val error: TomlParseError, @Transient val source: String = "") : AppError
 
-    /** The input is not JSON; [detail] is the JSON parser's own account. */
+    /** The input is not JSON; [position] is where the JSON parser stopped, when it said. */
     @Serializable
     @SerialName("InvalidJson")
     data class InvalidJson(val position: TextPosition?) : AppError
@@ -103,11 +103,11 @@ internal enum class FilterExpected {
     PipeOrEnd,
 }
 
-/** The exit status for [error]: 2 for a malformed invocation, 1 for an input that failed. */
+/** The exit status for this error: 2 for a malformed invocation, 1 for an input that failed. */
 internal val AppError.exitCode: Int
     get() = if (this is AppError.FilterSyntax) 2 else 1
 
-/** [error] as a person reads it. */
+/** This error as a person reads it. */
 internal fun AppError.describe(): String = when (this) {
     is AppError.ReadFailed -> {
         val name = if (path == "-") "standard input" else path

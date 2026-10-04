@@ -82,7 +82,6 @@ private fun Selected.apply(step: Step): Result<List<Selected>, AppError> {
 
 /** This key as a jq path step: bare when jq would read it bare, quoted otherwise. */
 private fun Step.Key.locate(): String {
-    val bare = key.isNotEmpty() &&
-        key.all { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' || it == '_' || it == '-' }
+    val bare = key.isNotEmpty() && key.all { it.isBareKeyChar() }
     return if (bare) ".$key" else ".\"" + key.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 }
