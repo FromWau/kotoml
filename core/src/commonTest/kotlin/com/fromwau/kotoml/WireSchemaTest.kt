@@ -122,7 +122,6 @@ class WireSchemaTest {
                 YearOrHour()
             """.trimIndent(),
             TomlEditError.NotATable.serializer().descriptor.getElementDescriptor(1) to """
-                Missing
                 String
                 Integer
                 Float

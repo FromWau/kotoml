@@ -29,10 +29,10 @@ class ErrorJsonTest {
     }
 
     @Test
-    fun `a type mismatch with nothing there names the found type Missing`() {
+    fun `a type mismatch names the type it expected and the one it found`() {
         assertEquals(
-            """{"type":"TypeMismatch","path":"port","expected":"Integer","found":"Missing"}""",
-            json(TomlDecodeError.TypeMismatch("port", TomlType.Integer, TomlType.Missing)),
+            """{"type":"TypeMismatch","path":"port","expected":"Integer","found":"String"}""",
+            json(TomlDecodeError.TypeMismatch("port", TomlType.Integer, TomlType.String)),
         )
     }
 

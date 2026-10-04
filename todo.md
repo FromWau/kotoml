@@ -8,8 +8,6 @@ Every defect, ruling and docs item from that pass is closed; see **Done**.
 
 ## Candidate work
 
-- [ ] **22. `TomlType.Missing` is a public kind nothing has.** No `Item` or `Value` has it since `Item::None` went;
-  only serialization reports it for an absent field. Goal 10.
 - [ ] **23. `encodeInto`'s list merge is quadratic.** 2000 tables: 877 ms; 10 000 integers: 1.4 s. Should 5.
 - [ ] **24. Exit codes are barely tested.** Only `FilterTest` asserts one; nothing pins `check --json` output or exits
   0 and 1. Goal 15.
@@ -27,6 +25,13 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **22. `TomlType.Missing` is a public kind nothing has.** No `Item` or `Value` has it since `Item::None` went;
+  only serialization reports it for an absent field. Goal 10.
+  **Verdict 2026-10-05:** fixed (owner). `TomlType.Missing` is gone; a serializer that reads a field the document
+  lacks gets `MissingKey(path)`, as generated serializers already did (`mismatchAt`, used by the decoder and
+  `KnownTypes`). Wire change: `"found":"Missing"` no longer occurs. Tests updated in `MissingValueTest`,
+  `TypeNameTest`, `ErrorJsonTest`, `WireSchemaTest`.
 
 - [x] **21. `InvalidUtf8` speaks Rust and bytes.** `validUpTo` / `errorLength` are byte offsets from Rust's
   `Utf8Error`; the message "invalid utf-8 sequence of 1 bytes from index 4" is Rust's. Goal 10, Should 1.

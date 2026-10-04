@@ -7,7 +7,7 @@ import kotlin.test.assertEquals
 class TypeNameTest {
 
     @Test
-    fun `nothing found is named missing`() {
-        assertEquals("missing", TomlType.Missing.describe())
+    fun `an array of tables is named in words`() {
+        assertEquals("array of tables", TomlType.ArrayOfTables.describe())
     }
 }

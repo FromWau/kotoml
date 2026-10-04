@@ -159,7 +159,6 @@ private fun AppError.InvalidToml.rendered(): String {
 }
 
 private fun TomlType.words(): String = when (this) {
-    TomlType.Missing -> "missing"
     TomlType.String -> "string"
     TomlType.Integer -> "integer"
     TomlType.Float -> "float"

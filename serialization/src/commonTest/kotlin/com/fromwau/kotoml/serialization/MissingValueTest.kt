@@ -1,6 +1,5 @@
 package com.fromwau.kotoml.serialization
 
-import com.fromwau.kotoml.TomlType
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.SerialDescriptor
@@ -56,9 +55,9 @@ class MissingValueTest {
     }
 
     @Test
-    fun `a serializer that reads a field the document lacks gets a type mismatch that found Missing`() {
+    fun `a serializer that reads a field the document lacks gets MissingKey`() {
         assertEquals(
-            TomlDecodeError.TypeMismatch("port", TomlType.Integer, TomlType.Missing),
+            TomlDecodeError.MissingKey("port"),
             Toml.decodeFromString(EagerPortSerializer, "").errorOrFail(),
         )
     }

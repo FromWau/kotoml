@@ -149,7 +149,6 @@ internal fun Reason.describe(): String = when (this) {
 }
 
 internal fun TomlType.describe(): String = when (this) {
-    TomlType.Missing -> "missing"
     TomlType.String -> "string"
     TomlType.Integer -> "integer"
     TomlType.Float -> "float"

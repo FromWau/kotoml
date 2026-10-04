@@ -32,8 +32,7 @@ internal class NodeDecoder(
     override val serializersModule: SerializersModule
         get() = toml.serializersModule
 
-    private fun mismatch(expected: TomlType): Nothing =
-        throw DecodeFailure(TomlDecodeError.TypeMismatch("$path", expected, input?.type ?: TomlType.Missing))
+    private fun mismatch(expected: TomlType): Nothing = throw DecodeFailure(mismatchAt(path, expected, input))
 
     private fun scalar(): Value? = (input as? TomlInput.Scalar)?.value
 
@@ -389,4 +388,15 @@ internal fun Double.asFloatOrNull(): Float? {
     val overflows = float.isInfinite() && isFinite()
     val underflows = float == 0f && this != 0.0
     return float.takeUnless { overflows || underflows }
+}
+
+/** The error for [input] at [path] not being [expected]: [TomlDecodeError.MissingKey] when nothing is there. */
+internal fun mismatchAt(
+    path: TomlPath,
+    expected: TomlType,
+    input: TomlInput?,
+): TomlDecodeError = if (input == null) {
+    TomlDecodeError.MissingKey("$path")
+} else {
+    TomlDecodeError.TypeMismatch("$path", expected, input.type)
 }
