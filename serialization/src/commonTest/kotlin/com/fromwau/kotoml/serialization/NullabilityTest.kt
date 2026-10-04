@@ -104,7 +104,7 @@ class NullabilityTest {
 
     @Test
     fun `encodeInto refuses a nullable type and leaves the document as it was`() {
-        val document = TomlDocument.parse("name = \"n\"\n").unwrap()
+        val document = TomlDocument.parse("name = \"n\"\n").getOrFail()
         assertEquals(Result.Error(TomlEncodeError.NullableType("owner")), Toml.encodeInto(document, Owned("n")))
         assertEquals("name = \"n\"\n", document.toString())
     }

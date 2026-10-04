@@ -32,7 +32,7 @@ class ValueTest {
 
     @Test
     fun `a parsed scalar keeps its spelling until its formatting is reset`() {
-        val value = Value.parse("'literal'").unwrap() as Value.String
+        val value = Value.parse("'literal'").getOrFail() as Value.String
         assertEquals("literal", value.value)
         assertEquals("'literal'", value.spelling)
         value.resetFormatting()
@@ -42,7 +42,7 @@ class ValueTest {
 
     @Test
     fun `a copy keeps spelling and decor and changes apart from the original`() {
-        val original = Value.parse("0x10").unwrap()
+        val original = Value.parse("0x10").getOrFail()
         original.decor = Decor(" ", " ")
         val copy = original.copy()
         original.decor = Decor()

@@ -15,7 +15,7 @@ class TypeNameTest {
 
     @Test
     fun `an item indexed at a key that is not there is missing`() {
-        val doc = TomlDocument.parse("a = 1\n").unwrap()
+        val doc = TomlDocument.parse("a = 1\n").getOrFail()
         assertEquals(TomlType.Missing, doc["b"].type)
         assertTrue(doc["b"].isMissing)
         assertFalse(doc["a"].isMissing)

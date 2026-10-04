@@ -20,7 +20,7 @@ class EditDocTest {
 "hello" = 'toml!' # comment
 ['a'.b]
 """
-        val doc = TomlDocument.parse(toml).unwrap()
+        val doc = TomlDocument.parse(toml).getOrFail()
         assertEquals(toml, doc.toString())
         // Add a new key/value pair inside a.b: c = {d = "hello"}
         doc["a"]["b"]["c"]["d"] = "hello"
@@ -37,7 +37,7 @@ c = { d = "hello" }
     @Test
     fun `the README example keeps the text after the last header`() {
         val toml = "\n\"hello\" = 'toml!' # comment\n['a'.b]\n    "
-        val doc = TomlDocument.parse(toml).unwrap()
+        val doc = TomlDocument.parse(toml).getOrFail()
         assertEquals(toml, doc.toString())
         // Add a new key/value pair inside a.b: c = {d = "hello"}
         doc["a"]["b"]["c"]["d"] = "hello"
@@ -49,7 +49,7 @@ c = { d = "hello" }
 
     @Test
     fun `the repository README example adds a key below a commented one`() {
-        val doc = TomlDocument.parse("[package]\nname = \"kotoml\" # the name\n").unwrap()
+        val doc = TomlDocument.parse("[package]\nname = \"kotoml\" # the name\n").getOrFail()
         doc["package"]["version"] = "0.1.0"
         assertEquals("[package]\nname = \"kotoml\" # the name\nversion = \"0.1.0\"\n", doc.toString())
     }
@@ -57,7 +57,7 @@ c = { d = "hello" }
     @Test
     fun `the module README example adds an inline table under a quoted header`() {
         val text = "\n\"hello\" = 'toml!' # comment\n['a'.b]\n"
-        val doc = TomlDocument.parse(text).unwrap()
+        val doc = TomlDocument.parse(text).getOrFail()
         assertEquals(text, doc.toString())
         doc["a"]["b"]["c"]["d"] = "hello"
         doc["a"]["b"]["c"].inlineTableOrNull?.resetFormatting()
@@ -72,7 +72,7 @@ c = { d = "hello" }
         assertEquals("port = 8080 # default\nwhen = 1979-05-27\n", doc.toString())
 
         assertEquals(8080L, doc["port"].longOrNull)
-        val parsed = TomlDocument.parse("n = 0x10\n").unwrap()
+        val parsed = TomlDocument.parse("n = 0x10\n").getOrFail()
         val spelled = parsed["n"].valueOrNull as Value.Integer
         assertEquals(16L, spelled.value)
         assertEquals("0x10", spelled.spelling)
@@ -82,7 +82,7 @@ c = { d = "hello" }
 
     @Test
     fun `the module README tables example extends an array and adds a key and a table`() {
-        val doc = TomlDocument.parse("[server]\nhosts = [\"alpha\"]\n").unwrap()
+        val doc = TomlDocument.parse("[server]\nhosts = [\"alpha\"]\n").getOrFail()
         doc["server"]["hosts"].arrayOrNull?.add("beta")
         val server = doc["server"].tableOrNull!!
         server.getOrPut("port") { Item(Value.Integer(8080L)) }
@@ -95,8 +95,8 @@ c = { d = "hello" }
 
     @Test
     fun `the module README example of writing a key into a string fails with NotATable`() {
-        val doc = TomlDocument.parse("a = 'text'\n").unwrap()
-        assertTrue(doc["a"].set("key", 1L).unwrapErr() is TomlEditError.NotATable)
+        val doc = TomlDocument.parse("a = 'text'\n").getOrFail()
+        assertTrue(doc["a"].set("key", 1L).errorOrFail() is TomlEditError.NotATable)
         assertEquals("a = 'text'\n", doc.toString())
     }
 
@@ -115,14 +115,14 @@ c = { d = "hello" }
         }
         doc["package"]["version"] = "0.2.0"
         val written = Buffer()
-        doc.writeTo(written).unwrap()
+        doc.writeTo(written).getOrFail()
         assertEquals("[package]\nname = \"kotoml\" # the name\nversion = \"0.2.0\"\n", written.readString())
     }
 
     @Test
     fun `the module README error example renders a duplicate key with its line`() {
         val input = "a = 1\na = 2\n"
-        val error = TomlDocument.parse(input).unwrapErr()
+        val error = TomlDocument.parse(input).errorOrFail()
         assertEquals(TomlParseError.Reason.DuplicateKey("a"), error.reason)
         assertEquals(TextPosition(line = 2, column = 1), error.position)
         assertData(
@@ -148,7 +148,7 @@ duplicate key `a`
     @Test
     fun `a parsed value set on a new document prints with its own spelling`() {
         val doc = TomlDocument()
-        doc["foo"] = Value.parse("'bar'").unwrap()
+        doc["foo"] = Value.parse("'bar'").getOrFail()
         assertEquals("foo = 'bar'\n", doc.toString())
     }
 
@@ -184,7 +184,7 @@ duplicate key `a`
 
     @Test
     fun `an array takes a parsed value with its spelling`() {
-        val formattedValue = Value.parse("'literal'").unwrap()
+        val formattedValue = Value.parse("'literal'").getOrFail()
         val arr = TomlArray()
         arr.add(formattedValue)
     }
@@ -195,7 +195,7 @@ duplicate key `a`
         arr.add(1L)
         arr.add("foo")
 
-        arr.add(0, Value.String("start")).unwrap()
+        arr.add(0, Value.String("start")).getOrFail()
     }
 
     @Test
@@ -204,8 +204,8 @@ duplicate key `a`
         arr.add(1L)
         arr.add("foo")
 
-        val formattedValue = Value.parse("'start'").unwrap()
-        arr.add(0, formattedValue).unwrap()
+        val formattedValue = Value.parse("'start'").getOrFail()
+        arr.add(0, formattedValue).getOrFail()
     }
 
     @Test
@@ -214,7 +214,7 @@ duplicate key `a`
         arr.add(1L)
         arr.add("foo")
 
-        arr.replace(0, Value.String("start")).unwrap()
+        arr.replace(0, Value.String("start")).getOrFail()
     }
 
     @Test
@@ -223,8 +223,8 @@ duplicate key `a`
         arr.add(1L)
         arr.add("foo")
 
-        val formattedValue = Value.parse("'start'").unwrap()
-        arr.replace(0, formattedValue, keepDecor = false).unwrap()
+        val formattedValue = Value.parse("'start'").getOrFail()
+        arr.replace(0, formattedValue, keepDecor = false).getOrFail()
     }
 
     @Test
@@ -233,7 +233,7 @@ duplicate key `a`
         arr.add(1L)
         arr.add("foo")
 
-        arr.removeAt(0).unwrap()
+        arr.removeAt(0).getOrFail()
         assertEquals(1, arr.size)
     }
 
@@ -242,7 +242,7 @@ duplicate key `a`
         val arr = ArrayOfTables()
         arr.add(tableOf("name" to Item(Value.String("apple"))))
 
-        arr.set(0, tableOf("name" to Item(Value.String("banana")))).unwrap()
+        arr.set(0, tableOf("name" to Item(Value.String("banana")))).getOrFail()
     }
 
     @Test
@@ -260,7 +260,7 @@ duplicate key `a`
 
     @Test
     fun `an implicit table with a sub-table prints only the sub-table's header`() {
-        val doc = TomlDocument.parse("[a]\n[a.b]\n").unwrap()
+        val doc = TomlDocument.parse("[a]\n[a.b]\n").getOrFail()
 
         doc["a"].tableOrNull!!.isImplicit = true
         assertEquals("[a.b]\n", doc.toString())
@@ -350,7 +350,7 @@ laputa = "sky-castle"
 the-force = { value = "surrounds-you" }
 """
 
-        val document = TomlDocument.parse(input).unwrap()
+        val document = TomlDocument.parse(input).getOrFail()
         val strings = mutableListOf<String>()
         collectStrings(document.root, strings)
 
@@ -402,7 +402,7 @@ banana = 3.26
 table = { apple = 4.5 }
 """
 
-        val document = TomlDocument.parse(input).unwrap()
+        val document = TomlDocument.parse(input).getOrFail()
         floatsToStrings(document.root)
 
         val output = """

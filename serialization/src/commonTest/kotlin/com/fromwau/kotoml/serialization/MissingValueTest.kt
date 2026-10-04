@@ -41,7 +41,7 @@ class MissingValueTest {
     fun `a generated serializer reports a field with no key and no default as a missing key`() {
         assertEquals(
             TomlDecodeError.MissingKey("port"),
-            Toml.decodeFromString<Server>("host = \"h\"\n").unwrapErr(),
+            Toml.decodeFromString<Server>("host = \"h\"\n").errorOrFail(),
         )
     }
 
@@ -51,7 +51,7 @@ class MissingValueTest {
             TomlDecodeError.MissingKey("servers[1].port"),
             Toml.decodeFromString<Servers>(
                 "[[servers]]\nhost = \"a\"\nport = 1\n[[servers]]\nhost = \"b\"\n",
-            ).unwrapErr(),
+            ).errorOrFail(),
         )
     }
 
@@ -59,7 +59,7 @@ class MissingValueTest {
     fun `a serializer that reads a field the document lacks gets a type mismatch that found Missing`() {
         assertEquals(
             TomlDecodeError.TypeMismatch("port", TomlType.Integer, TomlType.Missing),
-            Toml.decodeFromString(EagerPortSerializer, "").unwrapErr(),
+            Toml.decodeFromString(EagerPortSerializer, "").errorOrFail(),
         )
     }
 }

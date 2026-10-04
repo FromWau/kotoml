@@ -31,9 +31,9 @@ class ListMergeTest {
         text: String,
         change: (Fleet) -> Fleet,
     ): String {
-        val document = TomlDocument.parse(text).unwrap()
-        val value = Toml.decodeFromDocument<Fleet>(document).unwrap()
-        Toml.encodeInto(document, change(value)).unwrap()
+        val document = TomlDocument.parse(text).getOrFail()
+        val value = Toml.decodeFromDocument<Fleet>(document).getOrFail()
+        Toml.encodeInto(document, change(value)).getOrFail()
         return document.toString()
     }
 
@@ -41,8 +41,8 @@ class ListMergeTest {
         text: String,
         ports: List<Int>,
     ): String {
-        val document = TomlDocument.parse(text).unwrap()
-        Toml.encodeInto(document, PortList(ports)).unwrap()
+        val document = TomlDocument.parse(text).getOrFail()
+        Toml.encodeInto(document, PortList(ports)).getOrFail()
         return document.toString()
     }
 

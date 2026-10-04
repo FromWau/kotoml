@@ -10,7 +10,7 @@ class RemovalKeepsCommentsTest {
         text: String,
         edit: (TomlDocument) -> Unit,
     ): String {
-        val document = TomlDocument.parse(text).unwrap()
+        val document = TomlDocument.parse(text).getOrFail()
         edit(document)
         return document.toString()
     }
@@ -151,7 +151,7 @@ class RemovalKeepsCommentsTest {
     fun `a table removed from an array of tables leaves the lines above its header`() {
         assertEquals(
             "# first\n\n# second\n[[x]]\nn = 2\n\n# after\n[y]\n",
-            removing(fleet) { it["x"].arrayOfTablesOrNull!!.removeAt(0).unwrap() },
+            removing(fleet) { it["x"].arrayOfTablesOrNull!!.removeAt(0).getOrFail() },
         )
         assertEquals(
             "# first\n[[x]]\nn = 1\n\n# second\n\n# after\n[y]\n",
@@ -188,7 +188,7 @@ class RemovalKeepsCommentsTest {
     fun `an array element leaves its comment above the next element`() {
         assertEquals(
             "ports = [\n  # http\n  # https\n  443,\n]\n",
-            removing(ports) { it["ports"].arrayOrNull!!.removeAt(0).unwrap() },
+            removing(ports) { it["ports"].arrayOrNull!!.removeAt(0).getOrFail() },
         )
     }
 
@@ -196,7 +196,7 @@ class RemovalKeepsCommentsTest {
     fun `the last array element leaves its comment before the closing bracket`() {
         assertEquals(
             "ports = [\n  # http\n  80,\n  # https\n]\n",
-            removing(ports) { it["ports"].arrayOrNull!!.removeAt(1).unwrap() },
+            removing(ports) { it["ports"].arrayOrNull!!.removeAt(1).getOrFail() },
         )
     }
 
@@ -205,7 +205,7 @@ class RemovalKeepsCommentsTest {
         val text = "ports = [\n  80, # http\n  443, # https\n]\n"
         assertEquals(
             "ports = [\n  443, # https\n]\n",
-            removing(text) { it["ports"].arrayOrNull!!.removeAt(0).unwrap() },
+            removing(text) { it["ports"].arrayOrNull!!.removeAt(0).getOrFail() },
         )
     }
 
@@ -214,7 +214,7 @@ class RemovalKeepsCommentsTest {
         val text = "ports = [\n  80, # http\n  443 # https\n]\n"
         assertEquals(
             "ports = [\n  80, # http\n]\n",
-            removing(text) { it["ports"].arrayOrNull!!.removeAt(1).unwrap() },
+            removing(text) { it["ports"].arrayOrNull!!.removeAt(1).getOrFail() },
         )
     }
 
@@ -223,7 +223,7 @@ class RemovalKeepsCommentsTest {
         val text = "ports = [\n  80, 443, # web\n  8080,\n]\n"
         assertEquals(
             "ports = [\n  80, # web\n  8080,\n]\n",
-            removing(text) { it["ports"].arrayOrNull!!.removeAt(1).unwrap() },
+            removing(text) { it["ports"].arrayOrNull!!.removeAt(1).getOrFail() },
         )
     }
 
@@ -255,7 +255,7 @@ class RemovalKeepsCommentsTest {
 
     @Test
     fun `a copy prints the kept lines too`() {
-        val document = TomlDocument.parse(fleet).unwrap()
+        val document = TomlDocument.parse(fleet).getOrFail()
         document.remove("x")
         assertEquals(document.toString(), document.copy().toString())
     }

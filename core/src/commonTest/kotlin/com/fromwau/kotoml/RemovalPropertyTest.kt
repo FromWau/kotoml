@@ -60,12 +60,12 @@ class RemovalPropertyTest {
         version: TomlVersion,
     ): List<String> {
         val keys = TomlDocument.parse(text, version)
-            .unwrap()
+            .getOrFail()
             .root
             .entries
             .map { it.first }
         return keys.filter { key ->
-            val document = TomlDocument.parse(text, version).unwrap()
+            val document = TomlDocument.parse(text, version).getOrFail()
             document.remove(key)
             !printsWithout(text, document.toString(), ownLines(text, version, key))
         }
@@ -132,7 +132,7 @@ class RemovalPropertyTest {
 
         fun keyName(event: Event): String {
             val span = event.span
-            return Key.parse(bytes.decodeToString(span.start, span.end), version).unwrap().name
+            return Key.parse(bytes.decodeToString(span.start, span.end), version).getOrFail().name
         }
 
         val statements = mutableListOf<Statement>()

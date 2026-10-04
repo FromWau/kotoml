@@ -17,22 +17,22 @@ class EditUnitTest {
 
     @Test
     fun `a string value prints as text that parses back`() {
-        Value.parse(Value.String("hello").toString()).unwrap()
+        Value.parse(Value.String("hello").toString()).getOrFail()
     }
 
     @Test
     fun `a key prints as text that parses back`() {
-        Key.parse(Key("hello").toString()).unwrap()
+        Key.parse(Key("hello").toString()).getOrFail()
     }
 
     @Test
     fun `an item prints as text that parses back`() {
-        Item(Value.parse(Item(Value.String("hello")).toString()).unwrap())
+        Item(Value.parse(Item(Value.String("hello")).toString()).getOrFail())
     }
 
     @Test
     fun `an empty document prints as text that parses back`() {
-        TomlDocument.parse(TomlDocument().toString()).unwrap()
+        TomlDocument.parse(TomlDocument().toString()).getOrFail()
     }
 
     @Test
@@ -42,7 +42,7 @@ class EditUnitTest {
             val string = randomPrintableString(random)
             val value = Value.String(string)
             val encoded = value.toString()
-            Value.parse(encoded).unwrap()
+            Value.parse(encoded).getOrFail()
         }
     }
 
@@ -53,7 +53,7 @@ class EditUnitTest {
             val string = randomPrintableString(random)
             val key = Key(string)
             val encoded = key.toString()
-            Key.parse(encoded).unwrap()
+            Key.parse(encoded).getOrFail()
         }
     }
 

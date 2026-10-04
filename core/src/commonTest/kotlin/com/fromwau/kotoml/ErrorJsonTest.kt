@@ -8,7 +8,7 @@ import kotlin.test.assertEquals
 class ErrorJsonTest {
 
     private fun json(text: String): String =
-        Json.encodeToString(TomlParseError.serializer(), TomlDocument.parse(text).unwrapErr())
+        Json.encodeToString(TomlParseError.serializer(), TomlDocument.parse(text).errorOrFail())
 
     @Test
     fun `a duplicate key names the key and both places`() {

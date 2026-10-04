@@ -9,7 +9,7 @@ import kotlin.test.assertTrue
 /** The containers' map and list surface: `put`, `retainAll`, `removeAll`, `keys`, `contains` and their siblings. */
 class CollectionApiTest {
 
-    private fun parse(text: String): TomlDocument = TomlDocument.parse(text).unwrap()
+    private fun parse(text: String): TomlDocument = TomlDocument.parse(text).getOrFail()
 
     @Test
     fun `put with a string keeps the spelling and comment of a quoted key`() {
@@ -286,7 +286,7 @@ class CollectionApiTest {
     @Test
     fun `a document puts a parsed key with its spelling at the root`() {
         val doc = parse("'a' = 1\n")
-        val old = doc.put(Key.parse("\"a\"").unwrap(), Item(Value.Integer(2L)))
+        val old = doc.put(Key.parse("\"a\"").getOrFail(), Item(Value.Integer(2L)))
         assertEquals(1L, old?.longOrNull)
         assertEquals("\"a\" = 2\n", doc.toString())
     }
@@ -294,7 +294,7 @@ class CollectionApiTest {
     @Test
     fun `a document stores a parsed key with its spelling through getOrPut`() {
         val doc = TomlDocument()
-        val stored = doc.getOrPut(Key.parse("'a'").unwrap()) { Item(Value.Integer(1L)) }
+        val stored = doc.getOrPut(Key.parse("'a'").getOrFail()) { Item(Value.Integer(1L)) }
         assertEquals(1L, stored.longOrNull)
         assertEquals(1L, doc.getOrPut(Key("a")) { Item(Value.Integer(9L)) }.longOrNull)
         assertEquals("'a' = 1\n", doc.toString())
@@ -355,7 +355,7 @@ class CollectionApiTest {
     fun `replacing an array of tables element without its decor prints the new table's own`() {
         val doc = parse("[[x]]\nn = 1\n\n# second\n[[x]] # two\nn = 2\n")
         val tables = doc["x"].arrayOfTablesOrNull!!
-        val old = tables.replace(1, tableOf("n" to Item(Value.Integer(3L))), keepDecor = false).unwrap()
+        val old = tables.replace(1, tableOf("n" to Item(Value.Integer(3L))), keepDecor = false).getOrFail()
         assertEquals(2L, old["n"].longOrNull)
         assertEquals("[[x]]\nn = 1\n\n[[x]]\nn = 3\n", doc.toString())
     }

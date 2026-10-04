@@ -31,9 +31,9 @@ class EncodeRunsTest {
         value: Endpoint,
         toml: Toml = Toml,
     ): Pair<Int, String> {
-        val document = TomlDocument.parse(text).unwrap()
+        val document = TomlDocument.parse(text).getOrFail()
         val serializer = Counting(Endpoint.serializer())
-        toml.encodeInto(document, serializer, value).unwrap()
+        toml.encodeInto(document, serializer, value).getOrFail()
         return serializer.runs to document.toString()
     }
 

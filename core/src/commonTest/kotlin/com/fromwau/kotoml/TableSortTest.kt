@@ -6,7 +6,7 @@ import kotlin.test.assertEquals
 /** Sorting the key/value lines of a table or an inline table by a selector or a comparator. */
 class TableSortTest {
 
-    private fun parse(text: String): TomlDocument = TomlDocument.parse(text).unwrap()
+    private fun parse(text: String): TomlDocument = TomlDocument.parse(text).getOrFail()
 
     @Test
     fun `a table sorts by a selector over its values`() {

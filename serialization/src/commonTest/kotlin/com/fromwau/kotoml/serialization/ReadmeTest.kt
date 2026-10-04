@@ -96,9 +96,9 @@ class ReadmeTest {
         }
         assertEquals(
             "shapes = [{ kind = \"circle\", radius = 1.0 }]\n",
-            toml.encodeToString(Drawing(listOf(Circle(1.0)))).unwrap(),
+            toml.encodeToString(Drawing(listOf(Circle(1.0)))).getOrFail(),
         )
-        assertEquals(Server("h"), toml.decodeFromString<Server>("host = \"h\"\nextra = 1\n").unwrap())
+        assertEquals(Server("h"), toml.decodeFromString<Server>("host = \"h\"\nextra = 1\n").getOrFail())
         val derived = Toml(from = toml) { classDiscriminator = "type" }
         assertEquals(true, derived.ignoreUnknownKeys)
         assertEquals("type", derived.classDiscriminator)
@@ -136,7 +136,7 @@ class ReadmeTest {
     fun `the README's paths quote keys as TOML does`() {
         assertEquals(
             TomlDecodeError.TypeMismatch("ports.\"a.b\"", TomlType.Integer, TomlType.String),
-            Toml.decodeFromString<Ports>("[ports]\n\"a.b\" = \"x\"\n").unwrapErr(),
+            Toml.decodeFromString<Ports>("[ports]\n\"a.b\" = \"x\"\n").errorOrFail(),
         )
     }
 }

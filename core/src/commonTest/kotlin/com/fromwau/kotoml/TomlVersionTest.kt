@@ -1,15 +1,16 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.Result
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import kotlin.test.assertIs
 
 /** [TomlVersion.V1_0] refuses exactly what TOML 1.1 added; the default accepts it. */
 class TomlVersionTest {
 
     private fun refusedIn10(input: String, expected: String) {
-        assertTrue(TomlDocument.parse(input).isOk(), "TOML 1.1 accepts:\n$input")
-        assertData(expected, TomlDocument.parse(input, TomlVersion.V1_0).unwrapErr().render(input))
+        assertIs<Result.Success<*>>(TomlDocument.parse(input), "TOML 1.1 accepts:\n$input")
+        assertData(expected, TomlDocument.parse(input, TomlVersion.V1_0).errorOrFail().render(input))
     }
 
     @Test
@@ -99,7 +100,7 @@ TOML parse error at line 1, column 7
 missing escaped value, expected `b`, `f`, `n`, `r`, `t`, `\`, `"`, `u`, `U`
 
 """,
-            TomlDocument.parse(input, TomlVersion.V1_0).unwrapErr().render(input),
+            TomlDocument.parse(input, TomlVersion.V1_0).errorOrFail().render(input),
         )
     }
 
@@ -115,13 +116,13 @@ TOML parse error at line 1, column 4
 missing escaped value, expected `b`, `f`, `n`, `r`, `t`, `\`, `"`, `u`, `U`
 
 """,
-            TomlDocument.parse(input, TomlVersion.V1_0).unwrapErr().render(input),
+            TomlDocument.parse(input, TomlVersion.V1_0).errorOrFail().render(input),
         )
     }
 
     @Test
     fun `V1_0 reads an escaped backslash before an x as text`() {
-        assertEquals("\\x41", TomlDocument.parse("s = \"\\\\x41\"\n", TomlVersion.V1_0).unwrap()["s"].stringOrNull)
+        assertEquals("\\x41", TomlDocument.parse("s = \"\\\\x41\"\n", TomlVersion.V1_0).getOrFail()["s"].stringOrNull)
     }
 
     @Test
@@ -156,11 +157,11 @@ times need seconds in TOML 1.0
 
     @Test
     fun `parsing a value or key under V1_0 refuses what V1_1 added`() {
-        assertTrue(Value.parse("{ a = 1, }").isOk())
-        assertTrue(!Value.parse("{ a = 1, }", TomlVersion.V1_0).isOk())
-        assertTrue(Key.parse("\"\\x41\"").isOk())
-        assertTrue(!Key.parse("\"\\x41\"", TomlVersion.V1_0).isOk())
-        assertTrue(!Key.parsePath("a.\"\\e\"", TomlVersion.V1_0).isOk())
-        assertTrue(!Value.parse("07:32", TomlVersion.V1_0).isOk())
+        assertIs<Result.Success<*>>(Value.parse("{ a = 1, }"))
+        assertIs<Result.Error<*>>(Value.parse("{ a = 1, }", TomlVersion.V1_0))
+        assertIs<Result.Success<*>>(Key.parse("\"\\x41\""))
+        assertIs<Result.Error<*>>(Key.parse("\"\\x41\"", TomlVersion.V1_0))
+        assertIs<Result.Error<*>>(Key.parsePath("a.\"\\e\"", TomlVersion.V1_0))
+        assertIs<Result.Error<*>>(Value.parse("07:32", TomlVersion.V1_0))
     }
 }

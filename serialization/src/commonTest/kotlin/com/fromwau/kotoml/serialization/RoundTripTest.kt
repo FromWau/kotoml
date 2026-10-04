@@ -16,10 +16,10 @@ class RoundTripTest {
         value: T,
         toml: Toml = Toml,
     ) {
-        val text = toml.encodeToString(value).unwrap()
-        assertEquals(value, toml.decodeFromString<T>(text).unwrap(), text)
-        val document = TomlDocument.parse(text).unwrap()
-        toml.encodeInto(document, value).unwrap()
+        val text = toml.encodeToString(value).getOrFail()
+        assertEquals(value, toml.decodeFromString<T>(text).getOrFail(), text)
+        val document = TomlDocument.parse(text).getOrFail()
+        toml.encodeInto(document, value).getOrFail()
         assertEquals(text, document.toString())
     }
 

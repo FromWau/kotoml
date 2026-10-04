@@ -1,5 +1,6 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.Result
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -7,9 +8,9 @@ import kotlin.test.assertTrue
 /** `toml_edit/tests/compliance/parse.rs` */
 class ComplianceParseTest {
 
-    private fun parseValue(text: String): Value = Value.parse(text).unwrap()
+    private fun parseValue(text: String): Value = Value.parse(text).getOrFail()
 
-    private fun parseDocument(text: String): TomlDocument = TomlDocument.parse(text).unwrap()
+    private fun parseDocument(text: String): TomlDocument = TomlDocument.parse(text).getOrFail()
 
     @Test
     fun `each kind of value text parses as its own value kind`() {
@@ -58,9 +59,7 @@ string'''""",
 [a.b.c.d]
 
 """
-        val doc = TomlDocument.parse(toml)
-        assertTrue(doc.isOk())
-        assertData(expected, doc.unwrap().toString())
+        assertData(expected, TomlDocument.parse(toml).getOrFail().toString())
     }
 
     @Test
@@ -434,9 +433,9 @@ clippy.exhaustive_enums = "warn"
 
     private fun recursionLimit(input: (Int) -> String) {
         val depths = listOf(1 to true, 20 to true, 300 to false)
-        for ((depth, isOk) in depths) {
+        for ((depth, accepted) in depths) {
             val document = TomlDocument.parse(input(depth))
-            assertEquals(isOk, document.isOk(), "depth: $depth")
+            assertEquals(accepted, document is Result.Success, "depth: $depth")
         }
     }
 
@@ -468,7 +467,7 @@ clippy.exhaustive_enums = "warn"
     @Test
     fun `garbage inside an inline table reports an extra assignment at column 5`() {
         val input = "={=<=u=="
-        val err = TomlDocument.parse(input).unwrapErr()
+        val err = TomlDocument.parse(input).errorOrFail()
         assertData(
             """
 TOML parse error at line 1, column 5
@@ -485,7 +484,7 @@ extra assignment between key-value pairs, expected `,`
     @Test
     fun `garbage inside a closed inline table reports an extra assignment at column 5`() {
         val input = "={=<=u==}"
-        val err = TomlDocument.parse(input).unwrapErr()
+        val err = TomlDocument.parse(input).errorOrFail()
         assertData(
             """
 TOML parse error at line 1, column 5
@@ -502,7 +501,7 @@ extra assignment between key-value pairs, expected `,`
     @Test
     fun `a line of two equals signs reports an extra equals sign at column 2`() {
         val input = "==\n[._[._"
-        val err = TomlDocument.parse(input).unwrapErr()
+        val err = TomlDocument.parse(input).errorOrFail()
         assertData(
             """
 TOML parse error at line 1, column 2

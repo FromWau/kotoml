@@ -148,21 +148,21 @@ missing key for inline table element, expected key
     @Test
     fun `an error span covers a whole multi-byte character`() {
         val input = "key = 😀"
-        val err = TomlDocument.parse(input).unwrapErr()
+        val err = TomlDocument.parse(input).errorOrFail()
         assertEquals("😀", spanText(input, err))
     }
 
     @Test
     fun `an error span covers the whole unquoted word`() {
         val input = "key = asdf"
-        val err = TomlDocument.parse(input).unwrapErr()
+        val err = TomlDocument.parse(input).errorOrFail()
         assertEquals("asdf", spanText(input, err))
     }
 
     @Test
     fun `a bad escape value reports an empty span where the escape value is missing`() {
         val input = "key = \"\\ᾂr\""
-        val err = TomlDocument.parse(input).unwrapErr()
+        val err = TomlDocument.parse(input).errorOrFail()
         // Bad escape values are reported as missing escape values.
         assertEquals("", spanText(input, err))
     }

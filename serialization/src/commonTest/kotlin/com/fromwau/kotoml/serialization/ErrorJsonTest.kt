@@ -16,7 +16,7 @@ class ErrorJsonTest {
     fun `a missing key encodes as its path`() {
         assertEquals(
             """{"type":"MissingKey","path":"database.url"}""",
-            json(Toml.decodeFromString<App>("title = \"t\"\n[database]\n").unwrapErr()),
+            json(Toml.decodeFromString<App>("title = \"t\"\n[database]\n").errorOrFail()),
         )
     }
 
@@ -40,7 +40,7 @@ class ErrorJsonTest {
     fun `an unknown enum value lists the names`() {
         assertEquals(
             """{"type":"UnknownEnumValue","path":"mode","value":"tcp","names":["TCP","udp"],"suggestion":"TCP"}""",
-            json(Toml.decodeFromString<Config>("hostname = \"h\"\nport = 1\nmode = \"tcp\"\n").unwrapErr()),
+            json(Toml.decodeFromString<Config>("hostname = \"h\"\nport = 1\nmode = \"tcp\"\n").errorOrFail()),
         )
     }
 
@@ -48,7 +48,7 @@ class ErrorJsonTest {
     fun `a datetime kind mismatch names both kinds`() {
         assertEquals(
             """{"type":"DatetimeKindMismatch","path":"date","expected":"LocalDate","found":"LocalTime"}""",
-            json(Toml.decodeFromString<Times>("date = 07:32:00\n").unwrapErr()),
+            json(Toml.decodeFromString<Times>("date = 07:32:00\n").errorOrFail()),
         )
     }
 
@@ -57,7 +57,7 @@ class ErrorJsonTest {
         assertEquals(
             """{"type":"Parse","error":{"reason":{"type":"DuplicateKey","key":"a"},"span":{"start":6,"end":7},""" +
                 """"position":{"line":2,"column":1},"context":{"start":0,"end":1}}}""",
-            json(Toml.decodeFromString<Ports>("a = 1\na = 2\n").unwrapErr()),
+            json(Toml.decodeFromString<Ports>("a = 1\na = 2\n").errorOrFail()),
         )
     }
 
@@ -65,11 +65,11 @@ class ErrorJsonTest {
     fun `an encode error encodes with its type and fields`() {
         assertEquals(
             """{"type":"NonStringMapKey","path":"ports"}""",
-            json(Toml.encodeToString(NumberedPorts(mapOf(1 to "a"))).unwrapErr()),
+            json(Toml.encodeToString(NumberedPorts(mapOf(1 to "a"))).errorOrFail()),
         )
         assertEquals(
             """{"type":"UnsupportedRoot","serialName":"kotlin.Int"}""",
-            json(Toml.encodeToString(1).unwrapErr()),
+            json(Toml.encodeToString(1).errorOrFail()),
         )
     }
 }

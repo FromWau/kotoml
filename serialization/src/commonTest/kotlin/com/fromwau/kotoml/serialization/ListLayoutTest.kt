@@ -28,9 +28,9 @@ class ListLayoutTest {
         toml: Toml = Toml,
         change: (T) -> T,
     ): String {
-        val document = TomlDocument.parse(text).unwrap()
-        val value = toml.decodeFromDocument<T>(document).unwrap()
-        Toml.encodeInto(document, change(value)).unwrap()
+        val document = TomlDocument.parse(text).getOrFail()
+        val value = toml.decodeFromDocument<T>(document).getOrFail()
+        Toml.encodeInto(document, change(value)).getOrFail()
         return document.toString()
     }
 

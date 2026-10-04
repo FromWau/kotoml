@@ -27,24 +27,22 @@ class EditTest {
     }
 
     private fun given(input: String): Given {
-        val doc = TomlDocument.parse(input)
-        assertTrue(doc.isOk())
-        return Given(doc.unwrap())
+        return Given(TomlDocument.parse(input).getOrFail())
     }
 
     private fun assertKeyReprRoundtrip(input: String, expected: String) {
-        val value = Key.parse(input).unwrap()
+        val value = Key.parse(input).getOrFail()
         val actual = value.toString()
-        if (!Key.parse(actual).isOk()) fail("invalid `Key`:\n```\n$actual\n```\n")
+        if (Key.parse(actual) is Result.Error) fail("invalid `Key`:\n```\n$actual\n```\n")
         assertData(expected, actual)
     }
 
     private fun assertKeyValueRoundtrip(input: String, expected: String) {
-        val parsed = Key.parse(input).unwrap()
+        val parsed = Key.parse(input).getOrFail()
         // Drops the written spelling.
         val value = Key(parsed.name)
         val actual = value.toString()
-        if (!Key.parse(actual).isOk()) fail("invalid `Key`:\n```\n$actual\n```\n")
+        if (Key.parse(actual) is Result.Error) fail("invalid `Key`:\n```\n$actual\n```\n")
         assertData(expected, actual)
     }
     @Test
@@ -53,7 +51,7 @@ class EditTest {
             "# leading comment\n[ parent . 'child' ] # header\nvalue = { dotted . key = [ 1, 2, ], other = 'text' } #" +
             " value\n\n[[ parent . 'entries' ]] # first\nname = \"first\"\n\n[[ parent . 'entries' ]] # second\nname " +
             "= \"second\"\n# trailing comment\n"
-        val document = TomlDocument.parse(input.toCharArray().concatToString()).unwrap()
+        val document = TomlDocument.parse(input.toCharArray().concatToString()).getOrFail()
         assertEquals(input, document.toString())
 
         val name = document["parent"]["entries"][1]["name"]
@@ -66,14 +64,14 @@ class EditTest {
     @Test
     fun `a parse error renders against the input it came from`() {
         val input = "[table]\nkey = 1\n[table]\nkey = 2\n"
-        val error = TomlDocument.parse(input).unwrapErr()
+        val error = TomlDocument.parse(input).errorOrFail()
         assertEquals(TomlParseError.Reason.DuplicateKey("table"), error.reason)
         assertTrue(error.render(input).contains("[table]"))
     }
 
     @Test
     fun `a line inserted into a CRLF document ends with CRLF`() {
-        val document = TomlDocument.parse("# comment\r\n[table]\r\nvalue = { dotted.key = [1, 2] }\r\n").unwrap()
+        val document = TomlDocument.parse("# comment\r\n[table]\r\nvalue = { dotted.key = [1, 2] }\r\n").getOrFail()
         document["table"]["new key"] = "new value"
         // Upstream prints CRLF input with LF line endings; this port keeps each line's ending, which the toml-test
         // round trip requires (valid/newline-crlf), and an inserted line ends like the line before it.
@@ -336,7 +334,7 @@ class EditTest {
                 "                             },\n                            ),\n                        },\n       " +
                 "             },\n                ),\n            },\n        },\n    ),\n    trailing: \" # final co" +
                 "mment\\n\",\n}\n\n",
-            TomlDocument.parse(input).unwrap().dbg(),
+            TomlDocument.parse(input).getOrFail().dbg(),
         )
     }
 
@@ -463,7 +461,7 @@ dc = "eqdc10"
     fun `a table copied from another parsed document prints in its new document`() {
         given("[a]")
             .running { root ->
-                val other = TomlDocument.parse("[b]").unwrap()
+                val other = TomlDocument.parse("[b]").getOrFail()
                 root["b"] = other["b"].copy()
             }
             .producesDisplay("""
@@ -931,16 +929,16 @@ edition = "2024"
                 assertEquals(1, b.size)
                 b.add(Value.String("world", Decor("\n", "\n")))
                 b.add(Value.String("test", Decor("", "")))
-                b.add(1, Value.String("beep")).unwrap()
-                b.add(2, Value.String("boop", Decor("   ", "   "))).unwrap()
+                b.add(1, Value.String("beep")).getOrFail()
+                b.add(2, Value.String("boop", Decor("   ", "   "))).getOrFail()
                 // This should preserve formatting.
-                assertEquals("boop", b.set(2, Value.String("zoink")).unwrap().stringOrNull)
+                assertEquals("boop", b.set(2, Value.String("zoink")).getOrFail().stringOrNull)
                 // This should replace formatting.
                 assertEquals(
                     "test",
                     b
                         .replace(4, Value.String("yikes", Decor("  ", "")), keepDecor = false)
-                        .unwrap()
+                        .getOrFail()
                         .stringOrNull,
                 )
             }
@@ -963,12 +961,12 @@ edition = "2024"
                 run {
                     val a = root.getOrNull("a")!!.arrayOrNull!!
                     assertEquals(4, a.size)
-                    assertTrue(a.removeAt(3).unwrap() is Value.Integer)
+                    assertTrue(a.removeAt(3).getOrFail() is Value.Integer)
                     assertEquals(3, a.size)
                 }
                 val b = root.getOrNull("b")!!.arrayOrNull!!
                 assertEquals(1, b.size)
-                assertTrue(b.removeAt(0).unwrap() is Value.String)
+                assertTrue(b.removeAt(0).getOrFail() is Value.String)
                 assertTrue(b.isEmpty())
             }
             .producesDisplay("""
@@ -1134,7 +1132,7 @@ src.git = "https://github.com/nixos/nixpkgs"
 
     @Test
     fun `an array of tables put at a string key replaces the value there`() {
-        val document = TomlDocument.parse("bookmark = 1010").unwrap()
+        val document = TomlDocument.parse("bookmark = 1010").getOrFail()
         val key = "bookmark"
         document.put(key, Item(ArrayOfTables()))
         val table = document[key].arrayOfTablesOrNull!!
@@ -1150,8 +1148,8 @@ name = "test.swf"
 
     @Test
     fun `an array of tables put at a parsed key prints the key's whitespace in its header`() {
-        val document = TomlDocument.parse("bookmark = 1010").unwrap()
-        val key = Key.parsePath("  bookmark   ").unwrap()[0]
+        val document = TomlDocument.parse("bookmark = 1010").getOrFail()
+        val key = Key.parsePath("  bookmark   ").getOrFail()[0]
         document.root.put(key, Item(ArrayOfTables()))
         val table = document[key.name].arrayOfTablesOrNull!!
         val bookmarkTable = Table()
@@ -1175,8 +1173,8 @@ inline = { "1" = 1, "2" = 2 }
 [table.child]
 other = "world"
 """
-        val doc = TomlDocument.parse(toml).unwrap()
-        doc.getOrNull("table")!!.makeValue().unwrap()
+        val doc = TomlDocument.parse(toml).getOrFail()
+        doc.getOrNull("table")!!.makeValue().getOrFail()
         val actual = doc.toString()
         // `table=` is because the table key was not re-formatted, only the value.
         assertData(
@@ -1189,7 +1187,7 @@ other = "world"
         val toml =
             "table = { string = \"value\", array = [1, 2, 3], inline = { \"1\" = 1, \"2\" = 2 }, child = { other = \"" +
             "world\" } }\n"
-        val doc = TomlDocument.parse(toml).unwrap()
+        val doc = TomlDocument.parse(toml).getOrFail()
         val t = doc.remove("table")!!
         val inline = t.inlineTableOrNull ?: fail("Unexpected $t")
         val table = inline.toTable()
@@ -1224,8 +1222,8 @@ inline = { "1" = 1, "2" = 2 }
 [table.child]
 other = "world"
 """
-        val doc = TomlDocument.parse(toml).unwrap()
-        doc.getOrNull("table")!!.makeValue().unwrap()
+        val doc = TomlDocument.parse(toml).getOrFail()
+        doc.getOrNull("table")!!.makeValue().getOrFail()
         val actual = doc.toString()
         // `table=` is because the table key was not re-formatted, only the value.
         assertData(
@@ -1256,8 +1254,8 @@ other = "world"
 
     @Test
     fun `a parsed key put into a document prints after the existing keys`() {
-        val doc = TomlDocument.parse("aaaaaa = 1").unwrap()
-        val key = Key.parse("bbb").unwrap()
+        val doc = TomlDocument.parse("aaaaaa = 1").getOrFail()
+        val key = Key.parse("bbb").getOrFail()
         val table = doc.root
         table.put(key, Item(Value.Integer(2L)))
         assertEquals("aaaaaa = 1\nbbb = 2\n", doc.toString())
@@ -1421,7 +1419,7 @@ name = "cherry"
     fun `adding a table past the end of an array of tables fails with IndexOutOfBounds`() {
         val array = ArrayOfTables()
         val t = Table()
-        assertEquals(TomlEditError.IndexOutOfBounds(1, 0), array.add(1, t).unwrapErr())
+        assertEquals(TomlEditError.IndexOutOfBounds(1, 0), array.add(1, t).errorOrFail())
     }
 
     @Test
@@ -1483,7 +1481,7 @@ name = "banana"
                 val array = root["fruit"].arrayOfTablesOrNull!!
                 val newTable = Table()
                 newTable.put("name", Item(Value.String("cherry")))
-                val old = array.set(1, newTable).unwrap()
+                val old = array.set(1, newTable).getOrFail()
                 assertEquals("banana", old["name"].stringOrNull)
             }
             .producesDisplay("""
@@ -1501,6 +1499,6 @@ name = "cherry"
     fun `setting a table past the end of an array of tables fails with IndexOutOfBounds`() {
         val array = ArrayOfTables()
         val t = Table()
-        assertEquals(TomlEditError.IndexOutOfBounds(0, 0), array.set(0, t).unwrapErr())
+        assertEquals(TomlEditError.IndexOutOfBounds(0, 0), array.set(0, t).errorOrFail())
     }
 }

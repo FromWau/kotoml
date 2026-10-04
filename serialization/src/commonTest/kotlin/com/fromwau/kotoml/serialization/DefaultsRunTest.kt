@@ -76,9 +76,9 @@ class DefaultsRunTest {
         runs: Int,
         toml: Toml = Toml,
     ) {
-        val document = TomlDocument.parse(text).unwrap()
+        val document = TomlDocument.parse(text).getOrFail()
         val counter = RunCounter(serializer)
-        toml.encodeInto(document, counter, value).unwrap()
+        toml.encodeInto(document, counter, value).getOrFail()
         assertEquals(expected, document.toString())
         assertEquals(runs, counter.runs)
     }

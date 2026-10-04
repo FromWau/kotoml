@@ -11,10 +11,10 @@ class DecodeSuggestionTest {
     private val shapes = listOf("circle", "point", "square")
 
     private fun mode(value: String): TomlDecodeError =
-        Toml.decodeFromString<Config>("hostname = \"h\"\nport = 1\nmode = \"$value\"\n").unwrapErr()
+        Toml.decodeFromString<Config>("hostname = \"h\"\nport = 1\nmode = \"$value\"\n").errorOrFail()
 
     private fun shape(name: String): TomlDecodeError =
-        Toml.decodeFromString<Holder>("[shape]\ntype = \"$name\"\n").unwrapErr()
+        Toml.decodeFromString<Holder>("[shape]\ntype = \"$name\"\n").errorOrFail()
 
     @Test
     fun `an enum value that differs only in case suggests the name`() {

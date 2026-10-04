@@ -6,7 +6,7 @@ import kotlin.test.assertEquals
 /** What this port keeps beyond upstream so that unchanged text prints back byte for byte. */
 class PreservationTest {
 
-    private fun parse(text: String): TomlDocument = TomlDocument.parse(text).unwrap()
+    private fun parse(text: String): TomlDocument = TomlDocument.parse(text).getOrFail()
 
     @Test
     fun `CRLF lines keep their endings`() {

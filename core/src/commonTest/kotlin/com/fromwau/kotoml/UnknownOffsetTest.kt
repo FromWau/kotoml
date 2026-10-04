@@ -9,21 +9,21 @@ class UnknownOffsetTest {
 
     @Test
     fun `a -00 00 offset parses as unknown and prints back as written`() {
-        val datetime = Datetime.parse("1979-05-27T07:32:00-00:00").unwrap()
+        val datetime = Datetime.parse("1979-05-27T07:32:00-00:00").getOrFail()
         assertEquals(Offset.Unknown, datetime.offset)
         assertEquals("1979-05-27T07:32:00-00:00", datetime.toString())
     }
 
     @Test
     fun `a +00 00 offset stays a numeric offset of zero`() {
-        val datetime = Datetime.parse("1979-05-27T07:32:00+00:00").unwrap()
+        val datetime = Datetime.parse("1979-05-27T07:32:00+00:00").getOrFail()
         assertEquals(Offset.Custom(0), datetime.offset)
         assertEquals("1979-05-27T07:32:00+00:00", datetime.toString())
     }
 
     @Test
     fun `an unknown offset survives a rebuilt value`() {
-        val value = Value.parse("1979-05-27T07:32:00-00:00").unwrap()
+        val value = Value.parse("1979-05-27T07:32:00-00:00").getOrFail()
         assertEquals("1979-05-27T07:32:00-00:00", Value.Datetime((value as Value.Datetime).value).toString())
     }
 

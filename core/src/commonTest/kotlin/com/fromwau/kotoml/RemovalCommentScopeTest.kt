@@ -13,7 +13,7 @@ class RemovalCommentScopeTest {
         text: String,
         edit: (TomlDocument) -> Unit,
     ): String {
-        val document = TomlDocument.parse(text).unwrap()
+        val document = TomlDocument.parse(text).getOrFail()
         edit(document)
         return document.toString()
     }
@@ -62,7 +62,7 @@ class RemovalCommentScopeTest {
         val text = "[[server]]\nhost = \"a\"\n# backup\n[[server]]\nhost = \"b\"\n"
         assertEquals(
             "[[server]]\nhost = \"a\"\n# backup\n",
-            removing(text) { it["server"].arrayOfTablesOrNull!!.removeAt(1).unwrap() },
+            removing(text) { it["server"].arrayOfTablesOrNull!!.removeAt(1).getOrFail() },
         )
     }
 
@@ -83,7 +83,7 @@ class RemovalCommentScopeTest {
         val text = "ports = [\n  8080, # http\n  # https\n  8443, # tls\n]\n"
         assertEquals(
             "ports = [\n  8080, # http\n  # https\n]\n",
-            removing(text) { it["ports"].arrayOrNull!!.removeAt(1).unwrap() },
+            removing(text) { it["ports"].arrayOrNull!!.removeAt(1).getOrFail() },
         )
     }
 

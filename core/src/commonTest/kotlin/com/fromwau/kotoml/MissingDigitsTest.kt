@@ -7,7 +7,7 @@ import kotlin.test.assertEquals
 /** A radix prefix with no digits after it is its own error, not an overflow. */
 class MissingDigitsTest {
 
-    private fun reason(text: String): TomlParseError.Reason = TomlDocument.parse(text).unwrapErr().reason
+    private fun reason(text: String): TomlParseError.Reason = TomlDocument.parse(text).errorOrFail().reason
 
     @Test
     fun `each radix prefix with no digits reports missing digits in that radix`() {
