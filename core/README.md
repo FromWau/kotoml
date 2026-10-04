@@ -23,9 +23,8 @@ dependencies {
 
 KMP consumers put it in `commonMain`. kern's `result`, `kotlinx-serialization-core` and `kotlinx-io-core` come
 along as `api`, since `Result`, the `@Serializable` error types and kotlinx-io's `Source` and `Sink` appear in this
-module's signatures. The JVM and Android
-artifacts need a JDK 25 toolchain, and Android needs `minSdk` 26. Published versions are listed at
-[maven.frommhund.xyz](https://maven.frommhund.xyz/#/releases/com/fromwau/kotoml).
+module's signatures. The JVM and Android artifacts need a JDK 25 toolchain, and Android needs `minSdk` 26.
+Published versions are listed at [maven.frommhund.xyz](https://maven.frommhund.xyz/#/releases/com/fromwau/kotoml).
 
 ## Edit a document
 
