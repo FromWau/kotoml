@@ -8,8 +8,6 @@ Every defect, ruling and docs item from that pass is closed; see **Done**.
 
 ## Candidate work
 
-- [ ] **24. Exit codes are barely tested.** Only `FilterTest` asserts one; nothing pins `check --json` output or exits
-  0 and 1. Goal 15.
 - [ ] **25. Printing and copying recurse once per nesting level.** `Encode.kt`, `Value.copy`,
   `StandardTable.copy`. A document built through the API thousands of levels deep overflows the stack in `toString()`,
   and, since arrays store copies (item 11), already while it is built. That is the hand-built case the owner ruled
@@ -24,6 +22,12 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **24. Exit codes are barely tested.** Only `FilterTest` asserts one; nothing pins `check --json` output or exits
+  0 and 1. Goal 15.
+  **Verdict 2026-10-05:** fixed. The CLI tree is `kotomlCli()`, and `ExitCodeTest` runs whole invocations through
+  klap's `run` with a recording terminal: exits 0, 1 (unreadable, not TOML, nothing selected) and 2 (bad filter,
+  unknown option), and `check --json`'s output both ways, as the README states them. All eight held on the first run.
 
 - [x] **23. `encodeInto`'s list merge is quadratic.** 2000 tables: 877 ms; 10 000 integers: 1.4 s. Should 5.
   **Verdict 2026-10-05:** fixed for every list but a wholly changed one. The cost was not the planner but

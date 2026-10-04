@@ -4,6 +4,7 @@ import com.fromwau.kern.result.Result
 import com.fromwau.kern.result.flatMap
 import com.fromwau.kern.result.map
 import com.fromwau.kern.result.mapError
+import com.fromwau.klap.Cli
 import com.fromwau.klap.CliError
 import com.fromwau.klap.CommandBuilder
 import com.fromwau.klap.cli
@@ -70,37 +71,40 @@ private fun encode(): Result<String, AppError> = when (val read = readInput(null
 }
 
 fun main(args: Array<String>) {
-    cli("kotoml") {
-        description = "Query TOML like jq, keeping every comment and spelling of what it prints"
-        version = VERSION
+    kotomlCli().main(args)
+}
 
-        command("get", "print what a jq path selects") {
-            example("kotoml get '.servers[0].port' config.toml", "one value")
-            example("kotoml get '.servers[] | .host' --json config.toml", "the host of every server, as JSON")
-            val filter = argument("filter", "a jq path: ., .a.b, .\"key\", .[0], .[] and | between them")
-            val file = fileArgument()
-            val raw = flag("--raw", "-r", help = "print strings without quotes")
-            val spec = specOption()
-            action(human = { it.humanText(raw()) }) {
-                get(filter(), file(), spec()).orCliError()
-            }
-        }
+/** The `kotoml` command line, built once per run. */
+internal fun kotomlCli(): Cli = cli("kotoml") {
+    description = "Query TOML like jq, keeping every comment and spelling of what it prints"
+    version = VERSION
 
-        command("check", "exit 0 when the file is valid TOML, or print why it is not") {
-            val file = fileArgument()
-            val spec = specOption()
-            action(human = { "" }) { parseToml(file(), spec()).orCliError().map { Checked(valid = true) } }
+    command("get", "print what a jq path selects") {
+        example("kotoml get '.servers[0].port' config.toml", "one value")
+        example("kotoml get '.servers[] | .host' --json config.toml", "the host of every server, as JSON")
+        val filter = argument("filter", "a jq path: ., .a.b, .\"key\", .[0], .[] and | between them")
+        val file = fileArgument()
+        val raw = flag("--raw", "-r", help = "print strings without quotes")
+        val spec = specOption()
+        action(human = { it.humanText(raw()) }) {
+            get(filter(), file(), spec()).orCliError()
         }
+    }
 
-        command("decode", "toml-test decoder: TOML on standard input, tagged JSON on standard output") {
-            val spec = specOption()
-            action(human = { Json.encodeToString(JsonElement.serializer(), it) }) {
-                parseToml(null, spec()).orCliError().map { it.toTaggedJson() }
-            }
-        }
+    command("check", "exit 0 when the file is valid TOML, or print why it is not") {
+        val file = fileArgument()
+        val spec = specOption()
+        action(human = { "" }) { parseToml(file(), spec()).orCliError().map { Checked(valid = true) } }
+    }
 
-        command("encode", "toml-test encoder: tagged JSON on standard input, TOML on standard output") {
-            action { encode().orCliError() }
+    command("decode", "toml-test decoder: TOML on standard input, tagged JSON on standard output") {
+        val spec = specOption()
+        action(human = { Json.encodeToString(JsonElement.serializer(), it) }) {
+            parseToml(null, spec()).orCliError().map { it.toTaggedJson() }
         }
-    }.main(args)
+    }
+
+    command("encode", "toml-test encoder: tagged JSON on standard input, TOML on standard output") {
+        action { encode().orCliError() }
+    }
 }

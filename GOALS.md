@@ -88,8 +88,8 @@ official toml-test runner for TOML 1.0 and 1.1.
     Check: `EncodeIntoFixesTest`, `ListMergeTest`, `NullabilityTest`, `ReadmeTest`.
 15. **CLI.** Exit 0 on success, 1 for errors about the data, 2 for usage errors. `--json` prints errors as JSON. No
     input crashes it, including invalid UTF-8 and deep nesting.
-    Check: `CheckTest`, `InputTest`, `TaggedJsonTest`, `ReadFailureTest` (native only). Gap: only `FilterTest`
-    asserts an exit code.
+    Check: `ExitCodeTest` runs whole invocations for every exit code and `check --json`'s output; `CheckTest`,
+    `InputTest`, `TaggedJsonTest`, `ReadFailureTest` (native only).
 
 ## Should
 
