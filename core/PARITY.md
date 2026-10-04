@@ -306,7 +306,7 @@ section 1.
 | upstream | Kotlin |
 |---|---|
 | `tests/display.rs::time_without_seconds` | `` DatetimeDisplayTest.`a time without seconds prints as hours and minutes` `` |
-| `tests/display.rs::time_without_seconds_with_nanoseconds` | `` DatetimeDisplayTest.`a time with nanoseconds but no seconds prints zero seconds before the fraction` `` |
+| `tests/display.rs::time_without_seconds_with_nanoseconds` | n/a: `Time.of` refuses a fraction without a second (`DatetimeExpected.SecondBeforeFraction`), so the case cannot be built |
 | `tests/display.rs::time_with_zero_seconds_and_nanoseconds` | `` DatetimeDisplayTest.`a time with zero seconds and zero nanoseconds prints a one digit fraction` `` |
 | `tests/display.rs::datetime_without_seconds` | `` DatetimeDisplayTest.`an offset date-time without seconds prints as hours and minutes` `` |
 | `tests/parse.rs::only_t` | `` DatetimeParseTest.`a lone T is refused as missing a year or hour` `` |
@@ -567,7 +567,7 @@ Beyond upstream's tests, `FloatFormatTest` compares the shortest digits, `Displa
 | `tests/testsuite/edit.rs::test_insert_values` | `` EditTest.`keys set under an implicit table print in a new header above its sub-table` `` |
 | `tests/testsuite/edit.rs::test_insert_key_with_quotes` | `` EditTest.`a new table key that needs quoting prints as a literal string in its header` `` |
 | `tests/testsuite/edit.rs::test_remove_leaf_table` | `` EditTest.`removing a sub-table keeps the comment above its header` `` |
-| `tests/testsuite/edit.rs::test_remove_nonleaf_table` | `` EditTest.`removing a table removes its sub-tables and keeps the comments above their headers` `` |
+| `tests/testsuite/edit.rs::test_remove_nonleaf_table` | `` EditTest.`removing a table removes its sub-tables and keeps only the comment above its first header` `` |
 | `tests/testsuite/edit.rs::test_remove_array_entry` | `` EditTest.`removing an array of tables element removes only its header and body` `` |
 | `tests/testsuite/edit.rs::test_remove_array` | `` EditTest.`removing an array of tables removes every header and body it printed` `` |
 | `tests/testsuite/edit.rs::test_remove_value` | `` EditTest.`removing a key returns its value and keeps the comment above it` `` |

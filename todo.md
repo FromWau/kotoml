@@ -10,16 +10,11 @@ reproduced on `dev` at `2781090` before it was filed.
 
 ## Docs and goals
 
-- [ ] **15. `GOALS.md` wording.** State the deliberate-misuse rule; goal 3 excludes raw formatting text
-  (`Decor`, `trailing`, key decor) the caller writes; goal 6 states the real bound (a header path adds its own
-  levels); goal 8: `span` and `position` are nullable; goals 13 and 15: `ReadFailureTest` (native) and
-  `PermissionTest` (JVM) are platform tests.
-- [ ] **16. `Datetime`'s KDoc example does not compile.** `core/.../Datetime.kt:15` calls the private `Date(...)`;
-  use `Date.of(...)`.
-- [ ] **17. `TomlEditError`'s header is stale.** `core/.../TomlEditError.kt:7` says "refused by panicking";
-  `NotFound`, `TypeMismatch` and `NotAValue` are not panics upstream.
 - [ ] **18. `PARITY.md` test references.** `:309` cites a nanosecond-without-second test that no longer exists (the
   case cannot be built since `Time.of`); `:570` cites a drifted name. 79 of 85 intended-difference rows name no
+  test.
+  **Progress 2026-10-05:** both dangling references fixed (`:309` is now n/a with its reason, `:570` the current name);
+  a script confirms all 455 test citations in PARITY.md resolve. Still open: the intended-difference rows that name no
   test.
 - [ ] **19. Pin every error wire name.** Core's `ErrorJsonTest` pins 10 of 85 `@SerialName`s, serialization's 7 of
   18; a rename fails no test. One table-driven test per sealed hierarchy. Goal 8.
@@ -49,6 +44,24 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **17. `TomlEditError`'s header is stale.** `core/.../TomlEditError.kt:7` says "refused by panicking";
+  `NotFound`, `TypeMismatch` and `NotAValue` are not panics upstream.
+  **Verdict 2026-10-05:** fixed: the header now says why an index, edit or builder block failed, and that upstream
+  panics on most of these.
+
+- [x] **16. `Datetime`'s KDoc example does not compile.** `core/.../Datetime.kt:15` calls the private `Date(...)`;
+  use `Date.of(...)`.
+  **Verdict 2026-10-05:** fixed: the example uses `Date.of(…).getOrElse { error(it) }`, mirrored by a test in
+  `DatetimeParseTest`.
+
+- [x] **15. `GOALS.md` wording.** State the deliberate-misuse rule; goal 3 excludes raw formatting text
+  (`Decor`, `trailing`, key decor) the caller writes; goal 6 states the real bound (a header path adds its own
+  levels); goal 8: `span` and `position` are nullable; goals 13 and 15: `ReadFailureTest` (native) and
+  `PermissionTest` (JVM) are platform tests.
+  **Verdict 2026-10-05:** done in `1f6d6f4`, before the fixes: the misuse rule, goal 3's raw formatting text, goal 6's
+  bound, goal 8's optional span and position, and goals 13 and 15's platform tests. Goals 6 and 9 were updated again
+  with items 11 and 12.
 
 - [x] **14. An empty dotted or implicit table still prints.** Removing `a.b` from `a = { a.b = 1 }`, emptying an
   implicit table, or an empty dotted inline table makes the key vanish from the text while the model keeps it.

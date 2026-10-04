@@ -1,6 +1,7 @@
 package com.fromwau.kotoml
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
 class DatetimeParseTest {
@@ -8,6 +9,14 @@ class DatetimeParseTest {
     private fun assertParsesTo(input: String, expected: String) {
         val actual = Datetime.parse(input)
         assertDebugSnapshot(expected, actual.debug({ it.dbg() }, { it.dbg() }))
+    }
+
+    @Test
+    fun `the Datetime KDoc example parses an offset date-time and builds a local date`() {
+        val odt = Datetime.parse("1979-05-27T07:32:00Z").getOrFail()
+        val date = Datetime.LocalDate(Date.of(year = 1979, month = 5, day = 27).getOrFail())
+        assertIs<Datetime.OffsetDateTime>(odt)
+        assertEquals("1979-05-27", date.toString())
     }
 
     @Test

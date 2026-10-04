@@ -4,9 +4,7 @@ import com.fromwau.kern.result.IError
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-/**
- * An edit that upstream refuses by panicking, returned here as a value instead.
- */
+/** Why an index, an edit or a builder block could not do what it was asked; upstream panics on most of these. */
 @Serializable
 public sealed interface TomlEditError : IError {
     /** Indexing by [key] into a table or inline table that holds no item there. */

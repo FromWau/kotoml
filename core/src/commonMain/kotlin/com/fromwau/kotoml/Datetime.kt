@@ -12,7 +12,7 @@ import kotlinx.serialization.Serializable
  *
  * ```kotlin
  * val odt = Datetime.parse("1979-05-27T07:32:00Z")
- * val date = Datetime.LocalDate(Date(year = 1979, month = 5, day = 27))
+ * val date = Datetime.LocalDate(Date.of(year = 1979, month = 5, day = 27).getOrElse { error(it) })
  * ```
  *
  * Datetimes order by their [date], then [time], then [offset], each missing part sorting before a present one.
