@@ -5,6 +5,7 @@ import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.toKString
+import platform.posix.EINTR
 import platform.posix.errno
 import platform.posix.strerror
 
@@ -21,6 +22,7 @@ internal actual fun readStdin(): Result<ByteArray, ReadFailure> {
     while (true) {
         val count = readStdinChunk(buffer)
         if (count == 0) break
+        if (count < 0 && errno == EINTR) continue
         if (count < 0) return Err(ReadFailure.Io(strerror(errno)?.toKString()))
         chunks += buffer.copyOf(count)
     }

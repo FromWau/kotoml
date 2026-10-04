@@ -6,8 +6,6 @@ reproduced on `dev` at `2781090` before it was filed.
 
 ## Defects
 
-- [ ] **10. CLI stdin treats `EINTR` as an I/O error instead of retrying.** `app/.../Stdin.native.kt`. Goal 15.
-
 ## Decided: enforce (owner, 2026-10-05)
 
 - [ ] **11. Arrays and arrays of tables store a copy.** `TomlArray.add` / `add(index)` / `set` / `replace`,
@@ -58,6 +56,10 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **10. CLI stdin treats `EINTR` as an I/O error instead of retrying.** `app/.../Stdin.native.kt`. Goal 15.
+  **Verdict 2026-10-05:** fixed. A read that returns -1 with `EINTR` is retried. Compiled for linuxX64 and
+  mingwX64; not unit-tested, since a test cannot reliably interrupt the read with a signal.
 
 - [x] **9. A parse error after a byte order mark is one column off.** `"﻿a = = 1"` reports column 6; the
   visible column is 5. Should 1.
