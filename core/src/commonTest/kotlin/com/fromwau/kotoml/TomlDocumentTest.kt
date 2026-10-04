@@ -114,7 +114,7 @@ class TomlDocumentTest {
         val error = TomlDocument.read(source).errorOrFail()
 
         assertIs<TomlReadError.Parse>(error)
-        assertEquals(TomlParseError.Reason.InvalidUtf8(validUpTo = 1, errorLength = 1), error.error.reason)
+        assertEquals(TomlParseError.Reason.InvalidUtf8(byteOffset = 1), error.error.reason)
     }
 
     @Test

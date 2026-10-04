@@ -21,7 +21,7 @@ class WireSchemaTest {
                 FloatOverflow()
                 IntegerOverflow()
                 InvalidDatetime(error)
-                InvalidUtf8(validUpTo, errorLength)
+                InvalidUtf8(byteOffset)
                 KeyTooDeep()
                 MissingDigits(radix)
                 NotInToml10(feature)

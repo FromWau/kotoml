@@ -71,7 +71,7 @@ TOML parse error at line 1, column 8
   |
 1 | a = "é"
   |        ^
-invalid utf-8 sequence of 1 bytes from index 8
+bytes that are not UTF-8
 
 """,
             error.render(bytes.decodeToString()),

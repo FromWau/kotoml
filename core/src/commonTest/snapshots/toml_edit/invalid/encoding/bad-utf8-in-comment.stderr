@@ -2,4 +2,4 @@ TOML parse error at line 1, column 3
   |
 1 | # 
   |   ^
-invalid utf-8 sequence of 1 bytes from index 2
+bytes that are not UTF-8

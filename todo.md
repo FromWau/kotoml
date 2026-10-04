@@ -8,8 +8,6 @@ Every defect, ruling and docs item from that pass is closed; see **Done**.
 
 ## Candidate work
 
-- [ ] **21. `InvalidUtf8` speaks Rust and bytes.** `validUpTo` / `errorLength` are byte offsets from Rust's
-  `Utf8Error`; the message "invalid utf-8 sequence of 1 bytes from index 4" is Rust's. Goal 10, Should 1.
 - [ ] **22. `TomlType.Missing` is a public kind nothing has.** No `Item` or `Value` has it since `Item::None` went;
   only serialization reports it for an absent field. Goal 10.
 - [ ] **23. `encodeInto`'s list merge is quadratic.** 2000 tables: 877 ms; 10 000 integers: 1.4 s. Should 5.
@@ -29,6 +27,12 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **21. `InvalidUtf8` speaks Rust and bytes.** `validUpTo` / `errorLength` are byte offsets from Rust's
+  `Utf8Error`; the message "invalid utf-8 sequence of 1 bytes from index 4" is Rust's. Goal 10, Should 1.
+  **Verdict 2026-10-05:** fixed (owner). `InvalidUtf8(byteOffset)`, message "bytes that are not UTF-8"; the position
+  says where in characters. The compliance harness no longer strips a newline after Rust's `Utf8Error`, and the nine
+  UTF-8 snapshot copies were regenerated from the parser. Wire change; `WireSchemaTest` updated.
 
 - [x] **18. `PARITY.md` test references.** `:309` cites a nanosecond-without-second test that no longer exists (the
   case cannot be built since `Time.of`); `:570` cites a drifted name. 79 of 85 intended-difference rows name no

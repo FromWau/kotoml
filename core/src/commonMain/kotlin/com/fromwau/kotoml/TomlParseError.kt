@@ -68,13 +68,10 @@ public data class TomlParseError(
         @SerialName("KeyTooDeep")
         public data object KeyTooDeep : Reason
 
-        /**
-         * The bytes are not UTF-8: the first [validUpTo] bytes are, and the next [errorLength] bytes do not
-         * start a character. A null [errorLength] means the input ends inside a character.
-         */
+        /** The bytes are not UTF-8 from [byteOffset] on; the error's position is the character where that is. */
         @Serializable
         @SerialName("InvalidUtf8")
-        public data class InvalidUtf8(val validUpTo: Int, val errorLength: Int?) : Reason
+        public data class InvalidUtf8(val byteOffset: Int) : Reason
 
         /** The text holds half of a surrogate pair without the other half, which is not Unicode text. */
         @Serializable
@@ -157,7 +154,7 @@ private fun utf8CharCount(input: ByteArray, from: Int, to: Int): Int? {
     return count
 }
 
-/** Why [bytes] are not UTF-8, as Rust's `str::from_utf8` decides, or null when they are. */
+/** Where [bytes] stop being UTF-8, or null when they are UTF-8 throughout. */
 internal fun utf8Error(bytes: ByteArray): TomlParseError.Reason.InvalidUtf8? {
     var position = 0
     while (position < bytes.size) {
@@ -171,13 +168,13 @@ internal fun utf8Error(bytes: ByteArray): TomlParseError.Reason.InvalidUtf8? {
             0xF0 -> Triple(4, 0x90, 0xBF)
             in 0xF1..0xF3 -> Triple(4, 0x80, 0xBF)
             0xF4 -> Triple(4, 0x80, 0x8F)
-            else -> return TomlParseError.Reason.InvalidUtf8(position, 1)
+            else -> return TomlParseError.Reason.InvalidUtf8(position)
         }
         for (index in 1 until length) {
-            if (position + index >= bytes.size) return TomlParseError.Reason.InvalidUtf8(position, null)
+            if (position + index >= bytes.size) return TomlParseError.Reason.InvalidUtf8(position)
             val byte = bytes[position + index].toInt() and 0xFF
             val (min, max) = if (index == 1) minSecond to maxSecond else 0x80 to 0xBF
-            if (byte !in min..max) return TomlParseError.Reason.InvalidUtf8(position, index)
+            if (byte !in min..max) return TomlParseError.Reason.InvalidUtf8(position)
         }
         position += length
     }

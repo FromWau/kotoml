@@ -18,7 +18,7 @@ class ErrorPlaceTest {
     fun `bytes that are not UTF-8 point at the first bad byte`() {
         val bytes = "a = 1\nb = \"".encodeToByteArray() + byteArrayOf(0xFF.toByte()) + "\"\n".encodeToByteArray()
         val error = TomlDocument.parse(bytes).errorOrFail()
-        assertEquals(TomlParseError.Reason.InvalidUtf8(11, 1), error.reason)
+        assertEquals(TomlParseError.Reason.InvalidUtf8(11), error.reason)
         assertEquals(TextPosition(2, 6), error.position)
     }
 }

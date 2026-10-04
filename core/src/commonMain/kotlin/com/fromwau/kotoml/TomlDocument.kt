@@ -268,8 +268,8 @@ public class TomlDocument internal constructor(
             version: TomlVersion = TomlVersion.V1_1,
         ): Result<TomlDocument, TomlParseError> {
             utf8Error(bytes)?.let { reason ->
-                val end = Span(reason.validUpTo, reason.validUpTo).toTextIndices(bytes)
-                val (line, column) = translatePosition(bytes, reason.validUpTo)
+                val end = Span(reason.byteOffset, reason.byteOffset).toTextIndices(bytes)
+                val (line, column) = translatePosition(bytes, reason.byteOffset)
                 return Err(TomlParseError(reason, end, TextPosition(line + 1, column + 1)))
             }
             return parse(bytes.decodeToString(), version)

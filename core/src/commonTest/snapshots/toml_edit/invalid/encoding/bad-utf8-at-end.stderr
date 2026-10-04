@@ -2,4 +2,4 @@ TOML parse error at line 5, column 11
   |
 5 | x = """"""
   |           ^
-incomplete utf-8 byte sequence from index 241
+bytes that are not UTF-8

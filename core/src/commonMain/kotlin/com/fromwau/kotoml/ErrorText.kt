@@ -140,11 +140,7 @@ internal fun Reason.describe(): String = when (this) {
     Reason.FloatOverflow -> "floating-point number overflowed"
     Reason.KeyTooDeep -> "recursion limit"
     Reason.NotUnicode -> "half of a surrogate pair, which is not Unicode text"
-    is Reason.InvalidUtf8 -> if (errorLength == null) {
-        "incomplete utf-8 byte sequence from index $validUpTo"
-    } else {
-        "invalid utf-8 sequence of $errorLength bytes from index $validUpTo"
-    }
+    is Reason.InvalidUtf8 -> "bytes that are not UTF-8"
     is Reason.NotInToml10 -> when (feature) {
         Toml11Feature.MultilineInlineTable -> "inline tables cannot span lines in TOML 1.0"
         Toml11Feature.InlineTableTrailingComma -> "inline tables cannot end with a comma in TOML 1.0"

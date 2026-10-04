@@ -62,10 +62,7 @@ class ComplianceHarnessTest {
         return when (val parsed = TomlDocument.parse(fixture)) {
             is Result.Success -> Outcome.Decoded(parsed.value)
             is Result.Error -> {
-                val message = parsed.error.render(fixture.decodeToString())
-                // Upstream's harness prints Rust's `Utf8Error` here, which ends without the newline a `TomlError` has.
-                val utf8 = parsed.error.reason is TomlParseError.Reason.InvalidUtf8
-                Outcome.Refused(if (utf8) message.removeSuffix("\n") else message)
+                Outcome.Refused(parsed.error.render(fixture.decodeToString()))
             }
         }
     }
