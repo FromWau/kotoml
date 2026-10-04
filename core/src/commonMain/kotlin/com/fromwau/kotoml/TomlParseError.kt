@@ -122,7 +122,10 @@ internal fun translatePosition(input: ByteArray, index: Int): Pair<Int, Int> {
 
     // Only the text before the index is counted: the character at it may be cut off or not UTF-8 at all.
     val countEnd = minOf(index, input.size)
-    val column = utf8CharCount(input, lineStart, countEnd) ?: (countEnd - lineStart)
+    // A byte order mark shows nothing, so the first line's columns start after it.
+    val skipsMark = lineStart == 0 && input.startsWithByteOrderMark()
+    val countStart = if (skipsMark) minOf(UTF8_BOM.size, countEnd) else lineStart
+    val column = utf8CharCount(input, countStart, countEnd) ?: (countEnd - countStart)
     return line to column + (index - countEnd)
 }
 
@@ -230,3 +233,8 @@ private fun utf16Index(bytes: ByteArray, byteIndex: Int): Int {
     }
     return units + maxOf(byteIndex - bytes.size, 0)
 }
+
+private val UTF8_BOM = byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte())
+
+private fun ByteArray.startsWithByteOrderMark(): Boolean =
+    size >= UTF8_BOM.size && UTF8_BOM.indices.all { this[it] == UTF8_BOM[it] }

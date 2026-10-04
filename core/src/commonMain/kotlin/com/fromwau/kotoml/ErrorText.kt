@@ -20,7 +20,10 @@ import com.fromwau.kotoml.parser.ParseError
 public fun TomlParseError.render(source: String): String = buildString {
     val span = span
     val position = position
-    val line = position?.let { source.split('\n').getOrNull(it.line - 1) }
+    // The column does not count a byte order mark, so the first line is shown without it.
+    val line = position?.let { source.split('\n').getOrNull(it.line - 1) }?.let {
+        if (position.line == 1) it.removePrefix("\uFEFF") else it
+    }
     if (span != null && position != null && line != null) {
         val lineNum = position.line
         val column = position.column - 1

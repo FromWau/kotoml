@@ -6,8 +6,6 @@ reproduced on `dev` at `2781090` before it was filed.
 
 ## Defects
 
-- [ ] **9. A parse error after a byte order mark is one column off.** `"﻿a = = 1"` reports column 6; the
-  visible column is 5. Should 1.
 - [ ] **10. CLI stdin treats `EINTR` as an I/O error instead of retrying.** `app/.../Stdin.native.kt`. Goal 15.
 
 ## Decided: enforce (owner, 2026-10-05)
@@ -60,6 +58,12 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **9. A parse error after a byte order mark is one column off.** `"﻿a = = 1"` reports column 6; the
+  visible column is 5. Should 1.
+  **Verdict 2026-10-05:** fixed. The first line's columns start after a leading byte order mark, and `render` shows
+  that line without it. Two upstream snapshot copies regenerated from the parser (`bom-not-at-start-02`, `-03`), a
+  PARITY row, a test in `ParseFixesTest`; core JVM green.
 
 - [x] **8. After an `encodeInto` reorder of an array of tables the blank lines shift.** The text starts with a
   blank line and the one between two elements is gone. Goal 4.

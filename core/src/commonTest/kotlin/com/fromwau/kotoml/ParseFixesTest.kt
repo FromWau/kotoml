@@ -17,6 +17,24 @@ class ParseFixesTest {
     private val invalidDecimal = syntax(ParseErrorReason.InvalidScalar(ScalarKind.Integer(IntegerRadix.Dec)))
 
     @Test
+    fun `an error after a byte order mark is placed by the visible columns`() {
+        val text = "\uFEFFa = = 1\n"
+        val error = TomlDocument.parse(text).errorOrFail()
+        assertEquals(TextPosition(1, 5), error.position)
+        assertSnapshot(
+            """
+TOML parse error at line 1, column 5
+  |
+1 | a = = 1
+  |     ^
+extra `=`
+
+""",
+            error.render(text),
+        )
+    }
+
+    @Test
     fun `bytes that are not UTF-8 after non-ASCII text are placed by the characters before them`() {
         val bytes = "a = \"é\"".encodeToByteArray() + byteArrayOf(0xFF.toByte())
         val error = TomlDocument.parse(bytes).errorOrFail()
