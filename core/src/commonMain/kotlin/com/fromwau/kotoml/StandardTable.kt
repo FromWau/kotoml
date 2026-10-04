@@ -177,7 +177,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
             .filter { !it.item.printsOwnHeader() }
             .sortedWith { left, right -> comparator.compare(left.key to left.item, right.key to right.item) }
             .iterator()
-        // A table under its own header keeps its place among the entries, which orders hand-made tables headers.
+        // A table under its own header keeps its place among the entries, so hand-made tables keep their order too.
         val slots = pairs
             .map { if (it.item.printsOwnHeader()) it else sortedLines.next() }
             .withIndex()

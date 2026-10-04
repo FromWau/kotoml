@@ -121,7 +121,7 @@ class SlotFixesTest {
     }
 
     @Test
-    fun `a slot handed out for a key still writes the key after put replaced it`() {
+    fun `a slot handed out for a key writes the key after put replaces its value`() {
         val doc = parse("'k'   =   1\n")
         val slot = doc["k"]
         doc["k"] = 2L

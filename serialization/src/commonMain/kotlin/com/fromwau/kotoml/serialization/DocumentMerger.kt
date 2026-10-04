@@ -385,7 +385,9 @@ private fun TomlInput.sharedValues(
     defaults: Defaults,
 ): Int {
     if (this !is TomlInput.Table || new !is TomlNode.Struct) return 0
-    return new.entries.count { (key, child) -> entries[key]?.toInput()?.sameAs(child, defaults.child(key, new)) == true }
+    return new.entries.count { (key, child) ->
+        entries[key]?.toInput()?.sameAs(child, defaults.child(key, new)) == true
+    }
 }
 
 /**

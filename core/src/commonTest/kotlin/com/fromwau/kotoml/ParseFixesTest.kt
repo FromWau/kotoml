@@ -63,7 +63,7 @@ invalid utf-8 sequence of 1 bytes from index 8
     }
 
     @Test
-    fun `V1_0 still reports a short u escape as too few digits`() {
+    fun `V1_0 reports a short u escape as too few digits`() {
         val error = TomlDocument.parse("a = \"\\uZ\"\n", TomlVersion.V1_0).errorOrFail()
         assertEquals(syntax(ParseErrorReason.TooFewUnicodeDigits), error.reason)
     }
@@ -135,7 +135,7 @@ invalid utf-8 sequence of 1 bytes from index 8
     }
 
     @Test
-    fun `an exponent too long to keep still gives infinity or zero for a short mantissa`() {
+    fun `an exponent too long to keep gives infinity or zero for a short mantissa`() {
         assertEquals(Double.POSITIVE_INFINITY, parseTomlFloat("1e1000000"))
         assertEquals(0.0, parseTomlFloat("1e-1000000"))
         assertEquals(Double.POSITIVE_INFINITY, parseTomlFloat("1e" + "9".repeat(30)))

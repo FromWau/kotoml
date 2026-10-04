@@ -304,7 +304,9 @@ private class ClassEncoder(
     override fun defaultedKey(
         descriptor: SerialDescriptor,
         index: Int,
-    ): String? = descriptor.getElementName(index).takeIf { (sparse as? TomlNode.Struct)?.defaulted?.contains(it) == true }
+    ): String? = descriptor
+        .getElementName(index)
+        .takeIf { (sparse as? TomlNode.Struct)?.defaulted?.contains(it) == true }
 
     override fun put(
         descriptor: SerialDescriptor,
