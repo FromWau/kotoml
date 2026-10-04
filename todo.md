@@ -6,8 +6,6 @@ reproduced on `dev` at `2781090` before it was filed.
 
 ## Defects
 
-- [ ] **6. Adding to an inline table puts a space before the comma.** `{ x = 1 }` plus `y` prints
-  `{ x = 1 , y = 2 }`. Goal 4.
 - [ ] **7. A comment kept from a removed table prints below a table added later.** `# about a\n[a]\nx=1\n`, remove
   `a`, add `[c]`: `[c]\nz = 1\n# about a`. Goal 4.
 - [ ] **8. After an `encodeInto` reorder of an array of tables the blank lines shift.** The text starts with a
@@ -66,6 +64,12 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **6. Adding to an inline table puts a space before the comma.** `{ x = 1 }` plus `y` prints
+  `{ x = 1 , y = 2 }`. Goal 4.
+  **Verdict 2026-10-05:** fixed. On one line a new last entry takes over the space before `}`, as the one-line sort
+  already treats that spacing as the position's; every insert path goes through `InlineTable.putEntry`. Two tests in
+  `PrintingFixesTest`; core and serialization JVM green.
 
 - [x] **5. Appending to a multi-line array lands on the previous element's line.** `core/.../TomlArray.kt:93`
   `a = [\n  1, # one\n]` plus `add(3)` prints `1, 3, # one`. `encodeInto` already lays inserted elements out

@@ -244,7 +244,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     ): Value {
         get(key.name)?.let { return it }
         val value = default().copy()
-        items.put(key.copy(), Item.inInlineTable(value))
+        putEntry(key.copy(), value)
         return value
     }
 
@@ -270,7 +270,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         value: Value,
     ): Value? {
         items.getEntry(key.name)?.key = key.copy()
-        return items.put(key.copy(), Item.inInlineTable(value.copy()))?.valueOrNull
+        return putEntry(key.copy(), value.copy())
     }
 
     override fun putItem(
@@ -282,7 +282,23 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     private fun store(
         key: String,
         value: Value,
-    ): Value? = items.put(Key(key), Item.inInlineTable(value))?.valueOrNull
+    ): Value? = putEntry(Key(key), value)
+
+    private fun putEntry(
+        key: Key,
+        value: Value,
+    ): Value? {
+        if (!items.containsKey(key.name)) takeClosingSpace(value)
+        return items.put(key, Item.inInlineTable(value))?.valueOrNull
+    }
+
+    // On one line the space before `}` belongs to the position, not to the entry, so a new last entry takes it.
+    private fun takeClosingSpace(value: Value) {
+        if (value.rawDecor.suffix != null || !printsOnOneLine()) return
+        val last = visualValues().lastOrNull()?.value ?: return
+        value.rawDecor.suffix = last.rawDecor.suffix
+        last.rawDecor.suffix = null
+    }
 
     /**
      * Removes [key] and returns its value, or null when it held none.

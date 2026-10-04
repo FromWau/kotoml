@@ -24,6 +24,20 @@ class PrintingFixesTest {
         this["arr"].getOrFail().arrayOfTablesOrNull!!.map { it["x"].getOrFail().longOrNull }
 
     @Test
+    fun `a key added to a one-line inline table takes over the space before the closing brace`() {
+        val doc = TomlDocument.parse("t = { x = 1 }\n").getOrFail()
+        doc["t"]["y"] = 2L
+        assertEquals("t = { x = 1, y = 2 }\n", doc.toString())
+    }
+
+    @Test
+    fun `a key added after an entry spaced before its comma keeps that spacing on the entry`() {
+        val doc = TomlDocument.parse("t = { a = [1, 2] , b = [1] }\n").getOrFail()
+        doc["t"]["c"] = 3L
+        assertEquals("t = { a = [1, 2] , b = [1], c = 3 }\n", doc.toString())
+    }
+
+    @Test
     fun `a value added to a multi-line array starts its own line below the last one and keeps the trailing comma`() {
         val doc = TomlDocument.parse("a = [\n  1, # one\n]\n").getOrFail()
         doc["a"].getOrFail().arrayOrNull!!.add(3L)
