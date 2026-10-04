@@ -35,7 +35,7 @@ internal class KeyValue(var key: Key, item: Item) {
 }
 
 private val Item.printsHeader: Boolean
-    get() = tableOrNull?.let { !it.isDotted } ?: (arrayOfTablesOrNull != null)
+    get() = standardTableOrNull?.let { !it.isDotted } ?: (arrayOfTablesOrNull != null)
 
 /**
  * How one occurrence of a key path was spelled, and what the shared keys it stands for looked like then. It is

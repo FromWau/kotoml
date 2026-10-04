@@ -7,7 +7,7 @@ import com.fromwau.kotoml.Datetime
 import com.fromwau.kotoml.TomlDocument
 import com.fromwau.kotoml.InlineTable
 import com.fromwau.kotoml.Item
-import com.fromwau.kotoml.Table
+import com.fromwau.kotoml.StandardTable
 import com.fromwau.kotoml.TextPosition
 import com.fromwau.kotoml.TomlArray
 import com.fromwau.kotoml.Value
@@ -25,7 +25,7 @@ internal fun TomlDocument.toTaggedJson(): JsonElement = Item(root).tagged()
 
 private fun Item.tagged(): JsonElement {
     valueOrNull?.let { return it.tagged() }
-    tableOrNull?.let { table ->
+    standardTableOrNull?.let { table ->
         return JsonObject(table.associate { (key, item) -> key to item.tagged() })
     }
     return JsonArray(arrayOfTablesOrNull?.map { Item(it).tagged() }.orEmpty())
@@ -98,7 +98,7 @@ internal fun parseTaggedJson(text: String): Result<TomlDocument, AppError> {
         return Err(AppError.InvalidJson(text.positionOrNull(error.message)))
     }
     if (json !is JsonObject) return notTagged("$", TaggedJsonProblem.RootNotObject)
-    val table = Table()
+    val table = StandardTable()
     for ((key, element) in json) {
         when (val value = element.toValue("$.$key")) {
             is Result.Success -> table[key] = value.value

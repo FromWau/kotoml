@@ -6,8 +6,8 @@ import com.fromwau.kotoml.Datetime
 import com.fromwau.kotoml.Decor
 import com.fromwau.kotoml.InlineTable
 import com.fromwau.kotoml.Item
+import com.fromwau.kotoml.StandardTable
 import com.fromwau.kotoml.Table
-import com.fromwau.kotoml.TableLike
 import com.fromwau.kotoml.TomlArray
 import com.fromwau.kotoml.Value
 
@@ -54,7 +54,7 @@ internal sealed interface Defaults {
 internal class DocumentMerger(private val writer: DocumentWriter) {
 
     fun mergeTable(
-        table: TableLike,
+        table: Table,
         full: TomlNode.Struct,
         defaults: Defaults,
     ) {
@@ -73,13 +73,13 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
     }
 
     private fun mergeItem(
-        parent: TableLike,
+        parent: Table,
         key: String,
         existing: Item,
         full: TomlNode,
         defaults: Defaults,
     ) {
-        val existingTable = existing.tableOrNull ?: existing.inlineTableOrNull
+        val existingTable = existing.standardTableOrNull ?: existing.inlineTableOrNull
         when {
             full is TomlNode.Struct && existingTable != null -> mergeTable(existingTable, full, defaults)
             existing.toInput()?.sameAs(full, defaults) == true -> {}
@@ -196,13 +196,13 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
     }
 
     private fun newItem(
-        parent: TableLike,
+        parent: Table,
         node: TomlNode,
     ): Item = if (parent is InlineTable) Item(writer.value(node)) else writer.item(node)
 
     /** The item replacing [existing]: a value keeps the old value's decor. */
     private fun replacement(
-        parent: TableLike,
+        parent: Table,
         existing: Item,
         node: TomlNode,
     ): Item {
@@ -213,21 +213,21 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
     }
 
     private fun put(
-        table: TableLike,
+        table: Table,
         key: String,
         item: Item,
     ) {
         when (table) {
-            is Table -> table[key] = item
+            is StandardTable -> table[key] = item
             is InlineTable -> item.valueOrNull?.let { table[key] = it }
         }
     }
 }
 
 /** Removes the keys outside [kept] in one pass, so the lines above each removed key stay where they print. */
-private fun TableLike.removeKeysOutside(kept: Set<String>) {
+private fun Table.removeKeysOutside(kept: Set<String>) {
     when (this) {
-        is Table -> removeAll { (key, _) -> key !in kept }
+        is StandardTable -> removeAll { (key, _) -> key !in kept }
         is InlineTable -> removeAll { (key, _) -> key !in kept }
     }
 }
@@ -240,7 +240,7 @@ private fun Defaults.writtenStruct(full: TomlNode.Struct): TomlNode.Struct = wri
  * positions, and an inserted one takes the position of the element after it, printing just before that one.
  */
 private fun positionTables(
-    merged: List<Table>,
+    merged: List<StandardTable>,
     plan: ListPlan,
 ) {
     val isInserted = plan.sources.map { it == ElementSource.Inserted }
@@ -255,7 +255,7 @@ private fun positionTables(
  * Hands the positions [elements] hold among the document's tables out again in the order of [elements], each
  * element keeping the tables under it right after it.
  */
-private fun renumber(elements: List<Table>) {
+private fun renumber(elements: List<StandardTable>) {
     val blocks = elements.map { element -> element.headerTables().sortedBy { it.position } }
     val positions = blocks
         .flatten()
@@ -266,12 +266,12 @@ private fun renumber(elements: List<Table>) {
 }
 
 /** This table and the tables nested in it that print a header and hold a position. */
-private fun Table.headerTables(): List<Table> {
-    val tables = mutableListOf<Table>()
-    fun collect(table: Table) {
+private fun StandardTable.headerTables(): List<StandardTable> {
+    val tables = mutableListOf<StandardTable>()
+    fun collect(table: StandardTable) {
         if (table.position != null) tables += table
         for ((_, item) in table.entries) {
-            item.tableOrNull?.let(::collect)
+            item.standardTableOrNull?.let(::collect)
             item.arrayOfTablesOrNull?.forEach(::collect)
         }
     }

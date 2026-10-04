@@ -84,9 +84,9 @@ c = { d = "hello" }
     fun `the module README tables example extends an array and adds a key and a table`() {
         val doc = TomlDocument.parse("[server]\nhosts = [\"alpha\"]\n").getOrFail()
         doc["server"]["hosts"].arrayOrNull?.add("beta")
-        val server = doc["server"].tableOrNull!!
+        val server = doc["server"].standardTableOrNull!!
         server.getOrPut("port") { Item(Value.Integer(8080L)) }
-        doc["client"] = tableOf("retries" to Item(Value.Integer(3L)))
+        doc["client"] = standardTableOf("retries" to Item(Value.Integer(3L)))
         assertEquals(
             "[server]\nhosts = [\"alpha\", \"beta\"]\nport = 8080\n\n[client]\nretries = 3\n",
             doc.toString(),
@@ -246,15 +246,15 @@ duplicate key `a`
     @Test
     fun `an array of tables element can be set to another table`() {
         val arr = ArrayOfTables()
-        arr.add(tableOf("name" to Item(Value.String("apple"))))
+        arr.add(standardTableOf("name" to Item(Value.String("apple"))))
 
-        arr.set(0, tableOf("name" to Item(Value.String("banana")))).getOrFail()
+        arr.set(0, standardTableOf("name" to Item(Value.String("banana")))).getOrFail()
         assertEquals("banana", arr[0]?.get("name")?.stringOrNull)
     }
 
     @Test
     fun `string values that need escaping print as literal strings`() {
-        val table = Table()
+        val table = StandardTable()
         val array = TomlArray()
         array.add("hello")
         // A backslash is only allowed in a literal string.
@@ -269,20 +269,20 @@ duplicate key `a`
     fun `an implicit table with a sub-table prints only the sub-table's header`() {
         val doc = TomlDocument.parse("[a]\n[a.b]\n").getOrFail()
 
-        doc["a"].tableOrNull!!.isImplicit = true
+        doc["a"].standardTableOrNull!!.isImplicit = true
         assertEquals("[a.b]\n", doc.toString())
     }
 
     @Test
     fun `getOrPut on an empty table stores the key under its name`() {
-        val map = Table()
+        val map = StandardTable()
         map.getOrPut("hello") { Item(Value.Integer(1L)) }
         assertEquals("hello", map.keyOrNull("hello")?.name)
     }
 
     @Test
     fun `getOrPut on a present key keeps the key under its name`() {
-        val map = Table()
+        val map = StandardTable()
         map["foo"] = 1L
         map.getOrPut("foo") { Item(Value.Integer(2L)) }
         assertEquals("foo", map.keyOrNull("foo")?.name)
@@ -290,7 +290,7 @@ duplicate key `a`
 
     @Test
     fun `getOrPut on a missing key stores the key under its name`() {
-        val map = Table()
+        val map = StandardTable()
         map.getOrPut("foo") { Item(Value.Integer(1L)) }
         assertEquals("foo", map.keyOrNull("foo")?.name)
     }
@@ -322,7 +322,7 @@ duplicate key `a`
     }
 
     private fun collectStrings(
-        table: TableLike,
+        table: Table,
         strings: MutableList<String>,
     ) {
         for ((_, item) in table.entries) collectStrings(item, strings)
@@ -333,7 +333,7 @@ duplicate key `a`
         strings: MutableList<String>,
     ) {
         item.valueOrNull?.let { collectStrings(it, strings) }
-        item.tableOrNull?.let { collectStrings(it, strings) }
+        item.standardTableOrNull?.let { collectStrings(it, strings) }
         item.arrayOfTablesOrNull?.forEach { collectStrings(it, strings) }
     }
 
@@ -363,7 +363,7 @@ the-force = { value = "surrounds-you" }
         assertEquals(listOf("sky-castle", "surrounds-you"), strings)
     }
 
-    private fun floatsToStrings(table: TableLike) {
+    private fun floatsToStrings(table: Table) {
         for ((_, item) in table.entries) floatsToStrings(item)
     }
 
@@ -373,7 +373,7 @@ the-force = { value = "surrounds-you" }
             val kept = floatsToStrings(value)
             if (kept !== value) item.assign(Item(kept))
         }
-        item.tableOrNull?.let { floatsToStrings(it) }
+        item.standardTableOrNull?.let { floatsToStrings(it) }
         item.arrayOfTablesOrNull?.forEach { floatsToStrings(it) }
     }
 

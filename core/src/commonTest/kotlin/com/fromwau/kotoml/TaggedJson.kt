@@ -106,12 +106,12 @@ private fun daysFromCivil(year: Long, month: Long, day: Long): Long {
 /** The tagged JSON of a document, as upstream's `tests/decoder.rs` builds it. */
 internal fun TomlDocument.toTagged(): Tagged = root.toTagged()
 
-private fun Table.toTagged(): Tagged =
+private fun StandardTable.toTagged(): Tagged =
     Tagged.Table(associate { (key, item) -> key to item.toTagged() })
 
 private fun Item.toTagged(): Tagged {
     valueOrNull?.let { return it.toTagged() }
-    tableOrNull?.let { return it.toTagged() }
+    standardTableOrNull?.let { return it.toTagged() }
     arrayOfTablesOrNull?.let { tables -> return Tagged.Array(tables.map { it.toTagged() }) }
     error("no empty items")
 }
@@ -145,7 +145,7 @@ private fun taggedFloat(value: Double): String = when {
 /** A document holding [tagged]'s values, as upstream's `tests/encoder.rs` builds it; null when it cannot. */
 internal fun Tagged.toDocument(): TomlDocument? {
     if (this !is Tagged.Table) return null
-    val table = Table()
+    val table = StandardTable()
     for ((key, value) in entries) table[key] = Item(value.toValue() ?: return null)
     return TomlDocument(table)
 }

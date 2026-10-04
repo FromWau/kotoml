@@ -6,7 +6,7 @@ import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
 
 /**
- * A slot in a table or array holding nothing, a [Value], a [Table] or an [ArrayOfTables].
+ * A slot in a table or array holding nothing, a [Value], a [StandardTable] or an [ArrayOfTables].
  *
  * An item is a place, not just a value: the tables and arrays store items, and indexing hands out the item
  * stored there, so writing through it changes the document.
@@ -41,7 +41,7 @@ public class Item private constructor(
     public constructor(value: Value) : this(Content.ValueContent(value), null, Holds.Anything)
 
     /** An item holding [table], as is. */
-    public constructor(table: Table) : this(Content.TableContent(table), null, Holds.Anything)
+    public constructor(table: StandardTable) : this(Content.TableContent(table), null, Holds.Anything)
 
     /** An item holding [arrayOfTables], as is. */
     public constructor(arrayOfTables: ArrayOfTables) :
@@ -59,7 +59,7 @@ public class Item private constructor(
 
         class ValueContent(val value: Value) : Content
 
-        class TableContent(val table: Table) : Content
+        class TableContent(val table: StandardTable) : Content
 
         class ArrayOfTablesContent(val array: ArrayOfTables) : Content
 
@@ -159,7 +159,7 @@ public class Item private constructor(
     }
 
     /**
-     * Stores a copy of [item] at [key]: in a table as [Table.set] does, elsewhere as `this[key].assign(item)` does.
+     * Stores a copy of [item] at [key]: in a table as [StandardTable.set] does, elsewhere as `this[key].assign(item)` does.
      *
      * @return [TomlEditError.NotATable] when this item holds neither a table nor an inline table, or
      *   [TomlEditError.NotAValue] when this is an inline table, or empty, and [item] holds no value.
@@ -168,7 +168,7 @@ public class Item private constructor(
         key: String,
         item: Item,
     ): EmptyResult<TomlEditError> {
-        val table = tableOrNull ?: return get(key).assign(item)
+        val table = standardTableOrNull ?: return get(key).assign(item)
         table[key] = item
         return Ok(Unit)
     }
@@ -182,7 +182,7 @@ public class Item private constructor(
     /** Stores a copy of [table] at [key]; see [set]. */
     public operator fun set(
         key: String,
-        table: Table,
+        table: StandardTable,
     ): EmptyResult<TomlEditError> = set(key, Item(table))
 
     /** Stores a copy of [arrayOfTables] at [key]; see [set]. */
@@ -237,17 +237,17 @@ public class Item private constructor(
     public val valueOrNull: Value?
         get() = (content as? Content.ValueContent)?.value
 
-    /** The table, or null when this holds none. An inline table is a value; [tableLikeOrNull] reads both. */
-    public val tableOrNull: Table?
+    /** The standard table, or null when this holds none. An inline table is a value; [tableOrNull] reads both. */
+    public val standardTableOrNull: StandardTable?
         get() = (content as? Content.TableContent)?.table
 
     /** The array of tables, or null when this holds none. */
     public val arrayOfTablesOrNull: ArrayOfTables?
         get() = (content as? Content.ArrayOfTablesContent)?.array
 
-    /** The table or inline table, or null when this holds neither. */
-    public val tableLikeOrNull: TableLike?
-        get() = tableOrNull ?: inlineTableOrNull
+    /** The table of either kind, standard or inline, or null when this holds neither. */
+    public val tableOrNull: Table?
+        get() = standardTableOrNull ?: inlineTableOrNull
 
     /**
      * This item as a value: a table becomes an inline table and an array of tables an array, both moving
@@ -274,9 +274,9 @@ public class Item private constructor(
     }
 
     /** This item as a table, moving an inline table's entries into one; null for anything else. */
-    internal fun moveToTable(): Table? = when (val content = content) {
+    internal fun moveToStandardTable(): StandardTable? = when (val content = content) {
         is Content.TableContent -> content.table
-        is Content.ValueContent -> content.value.inlineTableOrNull?.moveToTable()
+        is Content.ValueContent -> content.value.inlineTableOrNull?.moveToStandardTable()
         else -> null
     }
 
@@ -291,7 +291,7 @@ public class Item private constructor(
             if (array == null || array.isEmpty() || !array.all { it is Value.InlineTable }) {
                 null
             } else {
-                array.mapNotNull { it.inlineTableOrNull?.moveToTable() }.toArrayOfTables()
+                array.mapNotNull { it.inlineTableOrNull?.moveToStandardTable() }.toArrayOfTables()
             }
         }
         else -> null
@@ -370,6 +370,6 @@ public class Item private constructor(
         fun inInlineTable(value: Value): Item = Item(Content.ValueContent(value), null, Holds.Value)
 
         /** A slot of an [ArrayOfTables], which only ever holds a table. */
-        fun inArrayOfTables(table: Table): Item = Item(Content.TableContent(table), null, Holds.Table)
+        fun inArrayOfTables(table: StandardTable): Item = Item(Content.TableContent(table), null, Holds.Table)
     }
 }

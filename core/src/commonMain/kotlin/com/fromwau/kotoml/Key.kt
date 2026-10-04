@@ -8,7 +8,7 @@ import com.fromwau.kotoml.writer.TomlKeyBuilder
 import com.fromwau.kotoml.writer.toTomlKey
 
 /**
- * A key of a key/value pair, in a [Table] or an [InlineTable], with how it was spelled.
+ * A key of a key/value pair, in a [StandardTable] or an [InlineTable], with how it was spelled.
  *
  * TOML has bare keys (`version`), basic quoted keys (`"basic key"`) and literal quoted keys (`'literal'`).
  * A key compares, hashes and orders by its text alone; its spelling and decor do not take part.

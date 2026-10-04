@@ -71,7 +71,7 @@ internal fun InlineTable.dbg(): Dbg = struct(
     "items" to items.dbg(),
 )
 
-internal fun Table.dbg(): Dbg = struct(
+internal fun StandardTable.dbg(): Dbg = struct(
     "Table",
     "decor" to rawDecor.dbg(),
     "implicit" to lit(isImplicit),
@@ -89,7 +89,7 @@ internal fun ArrayOfTables.dbg(): Dbg = struct(
 
 internal fun Item.dbg(): Dbg {
     valueOrNull?.let { return tuple("Value", it.dbg()) }
-    tableOrNull?.let { return tuple("Table", it.dbg()) }
+    standardTableOrNull?.let { return tuple("Table", it.dbg()) }
     arrayOfTablesOrNull?.let { return tuple("ArrayOfTables", it.dbg()) }
     return lit("None")
 }

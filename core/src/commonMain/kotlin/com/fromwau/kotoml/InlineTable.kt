@@ -16,7 +16,7 @@ import com.fromwau.kern.result.Result
  * table.toString() // "{ a = 1, b = \"two\" }"
  * ```
  */
-public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
+public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     internal var rawTrailing: KeptText = KeptText()
 
     /** Whether the table ends with a comma after its last entry. */
@@ -37,11 +37,11 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
     }
 
     /** A standard table holding copies of this table's entries, formatted anew; this table stays as it is. */
-    public fun toTable(): Table = copy().moveToTable()
+    public fun toStandardTable(): StandardTable = copy().moveToStandardTable()
 
     /** Moves the entries into a new standard table, formatted anew, leaving this table empty. */
-    internal fun moveToTable(): Table {
-        val table = Table(items.takeAll())
+    internal fun moveToStandardTable(): StandardTable {
+        val table = StandardTable(items.takeAll())
         table.resetFormatting()
         return table
     }
@@ -64,7 +64,7 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
             path.add(entry.key)
             val item = entry.item
             val value = item.valueOrNull
-            val table = item.tableOrNull
+            val table = item.standardTableOrNull
             when {
                 value is Value.InlineTable && value.table.isDotted -> value.table.appendValues(path, values)
                 value != null -> values.add(VisualValue(path.toList(), value, entry))

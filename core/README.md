@@ -69,9 +69,9 @@ for any other kind.
 ```kotlin
 val doc = TomlDocument.parse("[server]\nhosts = [\"alpha\"]\n").getOrElse { error(it) }
 doc["server"]["hosts"].arrayOrNull?.add("beta")
-val server = doc["server"].tableOrNull!!
+val server = doc["server"].standardTableOrNull!!
 server.getOrPut("port") { Item(Value.Integer(8080L)) }
-doc["client"] = tableOf("retries" to Item(Value.Integer(3L)))
+doc["client"] = standardTableOf("retries" to Item(Value.Integer(3L)))
 // [server]
 // hosts = ["alpha", "beta"]
 // port = 8080
@@ -80,18 +80,18 @@ doc["client"] = tableOf("retries" to Item(Value.Integer(3L)))
 // retries = 3
 ```
 
-`Table`, `InlineTable`, `TomlArray` and `ArrayOfTables` read like Kotlin collections: `size`, `isNotEmpty`,
+`StandardTable`, `InlineTable`, `TomlArray` and `ArrayOfTables` read like Kotlin collections: `size`, `isNotEmpty`,
 `keys`, `put`, `getOrPut`, `remove`, `add`, `removeAt`, `retainAll`, `removeAll` and iteration. Removing keeps
 the comment and blank lines above what it removes, and takes what belongs to it: the comment on its line, every
 comment inside its value, and for a table everything after its first header, the comments above its sub-tables'
 headers included. An `Item` is a slot that holds a value, a table or an array of tables; `valueOrNull`,
-`tableOrNull` and their siblings read what it holds. Storing an item stores a copy, so editing the original
+`standardTableOrNull` and their siblings read what it holds, and `tableOrNull` reads a table of either kind. Storing an item stores a copy, so editing the original
 afterwards does not change the document.
 
 A document's top-level keys live in its `root` table. The document itself offers the map calls (`get`, `set`,
 `getOrNull`, `contains`, `keys`, `put`, `putAll`, `getOrPut`, `remove`, `retainAll`, `removeAll`, `clear`,
-`size`) and iterates over the root's pairs; everything else a `Table` does, such as `sortBy { (key, _) -> key }`
-or `key(name)`, goes through `doc.root`.
+`size`) and iterates over the root's pairs; everything else a `StandardTable` does, such as `sortBy { (key, _) -> key }`
+or `keyOrNull(name)`, goes through `doc.root`.
 
 ## Read and write files
 

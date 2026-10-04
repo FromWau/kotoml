@@ -76,7 +76,7 @@ internal class RemovedLines(removed: Collection<KeyValue>) {
 
     // Only a dotted table prints in its parent's body, so only its kept lines go with it.
     private fun collectKeptBodyLines(item: Item) {
-        val pairs = item.tableOrNull?.takeIf { it.isDotted }?.items
+        val pairs = item.standardTableOrNull?.takeIf { it.isDotted }?.items
             ?: item.inlineTableOrNull?.takeIf { it.isDotted }?.items
             ?: return
         keptAmong += pairs.keptLines
@@ -146,7 +146,7 @@ internal fun keepHeaderLinesOf(
 
 /** Keeps the lines above the header of [table], removed alone, in [kept]; see the [Item] overload. */
 internal fun keepHeaderLinesOf(
-    table: Table,
+    table: StandardTable,
     isArrayOfTables: Boolean,
     kept: MutableList<KeptLines>,
 ) {
@@ -166,7 +166,7 @@ private fun collectHeaderParts(
     item: Item,
     parts: MutableList<HeaderPart>,
 ) {
-    item.tableOrNull?.let { collectHeaderParts(it, isArrayOfTables = false, parts) }
+    item.standardTableOrNull?.let { collectHeaderParts(it, isArrayOfTables = false, parts) }
     item.arrayOfTablesOrNull?.let { array ->
         for (table in array) collectHeaderParts(table, isArrayOfTables = true, parts)
         array.keptHeaderLines.mapTo(parts) { HeaderPart(it.order, it.text, isHeader = false) }
@@ -174,7 +174,7 @@ private fun collectHeaderParts(
 }
 
 private fun collectHeaderParts(
-    table: Table,
+    table: StandardTable,
     isArrayOfTables: Boolean,
     parts: MutableList<HeaderPart>,
 ) {

@@ -25,11 +25,11 @@ import kotlinx.io.readByteArray
  * doc.toString() // "\"hello\" = 'toml!' # comment\n['a'.b]\nc = { d = \"hello\" }\n"
  * ```
  *
- * The keyed operations here act on [root]; everything else a [Table] offers is reached through [root].
+ * The keyed operations here act on [root]; everything else a [StandardTable] offers is reached through [root].
  */
 public class TomlDocument internal constructor(
     /** The root table, holding the document's top-level keys and, through them, every table. */
-    public val root: Table,
+    public val root: StandardTable,
     internal var rawTrailing: KeptText,
     internal val lineEnding: String,
     // The text this document was parsed from, kept to print it back without a final newline it never had.
@@ -37,10 +37,10 @@ public class TomlDocument internal constructor(
 ) : Iterable<Pair<String, Item>> {
 
     /** An empty document. */
-    public constructor() : this(Table.withPosition(0), KeptText(), "\n", null)
+    public constructor() : this(StandardTable.withPosition(0), KeptText(), "\n", null)
 
     /** A document whose root is [root], held as is rather than copied. */
-    public constructor(root: Table) : this(root, KeptText(), "\n", null)
+    public constructor(root: StandardTable) : this(root, KeptText(), "\n", null)
 
     /** The root table's key/item pairs, in order. */
     override fun iterator(): Iterator<Pair<String, Item>> = root.iterator()
@@ -74,7 +74,7 @@ public class TomlDocument internal constructor(
     /** Stores a copy of [table] at [key] of the root table; see [Table.set]. */
     public operator fun set(
         key: String,
-        table: Table,
+        table: StandardTable,
     ) {
         root[key] = table
     }
@@ -98,7 +98,7 @@ public class TomlDocument internal constructor(
 
     /**
      * Sets [key] of the root table to a copy of [item], keeping the key's formatting, and returns the item it held;
-     * see [Table.put].
+     * see [StandardTable.put].
      */
     public fun put(
         key: String,
@@ -107,7 +107,7 @@ public class TomlDocument internal constructor(
 
     /**
      * Sets [key] of the root table, with its spelling and decor, to a copy of [item], and returns the item it held;
-     * see [Table.put].
+     * see [StandardTable.put].
      */
     public fun put(
         key: Key,
@@ -121,13 +121,13 @@ public class TomlDocument internal constructor(
 
     /**
      * Removes [key] from the root table and returns its item, or null when it held none. The comment and blank
-     * lines above the key, or above a table's first header, stay where they print; see [Table.remove].
+     * lines above the key, or above a table's first header, stay where they print; see [StandardTable.remove].
      */
     public fun remove(key: String): Item? = root.remove(key)
 
     /**
      * Keeps only the root table's pairs [predicate] accepts, and returns whether any was removed; see
-     * [Table.retainAll].
+     * [StandardTable.retainAll].
      */
     public fun retainAll(predicate: (Pair<String, Item>) -> Boolean): Boolean = root.retainAll(predicate)
 

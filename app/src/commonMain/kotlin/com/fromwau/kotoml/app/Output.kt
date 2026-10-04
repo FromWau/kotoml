@@ -3,7 +3,7 @@ package com.fromwau.kotoml.app
 import com.fromwau.kotoml.Decor
 import com.fromwau.kotoml.TomlDocument
 import com.fromwau.kotoml.Item
-import com.fromwau.kotoml.Table
+import com.fromwau.kotoml.StandardTable
 import com.fromwau.kotoml.Value
 import com.fromwau.kotoml.toInlineTable
 import com.fromwau.kotoml.toTomlArray
@@ -37,7 +37,7 @@ internal fun Selection.print(raw: Boolean): String {
     val printed = StringBuilder()
     var previousIsTable = false
     for ((index, selected) in items.withIndex()) {
-        val isTable = selected.item.tableOrNull != null || selected.item.arrayOfTablesOrNull != null
+        val isTable = selected.item.standardTableOrNull != null || selected.item.arrayOfTablesOrNull != null
         if (index > 0) printed.append(if (isTable || previousIsTable) lineEnding + lineEnding else lineEnding)
         val item = selected.item
         printed.append(if (raw) item.stringOrNull ?: selected.toToml() else selected.toToml())
@@ -81,7 +81,7 @@ private fun JsonElement.toValue(): Value? = when (this) {
 
 /** An empty item prints as `null`, which TOML has no word for, as jq prints a missing key. */
 internal fun Selected.toToml(): String {
-    item.tableOrNull?.let { table ->
+    item.standardTableOrNull?.let { table ->
         // The text around a table belongs to its header, which is not printed, and its lines print as its own.
         val printed = table.copy().also {
             it.decor = Decor()
@@ -92,10 +92,10 @@ internal fun Selected.toToml(): String {
     item.arrayOfTablesOrNull?.let { tables ->
         // Printed under the header path it has in the file, inside parents that print nothing themselves. Only a
         // key reaches an array of tables, so the path is never empty.
-        val holder = Table().also { it[path.last()] = tables }
+        val holder = StandardTable().also { it[path.last()] = tables }
         val root = path.dropLast(1).foldRight(holder) { key, child ->
             child.isImplicit = true
-            Table().also { it[key] = child }
+            StandardTable().also { it[key] = child }
         }
         return TomlDocument(root).toString().trim()
     }
@@ -106,7 +106,7 @@ internal fun Selected.toToml(): String {
 
 internal fun Item.toJson(): JsonElement {
     valueOrNull?.let { return it.toJson() }
-    tableLikeOrNull?.let { table ->
+    tableOrNull?.let { table ->
         return JsonObject(table.entries.associate { (key, item) -> key to item.toJson() })
     }
     arrayOfTablesOrNull?.let { tables ->

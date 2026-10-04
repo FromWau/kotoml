@@ -35,7 +35,7 @@ class RemovalKeepsCommentsTest {
         val text = "[server]\nhost = 1\n# the port\nport = 2\n\n# client side\n[client]\nx = 1\n"
         assertEquals(
             "[server]\nhost = 1\n# the port\n\n# client side\n[client]\nx = 1\n",
-            removing(text) { it["server"].tableOrNull!!.remove("port") },
+            removing(text) { it["server"].standardTableOrNull!!.remove("port") },
         )
     }
 
@@ -77,11 +77,11 @@ class RemovalKeepsCommentsTest {
     fun `a dotted key removed through its table leaves its comment in place`() {
         assertEquals(
             "# about a.x\na.x = 1\n# about b\nb = 2\n# about a.y\nc = 4\n",
-            removing(interleaved) { it["a"].tableOrNull!!.remove("y") },
+            removing(interleaved) { it["a"].standardTableOrNull!!.remove("y") },
         )
         assertEquals(
             "# about a.x\n# about b\nb = 2\n# about a.y\na.y = 3\nc = 4\n",
-            removing(interleaved) { it["a"].tableOrNull!!.remove("x") },
+            removing(interleaved) { it["a"].standardTableOrNull!!.remove("x") },
         )
     }
 
@@ -98,7 +98,7 @@ class RemovalKeepsCommentsTest {
         assertEquals(
             "# about a.x\na.x = 1\n# about b\n# about a.y\nc = 4\n",
             removing(interleaved) {
-                it["a"].tableOrNull!!.remove("y")
+                it["a"].standardTableOrNull!!.remove("y")
                 it.remove("b")
             },
         )
@@ -107,15 +107,15 @@ class RemovalKeepsCommentsTest {
     @Test
     fun `a dotted key made by hand leaves its comment above the next one`() {
         val document = TomlDocument()
-        val pool = Table()
+        val pool = StandardTable()
         pool.isDotted = true
         pool.put(Key("size", leafDecor = Decor(prefix = "# size\n")), Item(Value.Integer(1L)))
         pool.put(Key("idle", leafDecor = Decor(prefix = "# idle\n")), Item(Value.Integer(2L)))
         document["pool"] = pool
         document["timeout"] = Value.Integer(3L)
-        document["pool"].tableOrNull!!.remove("size")
+        document["pool"].standardTableOrNull!!.remove("size")
         assertEquals("# size\n# idle\npool.idle = 2\ntimeout = 3\n", document.toString())
-        document["pool"].tableOrNull!!.remove("idle")
+        document["pool"].standardTableOrNull!!.remove("idle")
         assertEquals("# size\n# idle\ntimeout = 3\n", document.toString())
     }
 
@@ -124,7 +124,7 @@ class RemovalKeepsCommentsTest {
         val text = "[a]\nx = 1\n\n# about b\n[a.b]\n# inside b\ny = 2\n\n# about c\n[c]\nz = 3\n"
         assertEquals(
             "[a]\nx = 1\n\n# about b\n\n# about c\n[c]\nz = 3\n",
-            removing(text) { it["a"].tableOrNull!!.remove("b") },
+            removing(text) { it["a"].standardTableOrNull!!.remove("b") },
         )
     }
 
@@ -173,7 +173,7 @@ class RemovalKeepsCommentsTest {
     fun `the last inline table entry leaves its comment before the closing brace`() {
         assertEquals(
             "t = {\n  # first\n  a = 1,\n  # second\n}\n",
-            removing(inline) { it["t"].tableLikeOrNull!!.removeItem("b") },
+            removing(inline) { it["t"].tableOrNull!!.removeItem("b") },
         )
     }
 
@@ -242,7 +242,7 @@ class RemovalKeepsCommentsTest {
     @Test
     fun `clearing a table keeps the comments above its keys`() {
         val text = "[a]\n# one\nx = 1\n# two\ny = 2\n[b]\n"
-        assertEquals("[a]\n# one\n# two\n[b]\n", removing(text) { it["a"].tableOrNull!!.clear() })
+        assertEquals("[a]\n# one\n# two\n[b]\n", removing(text) { it["a"].standardTableOrNull!!.clear() })
     }
 
     @Test
@@ -264,7 +264,7 @@ class RemovalKeepsCommentsTest {
     fun `a key added after removing the last one prints above the kept lines`() {
         val text = "[a]\nx = 1\n# about y\ny = 2\n[b]\n"
         assertEquals("[a]\nx = 1\nz = 3\n# about y\n[b]\n", removing(text) { document ->
-            val a = document["a"].tableOrNull!!
+            val a = document["a"].standardTableOrNull!!
             a.remove("y")
             a["z"] = Value.Integer(3L)
         })

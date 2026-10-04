@@ -140,7 +140,7 @@ private fun encodeKeyValueLine(writer: LineWriter, visual: VisualValue) {
     writer.endLine(visual.entry.lineEnding)
 }
 
-private fun encodeBodyLines(writer: LineWriter, table: Table) {
+private fun encodeBodyLines(writer: LineWriter, table: StandardTable) {
     for (line in table.bodyLines()) {
         when (line) {
             is VisualValue -> encodeKeyValueLine(writer, line)
@@ -150,7 +150,7 @@ private fun encodeBodyLines(writer: LineWriter, table: Table) {
 }
 
 /** A table's own key/value pairs, one per line: upstream's `Display for Table`. */
-internal fun encodeTableBody(buf: StringBuilder, table: Table) {
+internal fun encodeTableBody(buf: StringBuilder, table: StandardTable) {
     encodeBodyLines(LineWriter(buf, "\n"), table)
 }
 
@@ -161,7 +161,7 @@ private sealed interface DocumentPart {
 
 private class TableToVisit(
     override val position: Long,
-    val table: Table,
+    val table: StandardTable,
     val path: List<Key>,
     val isArray: Boolean,
 ) : DocumentPart
@@ -204,17 +204,17 @@ internal fun encodeDocument(buf: StringBuilder, document: TomlDocument) {
 }
 
 private fun visitNestedTables(
-    table: Table,
+    table: StandardTable,
     path: MutableList<Key>,
     isArrayOfTables: Boolean,
-    onTable: (Table, List<Key>, Boolean) -> Unit,
+    onTable: (StandardTable, List<Key>, Boolean) -> Unit,
     onKeptLines: (KeptLines) -> Unit,
 ) {
     if (!table.isDotted) onTable(table, path, isArrayOfTables)
     table.keptHeaderLines.forEach(onKeptLines)
 
     for (entry in table.items.entries) {
-        val child = entry.item.tableOrNull
+        val child = entry.item.standardTableOrNull
         val array = entry.item.arrayOfTablesOrNull
         if (child != null) {
             path.add(entry.key)
@@ -222,7 +222,7 @@ private fun visitNestedTables(
             path.removeAt(path.size - 1)
         } else if (array != null) {
             for (element in array.values) {
-                val tableElement = element.tableOrNull ?: continue
+                val tableElement = element.standardTableOrNull ?: continue
                 path.add(entry.key)
                 visitNestedTables(tableElement, path, true, onTable, onKeptLines)
                 path.removeAt(path.size - 1)
@@ -246,7 +246,7 @@ private fun leafDecorBeforeBracket(path: List<Key>): Pair<RawDecor?, RawDecor> {
 /** Writes one table's header and body; returns whether no table has been written yet. */
 private fun visitTable(
     writer: LineWriter,
-    table: Table,
+    table: StandardTable,
     path: List<Key>,
     isArrayOfTables: Boolean,
     firstTable: Boolean,

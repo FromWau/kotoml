@@ -2,7 +2,7 @@ package com.fromwau.kotoml.serialization
 
 import com.fromwau.kotoml.ArrayOfTables
 import com.fromwau.kotoml.Item
-import com.fromwau.kotoml.Table
+import com.fromwau.kotoml.StandardTable
 import com.fromwau.kotoml.Value
 import com.fromwau.kotoml.toArrayOfTables
 import com.fromwau.kotoml.toInlineTable
@@ -11,8 +11,8 @@ import com.fromwau.kotoml.toTomlArray
 /** Turns encoded nodes into new document items. */
 internal class DocumentWriter(private val tableListStyle: TableListStyle) {
 
-    fun table(struct: TomlNode.Struct): Table {
-        val table = Table()
+    fun table(struct: TomlNode.Struct): StandardTable {
+        val table = StandardTable()
         for ((key, node) in struct.entries) table[key] = item(node)
         return table
     }

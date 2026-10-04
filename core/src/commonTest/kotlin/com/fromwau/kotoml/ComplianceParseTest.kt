@@ -124,14 +124,14 @@ string'''""",
 #...
 """,
         )
-        assertNotNull(table["foo"][0]["bar"].tableOrNull)
-        assertNotNull(table["foo"][1]["bar"].tableOrNull)
+        assertNotNull(table["foo"][0]["bar"].standardTableOrNull)
+        assertNotNull(table["foo"][1]["bar"].standardTableOrNull)
     }
 
     @Test
     fun `a header with no keys makes an empty table`() {
         val table = parseDocument("\n[foo]")
-        assertNotNull(table["foo"].tableOrNull)
+        assertNotNull(table["foo"].standardTableOrNull)
     }
 
     @Test
@@ -266,11 +266,11 @@ name = "plantain"
         ['""']
     """,
         )
-        assertNotNull(a["a"]["b"].tableOrNull)
-        assertNotNull(a["f f"].tableOrNull)
-        assertNotNull(a["f.f"].tableOrNull)
-        assertNotNull(a["\""].tableOrNull)
-        assertNotNull(a["\"\""].tableOrNull)
+        assertNotNull(a["a"]["b"].standardTableOrNull)
+        assertNotNull(a["f f"].standardTableOrNull)
+        assertNotNull(a["f.f"].standardTableOrNull)
+        assertNotNull(a["\""].standardTableOrNull)
+        assertNotNull(a["\"\""].standardTableOrNull)
     }
 
     @Test

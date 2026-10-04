@@ -119,8 +119,8 @@ private class TableHeader(val path: List<Key>, val key: Key?, val span: Span, va
 private class DocumentBuilder(private val input: EventStream, private val context: ParseContext) {
     private val source = context.source
     private val errors = context.errors
-    private var root = Table()
-    private var currentTable = Table()
+    private var root = StandardTable()
+    private var currentTable = StandardTable()
     private var currentTrailing: Span? = null
     private var currentHeader: TableHeader? = null
     private var currentPosition = 0L
@@ -268,7 +268,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
 
     private fun finishTable() {
         val previousTable = currentTable
-        currentTable = Table()
+        currentTable = StandardTable()
         val header = currentHeader
         if (header == null) {
             previousTable.span = Span.EMPTY
@@ -296,8 +296,8 @@ private class DocumentBuilder(private val input: EventStream, private val contex
                 return
             }
             array.add(previousTable)
-            val first = array.values.firstOrNull()?.tableOrNull?.span
-            val last = array.values.lastOrNull()?.tableOrNull?.span
+            val first = array.values.firstOrNull()?.standardTableOrNull?.span
+            val last = array.values.lastOrNull()?.standardTableOrNull?.span
             array.span = if (first != null && last != null) Span(first.start, last.end) else null
         } else {
             parentTable.items.put(key, Item(previousTable))
@@ -312,7 +312,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
             val key = header.key
             val old = if (key != null) parentTable?.items?.remove(key.name) else null
             if (old != null && key != null) {
-                val oldTable = old.item.tableOrNull
+                val oldTable = old.item.standardTableOrNull
                 if (oldTable != null && oldTable.isImplicit && !oldTable.isDotted) {
                     currentTable = oldTable
                 } else {
@@ -347,17 +347,17 @@ private class DocumentBuilder(private val input: EventStream, private val contex
  * the walk passes through, as the tables hold them, are added to [shared].
  */
 private fun descendPath(
-    start: Table,
+    start: StandardTable,
     path: List<Key>,
     dotted: Boolean,
     errors: TomlSink,
     shared: MutableList<Key> = mutableListOf(),
-): Table? {
+): StandardTable? {
     var table = start
     for (key in path) {
         val existing = table.items.getEntry(key.name)
         if (existing == null) {
-            val newTable = Table()
+            val newTable = StandardTable()
             newTable.span = key.span
             newTable.isImplicit = true
             newTable.isDotted = dotted
@@ -370,10 +370,10 @@ private fun descendPath(
         shared += existing.key
         val item = existing.item
         val array = item.arrayOfTablesOrNull
-        val child = item.tableOrNull
+        val child = item.standardTableOrNull
         val value = item.valueOrNull
         table = when {
-            array != null -> array.values.lastOrNull()?.tableOrNull ?: return null
+            array != null -> array.values.lastOrNull()?.standardTableOrNull ?: return null
             child != null -> {
                 if (dotted && child.isImplicit) {
                     // A dotted key extends an implicit table, so it becomes part of the dotted key.

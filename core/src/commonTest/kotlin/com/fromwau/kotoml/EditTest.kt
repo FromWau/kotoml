@@ -13,7 +13,7 @@ import kotlin.test.fail
 class EditTest {
 
     private class Given(val doc: TomlDocument) {
-        fun running(func: (Table) -> Unit): Given {
+        fun running(func: (StandardTable) -> Unit): Given {
             func(doc.root)
             return this
         }
@@ -416,7 +416,7 @@ trailing...
 
         [other.table]""")
             .running { root ->
-                    root["servers"]["beta"] = Table()
+                    root["servers"]["beta"] = StandardTable()
                     root["servers"]["beta"]["ip"] = "10.0.0.2"
                     root["servers"]["beta"]["dc"] = "eqdc10"
             }
@@ -445,7 +445,7 @@ dc = "eqdc10"
         [dependencies.opencl]
         [dev-dependencies]""")
             .running { root ->
-                    root["dependencies"]["newthing"] = Table()
+                    root["dependencies"]["newthing"] = StandardTable()
             }
             .prints("""
 
@@ -479,8 +479,8 @@ dc = "eqdc10"
         given("""
         [other.table]""")
             .running { root ->
-                    root["servers"] = Table()
-                    root["servers"]["alpha"] = Table()
+                    root["servers"] = StandardTable()
+                    root["servers"]["alpha"] = StandardTable()
                     root["servers"]["alpha"]["ip"] = "10.0.0.1"
                     root["servers"]["alpha"]["dc"] = "eqdc10"
             }
@@ -504,11 +504,11 @@ dc = "eqdc10"
                 root["bin"] = ArrayOfTables()
                 val array = assertNotNull(root["bin"].arrayOfTablesOrNull)
                 run {
-                    val table = Table()
+                    val table = StandardTable()
                     table["hello"] = "world"
                     array.add(table)
                 }
-                array.add(Table())
+                array.add(StandardTable())
             }
             .prints("""
 
@@ -552,8 +552,8 @@ key3 = 8.1415926
         [target]
         """)
             .running { root ->
-                    root["target"]["cfg(target_os = \"linux\")"] = Table()
-                    root["target"]["cfg(target_os = \"linux\")"]["dependencies"] = Table()
+                    root["target"]["cfg(target_os = \"linux\")"] = StandardTable()
+                    root["target"]["cfg(target_os = \"linux\")"]["dependencies"] = StandardTable()
                     root["target"]["cfg(target_os = \"linux\")"]["dependencies"]["name"] = "dep"
             }
             .prints("""
@@ -579,7 +579,7 @@ name = "dep"
             "0.0.2\"\n        dc = \"eqdc10\"")
             .running { root ->
                 val servers = root.getOrNull("servers")!!
-                val serversTable = servers.tableOrNull!!
+                val serversTable = servers.standardTableOrNull!!
                 assertNotNull(serversTable.remove("alpha"))
             }
             .prints("""
@@ -731,7 +731,7 @@ name = "dep"
         b = 1""")
             .running { root ->
                 val a = root.getOrNull("a")!!
-                val aTable = assertNotNull(a.tableOrNull)
+                val aTable = assertNotNull(a.standardTableOrNull)
                 aTable.isImplicit = true
                 val value = aTable.remove("b")
                 assertNotNull(value)
@@ -754,7 +754,7 @@ name = "dep"
         [a.y]""")
             .running { root ->
                 val a = root.getOrNull("a")!!
-                a.tableOrNull!!.sortBy { (key, _) -> key }
+                a.standardTableOrNull!!.sortBy { (key, _) -> key }
             }
             .prints("""
 
@@ -784,7 +784,7 @@ name = "dep"
 
         [a.y]""")
             .running { root ->
-                val a = root.getOrNull("a")!!.tableOrNull!!
+                val a = root.getOrNull("a")!!.standardTableOrNull!!
                 // Sort by the representation, not the value. So "\"c\"" sorts before "a" because '"' sorts
                 // before 'a'.
                 a.sortWith { (k1, _), (k2, _) -> compareByCodePoint(k1.displaySpelling, k2.displaySpelling) }
@@ -814,10 +814,10 @@ name = "dep"
             .running { root ->
                 for ((header, table) in root) {
                     if (header == "dependencies") {
-                        val tab = table.tableOrNull!!
+                        val tab = table.standardTableOrNull!!
                         tab.position = 0
                         val (_, segmented) = tab.first()
-                        segmented.tableOrNull!!.position = 5
+                        segmented.standardTableOrNull!!.position = 5
                     }
                 }
             }
@@ -840,7 +840,7 @@ name = "dep"
         [dev-dependencies]""")
             .running { root ->
                 val pkg = root.getOrPut("package") {
-                    val t = Table()
+                    val t = StandardTable()
                     t.position = -1
                     Item(t)
                 }
@@ -869,7 +869,7 @@ edition = "2024"
         [dev-dependencies]""")
             .running { root ->
                 for ((_, table) in root) {
-                    table.tableOrNull!!.position = 0
+                    table.standardTableOrNull!!.position = 0
                 }
             }
             .prints("""
@@ -893,7 +893,7 @@ edition = "2024"
         [dev-dependencies]""")
             .running { root ->
                 for ((_, table) in root) {
-                    table.tableOrNull!!.position = Long.MAX_VALUE
+                    table.standardTableOrNull!!.position = Long.MAX_VALUE
                 }
             }
             .prints("""
@@ -1051,7 +1051,7 @@ edition = "2024"
     }
 
     @Test
-    fun `tables and inline tables read as TableLike and an array of tables does not`() {
+    fun `tables and inline tables read as Table and an array of tables does not`() {
         given("""
         a = {a=2,  c = 3, b = 42}
         x = {}
@@ -1060,19 +1060,19 @@ edition = "2024"
         x = "y"
         [empty]""")
             .running { root ->
-                val a = root["a"].tableLikeOrNull
+                val a = root["a"].tableOrNull
                 assertNotNull(a)
                 assertEquals(3, a.entries.size)
                 assertEquals(3, a.size)
                 assertEquals(2L, a.getItem("a")?.longOrNull)
-                val b = root["b"].tableLikeOrNull
+                val b = root["b"].tableOrNull
                 assertNotNull(b)
                 assertEquals(1, b.entries.size)
                 assertEquals(1, b.size)
                 assertEquals("y", b.getItem("x")?.stringOrNull)
-                assertEquals(0, root["x"].tableLikeOrNull?.entries?.size)
-                assertEquals(true, root["empty"].tableLikeOrNull?.isEmpty())
-                assertNull(root["bin"].tableLikeOrNull)
+                assertEquals(0, root["x"].tableOrNull?.entries?.size)
+                assertEquals(true, root["empty"].tableOrNull?.isEmpty())
+                assertNull(root["bin"].tableOrNull)
             }
     }
 
@@ -1096,9 +1096,9 @@ edition = "2024"
     fun `a dotted sub-table set before its keys prints as dotted keys under the table header`() {
         given("")
             .running { root ->
-                root["nixpkgs"] = Table()
-                root["nixpkgs"]["src"] = Table()
-                root["nixpkgs"]["src"].tableLikeOrNull!!.isDotted = true
+                root["nixpkgs"] = StandardTable()
+                root["nixpkgs"]["src"] = StandardTable()
+                root["nixpkgs"]["src"].tableOrNull!!.isDotted = true
                 root["nixpkgs"]["src"]["git"] = "https://github.com/nixos/nixpkgs"
             }
             .prints("""
@@ -1112,9 +1112,9 @@ src.git = "https://github.com/nixos/nixpkgs"
     fun `a sub-table made dotted after its keys prints as dotted keys under the table header`() {
         given("")
             .running { root ->
-                root["nixpkgs"] = Table()
+                root["nixpkgs"] = StandardTable()
                 root["nixpkgs"]["src"]["git"] = "https://github.com/nixos/nixpkgs"
-                root["nixpkgs"]["src"].tableLikeOrNull!!.isDotted = true
+                root["nixpkgs"]["src"].tableOrNull!!.isDotted = true
             }
             .prints("""
 [nixpkgs]
@@ -1137,7 +1137,7 @@ src.git = "https://github.com/nixos/nixpkgs"
         val key = "bookmark"
         document.put(key, Item(ArrayOfTables()))
         val table = document[key].arrayOfTablesOrNull!!
-        val bookmarkTable = Table()
+        val bookmarkTable = StandardTable()
         bookmarkTable["name"] = "test.swf"
         table.add(bookmarkTable)
         assertSnapshot("""
@@ -1153,7 +1153,7 @@ name = "test.swf"
         val key = Key.parsePath("  bookmark   ").getOrFail()[0]
         document.root.put(key, Item(ArrayOfTables()))
         val table = document[key.name].arrayOfTablesOrNull!!
-        val bookmarkTable = Table()
+        val bookmarkTable = StandardTable()
         bookmarkTable["name"] = "test.swf"
         table.add(bookmarkTable)
         assertSnapshot("""
@@ -1191,7 +1191,7 @@ other = "world"
         val doc = TomlDocument.parse(toml).getOrFail()
         val t = doc.remove("table")!!
         val inline = t.inlineTableOrNull ?: fail("Unexpected $t")
-        val table = inline.toTable()
+        val table = inline.toStandardTable()
         doc.put("table", Item(table))
         val actual = doc.toString()
         assertSnapshot("""
@@ -1337,7 +1337,7 @@ name = "banana"
 """)
             .running { root ->
                     val array = root["fruit"].arrayOfTablesOrNull!!
-                    val newTable = Table()
+                    val newTable = StandardTable()
                     newTable.put("name", Item(Value.String("cherry")))
                     array.add(0, newTable)
                     // The previously-first table (now at index 1) had no leading blank line
@@ -1368,7 +1368,7 @@ name = "banana"
 """)
             .running { root ->
                     val array = root["fruit"].arrayOfTablesOrNull!!
-                    val newTable = Table()
+                    val newTable = StandardTable()
                     newTable.put("name", Item(Value.String("cherry")))
                     // Give the new table a leading blank line to match the existing style.
                     newTable.decor = newTable.decor.copy(prefix = "\n")
@@ -1397,7 +1397,7 @@ name = "banana"
 """)
             .running { root ->
                     val array = root["fruit"].arrayOfTablesOrNull!!
-                    val newTable = Table()
+                    val newTable = StandardTable()
                     newTable.put("name", Item(Value.String("cherry")))
                     // Give the new table a leading blank line to match the existing style.
                     newTable.decor = newTable.decor.copy(prefix = "\n")
@@ -1419,7 +1419,7 @@ name = "cherry"
     @Test
     fun `adding a table past the end of an array of tables fails with IndexOutOfBounds`() {
         val array = ArrayOfTables()
-        val t = Table()
+        val t = StandardTable()
         assertEquals(TomlEditError.IndexOutOfBounds(1, 0), array.add(1, t).errorOrFail())
     }
 
@@ -1430,7 +1430,7 @@ name = "cherry"
 foo = { bar = 1 }
 """)
             .running { root ->
-                val newFoo = Table()
+                val newFoo = StandardTable()
                 newFoo.put("bar", Item(Value.Integer(1L)))
                 newFoo.put("baz", Item(Value.Integer(2L)))
                 root.getOrNull("foo")!!.assign(Item(newFoo))
@@ -1452,7 +1452,7 @@ baz = 2
 foo = [{ bar = 1 }]
 """)
             .running { root ->
-                val newFooEntry = Table()
+                val newFooEntry = StandardTable()
                 newFooEntry.put("bar", Item(Value.Integer(1L)))
                 newFooEntry.put("baz", Item(Value.Integer(2L)))
                 val arr = ArrayOfTables()
@@ -1480,7 +1480,7 @@ name = "banana"
 """)
             .running { root ->
                 val array = root["fruit"].arrayOfTablesOrNull!!
-                val newTable = Table()
+                val newTable = StandardTable()
                 newTable.put("name", Item(Value.String("cherry")))
                 val old = array.set(1, newTable).getOrFail()
                 assertEquals("banana", old["name"].stringOrNull)
@@ -1499,7 +1499,7 @@ name = "cherry"
     @Test
     fun `setting a table past the end of an array of tables fails with IndexOutOfBounds`() {
         val array = ArrayOfTables()
-        val t = Table()
+        val t = StandardTable()
         assertEquals(TomlEditError.IndexOutOfBounds(0, 0), array.set(0, t).errorOrFail())
     }
 }

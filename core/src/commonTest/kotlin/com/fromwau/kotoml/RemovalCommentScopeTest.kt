@@ -92,7 +92,7 @@ class RemovalCommentScopeTest {
         val text = "[database]\n# primary\nurl = \"postgres://\"\n[cache]\n"
         assertEquals(
             "[database]\n# primary\n[cache]\n",
-            removing(text) { it["database"].tableOrNull!!.remove("url") },
+            removing(text) { it["database"].standardTableOrNull!!.remove("url") },
         )
     }
 

@@ -47,7 +47,7 @@ internal fun Filter.evaluate(input: Item): Result<List<Selected>, AppError> {
 }
 
 private fun Selected.apply(step: Step): Result<List<Selected>, AppError> {
-    val table = item.tableLikeOrNull
+    val table = item.tableOrNull
     val array = item.arrayOrNull
     val tables = item.arrayOfTablesOrNull
     return when (step) {

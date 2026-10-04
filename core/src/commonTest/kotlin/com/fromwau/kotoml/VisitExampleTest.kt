@@ -30,7 +30,7 @@ class VisitExampleTest {
 
     /** Collects the names of every dependency key under [table], whose entries are in [state]. */
     private fun collectDependencyNames(
-        table: TableLike,
+        table: Table,
         state: VisitState,
         names: MutableSet<String>,
     ) {
@@ -50,7 +50,7 @@ class VisitExampleTest {
         names: MutableSet<String>,
     ) {
         item.valueOrNull?.let { collectDependencyNames(it, state, names) }
-        item.tableOrNull?.let { collectDependencyNames(it, state, names) }
+        item.standardTableOrNull?.let { collectDependencyNames(it, state, names) }
         item.arrayOfTablesOrNull?.forEach { collectDependencyNames(it, state, names) }
     }
 
@@ -68,7 +68,7 @@ class VisitExampleTest {
 
     /** Normalizes every dependency table to `dep = { version = "1.0", ... }`, leaving other tables alone. */
     private fun normalizeDependencyTables(
-        table: Table,
+        table: StandardTable,
         state: VisitState,
     ) {
         normalizeDependencyEntries(table, state)
@@ -81,7 +81,7 @@ class VisitExampleTest {
     }
 
     private fun normalizeDependencyEntries(
-        table: TableLike,
+        table: Table,
         state: VisitState,
     ) {
         for ((name, item) in table.entries) normalizeDependencyEntry(table.keyOrNull(name)!!, item, state.descend(name))
@@ -97,14 +97,14 @@ class VisitExampleTest {
                 // A top-level dependency row, or above it: inline tables become regular ones.
                 val inlineTable = item.inlineTableOrNull
                 if (inlineTable != null) {
-                    val table = inlineTable.toTable()
+                    val table = inlineTable.toStandardTable()
                     key.resetFormatting()
                     item.assign(Item(table))
                 }
             }
             VisitState.SubDependencies -> {
                 // A single dependency: regular tables become inline ones.
-                val table = item.tableOrNull
+                val table = item.standardTableOrNull
                 if (table != null) {
                     val inlineTable = table.toInlineTable()
                     key.resetFormatting()
@@ -115,7 +115,7 @@ class VisitExampleTest {
         }
 
         item.valueOrNull?.let { normalizeDependencyValue(it, state) }
-        item.tableOrNull?.let { normalizeDependencyTables(it, state) }
+        item.standardTableOrNull?.let { normalizeDependencyTables(it, state) }
         item.arrayOfTablesOrNull?.forEach { normalizeDependencyTables(it, state) }
     }
 

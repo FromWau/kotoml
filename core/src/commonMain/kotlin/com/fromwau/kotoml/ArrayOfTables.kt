@@ -10,10 +10,10 @@ import com.fromwau.kern.result.Result
  *
  * A table added here is stored as is, not copied: keep using it only through the array, or add its `copy()`.
  *
- * A [Table] has no content equality, so `contains(table)` and `indexOf(table)` find only that same table object.
+ * A [StandardTable] has no content equality, so `contains(table)` and `indexOf(table)` find only that same table object.
  * Compare what the tables hold instead, as in `tables.indexOfFirst { it["name"].stringOrNull == "a" }`.
  */
-public class ArrayOfTables() : Iterable<Table> {
+public class ArrayOfTables() : Iterable<StandardTable> {
     internal var span: Span? = null
 
     // Slots that refuse anything but a table; held as items so indexing an item hands out the same slots.
@@ -38,7 +38,7 @@ public class ArrayOfTables() : Iterable<Table> {
         for (value in values) value.resolveSpans(input)
     }
 
-    override fun iterator(): Iterator<Table> = values.mapNotNull { it.tableOrNull }.iterator()
+    override fun iterator(): Iterator<StandardTable> = values.mapNotNull { it.standardTableOrNull }.iterator()
 
     /** The number of tables. */
     public val size: Int
@@ -56,10 +56,10 @@ public class ArrayOfTables() : Iterable<Table> {
     }
 
     /** The table at [index], or null when the index is out of bounds. */
-    public operator fun get(index: Int): Table? = values.getOrNull(index)?.tableOrNull
+    public operator fun get(index: Int): StandardTable? = values.getOrNull(index)?.standardTableOrNull
 
     /** Appends [table]. */
-    public fun add(table: Table) {
+    public fun add(table: StandardTable) {
         values.add(Item.inArrayOfTables(table))
     }
 
@@ -71,7 +71,7 @@ public class ArrayOfTables() : Iterable<Table> {
      */
     public fun add(
         index: Int,
-        table: Table,
+        table: StandardTable,
     ): EmptyResult<TomlEditError> {
         if (index < 0 || index > values.size) return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         values.add(index, Item.inArrayOfTables(table))
@@ -87,8 +87,8 @@ public class ArrayOfTables() : Iterable<Table> {
      */
     public operator fun set(
         index: Int,
-        table: Table,
-    ): Result<Table, TomlEditError> = replace(index, table)
+        table: StandardTable,
+    ): Result<StandardTable, TomlEditError> = replace(index, table)
 
     /**
      * Replaces the table at [index] with [table].
@@ -100,9 +100,9 @@ public class ArrayOfTables() : Iterable<Table> {
      */
     public fun replace(
         index: Int,
-        table: Table,
+        table: StandardTable,
         keepDecor: Boolean = true,
-    ): Result<Table, TomlEditError> {
+    ): Result<StandardTable, TomlEditError> {
         val old = get(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         if (keepDecor) table.rawDecor.assign(old.rawDecor)
         values[index] = Item.inArrayOfTables(table)
@@ -116,7 +116,7 @@ public class ArrayOfTables() : Iterable<Table> {
      *
      * @return the removed table, or [TomlEditError.IndexOutOfBounds] when there is no table at [index].
      */
-    public fun removeAt(index: Int): Result<Table, TomlEditError> {
+    public fun removeAt(index: Int): Result<StandardTable, TomlEditError> {
         val removed = get(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         keepHeaderLinesOf(removed, isArrayOfTables = true, keptHeaderLines)
         values.removeAt(index)
@@ -129,7 +129,7 @@ public class ArrayOfTables() : Iterable<Table> {
      *
      * @return whether any table was removed.
      */
-    public fun retainAll(predicate: (Table) -> Boolean): Boolean = removeSlots(slotsWhere { !predicate(it) })
+    public fun retainAll(predicate: (StandardTable) -> Boolean): Boolean = removeSlots(slotsWhere { !predicate(it) })
 
     /**
      * Removes the tables [predicate] accepts, in order, visiting each once. A removed table goes as [removeAt]
@@ -137,20 +137,20 @@ public class ArrayOfTables() : Iterable<Table> {
      *
      * @return whether any table was removed.
      */
-    public fun removeAll(predicate: (Table) -> Boolean): Boolean = removeSlots(slotsWhere(predicate))
+    public fun removeAll(predicate: (StandardTable) -> Boolean): Boolean = removeSlots(slotsWhere(predicate))
 
-    private fun slotsWhere(predicate: (Table) -> Boolean): List<Item> =
-        values.filter { item -> item.tableOrNull?.let(predicate) ?: false }
+    private fun slotsWhere(predicate: (StandardTable) -> Boolean): List<Item> =
+        values.filter { item -> item.standardTableOrNull?.let(predicate) ?: false }
 
     private fun removeSlots(removed: List<Item>): Boolean {
-        for (item in removed) item.tableOrNull?.let { keepHeaderLinesOf(it, isArrayOfTables = true, keptHeaderLines) }
+        for (item in removed) item.standardTableOrNull?.let { keepHeaderLinesOf(it, isArrayOfTables = true, keptHeaderLines) }
         val removedSlots = removed.toHashSet()
         values.removeAll { it in removedSlots }
         return removed.isNotEmpty()
     }
 
     /** Appends every table of [tables]. */
-    public fun addAll(tables: Iterable<Table>) {
+    public fun addAll(tables: Iterable<StandardTable>) {
         for (table in tables) add(table)
     }
 
@@ -168,10 +168,10 @@ public class ArrayOfTables() : Iterable<Table> {
 }
 
 /** An array of [tables], in order. */
-public fun arrayOfTablesOf(vararg tables: Table): ArrayOfTables = tables.asIterable().toArrayOfTables()
+public fun arrayOfTablesOf(vararg tables: StandardTable): ArrayOfTables = tables.asIterable().toArrayOfTables()
 
 /** An array of these tables, in order. */
-public fun Iterable<Table>.toArrayOfTables(): ArrayOfTables {
+public fun Iterable<StandardTable>.toArrayOfTables(): ArrayOfTables {
     val array = ArrayOfTables()
     array.addAll(this)
     return array
