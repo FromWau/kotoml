@@ -14,6 +14,9 @@ import kotlinx.datetime.UtcOffset
 import kotlinx.datetime.number
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
@@ -30,6 +33,12 @@ private const val U_INT = "kotlin.UInt"
 private const val U_LONG = "kotlin.ULong"
 
 private val TOML_YEARS = 0..9999
+
+private val UNSIGNED = setOf(U_BYTE, U_SHORT, U_INT, U_LONG)
+
+/** Whether this describes one of Kotlin's unsigned integers, which TOML writes as their value, not their bits. */
+internal val SerialDescriptor.isUnsignedInteger: Boolean
+    get() = serialName in UNSIGNED
 
 /**
  * The TOML value for [value] when its serializer, named [serialName], is one TOML writes its own way, or null
@@ -129,6 +138,41 @@ internal fun readsBackAs(
     knownValueOrNull(serialName, existing.toInput(), TomlPath.Root, nativeDatetime = true) == value
 } catch (_: DecodeFailure) {
     false
+}
+
+/**
+ * Writes the unsigned integer an unsigned array's serializer hands over as its signed bits, such as the `Int`
+ * of a `UInt`, as the unsigned value.
+ */
+internal class UnsignedEncoder(
+    private val encoder: NodeEncoder,
+    private val path: TomlPath,
+) : Encoder by encoder {
+    override fun encodeByte(value: Byte) = encoder.encodeLong(value.toUByte().toLong())
+
+    override fun encodeShort(value: Short) = encoder.encodeLong(value.toUShort().toLong())
+
+    override fun encodeInt(value: Int) = encoder.encodeLong(value.toUInt().toLong())
+
+    override fun encodeLong(value: Long) {
+        if (value < 0) throw EncodeFailure(TomlEncodeError.OutOfRange("$path", "${value.toULong()}"))
+        encoder.encodeLong(value)
+    }
+}
+
+/** Reads the unsigned integer an unsigned array's serializer asks for, handing it over as its signed bits. */
+internal class UnsignedDecoder(
+    decoder: NodeDecoder,
+    private val input: TomlInput?,
+    private val path: TomlPath,
+) : Decoder by decoder {
+    override fun decodeByte(): Byte = input.integerIn(path, U_BYTE, 0L..UByte.MAX_VALUE.toLong()).toByte()
+
+    override fun decodeShort(): Short = input.integerIn(path, U_SHORT, 0L..UShort.MAX_VALUE.toLong()).toShort()
+
+    override fun decodeInt(): Int = input.integerIn(path, U_INT, 0L..UInt.MAX_VALUE.toLong()).toInt()
+
+    override fun decodeLong(): Long = input.integerIn(path, U_LONG, 0L..Long.MAX_VALUE)
 }
 
 private fun TomlInput.string(path: TomlPath): String = (this as? TomlInput.Scalar)?.value?.stringOrNull

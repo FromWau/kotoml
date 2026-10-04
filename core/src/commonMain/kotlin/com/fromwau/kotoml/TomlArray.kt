@@ -243,12 +243,37 @@ public class TomlArray() : Iterable<Value> {
     private fun sortItemsWith(comparator: Comparator<Item>) {
         // On one line the spacing belongs to the position, not to the value, so it stays where it was.
         val spacing = if (printsOnOneLine()) printedValues().map { it.rawDecor.prefix to it.rawDecor.suffix } else null
+        val formerLast = printedValues().lastOrNull()
         values.sortWith(comparator)
-        if (spacing == null) return
+        if (spacing == null) {
+            if (formerLast != null && !trailingComma) keepEndInPlace(formerLast)
+            return
+        }
         for ((value, around) in printedValues().zip(spacing)) {
             value.rawDecor.prefix = around.first
             value.rawDecor.suffix = around.second
         }
+    }
+
+    /**
+     * Without a trailing comma the line break before `]` ends the last value's suffix. It belongs to the end, so
+     * it goes to the value now last; what stood after [formerLast] on its line, such as a comment, follows its comma.
+     */
+    private fun keepEndInPlace(formerLast: Value) {
+        val printed = printedValues()
+        val newLast = printed.last()
+        if (newLast === formerLast) return
+        val suffix = formerLast.rawDecor.suffix?.textOrNull ?: return
+        val lineBreak = suffix.indexOf('\n')
+        if (lineBreak < 0) return
+        val onItsLine = suffix.substring(0, lineBreak)
+        formerLast.rawDecor.suffix = KeptText()
+        if (onItsLine.isNotEmpty()) {
+            val next = printed[printed.indexOfFirst { it === formerLast } + 1]
+            next.rawDecor.prependToPrefix(onItsLine, DEFAULT_VALUE_DECOR.first)
+        }
+        val lastSuffix = newLast.rawDecor.suffix?.textOrNull.orEmpty()
+        newLast.rawDecor.suffix = KeptText.from(lastSuffix + suffix.substring(lineBreak))
     }
 
     /** Appends every value of [values], keeping their formatting. */

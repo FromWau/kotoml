@@ -12,6 +12,7 @@ import com.fromwau.kotoml.parser.StringOutput
 import com.fromwau.kotoml.parser.Token
 import com.fromwau.kotoml.parser.ValidateWhitespace
 import com.fromwau.kotoml.parser.eventReceiver
+import com.fromwau.kotoml.parser.isValid
 import com.fromwau.kotoml.parser.parseDocument as parseDocumentEvents
 import com.fromwau.kotoml.parser.parseKey as parseKeyEvents
 import com.fromwau.kotoml.parser.parseSimpleKey as parseSimpleKeyEvents
@@ -35,14 +36,35 @@ private fun collectEvents(
 internal class ParseContext(val source: TomlSource, val errors: TomlSink, val version: TomlVersion) {
     private var nextOrder = 0L
 
-    /** [errors] for decoding strings and keys; the decoder lists TOML 1.1's escapes, so 1.0 swaps in its own. */
+    /**
+     * [errors] for decoding strings and keys. The decoder reads TOML 1.1's escapes, so 1.0 swaps in its own list,
+     * and a malformed `\x` escape, which 1.0 does not have, is reported as an unknown escape at its `x`.
+     */
     val decodeErrors: ErrorSink = if (version == TomlVersion.V1_0) {
         ErrorSink { error ->
-            val escapes = error.reason == ParseErrorReason.MissingEscapedValue
-            errors.reportError(if (escapes) error.copy(expected = EXPECTED_ESCAPES_V1_0) else error)
+            val reported = when (error.reason) {
+                ParseErrorReason.MissingEscapedValue -> error.copy(expected = EXPECTED_ESCAPES_V1_0)
+                ParseErrorReason.TooFewUnicodeDigits -> unknownHexEscape(error) ?: error
+                else -> error
+            }
+            errors.reportError(reported)
         }
     } else {
         errors
+    }
+
+    /** [error], a hex escape with too few digits, as TOML 1.0 sees it when the escape is `\x`; null otherwise. */
+    private fun unknownHexEscape(error: ParseError): ParseError? {
+        val bytes = source.bytes
+        // The digits the escape did have lie between its letter and where the error points.
+        var letter = (error.unexpected ?: return null).start - 1
+        while (letter >= 0 && bytes[letter].toInt().toChar().isAsciiHexDigit()) letter--
+        if (letter < 1 || bytes[letter] != 'x'.code.toByte() || bytes[letter - 1] != '\\'.code.toByte()) return null
+        return error.copy(
+            reason = ParseErrorReason.MissingEscapedValue,
+            unexpected = Span(letter, letter),
+            expected = EXPECTED_ESCAPES_V1_0,
+        )
     }
 
     fun nextOrder(): Long = nextOrder++
@@ -556,17 +578,22 @@ private fun onScalar(event: Event, context: ParseContext): Value? {
             Value.Float(Formatted.of(float).withSpelling(valueRaw))
         }
         is ScalarKind.Integer -> {
-            // The decoder validated the digits there are, so a failure here is no digits or overflow.
             val integer = parseTomlLong(text, kind.radix.base) ?: run {
                 val digits = text.removePrefix("-").removePrefix("+")
-                val reason = if (digits.isEmpty()) Reason.MissingDigits(kind.radix) else Reason.IntegerOverflow
-                errors.report(reason, unexpected = event.span)
+                when {
+                    digits.isEmpty() -> errors.report(Reason.MissingDigits(kind.radix), unexpected = event.span)
+                    digits.all { kind.radix.isValid(it.code) } -> errors.report(Reason.IntegerOverflow, event.span)
+                    // The decoder has reported what is wrong with malformed text already; this only backs it up.
+                    else -> errors.reportError(ParseError(ParseErrorReason.InvalidScalar(kind), event.span))
+                }
                 return null
             }
             Value.Integer(Formatted.of(integer).withSpelling(valueRaw))
         }
     }
 }
+
+private fun Char.isAsciiHexDigit(): Boolean = this in '0'..'9' || this in 'a'..'f' || this in 'A'..'F'
 
 private val EXPECTED_ESCAPES_V1_0 = listOf(
     Expected.Literal("b"),

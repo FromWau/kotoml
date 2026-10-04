@@ -14,16 +14,17 @@ import com.fromwau.kotoml.parser.ParseError
  * duplicate key
  * ```
  *
- * The wording is `toml_edit`'s, in English.
+ * The wording is `toml_edit`'s, in English. When [source] has no line at the error's position, as when it is not
+ * the text that was parsed, only the message is given.
  */
 public fun TomlParseError.render(source: String): String = buildString {
     val span = span
     val position = position
-    if (span != null && position != null) {
+    val line = position?.let { source.split('\n').getOrNull(it.line - 1) }
+    if (span != null && position != null && line != null) {
         val lineNum = position.line
         val column = position.column - 1
         val gutter = lineNum.toString().length
-        val line = source.split('\n')[lineNum - 1]
         // Platforms decode bytes that are not UTF-8 differently, so the line shows only what comes before them.
         val content = if (reason is TomlParseError.Reason.InvalidUtf8) line.take(column) else line
         // The caret count is upstream's: UTF-8 bytes, allowed to reach one past the line.

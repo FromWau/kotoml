@@ -90,7 +90,8 @@ internal class NodeDecoder(
         return index
     }
 
-    override fun decodeInline(descriptor: SerialDescriptor): Decoder = this
+    override fun decodeInline(descriptor: SerialDescriptor): Decoder =
+        if (descriptor.isUnsignedInteger) UnsignedDecoder(this, input, path) else this
 
     override fun beginStructure(descriptor: SerialDescriptor): CompositeDecoder = when (descriptor.kind) {
         StructureKind.LIST -> {
@@ -99,7 +100,7 @@ internal class NodeDecoder(
         }
         StructureKind.MAP -> {
             val table = input as? TomlInput.Table ?: mismatch(TomlType.Table)
-            if (!descriptor.getElementDescriptor(0).isStringLike()) {
+            if (!descriptor.getElementDescriptor(0).isStringLike(serializersModule)) {
                 throw DecodeFailure(TomlDecodeError.NonStringMapKey("$path"))
             }
             MapDecoder(toml, table.entries, path)
@@ -133,11 +134,24 @@ internal class NodeDecoder(
     }
 }
 
-private fun SerialDescriptor.isStringLike(): Boolean {
+/** Whether a map key of this type is read from a string, the only key a TOML table has. */
+private fun SerialDescriptor.isStringLike(module: SerializersModule): Boolean {
     var descriptor = this
-    while (descriptor.isInline) descriptor = descriptor.getElementDescriptor(0)
-    return descriptor.kind == PrimitiveKind.STRING || descriptor.kind == SerialKind.ENUM
+    while (true) {
+        descriptor = when {
+            descriptor.isInline -> descriptor.getElementDescriptor(0)
+            descriptor.kind == SerialKind.CONTEXTUAL -> module.contextualDescriptorOrNull(descriptor) ?: return false
+            else -> return descriptor.kind in STRING_LIKE_KINDS
+        }
+    }
 }
+
+private val STRING_LIKE_KINDS = setOf(PrimitiveKind.STRING, PrimitiveKind.CHAR, SerialKind.ENUM)
+
+/** Whether this is a class with a field named [name]. */
+internal fun SerialDescriptor.hasField(name: String): Boolean =
+    (kind == StructureKind.CLASS || kind == StructureKind.OBJECT) &&
+        getElementIndex(name) != CompositeDecoder.UNKNOWN_NAME
 
 /** Decodes the elements of one class, list, map or polymorphic value, each through its own [NodeDecoder]. */
 internal abstract class NodeCompositeDecoder(
@@ -351,6 +365,19 @@ private class PolymorphicDecoder(
         descriptor: SerialDescriptor,
         index: Int,
     ): String = name
+
+    // A field named like the key would be read from the discriminator, so it is refused as writing refuses it.
+    override fun <T> decodeSerializableElement(
+        descriptor: SerialDescriptor,
+        index: Int,
+        deserializer: DeserializationStrategy<T>,
+        previousValue: T?,
+    ): T {
+        if (deserializer.descriptor.hasField(key)) {
+            throw DecodeFailure(TomlDecodeError.DiscriminatorConflict("$path", key))
+        }
+        return super.decodeSerializableElement(descriptor, index, deserializer, previousValue)
+    }
 
     override fun child(
         descriptor: SerialDescriptor,

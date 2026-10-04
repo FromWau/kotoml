@@ -29,7 +29,7 @@ public sealed interface TomlEncodeError : IError {
     @SerialName("UnsupportedRoot")
     public data class UnsupportedRoot(val serialName: String) : TomlEncodeError
 
-    /** The map at [path] has a key that is neither a string nor an enum, which a TOML table cannot hold. */
+    /** The map at [path] has a key not written as a string, such as a number, which a TOML table cannot hold. */
     @Serializable
     @SerialName("NonStringMapKey")
     public data class NonStringMapKey(override val path: String) : Located
@@ -65,6 +65,14 @@ public sealed interface TomlEncodeError : IError {
         override val path: String,
         val key: String,
     ) : Located
+
+    /**
+     * The string or character at [path] holds half of a surrogate pair without the other half, which is not
+     * Unicode text and which TOML cannot hold.
+     */
+    @Serializable
+    @SerialName("NotUnicode")
+    public data class NotUnicode(override val path: String) : Located
 
     /** A serializer refused the value at [path] for its own reason; [detail] is its message, when it gave one. */
     @Serializable

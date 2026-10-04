@@ -20,15 +20,22 @@ internal sealed interface Defaults {
     /** The format writes defaults, so no field counts as one. */
     data object Written : Defaults
 
-    /** The whole value is its field's default, so every field in it holds its default too. */
+    /**
+     * The whole value is its field's default, so every field of a class in it holds its default too. A map has no
+     * entries of its own to fall back on, so its keys are written in full.
+     */
     data object All : Defaults
 
     /** [node] is the value encoded without defaults, which records the fields it left out at their default. */
     class Sparse(val node: TomlNode) : Defaults
 
-    fun isDefault(key: String): Boolean = when (this) {
+    /** Whether [key] of [struct], the value encoded with defaults, holds its default. */
+    fun isDefault(
+        struct: TomlNode.Struct,
+        key: String,
+    ): Boolean = when (this) {
         Written -> false
-        All -> true
+        All -> !struct.ownsAllKeys
         is Sparse -> node is TomlNode.Struct && key in node.defaulted
     }
 
@@ -39,7 +46,12 @@ internal sealed interface Defaults {
 
     fun element(index: Int): Defaults = when (this) {
         Written, All -> this
-        is Sparse -> (node as? TomlNode.Sequence)?.elements?.getOrNull(index)?.let(::Sparse) ?: Written
+        // A list that left out elements no longer lines up with the full list, so its elements are written in full.
+        is Sparse -> (node as? TomlNode.Sequence)
+            ?.takeUnless { it.leavesOutDefaults }
+            ?.elements
+            ?.getOrNull(index)
+            ?.let(::Sparse) ?: Written
     }
 
     /** What to write for [full]: the value without its defaults when the format leaves them out. */
@@ -67,7 +79,7 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
             val childDefaults = defaults.child(key)
             when {
                 existing != null -> mergeItem(table, key, existing, child, childDefaults)
-                !defaults.isDefault(key) -> put(table, key, newItem(table, childDefaults.written(child)))
+                !defaults.isDefault(full, key) -> put(table, key, newItem(table, childDefaults.written(child)))
             }
         }
     }
@@ -81,7 +93,13 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
     ) {
         val existingTable = existing.tableOrNull
         when {
-            full is TomlNode.Struct && existingTable != null -> mergeTable(existingTable, full, defaults)
+            full is TomlNode.Struct && existingTable != null -> {
+                mergeTable(existingTable, full, defaults)
+                // An emptied dotted or implicit table prints nothing, which reads back as a missing key.
+                if (existingTable.isEmpty() && existingTable.isHiddenWhenEmpty) {
+                    put(parent, key, Item(writer.value(full)))
+                }
+            }
             existing.toInput()?.sameAs(full, defaults) == true -> {}
             full is TomlNode.Sequence && mergeList(existing, full, defaults) -> {}
             else -> put(parent, key, replacement(parent, existing, defaults.written(full)))
@@ -172,8 +190,14 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
         for ((index, value) in merged.withIndex()) {
             if (index < array.size) array.replace(index, value, keepDecor = false) else array.add(value)
         }
+        if (plan.movesElements) {
+            array.carryLineEnds(
+                merged.withIndex().mapNotNull { (new, value) -> plan.sources[new].oldIndex?.let { it to value } },
+            )
+        }
         val lead = merged.filterIndexed { new, _ -> plan.sources[new] != ElementSource.Inserted }.firstOrNull()
-        if (lead != null) takeLeadingPlace(lead, old.first(), leadingPrefix)
+        val formerLead = merged.filterIndexed { new, _ -> plan.sources[new].oldIndex == 0 }.firstOrNull()
+        if (lead != null) takeLeadingPlace(lead, formerLead, leadingPrefix)
         for (new in merged.indices.reversed()) {
             if (plan.sources[new] == ElementSource.Inserted) array.layOutInserted(new)
         }
@@ -223,6 +247,10 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
         }
     }
 }
+
+/** Whether the table prints nothing while it holds no keys: a dotted key's part, or a table deeper headers name. */
+private val Table.isHiddenWhenEmpty: Boolean
+    get() = isDotted || (this is StandardTable && isImplicit)
 
 /** Removes the keys outside [kept] in one pass, so the lines above each removed key stay where they print. */
 private fun Table.removeKeysOutside(kept: Set<String>) {
@@ -305,18 +333,40 @@ private fun TomlArray.layOutInserted(index: Int) {
 }
 
 /**
- * Gives [lead], now the first element, the prefix [formerLead] had there, when neither breaks a line: on one line the
- * first element's prefix sets the spacing after `[`, which belongs to the place, not to the element.
+ * Gives [lead], now the first element, the [leadingPrefix] the first old element had there, and [formerLead], the
+ * value standing for that old element, the prefix [lead] had, when neither breaks a line: on one line the first
+ * element's prefix sets the spacing after `[`, which belongs to the place, not to the element. [formerLead] is null
+ * when the first old element was removed.
  */
 private fun takeLeadingPlace(
     lead: Value,
-    formerLead: Value,
+    formerLead: Value?,
     leadingPrefix: String?,
 ) {
     val leadPrefix = lead.decor.prefix
     if (lead === formerLead || leadingPrefix.breaksLine() || leadPrefix.breaksLine()) return
     lead.decor = lead.decor.copy(prefix = leadingPrefix)
-    formerLead.decor = formerLead.decor.copy(prefix = leadPrefix)
+    formerLead?.let { it.decor = it.decor.copy(prefix = leadPrefix) }
+}
+
+/**
+ * Moves the end of each element's line along with the element, for an array whose elements each start a line: the
+ * parser keeps the comment after an element's comma in front of the next element, or in [TomlArray.trailing] after
+ * the last one. [placed] pairs each element that came from the document, in its new order, with its old index.
+ */
+private fun TomlArray.carryLineEnds(placed: List<Pair<Int, Value>>) {
+    val prefixes = placed.associate { (old, value) -> old to value.decor.prefix.orEmpty() }
+    val oldOrder = prefixes.keys.sorted()
+    if (oldOrder.isEmpty() || prefixes.values.any { !it.breaksLine() } || !trailing.breaksLine()) return
+    val following = oldOrder.drop(1).map(prefixes::getValue) + trailing
+    val lineEnds = oldOrder.zip(following) { old, text -> old to text.substringBefore('\n') }.toMap()
+    var lineEnd = prefixes.getValue(oldOrder.first()).substringBefore('\n')
+    for ((old, value) in placed) {
+        val prefix = prefixes.getValue(old)
+        value.decor = value.decor.copy(prefix = lineEnd + prefix.substring(prefix.indexOf('\n')))
+        lineEnd = lineEnds.getValue(old)
+    }
+    trailing = lineEnd + trailing.substring(trailing.indexOf('\n'))
 }
 
 private fun String?.breaksLine(): Boolean = this != null && '\n' in this
@@ -361,7 +411,7 @@ private fun TomlInput.sameAs(
         full.entries.keys.containsAll(entries.keys) &&
         full.entries.all { (key, child) ->
             val item = entries[key]
-            if (item == null) defaults.isDefault(key) else item.toInput()?.sameAs(child, defaults.child(key)) == true
+            if (item == null) defaults.isDefault(full, key) else item.toInput()?.sameAs(child, defaults.child(key)) == true
         }
 }
 

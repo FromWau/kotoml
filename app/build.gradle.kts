@@ -93,14 +93,16 @@ fun registerTomlTest(spec: String) = tasks.register<Exec>("tomlTest${spec.replac
     description = "Runs the official toml-test suite for TOML $spec against the native kotoml binary."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
     dependsOn(buildTomlTestRunner, linkHostBinary)
-    val binary = hostBinary.get().asFile.absolutePath
+    // toml-test splits -decoder and -encoder on whitespace, so they name the binary from its own directory.
+    val binary = hostBinary.get().asFile
+    workingDir(binary.parentFile)
     commandLine(
         tomlTestRunner.get().asFile.absolutePath,
         "test",
         "-toml",
         spec,
-        "-decoder=$binary decode --toml $spec",
-        "-encoder=$binary encode",
+        "-decoder=./${binary.name} decode --toml $spec",
+        "-encoder=./${binary.name} encode",
     )
 }
 

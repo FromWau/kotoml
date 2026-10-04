@@ -14,7 +14,8 @@ import kotlinx.serialization.Serializable
  * ```
  *
  * Datetimes order by their [date], then [time], then [offset], each missing part sorting before a present one.
- * That is the order of the fields, not the order of instants: `00:00+01:00` sorts after `23:00Z`.
+ * That is the order of the fields, not the order of instants: `1979-05-27T07:00:00+02:00` sorts after
+ * `1979-05-27T06:00:00Z`, though it is the earlier instant.
  */
 public sealed interface Datetime : Comparable<Datetime> {
     /** The date, null only for a [LocalTime]. */
@@ -84,17 +85,23 @@ public sealed interface Datetime : Comparable<Datetime> {
 /**
  * A calendar date: on its own, a TOML Local Date such as `1979-05-27`.
  *
- * [day] is checked against the month and leap year only when parsing; constructing one directly does not
- * validate.
+ * @throws IllegalArgumentException when constructed with a date that does not exist.
  */
 public data class Date(
-    /** The year, written with four digits. */
+    /** The year, 0 to 9999, written with four digits. */
     val year: Int,
     /** The month, 1 to 12. */
     val month: Int,
     /** The day of the month, 1 to 28, 29, 30 or 31 depending on [month] and [year]. */
     val day: Int,
 ) : Comparable<Date> {
+
+    init {
+        require(year in 0..9999) { "year $year is not between 0 and 9999" }
+        require(month in 1..12) { "month $month is not between 1 and 12" }
+        val days = daysInMonth(year, month)
+        require(day in 1..days) { "day $day is not between 1 and $days" }
+    }
 
     override fun compareTo(other: Date): Int {
         year.compareTo(other.year).let { if (it != 0) return it }
@@ -109,8 +116,11 @@ public data class Date(
 /**
  * A time of day: on its own, a TOML Local Time such as `07:32:00`.
  *
- * A time without [second] is a TOML 1.1 spelling (`07:32`); it prints back without seconds unless it has
- * a fraction.
+ * A time without [second] is a TOML 1.1 spelling (`07:32`) and prints back without seconds; it cannot have a
+ * [nanosecond].
+ *
+ * @throws IllegalArgumentException when constructed with a field out of range, or a [nanosecond] without a
+ * [second].
  */
 public data class Time(
     /** The hour, 0 to 23. */
@@ -122,6 +132,16 @@ public data class Time(
     /** The fraction of the second in nanoseconds, 0 to 999 999 999, or null when the text had none. */
     val nanosecond: Int?,
 ) : Comparable<Time> {
+
+    init {
+        require(hour in 0..23) { "hour $hour is not between 0 and 23" }
+        require(minute in 0..59) { "minute $minute is not between 0 and 59" }
+        require(second == null || second in 0..60) { "second $second is not between 0 and 60" }
+        require(nanosecond == null || nanosecond in 0..999_999_999) {
+            "nanosecond $nanosecond is not between 0 and 999999999"
+        }
+        require(nanosecond == null || second != null) { "a nanosecond needs a second" }
+    }
 
     override fun compareTo(other: Time): Int {
         hour.compareTo(other.hour).let { if (it != 0) return it }
@@ -135,10 +155,9 @@ public data class Time(
         append(hour.pad(2))
         append(':')
         append(minute.pad(2))
-        val shownSecond = second ?: if (nanosecond != null) 0 else null
-        if (shownSecond != null) {
+        if (second != null) {
             append(':')
-            append(shownSecond.pad(2))
+            append(second.pad(2))
         }
         if (nanosecond != null) {
             val fraction = nanosecond.toString().padStart(9, '0').trimEnd('0')
@@ -161,11 +180,20 @@ public sealed interface Offset : Comparable<Offset> {
         override fun toString(): String = "-00:00"
     }
 
-    /** A numeric offset such as `-07:00`, in whole [minutes] east of UTC. */
+    /**
+     * A numeric offset such as `-07:00`, in whole [minutes] east of UTC.
+     *
+     * @throws IllegalArgumentException when [minutes] is a day or more either way.
+     */
     public data class Custom(
-        /** Minutes east of UTC, within a day either way. */
+        /** Minutes east of UTC, -1439 to 1439: `-23:59` to `+23:59`. */
         val minutes: Int,
     ) : Offset {
+
+        init {
+            require(minutes in -MAX_MINUTES..MAX_MINUTES) { "offset of $minutes minutes is a day or more" }
+        }
+
         /** Writes the offset as `+HH:MM` or `-HH:MM`. */
         override fun toString(): String {
             val sign = if (minutes < 0) '-' else '+'
@@ -276,3 +304,13 @@ private fun <T : Comparable<T>> compareNullable(left: T?, right: T?): Int = when
 }
 
 private fun Int.pad(width: Int): String = toString().padStart(width, '0')
+
+// RFC 3339's `time-numoffset` allows `23:59` at most.
+private const val MAX_MINUTES = 23 * 60 + 59
+
+/** The number of days in [month] of [year], in the proleptic Gregorian calendar RFC 3339 uses. */
+internal fun daysInMonth(year: Int, month: Int): Int = when (month) {
+    2 -> if (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) 29 else 28
+    4, 6, 9, 11 -> 30
+    else -> 31
+}

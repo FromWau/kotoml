@@ -48,18 +48,25 @@ internal fun parseTomlFloat(text: String): Double? {
         append(fraction.ifEmpty { "0" })
         if (exponent.isNotEmpty()) {
             append('E')
-            append(clampExponent(exponent.toString()))
+            append(clampExponent(exponent.toString(), integer.length + fraction.length))
         }
     }
     return normalized.toDoubleOrNull()
 }
 
-// An exponent with more digits than an Int holds still means zero or infinity; keep it parseable.
-private fun clampExponent(exponent: String): String {
+/**
+ * [exponent], kept parseable: one with more digits than an Int holds still means zero or infinity. A mantissa of
+ * [mantissaDigits] digits lies between `10^-mantissaDigits` and `10^mantissaDigits`, so an exponent beyond
+ * `mantissaDigits + 400` either way gives zero or infinity, and clamping it there keeps that result.
+ */
+private fun clampExponent(exponent: String, mantissaDigits: Int): String {
     val negative = exponent.startsWith('-')
     val digits = exponent.trimStart('+', '-').trimStart('0').ifEmpty { "0" }
     if (digits.length <= 6) return (if (negative) "-" else "") + digits
-    return if (negative) "-999999" else "999999"
+    val limit = mantissaDigits.toLong() + 400
+    // More than 18 digits do not fit a Long, and are far beyond any limit.
+    val magnitude = if (digits.length > 18) limit else minOf(digits.toLong(), limit)
+    return (if (negative) "-" else "") + magnitude
 }
 
 /**

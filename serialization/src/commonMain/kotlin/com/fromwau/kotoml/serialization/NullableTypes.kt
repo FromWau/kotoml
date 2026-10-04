@@ -36,16 +36,9 @@ private class NullableTypeSearch(private val module: SerializersModule) {
                 ?: descriptor.elementOrNull(1)?.let { find(it, path.element()) }
             PolymorphicKind.SEALED -> descriptor.elementOrNull(1)?.let { anyOf(it.elementDescriptors, path) }
             PolymorphicKind.OPEN -> anyOf(module.getPolymorphicDescriptors(descriptor), path)
-            SerialKind.CONTEXTUAL -> contextualOrNull(descriptor)?.let { find(it, path) }
+            SerialKind.CONTEXTUAL -> module.contextualDescriptorOrNull(descriptor)?.let { find(it, path) }
             else -> null
         }
-    }
-
-    // A contextual provider for generic types may fail without the type arguments only a value has.
-    private fun contextualOrNull(descriptor: SerialDescriptor): SerialDescriptor? = try {
-        module.getContextualDescriptor(descriptor)
-    } catch (_: Exception) {
-        null
     }
 
     private fun fields(
@@ -62,4 +55,12 @@ private class NullableTypeSearch(private val module: SerializersModule) {
         descriptors: Iterable<SerialDescriptor>,
         path: TomlPath,
     ): TomlPath? = descriptors.firstNotNullOfOrNull { find(it, path) }
+}
+
+/** The descriptor this module gives the contextual [descriptor], or null when it has none. */
+internal fun SerializersModule.contextualDescriptorOrNull(descriptor: SerialDescriptor): SerialDescriptor? = try {
+    getContextualDescriptor(descriptor)
+} catch (_: Exception) {
+    // A contextual provider for generic types may fail without the type arguments only a value has.
+    null
 }

@@ -205,8 +205,14 @@ private fun decodeDatetimeOrFloatOrInteger(
             if (ensureFloat(value, raw, error)) decodeFloatOrInteger(0, raw, kind, output, error) else kind
         }
         restFirst == '_'.code -> {
-            val kind = ScalarKind.Integer(IntegerRadix.Dec)
-            if (ensureNoLeadingZero(value, raw, error)) decodeFloatOrInteger(0, raw, kind, output, error) else kind
+            val radix = IntegerRadix.Dec
+            val kind = ScalarKind.Integer(radix)
+            if (!ensureNoLeadingZero(value, raw, error)) return kind
+            // Misplaced underscores are reported first; only an otherwise clean number is checked for stray characters.
+            var reported = false
+            val decoded = decodeFloatOrInteger(0, raw, kind, output) { reported = true; error.reportError(it) }
+            if (!reported) ensureRadixedValue(value, raw, radix, error)
+            decoded
         }
         else -> decodeInvalid(raw, output, error)
     }

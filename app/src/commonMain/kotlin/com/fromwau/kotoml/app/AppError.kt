@@ -32,7 +32,7 @@ internal sealed interface AppError : IError {
     @SerialName("NotTaggedJson")
     data class NotTaggedJson(val path: String, val reason: TaggedJsonProblem) : AppError
 
-    /** The JSON nests deeper than [limit] levels. */
+    /** The JSON nests deeper than [limit] levels of objects and arrays, a tagged value's own object not counted. */
     @Serializable
     @SerialName("JsonTooDeep")
     data class JsonTooDeep(val limit: Int) : AppError
@@ -96,6 +96,9 @@ internal enum class FilterExpected {
     /** An index, a quoted key, or `]`. */
     IndexOrKey,
 
+    /** An index that fits in 32 bits. */
+    IndexInRange,
+
     /** `]`. */
     CloseBracket,
 
@@ -118,7 +121,7 @@ internal fun AppError.describe(): String = when (this) {
             is ReadFailure.Io -> "$name: cannot read" + (failure.detail?.let { ": $it" } ?: "")
         }
     }
-    is AppError.InvalidToml -> error.render(source).trimEnd()
+    is AppError.InvalidToml -> rendered()
     is AppError.InvalidJson ->
         "invalid JSON" + (position?.let { " at line ${it.line}, column ${it.column}" } ?: "")
     is AppError.NotTaggedJson -> "not toml-test's tagged JSON at $path: ${reason.describe()}"
@@ -133,6 +136,7 @@ internal fun AppError.describe(): String = when (this) {
                 FilterExpected.Escape ->
                     "an escape: `\\\"`, `\\\\`, `\\/`, `\\b`, `\\f`, `\\n`, `\\r`, `\\t` or `\\uXXXX`"
                 FilterExpected.IndexOrKey -> "an index, a quoted key or `]`"
+                FilterExpected.IndexInRange -> "an index from ${Int.MIN_VALUE} to ${Int.MAX_VALUE}"
                 FilterExpected.CloseBracket -> "`]`"
                 FilterExpected.PipeOrEnd -> "`|` or the end of the filter"
             },
@@ -144,6 +148,14 @@ internal fun AppError.describe(): String = when (this) {
     is AppError.NoSuchKey -> "no key \"$key\" at $path"
     is AppError.NoSuchIndex -> "no index $index at $path, it has $size"
     is AppError.CannotApply -> "cannot apply ${step.describe()} to ${itemType.words()}"
+}
+
+// A CRLF file's quoted line keeps its `\r`, which klap prints escaped; a lone `\r` ending the file is the error.
+private fun AppError.InvalidToml.rendered(): String {
+    val text = error.render(source).trimEnd()
+    val lastLine = source.count { it == '\n' } + 1
+    val quotesLoneCarriageReturn = source.endsWith('\r') && error.position?.line == lastLine
+    return if (quotesLoneCarriageReturn) text else text.replace("\r\n", "\n")
 }
 
 private fun TomlType.words(): String = when (this) {

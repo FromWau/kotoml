@@ -102,13 +102,38 @@ class TaggedJsonTest {
     fun `JSON nested one level deeper than TOML reads is refused`() {
         val json = "{\"a\":" + "[".repeat(TomlDocument.NESTING_LIMIT + 1) +
             "{\"type\":\"integer\",\"value\":\"1\"}" + "]".repeat(TomlDocument.NESTING_LIMIT + 1) + "}"
-        assertEquals(Result.Error(AppError.JsonTooDeep(TomlDocument.NESTING_LIMIT + 2)), parseTaggedJson(json))
+        assertEquals(Result.Error(AppError.JsonTooDeep(TomlDocument.NESTING_LIMIT + 1)), parseTaggedJson(json))
+    }
+
+    @Test
+    fun `empty arrays nested one level deeper than TOML reads are refused`() {
+        val depth = TomlDocument.NESTING_LIMIT + 1
+        val json = "{\"a\":" + "[".repeat(depth) + "]".repeat(depth) + "}"
+        assertEquals(Result.Error(AppError.JsonTooDeep(TomlDocument.NESTING_LIMIT + 1)), parseTaggedJson(json))
+    }
+
+    @Test
+    fun `empty tables nested one level deeper than TOML reads are refused`() {
+        val json = "{\"a\":" + "{\"b\":".repeat(TomlDocument.NESTING_LIMIT) + "{}" +
+            "}".repeat(TomlDocument.NESTING_LIMIT + 1)
+        assertEquals(Result.Error(AppError.JsonTooDeep(TomlDocument.NESTING_LIMIT + 1)), parseTaggedJson(json))
+    }
+
+    @Test
+    fun `the deepest empty arrays TOML reads encode to TOML that reads back`() {
+        val depth = TomlDocument.NESTING_LIMIT
+        val json = "{\"a\":" + "[".repeat(depth) + "]".repeat(depth) + "}"
+        val document = when (val parsed = parseTaggedJson(json)) {
+            is Result.Success -> parsed.value
+            is Result.Error -> fail("${parsed.error}")
+        }
+        assertTrue(TomlDocument.parse(document.toString()) is Result.Success)
     }
 
     @Test
     fun `JSON nested far deeper is refused instead of crashing`() {
         val json = "{\"a\":" + "[".repeat(50_000) + "]".repeat(50_000) + "}"
-        assertEquals(Result.Error(AppError.JsonTooDeep(TomlDocument.NESTING_LIMIT + 2)), parseTaggedJson(json))
+        assertEquals(Result.Error(AppError.JsonTooDeep(TomlDocument.NESTING_LIMIT + 1)), parseTaggedJson(json))
     }
 
     @Test
@@ -159,6 +184,25 @@ class TaggedJsonTest {
         for (value in read) {
             assertTrue(scalar("float", value) is Result.Success, "float $value")
         }
+    }
+
+    @Test
+    fun `a negative zero integer spelling tagged float encodes as negative zero`() {
+        val document = when (val parsed = scalar("float", "-0")) {
+            is Result.Success -> parsed.value
+            is Result.Error -> fail("${parsed.error}")
+        }
+        assertEquals("a = -0.0", document.toString().trimEnd())
+        assertEquals("""{"a":{"type":"float","value":"-0.0"}}""", document.toTaggedJson().toString())
+    }
+
+    @Test
+    fun `a zero integer spelling tagged float encodes as zero`() {
+        val document = when (val parsed = scalar("float", "+0")) {
+            is Result.Success -> parsed.value
+            is Result.Error -> fail("${parsed.error}")
+        }
+        assertEquals("a = 0.0", document.toString().trimEnd())
     }
 
     private fun problem(json: String): Result<TomlDocument, AppError> = parseTaggedJson(json)

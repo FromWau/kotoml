@@ -20,15 +20,23 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
 /**
- * What `get` selected. A filter that iterates selects a stream, which `--json` prints as one array; any other
- * filter selects exactly one item, which `--json` prints as itself.
+ * What `get` selected from [document]. A filter that iterates selects a stream, which `--json` prints as one
+ * array; any other filter selects exactly one item, which `--json` prints as itself.
  */
 @Serializable(with = SelectionSerializer::class)
 internal data class Selection(
     val items: List<Selected>,
     val stream: Boolean,
+    val document: TomlDocument,
     val lineEnding: String = "\n",
 )
+
+/** [print] as `get` prints it for a person, ready for klap, which ends any text but an empty one with `\n`. */
+internal fun Selection.humanText(raw: Boolean): String {
+    val printed = print(raw)
+    // A CRLF document's last line gets its `\r` here; an empty result stays empty, as it does for LF.
+    return if (printed.isEmpty()) printed else printed + lineEnding.dropLast(1)
+}
 
 /**
  * [selection] as TOML, each item on its own lines, a table set apart from its neighbours by a blank line; with
@@ -41,7 +49,14 @@ internal fun Selection.print(raw: Boolean): String {
         val isTable = selected.item.standardTableOrNull != null || selected.item.arrayOfTablesOrNull != null
         if (index > 0) printed.append(if (isTable || previousIsTable) lineEnding + lineEnding else lineEnding)
         val item = selected.item
-        printed.append(if (raw) item.stringOrNull ?: selected.toToml() else selected.toToml())
+        printed.append(
+            when {
+                // Only the root is a table no key leads to.
+                selected.path.isEmpty() && item.standardTableOrNull != null -> document.asWritten()
+                raw -> item.stringOrNull ?: selected.toToml()
+                else -> selected.toToml()
+            },
+        )
         previousIsTable = isTable
     }
     return printed.toString()
@@ -60,6 +75,9 @@ internal object SelectionSerializer : KSerializer<Selection> {
     // klap only writes a command's result, so a selection is never read back.
     override fun deserialize(decoder: Decoder): Selection = throw SerializationException("a selection is only written")
 }
+
+/** The whole document as written, with the comments and blank lines after its last item, but no final newline. */
+private fun TomlDocument.asWritten(): String = toString().removeSuffix("\n").removeSuffix("\r")
 
 /** An empty item prints as `null`, which TOML has no word for, as jq prints a missing key. */
 internal fun Selected.toToml(): String {

@@ -81,8 +81,7 @@ fun main(args: Array<String>) {
             val file = fileArgument()
             val raw = flag("--raw", "-r", help = "print strings without quotes")
             val spec = specOption()
-            // klap ends the output with `\n`, so a CRLF document's last line gets its `\r` here.
-            action(human = { it.print(raw()) + it.lineEnding.dropLast(1) }) {
+            action(human = { it.humanText(raw()) }) {
                 get(filter(), file(), spec()).orCliError()
             }
         }

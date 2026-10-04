@@ -60,6 +60,29 @@ class GetTest {
     }
 
     @Test
+    fun `the root prints the comments and blank lines after the last item`() {
+        assertEquals("a = 1\n\n# end", get(".", text = "a = 1\n\n# end\n"))
+        assertEquals("a = 1\r\n# end", get(".", text = "a = 1\r\n# end\r\n"))
+    }
+
+    @Test
+    fun `the root of a file of only comments prints them`() {
+        assertEquals("# note", get(".", text = "# note\n"))
+    }
+
+    @Test
+    fun `an empty result prints nothing whatever the line endings`() {
+        assertEquals("", selection(".a[]", text = "a = []\r\n").humanText(raw = false))
+        assertEquals("", selection(".a[]", text = "a = []\n").humanText(raw = false))
+    }
+
+    @Test
+    fun `a result in a CRLF file ends its last line with a carriage return`() {
+        assertEquals("1\r", selection(".a", text = "a = 1\r\n").humanText(raw = false))
+        assertEquals("1", selection(".a", text = "a = 1\n").humanText(raw = false))
+    }
+
+    @Test
     fun `a table prints its lines without the header comment`() {
         assertEquals("name = \"kotoml\"   # the name\nversion = \"0.1.0\"", get(".package"))
     }

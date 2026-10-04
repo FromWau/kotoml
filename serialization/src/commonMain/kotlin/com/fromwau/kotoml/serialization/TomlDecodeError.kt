@@ -131,10 +131,18 @@ public sealed interface TomlDecodeError : IError {
         val suggestion: String?,
     ) : Located
 
-    /** The field at [path] is a map whose keys are neither strings nor enums, which a TOML table cannot hold. */
+    /** The field at [path] is a map whose keys are not read from strings, which a TOML table's keys are. */
     @Serializable
     @SerialName("NonStringMapKey")
     public data class NonStringMapKey(override val path: String) : Located
+
+    /** The subclass of the polymorphic value at [path] has a field named like the discriminator key [key]. */
+    @Serializable
+    @SerialName("DiscriminatorConflict")
+    public data class DiscriminatorConflict(
+        override val path: String,
+        val key: String,
+    ) : Located
 
     /** A serializer refused the item at [path] for its own reason; [detail] is its message, when it gave one. */
     @Serializable

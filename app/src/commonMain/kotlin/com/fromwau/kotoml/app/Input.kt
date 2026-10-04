@@ -25,8 +25,19 @@ internal fun readInput(path: String?): Result<ByteArray, AppError.ReadFailed> {
 /** Whether this process may read the file at [path]; kotlinx-io reports a refusal only as a sentence. */
 internal expect fun isReadable(path: String): Boolean
 
+/** Why the file at [path] could not be looked up, after kotlinx-io refused with the sentence [detail]. */
+internal expect fun statFailure(
+    path: String,
+    detail: String?,
+): ReadFailure
+
 private fun readFile(path: Path): Result<ByteArray, ReadFailure> {
-    val metadata = SystemFileSystem.metadataOrNull(path) ?: return Err(ReadFailure.NotFound)
+    val metadata = try {
+        SystemFileSystem.metadataOrNull(path)
+    } catch (error: IOException) {
+        // On Kotlin/Native, every stat failure but a missing file throws, such as a path through a regular file.
+        return Err(statFailure(path.toString(), error.message))
+    } ?: return Err(ReadFailure.NotFound)
     if (metadata.isDirectory) return Err(ReadFailure.IsADirectory)
     if (!isReadable(path.toString())) return Err(ReadFailure.PermissionDenied)
     return try {

@@ -14,9 +14,9 @@ import kotlinx.io.readByteArray
  * An editable TOML document: a [root] table, its sub-tables, and the [trailing] text after the last item.
  *
  * Printing it with [toString] reproduces every comment, blank line, spelling and line ending that was not
- * changed, so an unchanged document prints back byte for byte. What was changed prints in its new form, and an
- * inserted line ends like the line before it. Text without a final newline keeps that only while the document
- * prints as it was read; once changed it ends with a newline.
+ * changed, and the byte order mark the text began with, so an unchanged document prints back byte for byte. What
+ * was changed prints in its new form, and an inserted line ends like the line before it. Text without a final
+ * newline keeps that only while the document prints as it was read; once changed it ends with a newline.
  *
  * ```kotlin
  * val doc = TomlDocument.parse("\"hello\" = 'toml!' # comment\n['a'.b]\n").getOrElse { error(it) }
@@ -32,14 +32,27 @@ public class TomlDocument internal constructor(
     public val root: StandardTable,
     internal var rawTrailing: KeptText,
     internal val lineEnding: String,
-    // The text this document was parsed from, kept to print it back without a final newline it never had.
-    private val parsedFrom: String?,
+    parsedFrom: String?,
 ) : Iterable<Pair<String, Item>> {
+
+    init {
+        // The root prints its values as the document's first lines, never as the parts of a dotted key.
+        root.isDotted = false
+    }
+
+    // The parser skips a byte order mark at the start of the text, so the document prints it back itself.
+    private var byteOrderMark: Boolean = parsedFrom?.startsWith(BYTE_ORDER_MARK) == true
+
+    // Text read without a final newline, kept to print it back while the document prints as it did when read.
+    private var readWithoutFinalNewline: ReadText? = parsedFrom
+        ?.takeIf { !it.endsWith('\n') }
+        ?.let { text -> ReadText(text, render()) }
+        ?.takeIf { it.printed == it.text + "\n" || it.printed == it.text + "\r\n" }
 
     /** An empty document. */
     public constructor() : this(StandardTable.withPosition(0), KeptText(), "\n", null)
 
-    /** A document whose root is [root], held as is rather than copied. */
+    /** A document whose root is [root], held as is rather than copied; a dotted table stops being dotted. */
     public constructor(root: StandardTable) : this(root, KeptText(), "\n", null)
 
     /** The root table's key/item pairs, in order. */
@@ -52,10 +65,10 @@ public class TomlDocument internal constructor(
             rawTrailing = KeptText.from(value)
         }
 
-    /** The slot at [key] of the root table; see [Table.get]. */
+    /** The slot at [key] of the root table; see [StandardTable.get]. */
     public operator fun get(key: String): Item = root[key]
 
-    /** Stores a copy of [item] at [key] of the root table; see [Table.set]. */
+    /** Stores a copy of [item] at [key] of the root table; see [StandardTable.set]. */
     public operator fun set(
         key: String,
         item: Item,
@@ -63,7 +76,7 @@ public class TomlDocument internal constructor(
         root[key] = item
     }
 
-    /** Stores a copy of [value] at [key] of the root table; see [Table.set]. */
+    /** Stores a copy of [value] at [key] of the root table; see [StandardTable.set]. */
     public operator fun set(
         key: String,
         value: Value,
@@ -71,7 +84,7 @@ public class TomlDocument internal constructor(
         root[key] = value
     }
 
-    /** Stores a copy of [table] at [key] of the root table; see [Table.set]. */
+    /** Stores a copy of [table] at [key] of the root table; see [StandardTable.set]. */
     public operator fun set(
         key: String,
         table: StandardTable,
@@ -79,7 +92,7 @@ public class TomlDocument internal constructor(
         root[key] = table
     }
 
-    /** Stores a copy of [arrayOfTables] at [key] of the root table; see [Table.set]. */
+    /** Stores a copy of [arrayOfTables] at [key] of the root table; see [StandardTable.set]. */
     public operator fun set(
         key: String,
         arrayOfTables: ArrayOfTables,
@@ -87,7 +100,7 @@ public class TomlDocument internal constructor(
         root[key] = arrayOfTables
     }
 
-    /** The item at [key] of the root table, or null; see [Table.getOrNull]. */
+    /** The item at [key] of the root table, or null; see [StandardTable.getOrNull]. */
     public fun getOrNull(key: String): Item? = root.getOrNull(key)
 
     /** Whether [key] of the root table holds an item. */
@@ -114,7 +127,7 @@ public class TomlDocument internal constructor(
         item: Item,
     ): Item? = root.put(key, item)
 
-    /** Stores a copy of every pair of [pairs] in the root table, in order; see [Table.putAll]. */
+    /** Stores a copy of every pair of [pairs] in the root table, in order; see [StandardTable.putAll]. */
     public fun putAll(pairs: Iterable<Pair<String, Item>>) {
         root.putAll(pairs)
     }
@@ -131,27 +144,30 @@ public class TomlDocument internal constructor(
      */
     public fun retainAll(predicate: (Pair<String, Item>) -> Boolean): Boolean = root.retainAll(predicate)
 
-    /** Removes the root table's pairs [predicate] accepts, and returns whether any was; see [Table.removeAll]. */
+    /**
+     * Removes the root table's pairs [predicate] accepts, and returns whether any was; see
+     * [StandardTable.removeAll].
+     */
     public fun removeAll(predicate: (Pair<String, Item>) -> Boolean): Boolean = root.removeAll(predicate)
 
-    /** Removes every key of the root table, keeping the lines above each; see [Table.clear]. */
+    /** Removes every key of the root table, keeping the lines above each; see [StandardTable.clear]. */
     public fun clear() {
         root.clear()
     }
 
-    /** The item at [key] of the root table, first storing what [default] makes; see [Table.getOrPut]. */
+    /** The item at [key] of the root table, first storing what [default] makes; see [StandardTable.getOrPut]. */
     public fun getOrPut(
         key: String,
         default: () -> Item,
     ): Item = root.getOrPut(key, default)
 
-    /** As [getOrPut], an inserted key keeping the spelling and decor of [key]; see [Table.getOrPut]. */
+    /** As [getOrPut], an inserted key keeping the spelling and decor of [key]; see [StandardTable.getOrPut]. */
     public fun getOrPut(
         key: Key,
         default: () -> Item,
     ): Item = root.getOrPut(key, default)
 
-    /** The keys of the root table holding an item, in order, as a copy; see [Table.keys]. */
+    /** The keys of the root table holding an item, in order, as a copy; see [StandardTable.keys]. */
     public val keys: Set<String>
         get() = root.keys
 
@@ -165,7 +181,7 @@ public class TomlDocument internal constructor(
     /** Whether the root table holds an item. */
     public fun isNotEmpty(): Boolean = root.isNotEmpty()
 
-    /** The text before the document's first line and after its last; see [Table.decor]. */
+    /** The text before the document's first line and after its last; see [StandardTable.decor]. */
     public var decor: Decor
         get() = root.decor
         set(value) {
@@ -173,7 +189,12 @@ public class TomlDocument internal constructor(
         }
 
     /** A deep copy. */
-    public fun copy(): TomlDocument = TomlDocument(root.copy(), rawTrailing, lineEnding, parsedFrom)
+    public fun copy(): TomlDocument {
+        val copy = TomlDocument(root.copy(), rawTrailing, lineEnding, null)
+        copy.byteOrderMark = byteOrderMark
+        copy.readWithoutFinalNewline = readWithoutFinalNewline
+        return copy
+    }
 
     /**
      * Writes the document, as [toString] prints it, to [sink] in UTF-8 and flushes the sink. The sink stays
@@ -183,25 +204,40 @@ public class TomlDocument internal constructor(
      * SystemFileSystem.sink(Path("config.toml")).buffered().use { document.writeTo(it) }
      * ```
      *
-     * @return [TomlIoError] when the sink fails to take the text.
+     * @return [TomlWriteError.NotUnicode], with nothing written, when the text holds half of a surrogate pair, which
+     *   UTF-8 cannot encode; or [TomlIoError] when the sink fails to take the text or is closed.
      */
-    public fun writeTo(sink: Sink): EmptyResult<TomlIoError> = try {
-        sink.write(toString().encodeToByteArray())
-        sink.flush()
-        Ok(Unit)
-    } catch (error: IOException) {
-        Err(TomlIoError(error.message))
+    public fun writeTo(sink: Sink): EmptyResult<TomlWriteError> {
+        val text = toString()
+        if (text.hasLoneSurrogate()) return Err(TomlWriteError.NotUnicode(root.loneSurrogatePath()))
+        return try {
+            sink.write(text.encodeToByteArray())
+            sink.flush()
+            Ok(Unit)
+        } catch (error: IOException) {
+            Err(TomlIoError(error.message))
+        } catch (error: IllegalStateException) {
+            Err(TomlIoError(error.message))
+        }
     }
 
     /** The document as TOML text. */
     override fun toString(): String {
-        val text = buildString { encodeDocument(this, this@TomlDocument) }
-        val original = parsedFrom ?: return text
-        val printedAsRead = !original.endsWith('\n') &&
-            text.startsWith(original) &&
-            text.substring(original.length).let { it == "\n" || it == "\r\n" }
-        return if (printedAsRead) original else text
+        val text = render()
+        val read = readWithoutFinalNewline
+        return if (read != null && text == read.printed) read.text else text
     }
+
+    private fun render(): String = buildString {
+        if (byteOrderMark) append(BYTE_ORDER_MARK)
+        encodeDocument(this, this@TomlDocument)
+    }
+
+    // What the document printed right after it was read from [text].
+    private class ReadText(
+        val text: String,
+        val printed: String,
+    )
 
     public companion object {
         /** How deeply arrays, inline tables and dotted keys may nest; deeper TOML is refused when parsed. */
@@ -241,7 +277,8 @@ public class TomlDocument internal constructor(
          * val read = SystemFileSystem.source(Path("config.toml")).buffered().use { TomlDocument.read(it) }
          * ```
          *
-         * @return [TomlIoError] when reading fails, or [TomlReadError.Parse] when the bytes are not TOML.
+         * @return [TomlIoError] when reading fails or the source is closed, or [TomlReadError.Parse] when the bytes
+         *   are not TOML.
          */
         public fun read(
             source: Source,
@@ -251,6 +288,8 @@ public class TomlDocument internal constructor(
                 source.readByteArray()
             } catch (error: IOException) {
                 return Err(TomlIoError(error.message))
+            } catch (error: IllegalStateException) {
+                return Err(TomlIoError(error.message))
             }
             return when (val parsed = parse(bytes, version)) {
                 is Result.Success -> parsed
@@ -258,4 +297,45 @@ public class TomlDocument internal constructor(
             }
         }
     }
+}
+
+private const val BYTE_ORDER_MARK: Char = '\uFEFF'
+
+/** Whether this holds half of a surrogate pair without the other half, which no Unicode encoding can write. */
+internal fun String.hasLoneSurrogate(): Boolean {
+    var index = 0
+    while (index < length) {
+        val char = this[index]
+        when {
+            char.isHighSurrogate() && index + 1 < length && this[index + 1].isLowSurrogate() -> index += 2
+            char.isSurrogate() -> return true
+            else -> index++
+        }
+    }
+    return false
+}
+
+/**
+ * The keys leading to the first key or string under this table, in the order the tables hold them, that holds half
+ * of a surrogate pair, the key holding it last; or null when there is none. Array indices are left out.
+ */
+private fun Table.loneSurrogatePath(): List<String>? {
+    for ((key, item) in entries) {
+        val inside = if (key.hasLoneSurrogate()) emptyList() else item.loneSurrogatePath()
+        if (inside != null) return listOf(key) + inside
+    }
+    return null
+}
+
+private fun Item.loneSurrogatePath(): List<String>? {
+    standardTableOrNull?.let { return it.loneSurrogatePath() }
+    arrayOfTablesOrNull?.let { tables -> return tables.firstNotNullOfOrNull { it.loneSurrogatePath() } }
+    return valueOrNull?.loneSurrogatePath()
+}
+
+private fun Value.loneSurrogatePath(): List<String>? = when (this) {
+    is Value.String -> if (value.hasLoneSurrogate()) emptyList() else null
+    is Value.Array -> array.firstNotNullOfOrNull { it.loneSurrogatePath() }
+    is Value.InlineTable -> table.loneSurrogatePath()
+    is Value.Integer, is Value.Float, is Value.Boolean, is Value.Datetime -> null
 }

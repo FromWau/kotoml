@@ -114,10 +114,12 @@ internal fun parseFilter(text: String): Result<Filter, AppError.FilterSyntax> {
                             val start = position
                             if (position < text.length && text[position] == '-') position++
                             while (position < text.length && text[position].isDigit()) position++
-                            val index = text.substring(start, position).toIntOrNull()
+                            val digits = text.substring(start, position)
+                            val index = digits.toIntOrNull()
                             if (index == null) {
                                 position = start
-                                return fail(FilterExpected.IndexOrKey)
+                                val outOfRange = digits.any { it.isDigit() }
+                                return fail(if (outOfRange) FilterExpected.IndexInRange else FilterExpected.IndexOrKey)
                             }
                             steps += Step.Index(index)
                             skipSpaces()

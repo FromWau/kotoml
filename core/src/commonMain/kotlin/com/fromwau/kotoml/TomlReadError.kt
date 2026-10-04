@@ -20,7 +20,24 @@ public sealed interface TomlReadError : IError {
     ) : TomlReadError
 }
 
-/** Reading or writing failed in the source or sink itself; [detail] is the system's account, when it gave one. */
+/** Why [TomlDocument.writeTo] wrote nothing, or not all of the document. */
+@Serializable
+public sealed interface TomlWriteError : IError {
+    /**
+     * The document's text holds half of a surrogate pair without the other half, which UTF-8 has no bytes for. It
+     * stays in the document, and `toString()` prints it as is. [keyPath] names the first key or string holding one:
+     * the keys leading to it, the key holding it last, array indices left out. It is null when only comments or
+     * spacing hold one.
+     */
+    @Serializable
+    @SerialName("NotUnicode")
+    public data class NotUnicode(val keyPath: List<String>?) : TomlWriteError
+}
+
+/**
+ * Reading or writing failed in the source or sink itself, or it was closed; [detail] is the system's account, when it
+ * gave one.
+ */
 @Serializable
 @SerialName("Io")
-public data class TomlIoError(val detail: String?) : TomlReadError
+public data class TomlIoError(val detail: String?) : TomlReadError, TomlWriteError

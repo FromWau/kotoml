@@ -34,12 +34,17 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
      */
     public var isImplicit: Boolean = false
 
-    /** Whether this table stands for the parts of a dotted key rather than for a header. */
+    /**
+     * Whether this table stands for the parts of a dotted key rather than for a header. A document's root and an
+     * element of an array of tables are never dotted: storing a table as either clears this.
+     */
     override var isDotted: Boolean = false
 
     /**
      * Where the table prints among the document's tables: tables print in ascending order, and a table with
-     * none follows the table printed before it.
+     * none follows the table printed before it. The elements of an array of tables print in array order, sharing
+     * out the positions they and the tables under them hold; elements with none at the front print just before the
+     * first that has one.
      */
     public var position: Long? = null
 
@@ -142,8 +147,8 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
      * Sorts the key/value lines under this header in the natural order of what [selector] returns for each pair of
      * key and item.
      *
-     * Only the key/value lines move, each with its comments. Sub-tables and arrays of tables keep their order, since
-     * their position decides where their headers print. The parts of a dotted key are sorted the same way, and their
+     * Only the key/value lines move, each with its comments. Sub-tables and arrays of tables stay where their headers
+     * print, those made by hand included. The parts of a dotted key are sorted the same way, and their
      * order replaces the one they were read in. The sort is stable, and nulls sort first.
      *
      * ```kotlin
@@ -157,8 +162,8 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     /**
      * Sorts the key/value lines under this header with [comparator], given each pair of key and item.
      *
-     * Only the key/value lines move, each with its comments. Sub-tables and arrays of tables keep their order, since
-     * their position decides where their headers print. The parts of a dotted key are sorted the same way, and their
+     * Only the key/value lines move, each with its comments. Sub-tables and arrays of tables stay where their headers
+     * print, those made by hand included. The parts of a dotted key are sorted the same way, and their
      * order replaces the one they were read in. The sort is stable.
      */
     public fun sortWith(comparator: Comparator<Pair<Key, Item>>) {
@@ -167,7 +172,17 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     }
 
     private fun sortEntriesWith(comparator: Comparator<Pair<Key, Item>>) {
-        items.sortBy { left, right -> comparator.compare(left.key to left.item, right.key to right.item) }
+        val pairs = items.snapshot()
+        val sortedLines = pairs
+            .filter { !it.item.printsOwnHeader() }
+            .sortedWith { left, right -> comparator.compare(left.key to left.item, right.key to right.item) }
+            .iterator()
+        // A table under its own header keeps its place among the entries, which orders hand-made tables headers.
+        val slots = pairs
+            .map { if (it.item.printsOwnHeader()) it else sortedLines.next() }
+            .withIndex()
+            .associate { (index, entry) -> entry to index }
+        items.sortBy(compareBy { slots.getValue(it) })
         for (entry in items.entries) {
             val table = entry.item.standardTableOrNull
             if (table != null && table.isDotted) table.sortEntriesWith(comparator)
@@ -434,6 +449,8 @@ public fun Iterable<Pair<String, Item>>.toStandardTable(): StandardTable {
     table.putAll(this)
     return table
 }
+
+private fun Item.printsOwnHeader(): Boolean = standardTableOrNull?.let { !it.isDotted } ?: (arrayOfTablesOrNull != null)
 
 /** A value as it prints under a header: the key path that reaches it, and the entry that holds it. */
 internal class VisualValue(val path: List<Key>, val value: Value, val entry: KeyValue) : BodyLine {

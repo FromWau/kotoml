@@ -46,16 +46,21 @@ internal class NodeEncoder(
 
     override fun encodeDouble(value: Double) = scalar(Value.Float(value))
 
-    override fun encodeChar(value: Char) = scalar(Value.String(value.toString()))
+    override fun encodeChar(value: Char) = encodeString(value.toString())
 
-    override fun encodeString(value: String) = scalar(Value.String(value))
+    // TOML text is UTF-8 and its escapes name Unicode scalar values, so a half of a surrogate pair cannot be written.
+    override fun encodeString(value: String) {
+        if (value.hasLoneSurrogate()) throw EncodeFailure(TomlEncodeError.NotUnicode("$path"))
+        scalar(Value.String(value))
+    }
 
     override fun encodeEnum(
         enumDescriptor: SerialDescriptor,
         index: Int,
     ) = scalar(Value.String(enumDescriptor.getElementName(index)))
 
-    override fun encodeInline(descriptor: SerialDescriptor): Encoder = this
+    override fun encodeInline(descriptor: SerialDescriptor): Encoder =
+        if (descriptor.isUnsignedInteger) UnsignedEncoder(this, path) else this
 
     override fun beginStructure(descriptor: SerialDescriptor): CompositeEncoder = when (descriptor.kind) {
         StructureKind.LIST -> ListEncoder(settings, path, emit)
@@ -88,6 +93,19 @@ internal class NodeEncoder(
             throw EncodeFailure(TomlEncodeError.Serializer("$path", failure.message))
         }
     }
+}
+
+private fun String.hasLoneSurrogate(): Boolean {
+    var index = 0
+    while (index < length) {
+        val char = this[index]
+        when {
+            char.isHighSurrogate() && getOrNull(index + 1)?.isLowSurrogate() == true -> index += 2
+            char.isSurrogate() -> return true
+            else -> index++
+        }
+    }
+    return false
 }
 
 /** Encodes the elements of one class, list, map or polymorphic value, each through its own [NodeEncoder]. */
@@ -333,6 +351,20 @@ private class PolymorphicEncoder(
         node: TomlNode,
     ) {
         if (index == 0) name = node else value = node
+    }
+
+    // Checked on the subclass's fields, so a field named like the key conflicts even while it holds its default.
+    override fun <T> encodeSerializableElement(
+        descriptor: SerialDescriptor,
+        index: Int,
+        serializer: SerializationStrategy<T>,
+        value: T,
+    ) {
+        val key = settings.toml.classDiscriminator
+        if (serializer.descriptor.hasField(key)) {
+            throw EncodeFailure(TomlEncodeError.DiscriminatorConflict("$path", key))
+        }
+        super.encodeSerializableElement(descriptor, index, serializer, value)
     }
 
     override fun build(): TomlNode {

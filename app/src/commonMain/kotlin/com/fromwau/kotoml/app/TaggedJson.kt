@@ -62,8 +62,8 @@ private fun String.positionOrNull(message: String?): TextPosition? {
     return TextPosition(line + 1, before.length - before.lastIndexOf('\n'))
 }
 
-/** TOML's limit, plus the root object and the object that tags a scalar. */
-private const val MAX_JSON_NESTING = TomlDocument.NESTING_LIMIT + 2
+/** TOML's limit on nested arrays and inline tables, plus the root object; a tagged value's object is no level. */
+private const val MAX_JSON_NESTING = TomlDocument.NESTING_LIMIT + 1
 
 /** The deepest nesting of `[` and `{` in this JSON text, brackets inside strings not counted. */
 private fun String.nesting(): Int {
@@ -87,8 +87,9 @@ private fun String.nesting(): Int {
 
 /** The document toml-test's tagged JSON [text] describes, which its encoder protocol reads. */
 internal fun parseTaggedJson(text: String): Result<TomlDocument, AppError> {
-    // kotlinx's JSON reader recurses once per level, which on Kotlin/Native crashes rather than fails.
-    if (text.nesting() > MAX_JSON_NESTING) return Err(AppError.JsonTooDeep(MAX_JSON_NESTING))
+    // kotlinx's JSON reader recurses once per level, which on Kotlin/Native crashes rather than fails. Brackets
+    // cannot tell a tagged value's object from a table, so this lets one level more through for it.
+    if (text.nesting() > MAX_JSON_NESTING + 1) return Err(AppError.JsonTooDeep(MAX_JSON_NESTING))
     val json = try {
         Json.parseToJsonElement(text)
     } catch (error: SerializationException) {
@@ -97,7 +98,7 @@ internal fun parseTaggedJson(text: String): Result<TomlDocument, AppError> {
     if (json !is JsonObject) return notTagged("$", TaggedJsonProblem.RootNotObject)
     val table = StandardTable()
     for ((key, element) in json) {
-        when (val value = element.toValue("$.$key")) {
+        when (val value = element.toValue("$.$key", depth = 1)) {
             is Result.Success -> table[key] = value.value
             is Result.Error -> return value
         }
@@ -105,12 +106,18 @@ internal fun parseTaggedJson(text: String): Result<TomlDocument, AppError> {
     return Ok(TomlDocument(table))
 }
 
-private fun JsonElement.toValue(path: String): Result<Value, AppError> {
+/** This element as a TOML value, which as an array or inline table is nested [depth] levels deep. */
+private fun JsonElement.toValue(
+    path: String,
+    depth: Int,
+): Result<Value, AppError> {
+    val tooDeep = depth > TomlDocument.NESTING_LIMIT
     when (this) {
         is JsonArray -> {
+            if (tooDeep) return Err(AppError.JsonTooDeep(MAX_JSON_NESTING))
             val array = TomlArray()
             for ((index, element) in withIndex()) {
-                when (val value = element.toValue("$path[$index]")) {
+                when (val value = element.toValue("$path[$index]", depth + 1)) {
                     is Result.Success -> array.add(value.value)
                     is Result.Error -> return value
                 }
@@ -121,9 +128,10 @@ private fun JsonElement.toValue(path: String): Result<Value, AppError> {
             // A table's own `type` key holds a tagged object, never a string, so a string here tags a value.
             val type = get("type")
             if (type is JsonPrimitive && type.isString) return taggedValue(type.content, path)
+            if (tooDeep) return Err(AppError.JsonTooDeep(MAX_JSON_NESTING))
             val table = InlineTable()
             for ((key, element) in this) {
-                when (val value = element.toValue("$path.$key")) {
+                when (val value = element.toValue("$path.$key", depth + 1)) {
                     is Result.Success -> table[key] = value.value
                     is Result.Error -> return value
                 }
@@ -160,7 +168,11 @@ private fun scalarValue(type: String, text: String): Value? = when (type) {
     "integer" -> tomlNumber(text) as? Value.Integer
     "float" -> when (val number = tomlNumber(text)) {
         is Value.Float -> number
-        is Value.Integer -> Value.Float(number.value.toDouble())
+        // A Long has no negative zero, so `-0` keeps its sign only through its spelling.
+        is Value.Integer -> {
+            val negativeZero = number.value == 0L && text.startsWith('-')
+            Value.Float(if (negativeZero) -0.0 else number.value.toDouble())
+        }
         else -> null
     }
     "bool" -> text.toBooleanStrictOrNull()?.let { Value.Boolean(it) }

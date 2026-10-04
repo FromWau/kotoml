@@ -58,9 +58,9 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     /** The table at [index], or null when the index is out of bounds. */
     public operator fun get(index: Int): StandardTable? = values.getOrNull(index)?.standardTableOrNull
 
-    /** Appends [table]. */
+    /** Appends [table], which prints under its own `[[header]]` from now on, even when it was dotted. */
     public fun add(table: StandardTable) {
-        values.add(Item.inArrayOfTables(table))
+        values.add(slotOf(table))
     }
 
     /**
@@ -74,13 +74,14 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         table: StandardTable,
     ): EmptyResult<TomlEditError> {
         if (index < 0 || index > values.size) return Err(TomlEditError.IndexOutOfBounds(index, values.size))
-        values.add(index, Item.inArrayOfTables(table))
+        values.add(index, slotOf(table))
         return Ok(Unit)
     }
 
     /**
-     * Replaces the table at [index] with [table], which takes over the old table's header decor: the comment and
-     * blank lines above its `[[header]]` and the comment after it on its line. See [replace].
+     * Replaces the table at [index] with [table], which takes over the old table's place among the document's tables
+     * and its header decor: the comment and blank lines above its `[[header]]` and the comment after it on its line.
+     * See [replace].
      *
      * In the `tables[index] = table` form the result is discarded, so an [index] past the end does nothing; call
      * `tables.set(index, table)` to see the [TomlEditError.IndexOutOfBounds].
@@ -93,8 +94,9 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     /**
      * Replaces the table at [index] with [table].
      *
-     * @param keepDecor whether [table] takes over the old table's header decor, the comment and blank lines above
-     *   its `[[header]]` and the comment after it on its line; false keeps [table]'s own decor.
+     * @param keepDecor whether [table] takes over the old table's [StandardTable.position] and header decor, the
+     *   comment and blank lines above its `[[header]]` and the comment after it on its line; false keeps [table]'s
+     *   own position and decor.
      * @return the old table, or [TomlEditError.IndexOutOfBounds], with nothing replaced, when there is no table
      *   at [index].
      */
@@ -104,8 +106,11 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         keepDecor: Boolean = true,
     ): Result<StandardTable, TomlEditError> {
         val old = get(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
-        if (keepDecor) table.rawDecor.assign(old.rawDecor)
-        values[index] = Item.inArrayOfTables(table)
+        if (keepDecor) {
+            table.rawDecor.assign(old.rawDecor)
+            table.position = old.position
+        }
+        values[index] = slotOf(table)
         return Ok(old)
     }
 
@@ -160,9 +165,15 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     public fun copy(): ArrayOfTables {
         val copy = ArrayOfTables()
         copy.span = span
-        for (table in this) copy.values.add(Item.inArrayOfTables(table.copy()))
+        for (table in this) copy.values.add(slotOf(table.copy()))
         keptHeaderLines.mapTo(copy.keptHeaderLines) { it.copy() }
         return copy
+    }
+
+    // An element prints its values under its own header, so it cannot stand for the parts of a dotted key.
+    private fun slotOf(table: StandardTable): Item {
+        table.isDotted = false
+        return Item.inArrayOfTables(table)
     }
 
     /** The tables as an inline array; without a header there is no better way to print them. */

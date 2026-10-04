@@ -20,11 +20,11 @@ class ErrorJsonTest {
     }
 
     @Test
-    fun `a syntax error nests the parser reason and what was expected`() {
+    fun `a syntax error nests the parser reason and the value it was found in`() {
         assertEquals(
             """{"reason":{"type":"Syntax","reason":{"type":"InvalidScalar",""" +
                 """"kind":{"type":"Integer","radix":"Hex"}}},""" +
-                """"span":{"start":6,"end":6},"position":{"line":1,"column":7}}""",
+                """"span":{"start":6,"end":6},"position":{"line":1,"column":7},"context":{"start":4,"end":7}}""",
             json("a = 0xg\n"),
         )
     }

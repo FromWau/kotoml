@@ -253,9 +253,11 @@ private class TomlImpl(builder: TomlBuilder) : Toml(
     serializersModule = builder.serializersModule,
 )
 
-private fun SerialDescriptor.isTableKind(): Boolean = when (kind) {
-    StructureKind.CLASS, StructureKind.OBJECT, StructureKind.MAP, SerialKind.CONTEXTUAL -> true
-    is PolymorphicKind -> true
+// An inline class is a table when what it wraps is one.
+private fun SerialDescriptor.isTableKind(): Boolean = when {
+    isInline -> getElementDescriptor(0).isTableKind()
+    kind == StructureKind.CLASS || kind == StructureKind.OBJECT || kind == StructureKind.MAP -> true
+    kind == SerialKind.CONTEXTUAL || kind is PolymorphicKind -> true
     else -> false
 }
 

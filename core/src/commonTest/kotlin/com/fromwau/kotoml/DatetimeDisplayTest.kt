@@ -26,19 +26,6 @@ class DatetimeDisplayTest {
     }
 
     @Test
-    fun `a time with nanoseconds but no seconds prints zero seconds before the fraction`() {
-        assertPrintsAndParsesBack(
-            Datetime.LocalTime(
-                Time(hour = 13, minute = 37, second = null, nanosecond = 5),
-            ),
-            """
-"13:37:00.000000005"
-
-""",
-        )
-    }
-
-    @Test
     fun `a time with zero seconds and zero nanoseconds prints a one digit fraction`() {
         assertPrintsAndParsesBack(
             Datetime.LocalTime(

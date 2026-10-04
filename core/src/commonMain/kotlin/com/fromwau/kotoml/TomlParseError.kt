@@ -10,9 +10,9 @@ import kotlinx.serialization.Serializable
  * Why TOML text could not be parsed: the first problem found.
  *
  * [span] is the range of the offending text, as indices into the parsed `String`, and [position] where it starts;
- * both are null for a problem that has no single place, such as a key nested too deep. For bytes that are not UTF-8,
- * [span] is empty where the valid text ends. [context] is the range of a related construct, such as the first
- * definition of a duplicate key. [expected] lists what would have been accepted at [span], when known.
+ * both are null only when the problem has no known place. For bytes that are not UTF-8, [span] is empty where the
+ * valid text ends. [context] is the range of a related construct, such as the first definition of a duplicate key or
+ * the whole value holding a malformed number. [expected] lists what would have been accepted at [span], when known.
  *
  * [render] turns it into the message a person reads.
  */
@@ -99,12 +99,14 @@ public enum class Toml11Feature {
 @Serializable
 public data class TextPosition(val line: Int, val column: Int)
 
-/** The zero-based line and column of byte [index]; the column counts characters, as Rust's `chars` does. */
+/**
+ * The zero-based line and column of byte [index]; the column counts the characters before it, as Rust's `chars`
+ * does, or its bytes when they are not UTF-8.
+ */
 internal fun translatePosition(input: ByteArray, index: Int): Pair<Int, Int> {
     if (input.isEmpty()) return 0 to index
 
     val safeIndex = minOf(index, input.size - 1)
-    val columnOffset = index - safeIndex
 
     var lineStart = 0
     for (position in safeIndex - 1 downTo 0) {
@@ -118,8 +120,10 @@ internal fun translatePosition(input: ByteArray, index: Int): Pair<Int, Int> {
         if (input[position] == '\n'.code.toByte()) line++
     }
 
-    val column = utf8CharCount(input, lineStart, safeIndex + 1)?.let { it - 1 } ?: (safeIndex - lineStart)
-    return line to column + columnOffset
+    // Only the text before the index is counted: the character at it may be cut off or not UTF-8 at all.
+    val countEnd = minOf(index, input.size)
+    val column = utf8CharCount(input, lineStart, countEnd) ?: (countEnd - lineStart)
+    return line to column + (index - countEnd)
 }
 
 /** The number of characters in `input[from, to)`, or null when the slice is not valid UTF-8. */
@@ -184,6 +188,7 @@ internal class TomlSink(private val input: String) : ErrorSink {
         report(
             TomlParseError.Reason.Syntax(error.reason),
             unexpected = error.unexpected,
+            context = error.context,
             expected = error.expected,
         )
     }

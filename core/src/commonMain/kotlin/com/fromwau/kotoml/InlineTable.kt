@@ -10,6 +10,9 @@ import com.fromwau.kern.result.Result
  * Its entries are values. A dotted key such as `b.c` is held as a nested inline table marked dotted, so it
  * prints back as a dotted key rather than as `b = { c = 2 }`.
  *
+ * Storing a value stores a copy of it, formatting included, so two keys never share one value and a table never
+ * holds itself: after `table["b"] = table["a"]!!`, editing `table["a"]` leaves `table["b"]` as it was.
+ *
  * ```kotlin
  * val table = inlineTableOf("a" to Value.Integer(1L))
  * table["b"] = "two"
@@ -215,7 +218,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     /** The slot at [key], or null when there is none. */
     override fun getItem(key: String): Item? = items.get(key)?.takeIf { !it.isMissing }
 
-    /** Sets [key] to [value], keeping the key's position and formatting when it is already there. */
+    /** Sets [key] to a copy of [value], keeping the key's position and formatting when it is already there. */
     public operator fun set(
         key: String,
         value: Value,
@@ -230,7 +233,8 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     override operator fun contains(key: String): Boolean = containsKey(key)
 
     /**
-     * The value at [key], first storing what [default] makes when there is none. [default] is called only then.
+     * The value at [key], first storing a copy of what [default] makes when there is none. [default] is called
+     * only then.
      *
      * @return the stored value, to change in place.
      */
@@ -245,25 +249,25 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         default: () -> Value,
     ): Value {
         get(key.name)?.let { return it }
-        val value = default()
+        val value = default().copy()
         items.put(key.copy(), Item.inInlineTable(value))
         return value
     }
 
     /**
-     * Sets [key] to [value], as `table[key] = value` does: a key already there keeps its position, its spelling
-     * and its decor. Pass a [Key] to replace those.
+     * Sets [key] to a copy of [value], as `table[key] = value` does: a key already there keeps its position, its
+     * spelling and its decor. Pass a [Key] to replace those.
      *
      * @return the value [key] held before, or null when it held none.
      */
     public fun put(
         key: String,
         value: Value,
-    ): Value? = items.put(Key(key), Item.inInlineTable(value))?.valueOrNull
+    ): Value? = store(key, value.copy())
 
     /**
-     * Sets [key], with its spelling and decor, to [value]. A key already there keeps its position but takes the
-     * spelling and decor of [key].
+     * Sets [key], with its spelling and decor, to a copy of [value]. A key already there keeps its position but
+     * takes the spelling and decor of [key].
      *
      * @return the value the key held before, or null when it held none.
      */
@@ -272,7 +276,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         value: Value,
     ): Value? {
         items.getEntry(key.name)?.key = key.copy()
-        return items.put(key.copy(), Item.inInlineTable(value))?.valueOrNull
+        return items.put(key.copy(), Item.inInlineTable(value.copy()))?.valueOrNull
     }
 
     override fun putItem(
@@ -280,8 +284,14 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         item: Item,
     ): Result<Item?, TomlEditError> {
         val value = item.copy().moveToValue() ?: return Err(TomlEditError.NotAValue(item.type))
-        return Ok(put(key, value)?.let { Item(it) })
+        return Ok(store(key, value)?.let { Item(it) })
     }
+
+    // Stores the value itself, so only for one nothing else holds.
+    private fun store(
+        key: String,
+        value: Value,
+    ): Value? = items.put(Key(key), Item.inInlineTable(value))?.valueOrNull
 
     /**
      * Removes [key] and returns its value, or null when it held none.
@@ -389,7 +399,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         null -> trailing
     }
 
-    /** Sets the key of every pair of [pairs] to its value, in order, as `table[key] = value` does. */
+    /** Sets the key of every pair of [pairs] to a copy of its value, in order, as `table[key] = value` does. */
     public fun putAll(pairs: Iterable<Pair<String, Value>>) {
         for ((key, value) in pairs) set(key, value)
     }
@@ -410,12 +420,12 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     override fun toString(): String = buildString { encodeInlineTable(this, this@InlineTable, "", "") }
 }
 
-/** An inline table of [pairs], in order, keeping the values' formatting. */
+/** An inline table of copies of the values of [pairs], in order, keeping their formatting. */
 public fun inlineTableOf(vararg pairs: Pair<String, Value>): InlineTable = pairs.asIterable().toInlineTable()
 
 /**
- * An inline table of these pairs, in order, keeping the values' formatting; a later pair for the same key
- * replaces an earlier one.
+ * An inline table of copies of the values of these pairs, in order, keeping their formatting; a later pair for the
+ * same key replaces an earlier one.
  */
 public fun Iterable<Pair<String, Value>>.toInlineTable(): InlineTable {
     val table = InlineTable()

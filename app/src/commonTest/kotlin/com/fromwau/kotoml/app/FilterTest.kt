@@ -78,6 +78,37 @@ class FilterTest {
     }
 
     @Test
+    fun `an index beyond 32 bits is refused as out of range`() {
+        assertEquals(
+            AppError.FilterSyntax(".[2147483648]", 2, FilterExpected.IndexInRange),
+            refused(".[2147483648]"),
+        )
+        assertEquals(
+            AppError.FilterSyntax(".a[-2147483649]", 3, FilterExpected.IndexInRange),
+            refused(".a[-2147483649]"),
+        )
+        assertEquals(
+            listOf(listOf(Step.Index(Int.MAX_VALUE), Step.Index(Int.MIN_VALUE))),
+            steps(".[2147483647][-2147483648]"),
+        )
+    }
+
+    @Test
+    fun `an index out of range is a usage error that names the range`() {
+        val error = AppError.FilterSyntax(".[2147483648]", 2, FilterExpected.IndexInRange)
+        assertEquals(2, error.exitCode)
+        assertEquals(
+            "invalid filter at character 3, expected an index from -2147483648 to 2147483647\n  .[2147483648]\n    ^",
+            error.describe(),
+        )
+    }
+
+    @Test
+    fun `a sign without digits is refused as no index`() {
+        assertEquals(AppError.FilterSyntax(".[-]", 2, FilterExpected.IndexOrKey), refused(".[-]"))
+    }
+
+    @Test
     fun `only a pipe follows a stage`() {
         assertEquals(AppError.FilterSyntax(".a .b", 3, FilterExpected.PipeOrEnd), refused(".a .b"))
     }

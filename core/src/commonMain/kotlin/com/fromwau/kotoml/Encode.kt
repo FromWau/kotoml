@@ -124,6 +124,10 @@ internal fun encodeValue(buf: StringBuilder, value: Value, defaultPrefix: String
 
 /** Writes lines, each ending as it ended in the text it came from; a line made by hand ends like the one before. */
 internal class LineWriter(val buf: StringBuilder, private var lastEnding: String) {
+    /** How the line before ended, which a line made by hand ends with too. */
+    val ending: String
+        get() = lastEnding
+
     fun endLine(ending: String?) {
         if (ending != null) lastEnding = ending
         buf.append(lastEnding)
@@ -155,21 +159,28 @@ internal fun encodeTableBody(buf: StringBuilder, table: StandardTable) {
 }
 
 /** What prints among a document's tables, in the order of [position]. */
-private sealed interface DocumentPart {
+private sealed class DocumentPart(
+    // Where the part stands among the document's tables, or null for one made by hand.
+    var slot: Long?,
+) {
+    // The table a part made by hand prints next to, before it when walked before it and after it otherwise.
+    var anchor: DocumentPart? = null
+
     val position: Long
+        get() = slot ?: anchor?.slot ?: 0L
 }
 
 private class TableToVisit(
-    override val position: Long,
+    slot: Long?,
     val table: StandardTable,
     val path: List<Key>,
     val isArray: Boolean,
-) : DocumentPart
+) : DocumentPart(slot)
 
 private class KeptHeaderLines(
-    override val position: Long,
+    slot: Long?,
     val text: String,
-) : DocumentPart
+) : DocumentPart(slot)
 
 /** A whole document, tables in their original order: upstream's `Display for DocumentMut`. */
 internal fun encodeDocument(buf: StringBuilder, document: TomlDocument) {
@@ -178,20 +189,11 @@ internal fun encodeDocument(buf: StringBuilder, document: TomlDocument) {
     decor.prefixEncode(buf, DEFAULT_ROOT_DECOR.first)
     val writer = LineWriter(buf, document.lineEnding)
 
-    var lastPosition = 0L
-    val parts = mutableListOf<DocumentPart>()
-    visitNestedTables(
-        table = root,
-        path = mutableListOf(),
-        isArrayOfTables = false,
-        onTable = { table, path, isArray ->
-            table.position?.let { lastPosition = it }
-            parts += TableToVisit(lastPosition, table, path.toList(), isArray)
-        },
-        onKeptLines = { kept -> parts += KeptHeaderLines(kept.order ?: lastPosition, kept.text) },
+    val collected = DocumentParts()
+    collected.visitTable(root, mutableListOf(), isArrayOfTables = false)
+    val ordered = collected.parts.sortedWith(
+        compareBy({ it !is TableToVisit || it.path.isNotEmpty() }, { it.position }),
     )
-
-    val ordered = parts.sortedWith(compareBy({ it !is TableToVisit || it.path.isNotEmpty() }, { it.position }))
     var firstTable = true
     for (part in ordered) {
         when (part) {
@@ -203,33 +205,70 @@ internal fun encodeDocument(buf: StringBuilder, document: TomlDocument) {
     encodeRaw(buf, document.rawTrailing.textOr(""))
 }
 
-private fun visitNestedTables(
-    table: StandardTable,
-    path: MutableList<Key>,
-    isArrayOfTables: Boolean,
-    onTable: (StandardTable, List<Key>, Boolean) -> Unit,
-    onKeptLines: (KeptLines) -> Unit,
-) {
-    if (!table.isDotted) onTable(table, path, isArrayOfTables)
-    table.keptHeaderLines.forEach(onKeptLines)
+/**
+ * The parts of a document in the order its tables nest. A part made by hand follows the last table walked that
+ * has a slot, and the elements of an array of tables print in array order.
+ */
+private class DocumentParts {
+    val parts = mutableListOf<DocumentPart>()
+    private var lastTable: DocumentPart? = null
 
-    for (entry in table.items.entries) {
-        val child = entry.item.standardTableOrNull
-        val array = entry.item.arrayOfTablesOrNull
-        if (child != null) {
+    fun visitTable(
+        table: StandardTable,
+        path: MutableList<Key>,
+        isArrayOfTables: Boolean,
+    ) {
+        // A root or an array-of-tables element has nowhere to print its values but under its own header.
+        if (path.isEmpty() || isArrayOfTables || !table.isDotted) {
+            val part = TableToVisit(table.position, table, path.toList(), isArrayOfTables)
+            add(part)
+            if (part.slot != null) lastTable = part
+        }
+        for (kept in table.keptHeaderLines) add(KeptHeaderLines(kept.order, kept.text))
+
+        for (entry in table.items.entries) {
+            val child = entry.item.standardTableOrNull
+            val array = entry.item.arrayOfTablesOrNull
             path.add(entry.key)
-            visitNestedTables(child, path, false, onTable, onKeptLines)
+            if (child != null) visitTable(child, path, isArrayOfTables = false)
+            if (array != null) visitArray(array, path)
             path.removeAt(path.size - 1)
-        } else if (array != null) {
-            for (element in array.values) {
-                val tableElement = element.standardTableOrNull ?: continue
-                path.add(entry.key)
-                visitNestedTables(tableElement, path, true, onTable, onKeptLines)
-                path.removeAt(path.size - 1)
-            }
-            array.keptHeaderLines.forEach(onKeptLines)
         }
     }
+
+    private fun visitArray(
+        array: ArrayOfTables,
+        path: MutableList<Key>,
+    ) {
+        val blocks = array.map { element ->
+            val start = parts.size
+            visitTable(element, path, isArrayOfTables = true)
+            parts.subList(start, parts.size).toList()
+        }
+        placeInArrayOrder(blocks)
+        for (kept in array.keptHeaderLines) add(KeptHeaderLines(kept.order, kept.text))
+    }
+
+    private fun add(part: DocumentPart) {
+        if (part.slot == null) part.anchor = lastTable
+        parts += part
+    }
+}
+
+/**
+ * Hands the slots the [blocks] of one array of tables hold out again in array order, each element keeping the parts
+ * under it right after it in their order. Parts made by hand ahead of every slotted one print just before the first
+ * element that has a slot, so a new first element prints first.
+ */
+private fun placeInArrayOrder(blocks: List<List<DocumentPart>>) {
+    val slotted = blocks.flatMap { block -> block.filter { it.slot != null }.sortedBy { it.slot } }
+    val first = slotted.firstOrNull() ?: return
+    val slots = slotted
+        .mapNotNull { it.slot }
+        .sorted()
+        .iterator()
+    for (part in slotted) part.slot = slots.next()
+    for (part in blocks.flatten().takeWhile { it.slot == null }) part.anchor = first
 }
 
 /**
@@ -260,7 +299,8 @@ private fun visitTable(
             first = false
             "" to DEFAULT_TABLE_DECOR.second
         } else {
-            DEFAULT_TABLE_DECOR
+            // The blank line above a new header is a line made by hand, so it ends like the line before.
+            writer.ending to DEFAULT_TABLE_DECOR.second
         }
         val spelledPath = table.headerSpelling?.resolve(path.subList(0, path.size - 1))?.plus(path.last()) ?: path
         val (beforeBracket, keyDecor) = leafDecorBeforeBracket(spelledPath)
