@@ -8,9 +8,6 @@ reproduced on `dev` at `2781090` before it was filed.
 
 ## Decided: enforce (owner, 2026-10-05)
 
-- [ ] **12. A typed error past the nesting limit when encoding or storing.** A recursive model 100 deep encodes to
-  text kotoml refuses (`KeyTooDeep`); thousands deep throws `StackOverflowError` (`NodeEncoder` catches
-  `Exception`). Return a typed `TooDeep` from serialization and from storing through the API. Goals 3, 5, 6, 14.
 - [ ] **13. `parse(String)` refuses a lone surrogate.** Today it becomes `?` on the JVM and U+FFFD on Kotlin/Native,
   so the value changes silently and differs by platform; `PARITY.md:727` and `TomlSource.kt:14` claim U+FFFD.
   Return a typed parse error. Goals 2, 13.
@@ -45,6 +42,12 @@ reproduced on `dev` at `2781090` before it was filed.
 - [ ] **24. Exit codes are barely tested.** Only `FilterTest` asserts one; nothing pins `check --json` output or exits
   0 and 1. Goal 15.
 
+- [ ] **25. Printing and copying recurse once per nesting level.** `Encode.kt`, `Value.copy`,
+  `StandardTable.copy`. A document built through the API thousands of levels deep overflows the stack in `toString()`,
+  and, since arrays store copies (item 11), already while it is built. That is the hand-built case the owner ruled
+  deliberate misuse; `writeTo` refuses anything past the limit with `TooDeep`. Making both iterative would remove the
+  overflow for good. Goal 5.
+
 ## Not in scope (owner, 2026-10-05)
 
 Deliberate misuse is not a defect: the goals cover what a caller can do by accident in normal use. Not filed:
@@ -53,6 +56,15 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **12. A typed error past the nesting limit when encoding or storing.** A recursive model 100 deep encodes to
+  text kotoml refuses (`KeyTooDeep`); thousands deep throws `StackOverflowError` (`NodeEncoder` catches
+  `Exception`). Return a typed `TooDeep` from serialization and from storing through the API. Goals 3, 5, 6, 14.
+  **Verdict 2026-10-05:** fixed. Serialization refuses classes, lists and maps nested to `NESTING_LIMIT` with
+  `TomlEncodeError.TooDeep` (one level less than the parser reads keeps every written header, array and inline table
+  within it), so the encoder never recurses past that. For the API the owner chose a check when written: `writeTo`
+  measures depth with the parser's rule, without recursion, and returns `TomlWriteError.TooDeep(keyPath)`. Tests:
+  serialization `DepthTest` (4), core `WriteDepthTest` (5). Printing and copying stay recursive: item 25.
 
 - [x] **11. Arrays and arrays of tables store a copy.** `TomlArray.add` / `add(index)` / `set` / `replace`,
   `ArrayOfTables.add` / `replace` store the object as is, so one `Value` added to two arrays changes both. Store a

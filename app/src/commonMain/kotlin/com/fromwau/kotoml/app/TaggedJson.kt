@@ -100,6 +100,7 @@ internal fun TomlDocument.encodedText(): Result<String, AppError> {
                 val path = error.keyPath?.joinToString("") { ".$it" }.orEmpty()
                 notTagged("$$path", TaggedJsonProblem.NotUnicode)
             }
+            is TomlWriteError.TooDeep -> Err(AppError.JsonTooDeep(MAX_JSON_NESTING))
             is TomlIoError -> error("a Buffer accepts every write")
         }
     }

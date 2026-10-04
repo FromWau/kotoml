@@ -32,6 +32,15 @@ public sealed interface TomlWriteError : IError {
     @Serializable
     @SerialName("NotUnicode")
     public data class NotUnicode(val keyPath: List<String>?) : TomlWriteError
+
+    /**
+     * The document nests deeper than [TomlDocument.NESTING_LIMIT], so its text would not parse back. It stays in the
+     * document, and `toString()` prints it as is. [keyPath] names the keys leading to where it nests too deep, array
+     * indices left out.
+     */
+    @Serializable
+    @SerialName("TooDeep")
+    public data class TooDeep(val keyPath: List<String>) : TomlWriteError
 }
 
 /**

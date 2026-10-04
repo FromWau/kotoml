@@ -155,7 +155,8 @@ SystemFileSystem.sink(path).buffered().use { doc.writeTo(it) }
 it. Neither closes what it is given. A failure while reading or writing comes back as a `TomlIoError`, and text
 that is not TOML as a `TomlReadError.Parse` carrying the text it read, to render the error from. A document holding
 half of a surrogate pair, which UTF-8 cannot write, is not written: `writeTo` returns `TomlWriteError.NotUnicode`
-naming the key, and the document keeps the text as you gave it. Opening the file
+naming the key, and the document keeps the text as you gave it. A document built deeper than
+`TomlDocument.NESTING_LIMIT` is not written either: `writeTo` returns `TomlWriteError.TooDeep`. Opening the file
 is kotlinx-io's own call and throws its `IOException` when the file cannot be opened.
 
 ## Handle errors

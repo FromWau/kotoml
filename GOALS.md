@@ -44,8 +44,11 @@ official toml-test runner for TOML 1.0 and 1.1.
    Check: review every `throw`, `!!`, `require`, `check` and `error` in main code. Gap: no fuzzing.
 6. **Bounded depth on every target.** Arrays, inline tables and the dots of a line's keys count toward one nesting
    limit, `TomlDocument.NESTING_LIMIT`; a table header's path is bounded by the same limit on its own. So no input
-   overflows the stack, and deeper input is a typed parse error.
-   Check: `NestingLimitTest`, and `TaggedJsonTest` for the CLI's `encode`.
+   overflows the stack, and deeper input is a typed parse error. What kotoml writes stays within the same limit:
+   `writeTo` refuses a document built deeper with `TomlWriteError.TooDeep`, and serialization refuses a model nested
+   that deep with `TomlEncodeError.TooDeep`.
+   Check: `NestingLimitTest`, `WriteDepthTest`, serialization's `DepthTest`, and `TaggedJsonTest` for the CLI's
+   `encode`.
 7. **Edits are all or nothing.** `doc.edit { }` either applies completely or leaves the document byte for byte as it
    was.
    Check: `TomlDslTest`.
