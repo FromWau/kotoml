@@ -5,6 +5,8 @@ and prints back with its comments, spacing and spelling as written. Failures are
 exceptions. It is a port of the Rust crates behind [`toml_edit`](https://github.com/toml-rs/toml), and passes the
 official [toml-test](https://github.com/toml-lang/toml-test) suite in full for TOML 1.0 and 1.1.
 
+[GOALS.md](GOALS.md) lists what the library promises and how each promise is checked, for reviewers and QA.
+
 ## Modules
 
 | module                                     | what it is                                                                     |
