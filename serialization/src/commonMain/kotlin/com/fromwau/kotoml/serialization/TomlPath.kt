@@ -8,6 +8,9 @@ internal class TomlPath private constructor(
     private val parent: TomlPath?,
     private val segment: String,
 ) {
+    /** How many keys and indices lead here from the root. */
+    val depth: Int = (parent?.depth ?: -1) + 1
+
     fun key(name: String): TomlPath = TomlPath(this, Key(name).displaySpelling)
 
     fun index(index: Int): TomlPath = TomlPath(this, "[$index]")

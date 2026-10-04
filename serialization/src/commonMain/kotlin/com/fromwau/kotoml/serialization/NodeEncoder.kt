@@ -1,5 +1,6 @@
 package com.fromwau.kotoml.serialization
 
+import com.fromwau.kotoml.TomlDocument
 import com.fromwau.kotoml.Value
 import kotlinx.serialization.SerializationStrategy
 import kotlinx.serialization.descriptors.PolymorphicKind
@@ -71,7 +72,13 @@ internal class NodeEncoder(
     override fun encodeInline(descriptor: SerialDescriptor): Encoder =
         if (descriptor.isUnsignedInteger) UnsignedEncoder(this, path) else this
 
-    override fun beginStructure(descriptor: SerialDescriptor): CompositeEncoder = when (descriptor.kind) {
+    override fun beginStructure(descriptor: SerialDescriptor): CompositeEncoder {
+        // A level less than TOML reads keeps every header, array and inline table this writes within what it reads.
+        if (path.depth >= TomlDocument.NESTING_LIMIT) throw EncodeFailure(TomlEncodeError.TooDeep("$path"))
+        return openStructure(descriptor)
+    }
+
+    private fun openStructure(descriptor: SerialDescriptor): CompositeEncoder = when (descriptor.kind) {
         StructureKind.LIST -> ListEncoder(settings, path, sparse, emit)
         StructureKind.MAP -> MapEncoder(settings, path, sparse, emit)
         is PolymorphicKind -> PolymorphicEncoder(settings, path, sparse, emit)

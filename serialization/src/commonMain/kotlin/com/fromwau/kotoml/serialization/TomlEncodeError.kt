@@ -74,6 +74,14 @@ public sealed interface TomlEncodeError : IError {
     @SerialName("NotUnicode")
     public data class NotUnicode(override val path: String) : Located
 
+    /**
+     * The value at [path] nests deeper than kotoml writes: classes, lists and maps one level less than
+     * [com.fromwau.kotoml.TomlDocument.NESTING_LIMIT], so that what it writes reads back in either list style.
+     */
+    @Serializable
+    @SerialName("TooDeep")
+    public data class TooDeep(override val path: String) : Located
+
     /** A serializer refused the value at [path] for its own reason; [detail] is its message, when it gave one. */
     @Serializable
     @SerialName("Serializer")
