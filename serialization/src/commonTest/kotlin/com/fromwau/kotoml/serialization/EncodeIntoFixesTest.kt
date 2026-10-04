@@ -22,6 +22,12 @@ private data class ListenPorts(val ports: List<Int>)
 private data class TallyMap(val m: Map<String, Int>)
 
 @Serializable
+private data class Ratio(val d: Double)
+
+@Serializable
+private data class Fraction(val f: Float)
+
+@Serializable
 private data class Shelf(val x: Int)
 
 @Serializable
@@ -97,6 +103,24 @@ class EncodeIntoFixesTest {
             ListenPorts.serializer(),
             ListenPorts(listOf(8443, 8080)),
         ),
+    )
+
+    @Test
+    fun `an integer in a Double field that reads as the same value is left as written`() = assertEquals(
+        "d = 1 # one\n",
+        encoded("d = 1 # one\n", Ratio.serializer(), Ratio(1.0)),
+    )
+
+    @Test
+    fun `a float in a Float field that reads as the same value is left as written`() = assertEquals(
+        "f = 0.1000000001\n",
+        encoded("f = 0.1000000001\n", Fraction.serializer(), Fraction(0.1f)),
+    )
+
+    @Test
+    fun `a float too small for a Float field is rewritten`() = assertEquals(
+        "f = 0.0\n",
+        encoded("f = 1e-50\n", Fraction.serializer(), Fraction(0f)),
     )
 
     @Test

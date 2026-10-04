@@ -45,11 +45,15 @@ internal class NodeEncoder(
     override fun encodeLong(value: Long) = scalar(Value.Integer(value))
 
     // Through its decimal text, so 0.1f writes as 0.1 rather than as the double nearest the float.
-    override fun encodeFloat(value: Float) = scalar(
-        Value.Float(if (value.isFinite()) value.toString().toDouble() else value.toDouble()),
+    override fun encodeFloat(value: Float) = emit(
+        TomlNode.Scalar(Value.Float(if (value.isFinite()) value.toString().toDouble() else value.toDouble())) {
+            it.asDouble?.asFloatOrNull()?.compareTo(value) == 0
+        },
     )
 
-    override fun encodeDouble(value: Double) = scalar(Value.Float(value))
+    override fun encodeDouble(value: Double) = emit(
+        TomlNode.Scalar(Value.Float(value)) { it.asDouble?.compareTo(value) == 0 },
+    )
 
     override fun encodeChar(value: Char) = encodeString(value.toString())
 

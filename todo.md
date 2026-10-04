@@ -6,9 +6,6 @@ reproduced on `dev` at `2781090` before it was filed.
 
 ## Defects
 
-- [ ] **4. `encodeInto` rewrites a number that reads the same.** `serialization/.../DocumentMerger.kt:428`
-  `d = 1` into a `Double` field becomes `d = 1.0`; `f = 0.1000000001` into a `Float` becomes `f = 0.1`. The
-  serialization README promises such values are left as written. Goals 4, 12, 14.
 - [ ] **5. Appending to a multi-line array lands on the previous element's line.** `core/.../TomlArray.kt:93`
   `a = [\n  1, # one\n]` plus `add(3)` prints `1, 3, # one`. `encodeInto` already lays inserted elements out
   (`layOutInserted`); core and the DSL do not. Goal 4.
@@ -72,6 +69,13 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **4. `encodeInto` rewrites a number that reads the same.** `serialization/.../DocumentMerger.kt:428`
+  `d = 1` into a `Double` field becomes `d = 1.0`; `f = 0.1000000001` into a `Float` becomes `f = 0.1`. The
+  serialization README promises such values are left as written. Goals 4, 12, 14.
+  **Verdict 2026-10-05:** fixed. `Double` and `Float` fields carry a reads-back check built from the decoder's own
+  rule (`Value.asDouble`, `Double.asFloatOrNull`), so `d = 1` stays for `1.0` and `0.1000000001` stays for `0.1f`;
+  a value the decoder would refuse is rewritten. Three tests in `EncodeIntoFixesTest`; serialization JVM green.
 
 - [x] **3. CLI `encode` prints a lone surrogate.** `app/.../Main.kt` `encode()`
   It prints with `toString()`, bypassing the `NotUnicode` check `writeTo` has, and exits 0. Goals 3, 15.

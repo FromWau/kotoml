@@ -55,20 +55,12 @@ internal class NodeDecoder(
 
     override fun decodeLong(): Long = scalar()?.longOrNull ?: mismatch(TomlType.Integer)
 
-    override fun decodeDouble(): Double {
-        val value = scalar()
-        return value?.doubleOrNull ?: value?.longOrNull?.toDouble() ?: mismatch(TomlType.Float)
-    }
+    override fun decodeDouble(): Double = scalar()?.asDouble ?: mismatch(TomlType.Float)
 
     override fun decodeFloat(): Float {
         val double = decodeDouble()
-        val float = double.toFloat()
-        val overflows = float.isInfinite() && double.isFinite()
-        val underflows = float == 0f && double != 0.0
-        if (overflows || underflows) {
-            throw DecodeFailure(TomlDecodeError.OutOfRange("$path", "$double", "kotlin.Float"))
-        }
-        return float
+        return double.asFloatOrNull()
+            ?: throw DecodeFailure(TomlDecodeError.OutOfRange("$path", "$double", "kotlin.Float"))
     }
 
     override fun decodeChar(): Char {
@@ -385,4 +377,16 @@ private class PolymorphicDecoder(
         descriptor: SerialDescriptor,
         index: Int,
     ): NodeDecoder = NodeDecoder(toml, table, path, skippedKey = key)
+}
+
+/** What a `Double` field reads this value as: a float, or an integer converted. */
+internal val Value.asDouble: Double?
+    get() = doubleOrNull ?: longOrNull?.toDouble()
+
+/** What a `Float` field reads this number as, or null when a `Float` would round it to zero or to infinity. */
+internal fun Double.asFloatOrNull(): Float? {
+    val float = toFloat()
+    val overflows = float.isInfinite() && isFinite()
+    val underflows = float == 0f && this != 0.0
+    return float.takeUnless { overflows || underflows }
 }
