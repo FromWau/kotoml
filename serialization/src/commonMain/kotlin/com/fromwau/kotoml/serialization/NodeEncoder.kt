@@ -276,19 +276,22 @@ private class MapEncoder(
     emit: (TomlNode) -> Unit,
 ) : NodeCompositeEncoder(settings, path, emit) {
     private val entries = linkedMapOf<String, TomlNode>()
-    private var key: String = ""
+    private var key: String? = null
+
+    private val currentKey: String
+        get() = checkNotNull(key) { "a map value is encoded after its key" }
 
     override fun isMapKey(index: Int): Boolean = index % 2 == 0
 
     override fun elementName(
         descriptor: SerialDescriptor,
         index: Int,
-    ): String = key
+    ): String = currentKey
 
     override fun childPath(
         descriptor: SerialDescriptor,
         index: Int,
-    ): TomlPath = if (isMapKey(index)) path else path.key(key)
+    ): TomlPath = if (isMapKey(index)) path else path.key(currentKey)
 
     override fun put(
         descriptor: SerialDescriptor,
@@ -299,7 +302,7 @@ private class MapEncoder(
             val name = (node as? TomlNode.Scalar)?.value?.stringOrNull
             key = name ?: throw EncodeFailure(TomlEncodeError.NonStringMapKey("$path"))
         } else {
-            entries[key] = node
+            entries[currentKey] = node
         }
     }
 

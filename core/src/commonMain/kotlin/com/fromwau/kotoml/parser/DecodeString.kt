@@ -530,30 +530,33 @@ internal fun decodeUnquotedKey(raw: Raw, output: DecodedStringBuilder, error: Er
         )
     }
 
-    var runStart = -1
-    var runEnd = -1
+    var run: Span? = null
     for (offset in 0 until length) {
         if (isUnquotedChar(raw.byteAt(offset))) continue
-        if (runStart >= 0 && offset == runEnd) {
-            runEnd = offset + 1
+        val current = run
+        if (current != null && offset == current.end) {
+            run = Span(current.start, offset + 1)
         } else {
-            if (runStart >= 0) reportInvalidUnquotedKey(error, length, runStart, runEnd)
-            runStart = offset
-            runEnd = offset + 1
+            if (current != null) reportInvalidUnquotedKey(error, length, current)
+            run = Span(offset, offset + 1)
         }
     }
-    if (runStart >= 0) reportInvalidUnquotedKey(error, length, runStart, runEnd)
+    run?.let { reportInvalidUnquotedKey(error, length, it) }
 
     raw.pushText(output, 0, length)
 }
 
-private fun reportInvalidUnquotedKey(error: ErrorSink, length: Int, start: Int, end: Int) {
+private fun reportInvalidUnquotedKey(
+    error: ErrorSink,
+    length: Int,
+    invalid: Span,
+) {
     error.reportError(
         ParseError(
             ParseErrorReason.InvalidUnquotedKey,
             context = Span(0, length),
             expected = EXPECTED_UNQUOTED_KEY,
-            unexpected = Span(start, end),
+            unexpected = invalid,
         ),
     )
 }

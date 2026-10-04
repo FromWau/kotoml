@@ -87,9 +87,9 @@ internal fun planList(
 
     val removedAfter = (0 until oldCount)
         .filter { !used[it] }
-        .groupBy { old -> (old - 1 downTo 0).firstOrNull { used[it] } ?: -1 }
-    var keptBefore = -1
-    val insertedAfter = mutableMapOf<Int, MutableList<Int>>()
+        .groupBy { old -> (old - 1 downTo 0).firstOrNull { used[it] } }
+    var keptBefore: Int? = null
+    val insertedAfter = mutableMapOf<Int?, MutableList<Int>>()
     for (new in 0 until newCount) {
         val old = sources[new]?.oldIndex
         if (old != null) keptBefore = old else insertedAfter.getOrPut(keptBefore) { mutableListOf() } += new
