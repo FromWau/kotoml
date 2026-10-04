@@ -6,9 +6,6 @@ reproduced on `dev` at `2781090` before it was filed.
 
 ## Defects
 
-- [ ] **5. Appending to a multi-line array lands on the previous element's line.** `core/.../TomlArray.kt:93`
-  `a = [\n  1, # one\n]` plus `add(3)` prints `1, 3, # one`. `encodeInto` already lays inserted elements out
-  (`layOutInserted`); core and the DSL do not. Goal 4.
 - [ ] **6. Adding to an inline table puts a space before the comma.** `{ x = 1 }` plus `y` prints
   `{ x = 1 , y = 2 }`. Goal 4.
 - [ ] **7. A comment kept from a removed table prints below a table added later.** `# about a\n[a]\nx=1\n`, remove
@@ -69,6 +66,14 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **5. Appending to a multi-line array lands on the previous element's line.** `core/.../TomlArray.kt:93`
+  `a = [\n  1, # one\n]` plus `add(3)` prints `1, 3, # one`. `encodeInto` already lays inserted elements out
+  (`layOutInserted`); core and the DSL do not. Goal 4.
+  **Verdict 2026-10-05:** fixed. `TomlArray.add` gives a value without a prefix of its own a line of its own in a
+  multi-line array, below the last element and its comment, keeping a trailing comma. The rule moved there from
+  `encodeInto`'s merger, which keeps only the middle-insert case. Three tests in `PrintingFixesTest`; core and
+  serialization JVM green.
 
 - [x] **4. `encodeInto` rewrites a number that reads the same.** `serialization/.../DocumentMerger.kt:428`
   `d = 1` into a `Double` field becomes `d = 1.0`; `f = 0.1000000001` into a `Float` becomes `f = 0.1`. The

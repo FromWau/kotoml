@@ -24,6 +24,27 @@ class PrintingFixesTest {
         this["arr"].getOrFail().arrayOfTablesOrNull!!.map { it["x"].getOrFail().longOrNull }
 
     @Test
+    fun `a value added to a multi-line array starts its own line below the last one and keeps the trailing comma`() {
+        val doc = TomlDocument.parse("a = [\n  1, # one\n]\n").getOrFail()
+        doc["a"].getOrFail().arrayOrNull!!.add(3L)
+        assertEquals("a = [\n  1, # one\n  3,\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `a value added by the builder to a multi-line array starts its own line`() {
+        val doc = TomlDocument.parse("a = [\n  1,\n]\n").getOrFail()
+        doc.edit { array("a") { add(2) } }.getOrFail()
+        assertEquals("a = [\n  1,\n  2,\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `a value added to a one-line array stays on its line`() {
+        val doc = TomlDocument.parse("a = [1, 2]\n").getOrFail()
+        doc["a"].getOrFail().arrayOrNull!!.add(3L)
+        assertEquals("a = [1, 2, 3]\n", doc.toString())
+    }
+
+    @Test
     fun `a reversed array of tables prints in its new order`() {
         val doc = parse("[[arr]]\nx = 1\n\n[[arr]]\nx = 2\n")
 

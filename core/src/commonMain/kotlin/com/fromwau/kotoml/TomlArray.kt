@@ -89,9 +89,28 @@ public class TomlArray() : Iterable<Value> {
     /** The value at [index], or null when the index is out of bounds. */
     public operator fun get(index: Int): Value? = values.getOrNull(index)?.valueOrNull
 
-    /** Appends [value], keeping its formatting; a value without decor gets the default spacing. */
+    /**
+     * Appends [value], keeping its formatting. A value without a prefix of its own starts a line of its own when the
+     * array's elements do, below the last one and its comment; otherwise it gets the default spacing.
+     */
     public fun add(value: Value) {
+        if (value.decor.prefix == null) startOwnLine(value)
         values.add(Item.inArray(value))
+    }
+
+    // In a multi-line array the text after the last element, its comment included, ends at the closing line.
+    private fun startOwnLine(value: Value) {
+        val lineBreak = trailing.lastIndexOf('\n')
+        if (lineBreak < 0) return
+        val indent = values.lastOrNull()
+            ?.valueOrNull
+            ?.decor
+            ?.prefix
+            ?.takeIf { '\n' in it }
+            ?.substringAfterLast('\n')
+            .orEmpty()
+        value.decor = value.decor.copy(prefix = trailing.substring(0, lineBreak) + "\n" + indent)
+        trailing = trailing.substring(lineBreak)
     }
 
     /** Appends a string. */

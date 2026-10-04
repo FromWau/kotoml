@@ -317,23 +317,11 @@ private fun StandardTable.headerTables(): List<StandardTable> {
  */
 private fun TomlArray.layOutInserted(index: Int) {
     val value = this[index] ?: return
-    val next = this[index + 1]
-    if (next != null) {
-        val nextPrefix = next.decor.prefix
-        value.decor = Decor(prefix = nextPrefix)
-        next.decor = next.decor.copy(prefix = nextPrefix?.let(::elementSeparator))
-        return
-    }
-    val lineBreak = trailing.lastIndexOf('\n')
-    if (lineBreak < 0) return
-    val indent = this[index - 1]
-        ?.decor
-        ?.prefix
-        ?.takeIf { '\n' in it }
-        ?.substringAfterLast('\n')
-        .orEmpty()
-    value.decor = Decor(prefix = trailing.substring(0, lineBreak) + "\n" + indent)
-    trailing = trailing.substring(lineBreak)
+    // An element appended at the end was laid out by TomlArray.add.
+    val next = this[index + 1] ?: return
+    val nextPrefix = next.decor.prefix
+    value.decor = Decor(prefix = nextPrefix)
+    next.decor = next.decor.copy(prefix = nextPrefix?.let(::elementSeparator))
 }
 
 /**
