@@ -17,7 +17,7 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.modules.SerializersModule
 
 /**
- * Decodes the item [input] at [path]; a null [input] is an empty item, which holds no value.
+ * Decodes the item [input] at [path]; a null [input] stands for a key the document does not have.
  *
  * @param skippedKey a key of [input] that is not one of the class's fields, the discriminator of a
  *   polymorphic value.

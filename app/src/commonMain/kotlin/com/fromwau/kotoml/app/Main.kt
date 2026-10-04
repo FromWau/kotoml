@@ -8,7 +8,6 @@ import com.fromwau.klap.CliError
 import com.fromwau.klap.CommandBuilder
 import com.fromwau.klap.cli
 import com.fromwau.klap.main
-import com.fromwau.kotoml.Item
 import com.fromwau.kotoml.TomlDocument
 import com.fromwau.kotoml.TomlVersion
 import kotlinx.serialization.Serializable

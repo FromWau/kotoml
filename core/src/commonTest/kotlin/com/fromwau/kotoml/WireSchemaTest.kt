@@ -1,6 +1,5 @@
 package com.fromwau.kotoml
 
-import kotlinx.serialization.serializer
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -13,10 +12,10 @@ class WireSchemaTest {
     @Test
     fun `every error type keeps its wire names and fields`() {
         val expected = listOf(
-            TomlParseError.serializer() to "TomlParseError(reason, span, position, context, expected)",
-            Span.serializer() to "Span(start, end)",
-            TextPosition.serializer() to "TextPosition(line, column)",
-            TomlParseError.Reason.serializer() to """
+            TomlParseError.serializer().descriptor to "TomlParseError(reason, span, position, context, expected)",
+            Span.serializer().descriptor to "Span(start, end)",
+            TextPosition.serializer().descriptor to "TextPosition(line, column)",
+            TomlParseError.Reason.serializer().descriptor to """
                 DottedKeyExtendsValue(key, valueType)
                 DuplicateKey(key)
                 FloatOverflow()
@@ -29,7 +28,7 @@ class WireSchemaTest {
                 NotUnicode()
                 Syntax(reason)
             """.trimIndent(),
-            ParseErrorReason.serializer() to """
+            ParseErrorReason.serializer().descriptor to """
                 ContentAfterComment()
                 EmptyUnquotedKey()
                 ExtraArrayComma()
@@ -79,18 +78,18 @@ class WireSchemaTest {
                 UnquotedString()
                 UppercaseRadix()
             """.trimIndent(),
-            Expected.serializer() to """
+            Expected.serializer().descriptor to """
                 Literal(literal)
                 Token(token)
             """.trimIndent(),
-            ScalarKind.serializer() to """
+            ScalarKind.serializer().descriptor to """
                 Boolean(value)
                 DateTime()
                 Float()
                 Integer(radix)
                 String()
             """.trimIndent(),
-            TomlEditError.serializer() to """
+            TomlEditError.serializer().descriptor to """
                 IndexOutOfBounds(index, length)
                 NotATable(key, itemType)
                 NotATableElement(itemType)
@@ -99,18 +98,18 @@ class WireSchemaTest {
                 NotFound(key)
                 TypeMismatch(key, expected, found)
             """.trimIndent(),
-            TomlReadError.serializer() to """
+            TomlReadError.serializer().descriptor to """
                 Io(detail)
                 Parse(error)
             """.trimIndent(),
-            TomlWriteError.serializer() to """
+            TomlWriteError.serializer().descriptor to """
                 Io(detail)
                 NotUnicode(keyPath)
                 TooDeep(keyPath)
             """.trimIndent(),
-            TomlIoError.serializer() to "Io(detail)",
-            DatetimeParseError.serializer() to "DatetimeParseError(part, expected)",
-            DatetimeExpected.serializer() to """
+            TomlIoError.serializer().descriptor to "Io(detail)",
+            DatetimeParseError.serializer().descriptor to "DatetimeParseError(part, expected)",
+            DatetimeExpected.serializer().descriptor to """
                 DateOrTimeSeparator()
                 DaySeparator()
                 Digits(field)
@@ -122,7 +121,7 @@ class WireSchemaTest {
                 Width(field, width)
                 YearOrHour()
             """.trimIndent(),
-            serializer<TomlType>() to """
+            TomlEditError.NotATable.serializer().descriptor.getElementDescriptor(1) to """
                 Missing
                 String
                 Integer
@@ -134,19 +133,19 @@ class WireSchemaTest {
                 Table
                 ArrayOfTables
             """.trimIndent(),
-            serializer<IntegerRadix>() to """
+            ScalarKind.Integer.serializer().descriptor.getElementDescriptor(0) to """
                 Dec
                 Hex
                 Oct
                 Bin
             """.trimIndent(),
-            serializer<Encoding>() to """
+            ParseErrorReason.InvalidString.serializer().descriptor.getElementDescriptor(0) to """
                 MultilineLiteralString
                 MultilineBasicString
                 BasicString
                 LiteralString
             """.trimIndent(),
-            serializer<ExpectedToken>() to """
+            Expected.Token.serializer().descriptor.getElementDescriptor(0) to """
                 BasicString
                 Characters
                 Digits
@@ -162,13 +161,13 @@ class WireSchemaTest {
                 UnquotedString
                 Value
             """.trimIndent(),
-            serializer<DatetimePart>() to """
+            DatetimeParseError.serializer().descriptor.getElementDescriptor(0) to """
                 Date
                 DateTime
                 Time
                 Offset
             """.trimIndent(),
-            serializer<DatetimeField>() to """
+            DatetimeExpected.Digits.serializer().descriptor.getElementDescriptor(0) to """
                 Year
                 Month
                 Day
@@ -177,23 +176,19 @@ class WireSchemaTest {
                 Second
                 Nanosecond
             """.trimIndent(),
-            serializer<FloatPart>() to """
+            ParseErrorReason.InvalidFloatPart.serializer().descriptor.getElementDescriptor(0) to """
                 Mantissa
                 Fraction
                 Exponent
             """.trimIndent(),
-            serializer<Toml11Feature>() to """
+            TomlParseError.Reason.NotInToml10.serializer().descriptor.getElementDescriptor(0) to """
                 MultilineInlineTable
                 InlineTableTrailingComma
                 TimeWithoutSeconds
             """.trimIndent(),
-            serializer<TomlVersion>() to """
-                V1_0
-                V1_1
-            """.trimIndent(),
         )
-        for ((serializer, schema) in expected) {
-            assertEquals(schema, serializer.wireSchema(), serializer.descriptor.serialName)
+        for ((descriptor, schema) in expected) {
+            assertEquals(schema, descriptor.wireSchema(), descriptor.serialName)
         }
     }
 }

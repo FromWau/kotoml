@@ -1,6 +1,5 @@
 package com.fromwau.kotoml.app
 
-import kotlinx.serialization.serializer
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -13,7 +12,7 @@ class WireSchemaTest {
     @Test
     fun `every error type keeps its wire names and fields`() {
         val expected = listOf(
-            AppError.serializer() to """
+            AppError.serializer().descriptor to """
                 CannotApply(step, itemType)
                 FilterSyntax(filter, position, expected)
                 InvalidJson(position)
@@ -24,13 +23,13 @@ class WireSchemaTest {
                 NotTaggedJson(path, reason)
                 ReadFailed(path, failure)
             """.trimIndent(),
-            ReadFailure.serializer() to """
+            ReadFailure.serializer().descriptor to """
                 Io(detail)
                 IsADirectory()
                 NotFound()
                 PermissionDenied()
             """.trimIndent(),
-            TaggedJsonProblem.serializer() to """
+            TaggedJsonProblem.serializer().descriptor to """
                 BadValue(tomlType, value)
                 ExtraKey(key)
                 MissingValue()
@@ -40,12 +39,12 @@ class WireSchemaTest {
                 Untagged()
                 ValueNotString()
             """.trimIndent(),
-            Step.serializer() to """
+            Step.serializer().descriptor to """
                 Index(index)
                 Iterate()
                 Key(key)
             """.trimIndent(),
-            serializer<FilterExpected>() to """
+            AppError.FilterSyntax.serializer().descriptor.getElementDescriptor(2) to """
                 Dot
                 KeyOrBracket
                 Quote
@@ -55,10 +54,10 @@ class WireSchemaTest {
                 CloseBracket
                 PipeOrEnd
             """.trimIndent(),
-            Checked.serializer() to "Checked(valid)",
+            Checked.serializer().descriptor to "Checked(valid)",
         )
-        for ((serializer, schema) in expected) {
-            assertEquals(schema, serializer.wireSchema(), serializer.descriptor.serialName)
+        for ((descriptor, schema) in expected) {
+            assertEquals(schema, descriptor.wireSchema(), descriptor.serialName)
         }
     }
 }

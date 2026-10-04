@@ -79,7 +79,7 @@ internal object SelectionSerializer : KSerializer<Selection> {
 /** The whole document as written, with the comments and blank lines after its last item, but no final newline. */
 private fun TomlDocument.asWritten(): String = toString().removeSuffix("\n").removeSuffix("\r")
 
-/** An empty item prints as `null`, which TOML has no word for, as jq prints a missing key. */
+/** The selected item as TOML: a table as its lines, an array of tables under its headers, a value as written. */
 internal fun Selected.toToml(): String {
     item.standardTableOrNull?.let { table ->
         // The text around a table belongs to its header, which is not printed, and its lines print as its own.
@@ -99,7 +99,7 @@ internal fun Selected.toToml(): String {
         }
         return TomlDocument(root).toString().trim()
     }
-    val value = item.valueOrNull?.copy() ?: return "null"
+    val value = checkNotNull(item.valueOrNull) { "an item holds a value when it holds no table" }.copy()
     value.decor = Decor()
     return value.toString()
 }
@@ -109,10 +109,8 @@ internal fun Item.toJson(): JsonElement {
     tableOrNull?.let { table ->
         return JsonObject(table.entries.associate { (key, item) -> key to item.toJson() })
     }
-    arrayOfTablesOrNull?.let { tables ->
-        return JsonArray(tables.map { Item(it).toJson() })
-    }
-    return JsonNull
+    val tables = checkNotNull(arrayOfTablesOrNull) { "an item holds a value, a table or an array of tables" }
+    return JsonArray(tables.map { Item(it).toJson() })
 }
 
 private fun Value.toJson(): JsonElement = when (this) {

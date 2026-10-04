@@ -12,7 +12,7 @@ class WireSchemaTest {
     @Test
     fun `every error type keeps its wire names and fields`() {
         val expected = listOf(
-            TomlDecodeError.serializer() to """
+            TomlDecodeError.serializer().descriptor to """
                 DatetimeKindMismatch(path, expected, found)
                 DiscriminatorConflict(path, key)
                 LeapSecond(path)
@@ -31,7 +31,7 @@ class WireSchemaTest {
                 Unparsable(path, text, target)
                 UnsupportedRoot(serialName)
             """.trimIndent(),
-            TomlEncodeError.serializer() to """
+            TomlEncodeError.serializer().descriptor to """
                 DiscriminatorConflict(path, key)
                 NoSerializer(type)
                 NonStringMapKey(path)
@@ -44,8 +44,8 @@ class WireSchemaTest {
                 UnsupportedRoot(serialName)
             """.trimIndent(),
         )
-        for ((serializer, schema) in expected) {
-            assertEquals(schema, serializer.wireSchema(), serializer.descriptor.serialName)
+        for ((descriptor, schema) in expected) {
+            assertEquals(schema, descriptor.wireSchema(), descriptor.serialName)
         }
     }
 }

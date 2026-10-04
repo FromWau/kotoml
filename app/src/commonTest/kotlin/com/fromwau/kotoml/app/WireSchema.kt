@@ -1,7 +1,6 @@
 package com.fromwau.kotoml.app
 
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.PolymorphicKind
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.SerialKind
@@ -12,19 +11,16 @@ import kotlinx.serialization.descriptors.elementNames
  * enum's entries, one per line, or a class's fields.
  */
 @OptIn(ExperimentalSerializationApi::class)
-internal fun KSerializer<*>.wireSchema(): String {
-    val descriptor = descriptor
-    return when (descriptor.kind) {
-        PolymorphicKind.SEALED -> {
-            val subtypes = descriptor.getElementDescriptor(1)
-            (0 until subtypes.elementsCount)
-                .map { subtypes.getElementDescriptor(it).fields() }
-                .sorted()
-                .joinToString("\n")
-        }
-        SerialKind.ENUM -> descriptor.elementNames.joinToString("\n")
-        else -> descriptor.fields()
+internal fun SerialDescriptor.wireSchema(): String = when (kind) {
+    PolymorphicKind.SEALED -> {
+        val subtypes = getElementDescriptor(1)
+        (0 until subtypes.elementsCount)
+            .map { subtypes.getElementDescriptor(it).fields() }
+            .sorted()
+            .joinToString("\n")
     }
+    SerialKind.ENUM -> elementNames.joinToString("\n")
+    else -> fields()
 }
 
 @OptIn(ExperimentalSerializationApi::class)

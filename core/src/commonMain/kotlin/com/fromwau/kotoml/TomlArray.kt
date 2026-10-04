@@ -89,8 +89,8 @@ public class TomlArray() : Iterable<Value> {
     public operator fun get(index: Int): Value? = values.getOrNull(index)?.valueOrNull
 
     /**
-     * Appends a copy of [value], keeping its formatting. A value without a prefix of its own starts a line of its own when the
-     * array's elements do, below the last one and its comment; otherwise it gets the default spacing.
+     * Appends a copy of [value], keeping its formatting. A value without a prefix of its own starts a line of its own
+     * when the array's elements do, below the last one and its comment; otherwise it gets the default spacing.
      */
     public fun add(value: Value) {
         val stored = value.copy()
