@@ -302,7 +302,7 @@ private fun visitTable(
             // The blank line above a new header is a line made by hand, so it ends like the line before.
             writer.ending to DEFAULT_TABLE_DECOR.second
         }
-        val spelledPath = table.headerSpelling?.resolve(path.subList(0, path.size - 1))?.plus(path.last()) ?: path
+        val spelledPath = table.headerSpelling?.resolve(path) ?: path
         val (beforeBracket, keyDecor) = leafDecorBeforeBracket(spelledPath)
         val keyLines = beforeBracket?.prefix?.textOrNull.orEmpty()
         if (table.rawDecor.prefix == null && '#' in keyLines) {

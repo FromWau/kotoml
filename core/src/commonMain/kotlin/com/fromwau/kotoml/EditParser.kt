@@ -222,7 +222,10 @@ private class DocumentBuilder(private val input: EventStream, private val contex
         val input = SourceText(text)
         // A failed parse is thrown away, and its recovery spans need not fit the text, as other entry points also skip.
         val failed = errors.error != null
-        if (!failed) root.resolveSpans(input)
+        if (!failed) {
+            root.resolveSpans(input)
+            root.settleHeaderSpellings(emptyList())
+        }
         val trailing = takeTrailing().let { if (failed) it else it.resolveSpans(input) }
         return TomlDocument(root, trailing, lineEnding, text)
     }
@@ -313,9 +316,8 @@ private class DocumentBuilder(private val input: EventStream, private val contex
         val key = header.key ?: return
         previousTable.span = header.span
 
-        val shared = mutableListOf<Key>()
-        val parentTable = descendPath(root, header.path, false, errors, shared) ?: return
-        if (header.path.isNotEmpty()) previousTable.headerSpelling = PathSpelling.of(header.path, shared)
+        val parentTable = descendPath(root, header.path, false, errors) ?: return
+        previousTable.headerSpelling = PathSpelling.ofHeader(header.path + key)
         if (header.isArray) {
             val keySpan = keySpan(key)
             val entry = parentTable.items.getEntry(key.name)

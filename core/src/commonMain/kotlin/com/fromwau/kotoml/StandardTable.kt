@@ -425,6 +425,18 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         return copy
     }
 
+    /** Settles the spelling of every header below this table, whose path from the root is [path]. */
+    internal fun settleHeaderSpellings(path: List<Key>) {
+        for (entry in items.entries) {
+            val childPath = path + entry.key
+            val tables = entry.item.standardTableOrNull?.let(::listOf) ?: entry.item.arrayOfTablesOrNull?.toList().orEmpty()
+            for (table in tables) {
+                table.headerSpelling?.settle(childPath)
+                table.settleHeaderSpellings(childPath)
+            }
+        }
+    }
+
     /** Takes [other]'s whole state, its entries moved rather than copied, leaving [other] not to be used again. */
     internal fun takeStateOf(other: StandardTable) {
         items = other.items

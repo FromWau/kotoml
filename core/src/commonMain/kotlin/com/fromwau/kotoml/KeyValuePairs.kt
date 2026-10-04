@@ -133,13 +133,14 @@ internal class PathSpelling private constructor(
     private val keys: List<Key>,
     private var shared: List<Key>?,
     private var sharedLooks: List<String>,
+    private val isHeader: Boolean,
 ) {
 
     /** The keys to print for [current], or [current] itself when this spelling no longer applies. */
     fun resolve(current: List<Key>): List<Key> {
-        if (current.size != keys.size) return current
+        if (current.size != keys.size || sharedLooks.size != keys.size) return current
         for (index in current.indices) {
-            if (current[index].name != keys[index].name || looks(current[index]) != sharedLooks[index]) {
+            if (current[index].name != keys[index].name || looks(current, index) != sharedLooks[index]) {
                 return current
             }
         }
@@ -149,19 +150,38 @@ internal class PathSpelling private constructor(
     // The shared keys are resolved first: a table resolves its own keys before the entries below it.
     fun resolveSpans(input: SourceText) {
         for (key in keys) key.resolveSpans(input)
-        shared?.let { sharedLooks = it.map(::looks) }
+        shared?.let { keys -> sharedLooks = keys.indices.map { looks(keys, it) } }
         shared = null
     }
 
-    fun copy(): PathSpelling = PathSpelling(keys.map { it.copy() }, shared, sharedLooks)
+    /** Takes [current], the keys the finished parse left on this header's path, as what this spelling stands for. */
+    fun settle(current: List<Key>) {
+        sharedLooks = current.indices.map { looks(current, it) }
+    }
+
+    fun copy(): PathSpelling = PathSpelling(keys.map { it.copy() }, shared, sharedLooks, isHeader)
+
+    /** Everything about the key at [index] of [path] that printing the path uses. */
+    private fun looks(path: List<Key>, index: Int): String {
+        val key = path[index]
+        val dotted = "${key.written?.raw}|${key.rawDottedDecor.prefix}|${key.rawDottedDecor.suffix}"
+        // A header prints its last key with that key's own decor, inside the brackets.
+        if (!isHeader || index != path.lastIndex) return dotted
+        return "$dotted|${key.rawLeafDecor.prefix}|${key.rawLeafDecor.suffix}"
+    }
 
     companion object {
         fun of(spelled: List<Key>, shared: List<Key>): PathSpelling =
-            PathSpelling(spelled.map { it.copy() }, shared, shared.map(::looks))
+            PathSpelling(spelled.map { it.copy() }, shared, emptyList(), isHeader = false).also { spelling ->
+                spelling.sharedLooks = shared.indices.map { spelling.looks(shared, it) }
+            }
 
-        /** Everything about a key that printing a path uses. */
-        private fun looks(key: Key): String =
-            "${key.written?.raw}|${key.rawDottedDecor.prefix}|${key.rawDottedDecor.suffix}"
+        /**
+         * How a header spelled its whole path, its own key included. A later header can replace the keys it passes
+         * through, so what the spelling stands for is settled once the parse is done.
+         */
+        fun ofHeader(spelled: List<Key>): PathSpelling =
+            PathSpelling(spelled.map { it.copy() }, null, emptyList(), isHeader = true)
     }
 }
 

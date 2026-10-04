@@ -6,10 +6,6 @@ reproduced on `dev` at `2781090` before it was filed.
 
 ## Defects
 
-- [ ] **1. Array-of-tables headers print the first element's spelling.** `core/.../Encode.kt:305`
-  `[[x]]` then `[["x"]]` prints `[[x]]` twice; `[[a.b]]` then `[[a . b]]` prints a mix. The leaf key is the one
-  `Key` the parent holds for the whole array. Breaks goal 2 and the header-spelling claim in `core/PARITY.md` and
-  `core/README.md`; toml-test never varies an array-of-tables header's spelling, so the suite cannot catch it.
 - [ ] **2. CLI `encode` accepts JSON one level deeper than kotoml parses back.** `app/.../TaggedJson.kt:67`, `:115`
   80 nested objects encode, and the output is refused with `KeyTooDeep`: the parser refuses a key inside the 80th
   inline table (`EditParser.kt:508`), `TaggedJson` counts that level as allowed. Goals 3, 15.
@@ -81,3 +77,11 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **1. Array-of-tables headers print the first element's spelling.** `core/.../Encode.kt:305`
+  `[[x]]` then `[["x"]]` prints `[[x]]` twice; `[[a.b]]` then `[[a . b]]` prints a mix. The leaf key is the one
+  `Key` the parent holds for the whole array. Breaks goal 2 and the header-spelling claim in `core/PARITY.md` and
+  `core/README.md`; toml-test never varies an array-of-tables header's spelling, so the suite cannot catch it.
+  **Verdict 2026-10-05:** fixed. A header's spelling now covers its own key, and what it stands for is settled
+  from the keys the finished parse left on its path, so a later `[a]` replacing a key no longer voids an earlier
+  `[[a .b]]`. Four tests in `PreservationTest`; clean build green, core 1354, toml-test 1.0 and 1.1.

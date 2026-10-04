@@ -22,6 +22,33 @@ class PreservationTest {
     }
 
     @Test
+    fun `each array of tables header keeps its own spelling`() {
+        for (input in listOf("[[x]]\n[[\"x\"]]\n", "[[arr ]]\n[[arr]]\n", "[[a.b]]\n[[a . b]]\n")) {
+            assertEquals(input, parse(input).toString())
+        }
+    }
+
+    @Test
+    fun `a header keeps its spelling when a later header names a key on its path`() {
+        val input = "[[a .b]]\nx = 1\n[a]\ny = 2\n"
+        assertEquals(input, parse(input).toString())
+    }
+
+    @Test
+    fun `an array of tables element added later prints its header as the key is spelled`() {
+        val doc = parse("[[\"x\"]]\nn = 1\n")
+        doc["x"].getOrFail().arrayOfTablesOrNull!!.add(standardTableOf("n" to Item(Value.Integer(2L))))
+        assertEquals("[[\"x\"]]\nn = 1\n\n[[\"x\"]]\nn = 2\n", doc.toString())
+    }
+
+    @Test
+    fun `resetting the key of an array of tables resets every element's header`() {
+        val doc = parse("[[ 'x' ]]\nn = 1\n[[x]]\nn = 2\n")
+        doc.root.keyOrNull("x")!!.resetFormatting()
+        assertEquals("[[x]]\nn = 1\n[[x]]\nn = 2\n", doc.toString())
+    }
+
+    @Test
     fun `mixed line endings are kept per line`() {
         val input = "a = 1\nb = 2\r\nc = 3\n"
         assertEquals(input, parse(input).toString())
