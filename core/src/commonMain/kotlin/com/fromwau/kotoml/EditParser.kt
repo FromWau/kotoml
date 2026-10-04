@@ -67,6 +67,13 @@ internal class ParseContext(val source: TomlSource, val errors: TomlSink, val ve
         )
     }
 
+    /**
+     * How deeply the value being built nests: one level per enclosing array or inline table, and one per dot of the
+     * keys leading to it from its line. The event parser bounds brackets alone and each key's dots alone, but the
+     * tree is as deep as both together, and dotted keys inside nested inline tables would multiply past either bound.
+     */
+    var nesting = 0
+
     fun nextOrder(): Long = nextOrder++
 
     fun text(span: Span): String = source.get(span)?.text.orEmpty()
@@ -194,7 +201,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
                     } else {
                         null
                     } ?: KeptText()
-                    val value = value(input, context)
+                    val value = context.nest(path.size) { value(input, context) }
                     val (suffixSpan, newline) = wsCommentNewline(input)
                     if (value == null) continue
                     val valueSuffix = suffixSpan?.let { KeptText.withSpan(it) } ?: KeptText()
@@ -498,7 +505,7 @@ internal fun onKey(keyEvent: Event, input: EventStream, context: ParseContext): 
 
     closeKey()
 
-    if (TomlDocument.NESTING_LIMIT <= resultPath.size) {
+    if (TomlDocument.NESTING_LIMIT <= context.nesting + resultPath.size) {
         errors.report(Reason.KeyTooDeep, unexpected = keyEvent.span)
         return emptyList<Key>() to null
     }
@@ -649,7 +656,10 @@ private fun <T : Any> Formatted<T>.withSpelling(raw: KeptText): Formatted<T> {
 }
 
 /** `array = array-open array-values array-close` */
-private fun onArray(openEvent: Event, input: EventStream, context: ParseContext): Value {
+private fun onArray(openEvent: Event, input: EventStream, context: ParseContext): Value =
+    context.nestBracket(openEvent) { arrayBody(openEvent, input, context) }
+
+private fun arrayBody(openEvent: Event, input: EventStream, context: ParseContext): Value {
     val result = TomlArray()
     var closeSpan = openEvent.span
 
@@ -723,7 +733,10 @@ private fun onArray(openEvent: Event, input: EventStream, context: ParseContext)
 }
 
 /** `inline-table = inline-table-open [ inline-table-keyvals ] ws-comment-newline inline-table-close` */
-private fun onInlineTable(openEvent: Event, input: EventStream, context: ParseContext): Value {
+private fun onInlineTable(openEvent: Event, input: EventStream, context: ParseContext): Value =
+    context.nestBracket(openEvent) { inlineTableBody(openEvent, input, context) }
+
+private fun inlineTableBody(openEvent: Event, input: EventStream, context: ParseContext): Value {
     val errors = context.errors
     val result = InlineTable()
     var closeSpan = openEvent.span
@@ -737,6 +750,8 @@ private fun onInlineTable(openEvent: Event, input: EventStream, context: ParseCo
     var currentSuffix: Span? = null
 
     fun isPrefix(): Boolean = if (seenKeyvalSep) currentValue == null else currentKey == null
+
+    fun keyDots(): Int = currentKey?.first?.size ?: 0
 
     fun finishValue(event: Event) {
         seenKeyvalSep = false
@@ -806,12 +821,12 @@ private fun onInlineTable(openEvent: Event, input: EventStream, context: ParseCo
                 }
             }
             EventKind.InlineTableOpen -> {
-                val value = onInlineTable(event, input, context)
+                val value = context.nest(keyDots()) { onInlineTable(event, input, context) }
                 if (currentPrefix == null) currentPrefix = event.span.before()
                 currentValue = value
             }
             EventKind.ArrayOpen -> {
-                val value = onArray(event, input, context)
+                val value = context.nest(keyDots()) { onArray(event, input, context) }
                 if (currentPrefix == null) currentPrefix = event.span.before()
                 currentValue = value
             }
@@ -860,6 +875,22 @@ private fun onInlineTable(openEvent: Event, input: EventStream, context: ParseCo
     if (result.span == null) result.span = Span(openEvent.span.start, closeSpan.end)
 
     return Value.InlineTable(result)
+}
+
+/** Runs [block] with [levels] more levels of [ParseContext.nesting]. */
+private inline fun <T> ParseContext.nest(levels: Int, block: () -> T): T {
+    nesting += levels
+    val result = block()
+    nesting -= levels
+    return result
+}
+
+/** Runs [block] one bracket deeper, refusing the bracket at [open] when it nests past the limit. */
+private inline fun <T> ParseContext.nestBracket(open: Event, block: () -> T): T = nest(1) {
+    if (TomlDocument.NESTING_LIMIT < nesting) {
+        errors.reportError(ParseError(ParseErrorReason.RecursionLimit, unexpected = open.span))
+    }
+    block()
 }
 
 private fun descendInlinePath(
