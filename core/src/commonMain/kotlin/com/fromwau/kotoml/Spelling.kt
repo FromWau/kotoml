@@ -5,7 +5,7 @@ import com.fromwau.kotoml.writer.WriteTomlValue
 import com.fromwau.kotoml.writer.toTomlValue
 
 /** Raw TOML text kept for formatting: text you set, or a span into a parse's input until it is resolved. */
-internal class RawString private constructor(private val state: State) {
+internal class KeptText private constructor(private val state: State) {
 
     private sealed interface State {
         data object Empty : State
@@ -18,33 +18,34 @@ internal class RawString private constructor(private val state: State) {
     constructor() : this(State.Empty)
 
     /** The text, or null while it is still only a span into a parse's input. */
-    fun asStr(): String? = when (state) {
-        State.Empty -> ""
-        is State.Explicit -> state.text
-        is State.Spanned -> null
-    }
+    val textOrNull: String?
+        get() = when (state) {
+            State.Empty -> ""
+            is State.Explicit -> state.text
+            is State.Spanned -> null
+        }
 
     fun span(): Span? = (state as? State.Spanned)?.span
 
-    fun toStr(input: SourceText): String = when (state) {
+    fun text(input: SourceText): String = when (state) {
         State.Empty -> ""
         is State.Explicit -> state.text
         is State.Spanned -> input.slice(state.span)
     }
 
     /** The text, or [default] while it is only a span. */
-    fun toStrWithDefault(default: String): String = when (state) {
+    fun textOr(default: String): String = when (state) {
         State.Empty -> ""
         is State.Explicit -> state.text
         is State.Spanned -> default
     }
 
-    fun despan(input: SourceText): RawString = when (state) {
-        is State.Spanned -> if (state.span.length <= 0) RawString() else from(input.slice(state.span))
+    fun resolveSpans(input: SourceText): KeptText = when (state) {
+        is State.Spanned -> if (state.span.length <= 0) KeptText() else from(input.slice(state.span))
         else -> this
     }
 
-    override fun equals(other: Any?): Boolean = other is RawString && state == other.state
+    override fun equals(other: Any?): Boolean = other is KeptText && state == other.state
 
     override fun hashCode(): Int = state.hashCode()
 
@@ -57,11 +58,11 @@ internal class RawString private constructor(private val state: State) {
 
     companion object {
         /** Holds [text]; an empty string becomes the empty raw string. */
-        fun from(text: String): RawString = if (text.isEmpty()) RawString() else RawString(State.Explicit(text))
+        fun from(text: String): KeptText = if (text.isEmpty()) KeptText() else KeptText(State.Explicit(text))
 
-        fun withSpan(start: Int, end: Int): RawString = RawString(State.Spanned(Span(start, end)))
+        fun withSpan(start: Int, end: Int): KeptText = KeptText(State.Spanned(Span(start, end)))
 
-        fun withSpan(span: Span): RawString = RawString(State.Spanned(span))
+        fun withSpan(span: Span): KeptText = KeptText(State.Spanned(span))
     }
 }
 
@@ -79,25 +80,14 @@ internal class SourceText(val text: String) {
 }
 
 /** How a value or key is spelled in TOML, such as `'value'` for the string `value` or `0x10` for 16. */
-internal class Repr(private val rawValue: RawString) {
+internal data class Spelling(val raw: KeptText) {
+    constructor(text: String) : this(KeptText.from(text))
 
-    fun asRaw(): RawString = rawValue
+    fun span(): Span? = raw.span()
 
-    fun span(): Span? = rawValue.span()
+    fun resolveSpans(input: SourceText): Spelling = Spelling(raw.resolveSpans(input))
 
-    fun despan(input: SourceText): Repr = Repr(rawValue.despan(input))
-
-    override fun equals(other: Any?): Boolean = other is Repr && rawValue == other.rawValue
-
-    override fun hashCode(): Int = rawValue.hashCode()
-
-    override fun toString(): String = rawValue.toString()
-
-    companion object {
-        fun newUnchecked(raw: String): Repr = Repr(RawString.from(raw))
-
-        fun newUnchecked(raw: RawString): Repr = Repr(raw)
-    }
+    override fun toString(): String = raw.toString()
 }
 
 /**
@@ -120,8 +110,8 @@ public data class Decor(
 
 /** The stored form of a [Decor], whose sides may still be spans into a parse's input. */
 internal class RawDecor(
-    var prefix: RawString? = null,
-    var suffix: RawString? = null,
+    var prefix: KeptText? = null,
+    var suffix: KeptText? = null,
 ) {
 
     /** Goes back to the defaults on both sides. */
@@ -137,30 +127,30 @@ internal class RawDecor(
 
     /** A side still held as a span reads as the default, as it prints. */
     fun toDecor(): Decor = Decor(
-        prefix = prefix?.asStr(),
-        suffix = suffix?.asStr(),
+        prefix = prefix?.textOrNull,
+        suffix = suffix?.textOrNull,
     )
 
     fun set(decor: Decor) {
-        prefix = decor.prefix?.let(RawString::from)
-        suffix = decor.suffix?.let(RawString::from)
+        prefix = decor.prefix?.let(KeptText::from)
+        suffix = decor.suffix?.let(KeptText::from)
     }
 
     fun copy(): RawDecor = RawDecor(prefix, suffix)
 
     fun prefixEncode(buf: StringBuilder, default: String) {
         val prefix = prefix
-        if (prefix != null) encodeRaw(buf, prefix.toStrWithDefault(default)) else buf.append(default)
+        if (prefix != null) encodeRaw(buf, prefix.textOr(default)) else buf.append(default)
     }
 
     fun suffixEncode(buf: StringBuilder, default: String) {
         val suffix = suffix
-        if (suffix != null) encodeRaw(buf, suffix.toStrWithDefault(default)) else buf.append(default)
+        if (suffix != null) encodeRaw(buf, suffix.textOr(default)) else buf.append(default)
     }
 
-    fun despan(input: SourceText) {
-        prefix = prefix?.despan(input)
-        suffix = suffix?.despan(input)
+    fun resolveSpans(input: SourceText) {
+        prefix = prefix?.resolveSpans(input)
+        suffix = suffix?.resolveSpans(input)
     }
 
     override fun equals(other: Any?): Boolean = other is RawDecor && prefix == other.prefix && suffix == other.suffix
@@ -179,58 +169,57 @@ internal fun encodeRaw(buf: StringBuilder, raw: String) {
 }
 
 /**
- * A scalar value together with its [repr] (how it is spelled) and its [decor] (the text around it).
+ * A scalar value together with its [written] spelling and its [decor] (the text around it).
  *
- * One made with [Formatted.of] has no repr, so it prints in the default spelling until it comes from parsed text.
+ * One made with [Formatted.of] has no written spelling, so it prints in the default spelling until it comes from
+ * parsed text.
  */
 internal class Formatted<T : Any> private constructor(
     val value: T,
-    var repr: Repr?,
+    var written: Spelling?,
     val decor: RawDecor,
-    private val toRepr: (T) -> Repr,
+    private val toSpelling: (T) -> Spelling,
 ) {
 
     /** The spelling the value gets when it has none of its own. */
-    fun defaultRepr(): Repr = toRepr(value)
+    fun defaultSpelling(): Spelling = toSpelling(value)
 
     /** The spelling as written, or null when it has none or it is still a span. */
-    fun spelling(): String? = repr?.asRaw()?.asStr()
+    fun spelling(): String? = written?.raw?.textOrNull
 
     /** The spelling printed: the original one when there is one, otherwise the default. */
-    fun displayRepr(): String = spelling() ?: defaultRepr()
-        .asRaw()
-        .asStr()
-        .orEmpty()
+    val displaySpelling: String
+        get() = spelling() ?: defaultSpelling().raw.textOrNull.orEmpty()
 
-    fun span(): Span? = repr?.span()
+    fun span(): Span? = written?.span()
 
-    fun despan(input: SourceText) {
-        decor.despan(input)
-        repr = repr?.despan(input)
+    fun resolveSpans(input: SourceText) {
+        decor.resolveSpans(input)
+        written = written?.resolveSpans(input)
     }
 
-    fun copy(): Formatted<T> = Formatted(value, repr, decor.copy(), toRepr)
+    fun copy(): Formatted<T> = Formatted(value, written, decor.copy(), toSpelling)
 
     override fun equals(other: Any?): Boolean {
         if (other !is Formatted<*>) return false
-        return sameValue(value, other.value) && repr == other.repr && decor == other.decor
+        return sameValue(value, other.value) && written == other.written && decor == other.decor
     }
 
-    override fun hashCode(): Int = 31 * (31 * value.hashCode() + repr.hashCode()) + decor.hashCode()
+    override fun hashCode(): Int = 31 * (31 * value.hashCode() + written.hashCode()) + decor.hashCode()
 
     override fun toString(): String = buildString { encodeFormatted(this, this@Formatted, "", "") }
 
     companion object {
-        fun of(value: String): Formatted<String> = Formatted(value, null, RawDecor(), ::stringRepr)
+        fun of(value: String): Formatted<String> = Formatted(value, null, RawDecor(), ::stringSpelling)
 
-        fun of(value: Long): Formatted<Long> = Formatted(value, null, RawDecor(), ::integerRepr)
+        fun of(value: Long): Formatted<Long> = Formatted(value, null, RawDecor(), ::integerSpelling)
 
         /** The sign of a NaN is kept, and may print as `-nan`. */
-        fun of(value: Double): Formatted<Double> = Formatted(value, null, RawDecor(), ::floatRepr)
+        fun of(value: Double): Formatted<Double> = Formatted(value, null, RawDecor(), ::floatSpelling)
 
-        fun of(value: Boolean): Formatted<Boolean> = Formatted(value, null, RawDecor(), ::booleanRepr)
+        fun of(value: Boolean): Formatted<Boolean> = Formatted(value, null, RawDecor(), ::booleanSpelling)
 
-        fun of(value: Datetime): Formatted<Datetime> = Formatted(value, null, RawDecor(), ::datetimeRepr)
+        fun of(value: Datetime): Formatted<Datetime> = Formatted(value, null, RawDecor(), ::datetimeSpelling)
     }
 }
 
@@ -244,12 +233,12 @@ private fun sameValue(left: Any, right: Any?): Boolean {
     return left == right
 }
 
-private fun stringRepr(value: String): Repr = Repr.newUnchecked(TomlStringBuilder(value).asDefault().toTomlValue())
+private fun stringSpelling(value: String): Spelling = Spelling(TomlStringBuilder(value).asDefault().toTomlValue())
 
-private fun integerRepr(value: Long): Repr = Repr.newUnchecked(value.toString())
+private fun integerSpelling(value: Long): Spelling = Spelling(value.toString())
 
-private fun floatRepr(value: Double): Repr = Repr.newUnchecked(WriteTomlValue.of(value).toTomlValue())
+private fun floatSpelling(value: Double): Spelling = Spelling(WriteTomlValue.of(value).toTomlValue())
 
-private fun booleanRepr(value: Boolean): Repr = Repr.newUnchecked(value.toString())
+private fun booleanSpelling(value: Boolean): Spelling = Spelling(value.toString())
 
-private fun datetimeRepr(value: Datetime): Repr = Repr.newUnchecked(value.toString())
+private fun datetimeSpelling(value: Datetime): Spelling = Spelling(value.toString())

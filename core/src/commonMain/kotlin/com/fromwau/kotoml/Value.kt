@@ -48,7 +48,7 @@ public sealed interface Value {
 
         /** The text the value prints as: its [spelling], or the default one when it has none. */
         public val displaySpelling: kotlin.String
-            get() = formatted.displayRepr()
+            get() = formatted.displaySpelling
 
         /** The value as TOML, with its decor. */
         override fun toString(): kotlin.String = display()
@@ -79,7 +79,7 @@ public sealed interface Value {
 
         /** The text the value prints as: its [spelling], or the default one when it has none. */
         public val displaySpelling: kotlin.String
-            get() = formatted.displayRepr()
+            get() = formatted.displaySpelling
 
         /** The value as TOML, with its decor. */
         override fun toString(): kotlin.String = display()
@@ -110,7 +110,7 @@ public sealed interface Value {
 
         /** The text the value prints as: its [spelling], or the default one when it has none. */
         public val displaySpelling: kotlin.String
-            get() = formatted.displayRepr()
+            get() = formatted.displaySpelling
 
         /** The value as TOML, with its decor. */
         override fun toString(): kotlin.String = display()
@@ -141,7 +141,7 @@ public sealed interface Value {
 
         /** The text the value prints as: its [spelling], or the default one when it has none. */
         public val displaySpelling: kotlin.String
-            get() = formatted.displayRepr()
+            get() = formatted.displaySpelling
 
         /** The value as TOML, with its decor. */
         override fun toString(): kotlin.String = display()
@@ -172,7 +172,7 @@ public sealed interface Value {
 
         /** The text the value prints as: its [spelling], or the default one when it has none. */
         public val displaySpelling: kotlin.String
-            get() = formatted.displayRepr()
+            get() = formatted.displaySpelling
 
         /** The value as TOML, with its decor. */
         override fun toString(): kotlin.String = display()
@@ -276,11 +276,11 @@ public sealed interface Value {
      */
     public fun resetFormatting() {
         when (this) {
-            is String -> formatted.repr = null
-            is Integer -> formatted.repr = null
-            is Float -> formatted.repr = null
-            is Boolean -> formatted.repr = null
-            is Datetime -> formatted.repr = null
+            is String -> formatted.written = null
+            is Integer -> formatted.written = null
+            is Float -> formatted.written = null
+            is Boolean -> formatted.written = null
+            is Datetime -> formatted.written = null
             is Array -> array.resetFormatting()
             is InlineTable -> table.resetFormatting()
         }
@@ -315,7 +315,7 @@ public sealed interface Value {
             sink.error()?.let { return Err(it) }
             // Keep the spelling, not the decor: whitespace around the text is probably not intended.
             value.rawDecor().clear()
-            value.despan(SourceText(text))
+            value.resolveSpans(SourceText(text))
             return Ok(value)
         }
     }
@@ -343,19 +343,19 @@ internal fun Value.span(): Span? = when (this) {
 
 internal fun Value.decorate(prefix: String, suffix: String) {
     val decor = rawDecor()
-    decor.prefix = RawString.from(prefix)
-    decor.suffix = RawString.from(suffix)
+    decor.prefix = KeptText.from(prefix)
+    decor.suffix = KeptText.from(suffix)
 }
 
-internal fun Value.despan(input: SourceText) {
+internal fun Value.resolveSpans(input: SourceText) {
     when (this) {
-        is Value.String -> formatted.despan(input)
-        is Value.Integer -> formatted.despan(input)
-        is Value.Float -> formatted.despan(input)
-        is Value.Boolean -> formatted.despan(input)
-        is Value.Datetime -> formatted.despan(input)
-        is Value.Array -> array.despan(input)
-        is Value.InlineTable -> table.despan(input)
+        is Value.String -> formatted.resolveSpans(input)
+        is Value.Integer -> formatted.resolveSpans(input)
+        is Value.Float -> formatted.resolveSpans(input)
+        is Value.Boolean -> formatted.resolveSpans(input)
+        is Value.Datetime -> formatted.resolveSpans(input)
+        is Value.Array -> array.resolveSpans(input)
+        is Value.InlineTable -> table.resolveSpans(input)
     }
 }
 

@@ -398,7 +398,7 @@ clippy.exhaustive_enums = "warn"
 
     private fun assertStringValueRoundtrip(input: String, expected: String) {
         val parsed = parseValue(input)
-        // Drops the repr.
+        // Drops the written spelling.
         val value = Value.String(parsed.stringOrNull!!)
         val actual = value.toString()
         parseValue(actual)

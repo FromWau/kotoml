@@ -187,14 +187,14 @@ public class Table() : TableLike, Iterable<Pair<String, Item>> {
     /** The key [name] as stored, whose formatting can be changed in place; null when there is none. */
     override fun keyOrNull(name: String): Key? = items.getEntry(name)?.key
 
-    internal fun despan(input: SourceText) {
+    internal fun resolveSpans(input: SourceText) {
         span = null
-        rawDecor.despan(input)
-        headerSpelling?.despan(input)
+        rawDecor.resolveSpans(input)
+        headerSpelling?.resolveSpans(input)
         for (entry in items.entries()) {
-            entry.key.despan(input)
-            entry.pathSpelling?.despan(input)
-            entry.item.despan(input)
+            entry.key.resolveSpans(input)
+            entry.pathSpelling?.resolveSpans(input)
+            entry.item.resolveSpans(input)
         }
     }
 

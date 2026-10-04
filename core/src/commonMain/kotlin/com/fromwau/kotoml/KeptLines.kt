@@ -18,15 +18,15 @@ internal class KeptLines(
 }
 
 /** The whole lines [prefix] holds above the line it ends on, line breaks included: everything to its last break. */
-internal fun linesAbove(prefix: RawString?): String {
-    val text = prefix?.asStr() ?: return ""
+internal fun linesAbove(prefix: KeptText?): String {
+    val text = prefix?.textOrNull ?: return ""
     return text.substring(0, text.lastIndexOf('\n') + 1)
 }
 
 // Between the elements of an inline table or an array the break ending a line opens the next prefix, so the
 // lines above an element end before its prefix's last break.
-internal fun linesAboveElement(prefix: RawString?): String {
-    val text = prefix?.asStr() ?: return ""
+internal fun linesAboveElement(prefix: KeptText?): String {
+    val text = prefix?.textOrNull ?: return ""
     return text.substring(0, text.lastIndexOf('\n').coerceAtLeast(0))
 }
 
@@ -62,7 +62,7 @@ internal fun RawDecor.prependToPrefix(
     text: String,
     default: String,
 ) {
-    prefix = RawString.from(text + (prefix?.toStrWithDefault(default) ?: default))
+    prefix = KeptText.from(text + (prefix?.textOr(default) ?: default))
 }
 
 /** The body lines that go with removing [removed]: their values' lines and the lines kept among them. */

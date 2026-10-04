@@ -41,7 +41,7 @@ class EditTest {
 
     private fun assertKeyValueRoundtrip(input: String, expected: String) {
         val parsed = Key.parse(input).unwrap()
-        // Drops the repr.
+        // Drops the written spelling.
         val value = Key(parsed.name)
         val actual = value.toString()
         if (!Key.parse(actual).isOk()) fail("invalid `Key`:\n```\n$actual\n```\n")

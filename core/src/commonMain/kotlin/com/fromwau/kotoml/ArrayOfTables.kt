@@ -33,9 +33,9 @@ public class ArrayOfTables() : Iterable<Table> {
         return array
     }
 
-    internal fun despan(input: SourceText) {
+    internal fun resolveSpans(input: SourceText) {
         span = null
-        for (value in values) value.despan(input)
+        for (value in values) value.resolveSpans(input)
     }
 
     override fun iterator(): Iterator<Table> = values.mapNotNull { it.tableOrNull }.iterator()

@@ -23,7 +23,7 @@ import com.fromwau.kern.result.Result
  * ```
  */
 public class TomlArray() : Iterable<Value> {
-    internal var rawTrailing: RawString = RawString()
+    internal var rawTrailing: KeptText = KeptText()
 
     /** Whether the array ends with a comma after its last element. */
     public var trailingComma: Boolean = false
@@ -50,9 +50,9 @@ public class TomlArray() : Iterable<Value> {
 
     /** The text after the last element: whitespace, comments, newlines. */
     public var trailing: String
-        get() = rawTrailing.toStrWithDefault("")
+        get() = rawTrailing.textOr("")
         set(value) {
-            rawTrailing = RawString.from(value)
+            rawTrailing = KeptText.from(value)
         }
 
     /** The text around the array, such as the whitespace between it and the `=` before it. */
@@ -62,11 +62,11 @@ public class TomlArray() : Iterable<Value> {
             rawDecor.set(value)
         }
 
-    internal fun despan(input: SourceText) {
+    internal fun resolveSpans(input: SourceText) {
         span = null
-        rawDecor.despan(input)
-        rawTrailing = rawTrailing.despan(input)
-        for (value in values) value.despan(input)
+        rawDecor.resolveSpans(input)
+        rawTrailing = rawTrailing.resolveSpans(input)
+        for (value in values) value.resolveSpans(input)
     }
 
     override fun iterator(): Iterator<Value> = values.mapNotNull { it.valueOrNull }.iterator()
@@ -210,13 +210,13 @@ public class TomlArray() : Iterable<Value> {
                 .subList(index + 1, values.size)
                 .firstNotNullOfOrNull { it.valueOrNull }
             val replacement = textAfterRemovedElement(
-                prefix = decor.prefix?.asStr().orEmpty(),
-                suffix = decor.suffix?.asStr().orEmpty(),
-                next = next?.rawDecor()?.prefix?.asStr() ?: trailing,
+                prefix = decor.prefix?.textOrNull.orEmpty(),
+                suffix = decor.suffix?.textOrNull.orEmpty(),
+                next = next?.rawDecor()?.prefix?.textOrNull ?: trailing,
                 nextIsElement = next != null,
             )
             if (replacement != null && next != null) {
-                next.rawDecor().prefix = RawString.from(replacement)
+                next.rawDecor().prefix = KeptText.from(replacement)
             } else if (replacement != null) {
                 trailing = replacement
                 // The comma before the removed element ends its line now, ahead of the lines kept.

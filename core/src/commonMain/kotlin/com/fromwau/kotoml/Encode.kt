@@ -1,7 +1,7 @@
 package com.fromwau.kotoml
 
 // Display writes text as it would appear in a document: a span into the original input is never resolved
-// here, so a decor still held as a span prints its default and a repr held as a span prints the default
+// here, so a decor still held as a span prints its default and a spelling held as a span prints the default
 // spelling, as upstream's Display does.
 
 internal fun encodeKey(buf: StringBuilder, key: Key) {
@@ -45,7 +45,7 @@ internal fun encodeFormatted(
 ) {
     val decor = formatted.decor
     decor.prefixEncode(buf, defaultPrefix)
-    buf.append(formatted.displayRepr())
+    buf.append(formatted.displaySpelling)
     decor.suffixEncode(buf, defaultSuffix)
 }
 
@@ -67,7 +67,7 @@ internal fun encodeArray(buf: StringBuilder, array: TomlArray, defaultPrefix: St
     }
     if (array.trailingComma && array.isNotEmpty()) buf.append(',')
 
-    encodeRaw(buf, array.rawTrailing.toStrWithDefault(""))
+    encodeRaw(buf, array.rawTrailing.textOr(""))
     buf.append(']')
     decor.suffixEncode(buf, defaultSuffix)
 }
@@ -105,7 +105,7 @@ internal fun encodeInlineTable(buf: StringBuilder, table: InlineTable, defaultPr
     if (table.trailingComma && table.isNotEmpty()) buf.append(',')
     buf.append(kept)
 
-    encodeRaw(buf, table.rawTrailing.toStrWithDefault(""))
+    encodeRaw(buf, table.rawTrailing.textOr(""))
     buf.append('}')
     decor.suffixEncode(buf, defaultSuffix)
 }
@@ -200,7 +200,7 @@ internal fun encodeDocument(buf: StringBuilder, document: TomlDocument) {
         }
     }
     decor.suffixEncode(buf, DEFAULT_ROOT_DECOR.second)
-    encodeRaw(buf, document.rawTrailing.toStrWithDefault(""))
+    encodeRaw(buf, document.rawTrailing.textOr(""))
 }
 
 private fun visitNestedTables(
@@ -239,7 +239,7 @@ private fun visitNestedTables(
 private fun leafDecorBeforeBracket(path: List<Key>): Pair<RawDecor?, RawDecor> {
     val lastKey = path.lastOrNull() ?: return null to RawDecor.EMPTY
     val leafDecor = lastKey.rawLeafDecor
-    val needsExtraction = leafDecor.prefix?.toStrWithDefault(DEFAULT_KEY_PATH_DECOR.first)?.contains('\n') ?: false
+    val needsExtraction = leafDecor.prefix?.textOr(DEFAULT_KEY_PATH_DECOR.first)?.contains('\n') ?: false
     return if (needsExtraction) leafDecor to RawDecor.EMPTY else null to leafDecor
 }
 
@@ -264,7 +264,7 @@ private fun visitTable(
         }
         val spelledPath = table.headerSpelling?.resolve(path.subList(0, path.size - 1))?.plus(path.last()) ?: path
         val (beforeBracket, keyDecor) = leafDecorBeforeBracket(spelledPath)
-        val keyLines = beforeBracket?.prefix?.asStr().orEmpty()
+        val keyLines = beforeBracket?.prefix?.textOrNull.orEmpty()
         if (table.rawDecor.prefix == null && '#' in keyLines) {
             // The default spacer goes above the key's comments, so they stay right above the header.
             if (keyLines.substringBefore('\n').isNotBlank()) buf.append(defaultDecor.first)

@@ -29,8 +29,8 @@ internal class KeyValue(var key: Key, item: Item) {
     fun prepareFor(next: Item) {
         if (item.isMissing || item.printsHeader() == next.printsHeader()) return
         val decor = key.rawLeafDecor
-        if (decor.prefix?.asStr().isNullOrBlank()) decor.prefix = null
-        if (decor.suffix?.asStr().isNullOrBlank()) decor.suffix = null
+        if (decor.prefix?.textOrNull.isNullOrBlank()) decor.prefix = null
+        if (decor.suffix?.textOrNull.isNullOrBlank()) decor.suffix = null
     }
 }
 
@@ -58,8 +58,8 @@ internal class PathSpelling private constructor(
     }
 
     // The shared keys are resolved first: a table resolves its own keys before the entries below it.
-    fun despan(input: SourceText) {
-        for (key in keys) key.despan(input)
+    fun resolveSpans(input: SourceText) {
+        for (key in keys) key.resolveSpans(input)
         shared?.let { sharedLooks = it.map(::looks) }
         shared = null
     }
@@ -72,7 +72,7 @@ internal class PathSpelling private constructor(
 
         /** Everything about a key that printing a path uses. */
         private fun looks(key: Key): String =
-            "${key.repr?.asRaw()}|${key.rawDottedDecor.prefix}|${key.rawDottedDecor.suffix}"
+            "${key.written?.raw}|${key.rawDottedDecor.prefix}|${key.rawDottedDecor.suffix}"
     }
 }
 

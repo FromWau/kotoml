@@ -17,7 +17,7 @@ import com.fromwau.kern.result.Result
  * ```
  */
 public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
-    internal var rawTrailing: RawString = RawString()
+    internal var rawTrailing: KeptText = KeptText()
 
     /** Whether the table ends with a comma after its last entry. */
     public var trailingComma: Boolean = false
@@ -97,9 +97,9 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
 
     /** The text after the last entry. */
     public var trailing: String
-        get() = rawTrailing.toStrWithDefault("")
+        get() = rawTrailing.textOr("")
         set(value) {
-            rawTrailing = RawString.from(value)
+            rawTrailing = KeptText.from(value)
         }
 
     /**
@@ -169,14 +169,14 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
     /** The key [name] as stored, whose formatting can be changed in place; null when there is none. */
     override fun keyOrNull(name: String): Key? = items.getEntry(name)?.key
 
-    internal fun despan(input: SourceText) {
+    internal fun resolveSpans(input: SourceText) {
         span = null
-        rawDecor.despan(input)
-        rawTrailing = rawTrailing.despan(input)
+        rawDecor.resolveSpans(input)
+        rawTrailing = rawTrailing.resolveSpans(input)
         for (entry in items.entries()) {
-            entry.key.despan(input)
-            entry.pathSpelling?.despan(input)
-            entry.item.despan(input)
+            entry.key.resolveSpans(input)
+            entry.pathSpelling?.resolveSpans(input)
+            entry.item.resolveSpans(input)
         }
     }
 
@@ -364,14 +364,14 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
             val replacement = when (line) {
                 is KeptLines -> line.text + textBefore(next)
                 is VisualValue -> textAfterRemovedElement(
-                    prefix = line.entry.key.rawLeafDecor.prefix?.asStr().orEmpty(),
-                    suffix = line.value.rawDecor().suffix?.asStr().orEmpty(),
+                    prefix = line.entry.key.rawLeafDecor.prefix?.textOrNull.orEmpty(),
+                    suffix = line.value.rawDecor().suffix?.textOrNull.orEmpty(),
                     next = textBefore(next),
                     nextIsElement = next is VisualValue,
                 ) ?: continue
             }
             when (next) {
-                is VisualValue -> next.entry.key.rawLeafDecor.prefix = RawString.from(replacement)
+                is VisualValue -> next.entry.key.rawLeafDecor.prefix = KeptText.from(replacement)
                 is KeptLines -> next.text = replacement
                 null -> {
                     trailing = replacement
@@ -384,7 +384,7 @@ public class InlineTable() : TableLike, Iterable<Pair<String, Value>> {
     }
 
     private fun textBefore(line: BodyLine?): String = when (line) {
-        is VisualValue -> line.entry.key.rawLeafDecor.prefix?.asStr().orEmpty()
+        is VisualValue -> line.entry.key.rawLeafDecor.prefix?.textOrNull.orEmpty()
         is KeptLines -> line.text
         null -> trailing
     }

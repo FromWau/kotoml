@@ -280,8 +280,8 @@ section 1.
 | `impl FromStr for Key` | `Key.parse` | done | `` EditTest.`a key built from a name prints with the simplest quoting that parses back` `` |
 | `impl Display / Clone / Hash / Ord / Eq for Key`, `From<&str / String>` | `toString()`, `copy()`, `hashCode` / `compareTo` / `equals` by text, the constructor | done | |
 | `impl Deref<Target = str> / Borrow<str> for Key`, `PartialEq<str / &str / String>`, `From<Key> for String` | `name` | n/a | Kotlin has no deref; compare `key.name` |
-| `RawString` (`as_str`, `span`, `Default`, `From<&str / String / &String / Box<str>>`) | internal; decor and trailing text are `String`s | done | `` EditTest.`a parsed document keeps the whitespace and comments around every key and value` `` |
-| `Repr` (`as_raw`, `span`) | internal; a value or key shows its `spelling` | done | `` EditTest.`a parsed document keeps the whitespace and comments around every key and value` `` |
+| `RawString` (`as_str`, `span`, `Default`, `From<&str / String / &String / Box<str>>`) | internal `KeptText`; decor and trailing text are `String`s | done | `` EditTest.`a parsed document keeps the whitespace and comments around every key and value` `` |
+| `Repr` (`as_raw`, `span`) | internal `Spelling` (`raw`, `span`); a value or key shows its `spelling` | done | `` EditTest.`a parsed document keeps the whitespace and comments around every key and value` `` |
 | `Decor` (`new`, `clear`, `prefix`, `set_prefix`, `suffix`, `set_suffix`, `Default`) | immutable `data class Decor(prefix: String?, suffix: String?)`; `Decor()` for `default` and `clear`, `copy(prefix = …)` for `set_prefix` | done | `` EditTest.`a document's decor and trailing text print around its tables` ``, `ValueTest` |
 | `Formatted` (`new`, `value`, `into_value`, `as_repr`, `default_repr`, `display_repr`, `span`, `decor_mut`, `decor`, `fmt`), `Display`, `Eq` | internal; each scalar `Value` has `value`, `spelling`, `displaySpelling`, `decor` and `resetFormatting()` | done | `EditDocTest`, `ValueTest` |
 | `ValueRepr` (sealed trait) | | n/a | each scalar `Value` has its own constructor |

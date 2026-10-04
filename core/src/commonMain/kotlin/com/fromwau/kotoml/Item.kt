@@ -336,12 +336,12 @@ public class Item private constructor(
         is Content.ArrayOfTablesContent -> content.array.span
     }
 
-    internal fun despan(input: SourceText) {
+    internal fun resolveSpans(input: SourceText) {
         when (val content = content) {
             Content.None -> {}
-            is Content.ValueContent -> content.value.despan(input)
-            is Content.TableContent -> content.table.despan(input)
-            is Content.ArrayOfTablesContent -> content.array.despan(input)
+            is Content.ValueContent -> content.value.resolveSpans(input)
+            is Content.TableContent -> content.table.resolveSpans(input)
+            is Content.ArrayOfTablesContent -> content.array.resolveSpans(input)
         }
     }
 

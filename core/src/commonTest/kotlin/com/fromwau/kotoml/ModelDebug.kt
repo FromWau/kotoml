@@ -4,9 +4,9 @@ import com.fromwau.kotoml.writer.rustDebug
 
 // Upstream's derived and hand-written `Debug` for the document model, field for field.
 
-internal fun RawString.dbg(): Dbg {
+internal fun KeptText.dbg(): Dbg {
     val span = span()
-    val text = asStr()
+    val text = textOrNull
     return when {
         span != null -> lit("${span.start}..${span.end}")
         text.isNullOrEmpty() -> lit("empty")
@@ -14,7 +14,7 @@ internal fun RawString.dbg(): Dbg {
     }
 }
 
-internal fun Repr.dbg(): Dbg = asRaw().dbg()
+internal fun Spelling.dbg(): Dbg = raw.dbg()
 
 private fun Span?.dbgOption(): Dbg = option(this) { lit("${it.start}..${it.end}") }
 
@@ -27,7 +27,7 @@ internal fun RawDecor.dbg(): Dbg = struct(
 internal fun Key.dbg(): Dbg = struct(
     "Key",
     "key" to str(name),
-    "repr" to option(repr) { it.dbg() },
+    "repr" to option(written) { it.dbg() },
     "leaf_decor" to rawLeafDecor.dbg(),
     "dotted_decor" to rawDottedDecor.dbg(),
 )
@@ -35,7 +35,7 @@ internal fun Key.dbg(): Dbg = struct(
 internal fun <T : Any> Formatted<T>.dbg(value: (T) -> Dbg): Dbg = struct(
     "Formatted",
     "value" to value(this.value),
-    "repr" to (repr?.dbg() ?: str("default")),
+    "repr" to (written?.dbg() ?: str("default")),
     "decor" to decor.dbg(),
 )
 

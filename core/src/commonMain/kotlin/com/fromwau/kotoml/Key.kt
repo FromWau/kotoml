@@ -25,7 +25,7 @@ public class Key(
     leafDecor: Decor = Decor(),
     dottedDecor: Decor = Decor(),
 ) : Comparable<Key> {
-    internal var repr: Repr? = null
+    internal var written: Spelling? = null
     internal val rawLeafDecor: RawDecor = RawDecor()
     internal val rawDottedDecor: RawDecor = RawDecor()
 
@@ -34,23 +34,23 @@ public class Key(
         rawDottedDecor.set(dottedDecor)
     }
 
-    internal fun withReprUnchecked(repr: Repr): Key {
-        this.repr = repr
+    internal fun withSpelling(spelling: Spelling): Key {
+        this.written = spelling
         return this
     }
 
     /** The text the key was written as, such as `"a b"` for the key `a b`, or null when it has none of its own. */
     public val spelling: String?
-        get() = repr?.asRaw()?.asStr()
+        get() = written?.raw?.textOrNull
 
     /** The text the key prints as: its [spelling], or the default one, bare when it can be. */
     public val displaySpelling: String
-        get() = spelling ?: defaultRepr()
-            .asRaw()
-            .asStr()
+        get() = spelling ?: defaultSpelling()
+            .raw
+            .textOrNull
             .orEmpty()
 
-    internal fun defaultRepr(): Repr = Repr.newUnchecked(
+    internal fun defaultSpelling(): Spelling = Spelling(
         TomlKeyBuilder(name)
             .asDefault()
             .toTomlKey(),
@@ -70,24 +70,24 @@ public class Key(
             rawDottedDecor.set(value)
         }
 
-    internal fun span(): Span? = repr?.span()
+    internal fun span(): Span? = written?.span()
 
-    internal fun despan(input: SourceText) {
-        rawLeafDecor.despan(input)
-        rawDottedDecor.despan(input)
-        repr = repr?.despan(input)
+    internal fun resolveSpans(input: SourceText) {
+        rawLeafDecor.resolveSpans(input)
+        rawDottedDecor.resolveSpans(input)
+        written = written?.resolveSpans(input)
     }
 
     /** Drops the key's spelling and decor so it prints in its default form. */
     public fun resetFormatting() {
-        repr = null
+        written = null
         rawLeafDecor.clear()
         rawDottedDecor.clear()
     }
 
     /** A copy of this key with its spelling and decor. */
     public fun copy(): Key = Key(name).also {
-        it.repr = repr
+        it.written = written
         it.rawLeafDecor.assign(rawLeafDecor)
         it.rawDottedDecor.assign(rawDottedDecor)
     }
@@ -115,7 +115,7 @@ public class Key(
             val sink = TomlSink(text)
             val key = parseSimpleKeyItem(source, sink, version)
             sink.error()?.let { return Err(it) }
-            key.despan(SourceText(text))
+            key.resolveSpans(SourceText(text))
             return Ok(key)
         }
 
@@ -132,7 +132,7 @@ public class Key(
             val keys = parseKeyPath(source, sink, version)
             sink.error()?.let { return Err(it) }
             val input = SourceText(text)
-            for (key in keys) key.despan(input)
+            for (key in keys) key.resolveSpans(input)
             return Ok(keys)
         }
     }

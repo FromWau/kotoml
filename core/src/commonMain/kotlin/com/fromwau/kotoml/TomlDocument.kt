@@ -30,26 +30,26 @@ import kotlinx.io.readByteArray
 public class TomlDocument internal constructor(
     /** The root table, holding the document's top-level keys and, through them, every table. */
     public val root: Table,
-    internal var rawTrailing: RawString,
+    internal var rawTrailing: KeptText,
     internal val lineEnding: String,
     // The text this document was parsed from, kept to print it back without a final newline it never had.
     private val parsedFrom: String?,
 ) : Iterable<Pair<String, Item>> {
 
     /** An empty document. */
-    public constructor() : this(Table.withPosition(0), RawString(), "\n", null)
+    public constructor() : this(Table.withPosition(0), KeptText(), "\n", null)
 
     /** A document whose root is [root], held as is rather than copied. */
-    public constructor(root: Table) : this(root, RawString(), "\n", null)
+    public constructor(root: Table) : this(root, KeptText(), "\n", null)
 
     /** The root table's key/item pairs, in order. */
     override fun iterator(): Iterator<Pair<String, Item>> = root.iterator()
 
     /** The text after the last item, such as comments and blank lines at the end of the file. */
     public var trailing: String
-        get() = rawTrailing.toStrWithDefault("")
+        get() = rawTrailing.textOr("")
         set(value) {
-            rawTrailing = RawString.from(value)
+            rawTrailing = KeptText.from(value)
         }
 
     /** The slot at [key] of the root table; see [Table.get]. */
