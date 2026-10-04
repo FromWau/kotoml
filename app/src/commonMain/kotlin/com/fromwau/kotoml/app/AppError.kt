@@ -208,6 +208,11 @@ internal sealed interface TaggedJsonProblem {
     @Serializable
     @SerialName("BadValue")
     data class BadValue(val tomlType: String, val value: String) : TaggedJsonProblem
+
+    /** A string or key holds half of a surrogate pair, which UTF-8 cannot write. */
+    @Serializable
+    @SerialName("NotUnicode")
+    data object NotUnicode : TaggedJsonProblem
 }
 
 internal fun TaggedJsonProblem.describe(): String = when (this) {
@@ -218,4 +223,5 @@ internal fun TaggedJsonProblem.describe(): String = when (this) {
     TaggedJsonProblem.ValueNotString -> "\"value\" must be a string"
     is TaggedJsonProblem.ExtraKey -> "unexpected key \"$key\""
     is TaggedJsonProblem.BadValue -> "\"$value\" is not a valid $tomlType"
+    TaggedJsonProblem.NotUnicode -> "half of a surrogate pair, which UTF-8 cannot write"
 }

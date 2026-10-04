@@ -1,6 +1,7 @@
 package com.fromwau.kotoml.app
 
 import com.fromwau.kern.result.Result
+import com.fromwau.kern.result.flatMap
 import com.fromwau.kern.result.map
 import com.fromwau.kern.result.mapError
 import com.fromwau.klap.CliError
@@ -65,7 +66,7 @@ internal data class Checked(val valid: Boolean)
 
 /** What `encode` prints: the document toml-test's tagged JSON on standard input describes. */
 private fun encode(): Result<String, AppError> = when (val read = readInput(null)) {
-    is Result.Success -> parseTaggedJson(read.value.decodeToString()).map { it.toString() }
+    is Result.Success -> parseTaggedJson(read.value.decodeToString()).flatMap { it.encodedText() }
     is Result.Error -> read
 }
 

@@ -6,11 +6,6 @@ reproduced on `dev` at `2781090` before it was filed.
 
 ## Defects
 
-- [ ] **2. CLI `encode` accepts JSON one level deeper than kotoml parses back.** `app/.../TaggedJson.kt:67`, `:115`
-  80 nested objects encode, and the output is refused with `KeyTooDeep`: the parser refuses a key inside the 80th
-  inline table (`EditParser.kt:508`), `TaggedJson` counts that level as allowed. Goals 3, 15.
-- [ ] **3. CLI `encode` prints a lone surrogate.** `app/.../Main.kt` `encode()`
-  It prints with `toString()`, bypassing the `NotUnicode` check `writeTo` has, and exits 0. Goals 3, 15.
 - [ ] **4. `encodeInto` rewrites a number that reads the same.** `serialization/.../DocumentMerger.kt:428`
   `d = 1` into a `Double` field becomes `d = 1.0`; `f = 0.1000000001` into a `Float` becomes `f = 0.1`. The
   serialization README promises such values are left as written. Goals 4, 12, 14.
@@ -77,6 +72,17 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **3. CLI `encode` prints a lone surrogate.** `app/.../Main.kt` `encode()`
+  It prints with `toString()`, bypassing the `NotUnicode` check `writeTo` has, and exits 0. Goals 3, 15.
+  **Verdict 2026-10-05:** fixed. `encode` writes through core's `writeTo`, and its `NotUnicode` becomes
+  `NotTaggedJson(path, TaggedJsonProblem.NotUnicode)`, exit 1. Two tests in `TaggedJsonTest`; app JVM green.
+
+- [x] **2. CLI `encode` accepts JSON one level deeper than kotoml parses back.** `app/.../TaggedJson.kt:67`, `:115`
+  80 nested objects encode, and the output is refused with `KeyTooDeep`: the parser refuses a key inside the 80th
+  inline table (`EditParser.kt:508`), `TaggedJson` counts that level as allowed. Goals 3, 15.
+  **Verdict 2026-10-05:** fixed. An object as deep as the limit is refused when it holds a key, the parser's own
+  rule. Two tests in `TaggedJsonTest`; app JVM green.
 
 - [x] **1. Array-of-tables headers print the first element's spelling.** `core/.../Encode.kt:305`
   `[[x]]` then `[["x"]]` prints `[[x]]` twice; `[[a.b]]` then `[[a . b]]` prints a mix. The leaf key is the one

@@ -130,6 +130,42 @@ class TaggedJsonTest {
         assertTrue(TomlDocument.parse(document.toString()) is Result.Success)
     }
 
+    private fun parsedOrFail(json: String): TomlDocument = when (val parsed = parseTaggedJson(json)) {
+        is Result.Success -> parsed.value
+        is Result.Error -> fail("${parsed.error}")
+    }
+
+    @Test
+    fun `a key in a table as deep as TOML nests is refused since TOML reads no key there`() {
+        val limit = TomlDocument.NESTING_LIMIT
+        val value = "{\"type\":\"integer\",\"value\":\"1\"}"
+        val json = "{\"a\":" + "{\"k\":".repeat(limit) + value + "}".repeat(limit + 1)
+        assertEquals(Result.Error(AppError.JsonTooDeep(limit + 1)), parseTaggedJson(json))
+    }
+
+    @Test
+    fun `a key in a table one level less deep encodes to TOML that reads back`() {
+        val limit = TomlDocument.NESTING_LIMIT
+        val value = "{\"type\":\"integer\",\"value\":\"1\"}"
+        val json = "{\"a\":" + "{\"k\":".repeat(limit - 1) + value + "}".repeat(limit)
+        assertTrue(TomlDocument.parse(parsedOrFail(json).toString()) is Result.Success)
+    }
+
+    @Test
+    fun `a string holding half of a surrogate pair is refused at its path`() {
+        val json = "{\"t\":{\"s\":{\"type\":\"string\",\"value\":\"a\\ud800\"}}}"
+        assertEquals(
+            Result.Error(AppError.NotTaggedJson("$.t.s", TaggedJsonProblem.NotUnicode)),
+            parsedOrFail(json).encodedText(),
+        )
+    }
+
+    @Test
+    fun `a key holding half of a surrogate pair is refused`() {
+        val json = "{\"\\udc00\":{\"type\":\"string\",\"value\":\"a\"}}"
+        assertTrue(parsedOrFail(json).encodedText() is Result.Error)
+    }
+
     @Test
     fun `JSON nested far deeper is refused instead of crashing`() {
         val json = "{\"a\":" + "[".repeat(50_000) + "]".repeat(50_000) + "}"

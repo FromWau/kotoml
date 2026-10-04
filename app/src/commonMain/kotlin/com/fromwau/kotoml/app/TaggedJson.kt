@@ -7,12 +7,16 @@ import com.fromwau.kern.result.getOrElse
 import com.fromwau.kotoml.Datetime
 import com.fromwau.kotoml.Time
 import com.fromwau.kotoml.TomlDocument
+import com.fromwau.kotoml.TomlIoError
+import com.fromwau.kotoml.TomlWriteError
 import com.fromwau.kotoml.InlineTable
 import com.fromwau.kotoml.Item
 import com.fromwau.kotoml.StandardTable
 import com.fromwau.kotoml.TextPosition
 import com.fromwau.kotoml.TomlArray
 import com.fromwau.kotoml.Value
+import kotlinx.io.Buffer
+import kotlinx.io.readString
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -86,6 +90,21 @@ private fun String.nesting(): Int {
     return deepest
 }
 
+/** This document's text, or the tagged JSON path of the first string or key that UTF-8 cannot write. */
+internal fun TomlDocument.encodedText(): Result<String, AppError> {
+    val buffer = Buffer()
+    return when (val written = writeTo(buffer)) {
+        is Result.Success -> Ok(buffer.readString())
+        is Result.Error -> when (val error = written.error) {
+            is TomlWriteError.NotUnicode -> {
+                val path = error.keyPath?.joinToString("") { ".$it" }.orEmpty()
+                notTagged("$$path", TaggedJsonProblem.NotUnicode)
+            }
+            is TomlIoError -> error("a Buffer accepts every write")
+        }
+    }
+}
+
 /** The document toml-test's tagged JSON [text] describes, which its encoder protocol reads. */
 internal fun parseTaggedJson(text: String): Result<TomlDocument, AppError> {
     // kotlinx's JSON reader recurses once per level, which on Kotlin/Native crashes rather than fails. Brackets
@@ -129,7 +148,10 @@ private fun JsonElement.toValue(
             // A table's own `type` key holds a tagged object, never a string, so a string here tags a value.
             val type = get("type")
             if (type is JsonPrimitive && type.isString) return taggedValue(type.content, path)
-            if (tooDeep) return Err(AppError.JsonTooDeep(MAX_JSON_NESTING))
+            // The parser takes as many nested inline tables as arrays, but refuses a key inside the deepest one.
+            if (tooDeep || (depth == TomlDocument.NESTING_LIMIT && isNotEmpty())) {
+                return Err(AppError.JsonTooDeep(MAX_JSON_NESTING))
+            }
             val table = InlineTable()
             for ((key, element) in this) {
                 when (val value = element.toValue("$path.$key", depth + 1)) {
