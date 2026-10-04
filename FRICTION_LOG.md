@@ -1050,3 +1050,290 @@ The `mavenLocal` I had added to klap's `settings.gradle.kts` is removed, so that
 ### 61. 2026-10-03 17:06 - kotoml resolves kern and klap from the release repository only
 
 **Got:** klap 0.5.0 is released (metadata release 0.5.0; `klap-jvm-0.5.0.jar` returns 200). `chore/no-maven-local` (`6ac31c1`) removes the `com.fromwau` `mavenLocal` from `settings.gradle.kts`. The clean build with `--refresh-dependencies` is green: core 1142, serialization 362, app 107, toml-test included. No docs mentioned mavenLocal. RESOLVES the open item after entry 58.
+
+### 62. 2026-10-03 23:45 - A sweep for Rust left in the code, by three read-only agents; supersedes entry 40's survey
+
+**Got:** core main, core tests, and everything else (serialization, app, build-logic, docs) were each read in full.
+I checked these claims myself: the broken `[TomlArray.fmt]` link (`Value.kt:275`), that `BorrowedOutput` and
+`FirstErrorSink` are unused, the `Cargo.toml` examples, and 330 `unwrap`/`unwrapErr` uses.
+- **User-facing:** `Cargo.toml` / `.package.version` in `--help`, the READMEs and the `TomlDocument` KDoc; `Ok(...)` in
+  serialization KDoc; public `Encoding.Ml*`, `IntegerRadix.value()`, `Offset.Custom(Short)`, `ScalarKind : Comparable`,
+  `TableLike.items()`/`key()`; `ReadFailure.Io`/`IsADirectory` on the `--json` wire.
+- **Dead because of Rust:** `BorrowedOutput` is the only builder that refuses text, so with it gone the public
+  `AllocationFailed` cannot happen and the `Boolean` returns of `pushStr`/`pushChar` mean nothing. The `FmtWrite`
+  plumbing has a single writer that never fails.
+- **Internal renames:** `Repr`, `RawString` accessors, `despan`, `Raw.asStr`/`len()`, `Token`/`Event` accessor
+  functions, `into*`, the IndexMap vocabulary, `keyvalSep`, `parseRust*`, `Span.DEFAULT`, the duplicate
+  `StringEncoding`, serialization's `TomlNode.Struct`/`Sequence`.
+- **Tests:** `unwrap`/`unwrapErr`/`isOk`, the snapbox-named asserts, 13 `fun t(...)`, `assertTrue(x != null)` with `!!`,
+  9 doctest ports that assert nothing, one duplicate test.
+- **PARITY.md:** four errors (`:toml` at line 3, two test names that match nothing, a blank line that breaks a table,
+  "(goal 2)").
+- **Keep:** `RustDebug.kt`, `.dbg()` and `RustFloat.kt`, which exist to compare with upstream's snapshots and the float oracle.
+
+**Owner ruling (2026-10-03 23:45):** `Ok` and `Err` stay; they are kern:result's names, not kotoml's.
+
+**Open for the owner:** `.getOrNull()!!` in README examples; renaming `ReadFailure` cases, which changes `--json`; the
+design questions (public `Span` counts UTF-8 bytes, `Value.String` shadows `kotlin.String`, a domain name for
+`TableLike`); the order of the branches.
+
+### 63. 2026-10-03 23:58 - Owner rulings on entry 62: `getOrElse { error(it) }` in examples; `ReadFailure` stays
+
+**Decided by the owner:**
+- The 14 README and KDoc examples (and their 2 mirrors in `ReadmeTest`) use `.getOrElse { error(it) }` instead of
+  `.getOrNull()!!`. Done on `docs/get-or-else`, uncommitted; `./gradlew check` green.
+- `ReadFailure`'s `NotFound`, `IsADirectory`, `PermissionDenied` and `Io` stay: plain English (`IsADirectory` is POSIX's
+  `EISDIR` text) that only coincides with Rust's `io::ErrorKind`, and renaming would change `--json`.
+
+### 64. 2026-10-04 05:19 - Entry 62's user-facing fixes and public API changes, on `fix/rust-public-surface`
+
+**Got:** uncommitted, stacked on `docs/get-or-else`. Clean build green: core 1142, serialization 362, app 107.
+- **Examples:** `Cargo.toml` / `.package.version` are now `config.toml` with `.servers[N]`, in `--help`, app's
+  README, core's README and `TomlDocument`'s KDoc. Each app README line was run on the native binary.
+- **KDoc:** `[TomlArray.fmt]` links `resetFormatting`; serialization's `Ok(...)` reads `Result.Success(...)`;
+  `Item.assign` no longer cites Rust.
+- **Public API:** `Encoding` / `TokenKind` `Ml*` are `Multiline*`; `IntegerRadix.base` replaces `value()`;
+  `Offset.Custom(minutes: Int)`; `ScalarKind` is not `Comparable` (nothing ordered it).
+- **Snapshots unchanged:** `ParserDebug` maps `Multiline` back to upstream's `Ml`.
+- **PARITY.md:** the four errors, plus rows for each API change.
+
+**My miss:** the whole-word rename also rewrote upstream's Debug text inside `LexerTest`'s expected strings; the
+JVM tests caught it (3 failures) and those 26 literals went back to `Ml*`.
+
+**Wire change, not raised before building:** `ParseErrorReason.InvalidString` / `MultilineKey` serialise
+`encoding`, so `--json` now says `"encoding":"MultilineBasicString"` (measured on the binary).
+
+### 65. 2026-10-04 05:24 - Completes entry 64: `TableLike.entries` and `keyOrNull(name)`
+
+**Got:** entry 64 had left out `TableLike.items()` / `key(name)`, which the owner approved with the rest. Now
+`val entries` and `keyOrNull(name)` on `TableLike`, `Table` and `InlineTable`; callers in core, serialization, app
+and the tests follow the compiler; PARITY's rows use the new names. Clean build green: core 1142, serialization 362,
+app 107. The interface's own name stays `TableLike` (a separate design question).
+
+### 66. 2026-10-04 05:42 - Dead code from the Rust port removed, on `chore/dead-rust-code`
+
+**Got:** uncommitted, stacked on `fix/rust-public-surface`. Clean build green: core 1142, serialization 362, app 107.
+- **Text that could be refused:** `BorrowedOutput` was the only builder that refused text, so with it gone the public
+  `ParseErrorReason.AllocationFailed` could never be reported. Both are gone, and `DecodedStringBuilder` has
+  `append` / `appendCodePoint` returning `Unit` instead of `pushStr` / `pushChar` returning `Boolean`.
+- **`FmtWrite`:** its only writer never failed. The writer functions take a `StringBuilder`; `FmtError`,
+  `StringWriter` and `orBail` are gone.
+- **Unused:** `FirstErrorSink`, `Raw.asBytes`, the no-op `decodeWhitespace`, `Event.newUnchecked`,
+  `TomlInteger.of(ULong)`, the writer's `openArrayOfTablesHeader` / `closeArrayOfTablesHeader` / `openComment`,
+  and the test helpers `fileExists` and `range`.
+- **One test reshaped:** the ported `document_display_propagates_write_errors` fed `toString()` into its own failing
+  writer, so it tested only that writer. It keeps its CRLF assertion as `a line inserted into a CRLF document ends
+  with CRLF`; the failing-sink half is `TomlDocumentTest`'s existing `writeTo` test. PARITY maps the upstream test
+  to both and records every removal.
+
+### 67. 2026-10-04 06:28 - Entry 62's internal renames, on `refactor/internal-names`, judged by Kotlin's conventions
+
+**Got:** four commits, each with a clean build green (core 1142, serialization 362, app 107):
+- `e85745b` spelling: `Repr` is `Spelling`, `RawString` is `KeptText` (the approved `SourceText` already named the
+  parse input; owner picked `KeptText`), `despan` is `resolveSpans`, a stored spelling is `written`.
+- `1fcb5b0` parser: `Token` and `Event` are data classes with properties; `Raw.text` / `length`; `toList`,
+  `next` / `peek`, `Span.EMPTY`.
+- `1214e87` collections: `put`, `remove`, `retainAll`, `deepCopy`, `entries`; `into*` that empty their source are
+  `moveTo*`.
+- writer and numbers: `parseTomlFloat` / `parseTomlLong`, `compareByCodePoint`, `toShortestDecimalString`, spelled-out
+  separators, and the writer uses `Encoding`.
+
+**Owner correction (2026-10-04):** a name is not wrong because Rust uses it too; Kotlin's conventions (stdlib,
+collections, kotlinx) decide. `KeyValuePairs.sortBy(comparator)` went back to `sortBy`. Dropped from the plan:
+`TomlNode.Struct` (kotlinx says `beginStructure`), `Sequence`, `TomlImpl` (kotlinx has `JsonImpl`), `escapeDebug`.
+
+**Tooling note:** `.span()` to `.span` could not be a text replace (other types keep `span()`, and test snapshot strings
+hold upstream's field names). Renames went through compiler errors instead: change the declaration, rewrite exactly
+the reported positions. That also rewrote two `List.first()` calls at cascade positions to `peek()`; caught by the
+next compile and put back.
+
+### 68. 2026-10-04 06:47 - Entry 62's test-helper pass, on `test/kotlin-helpers`
+
+**Got:** five commits, each with a clean build green and test counts unchanged (core 1142, serialization 362, app 107):
+- `05d07f8`: `getOrFail` / `errorOrFail` replace `unwrap` / `unwrapErr` in both modules; `isOk` is gone (`assertIs`).
+- `bb486f3`: `assertSnapshot`, `assertDebugSnapshot`, `assertFileSnapshot` replace the snapbox names.
+- `6783bcd`: kotlin.test's `assertNotNull` / `assertNull` / `assertIs` replace `assertTrue` on null and type checks;
+  their contracts smart-cast, so a following `!!` became the value `assertNotNull` returns.
+- `1673a41`: the 13 ported `t(...)` helpers and `tRecurse` are named for what they assert (`assertLexes`,
+  `assertEvents`, `assertRefusedWith`, ...); `Repr` round trips are `Spelling` round trips; `producesDisplay` is
+  `prints`.
+- `d37d485`: nine ported doctests that asserted nothing now check what they build (all nine expectations held on
+  the first run); the duplicate decor test checks `Decor()`.
+
+**Found on the way:** `Result.Success` in a test without kern's import resolves to the stdlib's `kotlin.Result`;
+three files needed the import added.
+
+### 69. 2026-10-04 06:54 - Owner decisions on entry 62's design questions
+
+**Decided by the owner:**
+- **`TableLike`:** option A. `Table` becomes the sealed interface over `StandardTable` (today's `Table`) and
+  `InlineTable`, as the stdlib names a supertype for the concept (`Collection`, `CharSequence`) and TOML calls both
+  "tables". `Item.tableOrNull` returns either kind; `standardTableOrNull` is the `[section]` kind.
+- **Public `Span`:** `String` indices instead of UTF-8 bytes, converted once when a `TomlParseError` is built;
+  internal spans stay bytes. `InvalidUtf8`'s `validUpTo` / `errorLength` stay bytes. `--json` offsets change.
+- **`Value.String` and siblings shadowing Kotlin's types:** fine, unchanged.
+- **Getter-style functions:** become properties.
+
+### 70. 2026-10-04 07:28 - Entry 69's decisions built, on `refactor/kotlin-api`
+
+**Got:** four commits; a full `./gradlew clean build --rerun-tasks` is green (core 1146, serialization 362, app 107):
+- `c9caaf9` getters as properties: `span`, `spelling`, `rawDecor`, `input`, `remaining`, `TokenKind.encoding`,
+  `AppError.exitCode` and a few private ones. Functions that render, scan or mutate stay functions; the local
+  `isPrefix()` stays one because Kotlin has no local getters.
+- `566abcb` a parse error's `span` / `context` are `String` indices (converted once in `TomlSink`); invalid UTF-8
+  gets an empty span where the valid text ends. Two new tests pin both. `render()` keeps upstream's caret count
+  in UTF-8 bytes: counting characters would have changed copied upstream snapshots (`bom-not-at-start-01`).
+  Measured on the native binary: `"é😀"` before the error moves `asdf` from byte 17 to index 14.
+- `8846cd3` `Table` is the sealed interface over `StandardTable` and `InlineTable`; `tableOrNull` reads either
+  kind, `standardTableOrNull` the `[section]` kind; `standardTableOf` / `toStandardTable`. PARITY was edited per
+  column so upstream's own `Table` / `TableLike` names stay.
+- `e748749` lines the renames pushed past 120 columns.
+
+**Also fixed:** core's README still said `key(name)`, stale since `keyOrNull`.
+
+**My miss:** one build died (owner: the laptop ran out of memory and the Gradle daemon was killed) and my command
+committed anyway because it chained with `;`. The full rerun above is the evidence for that commit. Commit only
+behind `&&` after the build.
+
+### 71. 2026-10-04 07:39 - A sweep for sentinel values; the parser's four fixed on `fix/sentinels`
+
+**Got:** 11 sentinels in main code; none reached a caller. `007d5c3`, clean build green (core 1146, serialization 362,
+app 107), first errors unchanged across the 560 upstream snapshots and the toml-test invalid suite:
+- `SourceText.slice` refuses a span outside its input (`require`) instead of returning `""`.
+- `keySpan` returns `Span?`: a key without a spelling reports no position instead of a fake `0..0` (line 1,
+  column 1). Not `checkNotNull`, so the parse still ends in its typed error.
+- The root table's span stays `null`, as every other table without one, instead of `Span.EMPTY`.
+- A value that failed to parse is `null` (`value`, `onScalar`, `parseValueItem`) and is skipped, instead of the
+  placeholders `Integer(0)`, `NaN`, `Long.MAX_VALUE` and `Datetime(null, null, null)`. Checked first: every parse
+  entry point returns `Err` once the sink holds an error. `Value.parse` treats a null without an error as a bug.
+
+**Left alone, with the Kotlin reference:** `indexOf` returning -1 (as `String.indexOf`), `Long.MIN_VALUE` as a sort
+key's lower bound, the null objects `IGNORE` / `DISCARD` / `RawDecor.EMPTY`, `Offset.Unknown` (RFC 3339's
+`-00:00`), `Span(0, 0)` in the decoders (a real position), `seek(-1)`, jq's `Index(-1)`.
+
+**Open:**
+- Small local ones: `runStart = -1` (`DecodeString.kt`), `-1` as a map key (`ListPlan.kt`), `key = ""` before a map
+  key is known (`NodeEncoder.kt`).
+- `Datetime` (public) is three nullable fields, so `Datetime()` with no date and no time can be built. A sealed
+  interface of the four TOML kinds would rule that out; a public API change, the owner's call.
+
+### 72. 2026-10-04 07:44 - Completes entry 71's small local sentinels
+
+**Got:** a second commit on `fix/sentinels`, clean build green (core 1146, serialization 362, app 107): the invalid run
+of an unquoted key is a `Span?`, `ListPlan`'s "nothing kept before" is a `null` map key, and `MapEncoder`'s key is
+`null` until known, read through a `checkNotNull`. Its `elementName` is only asked by `shouldEncodeElementDefault`,
+which generated class serializers call and map serializers never do, so the old stale key could not surface.
+
+**Still open:** the sealed `Datetime`, the owner's call.
+
+
+### 73. 2026-10-04 07:53 - `Datetime` is a sealed interface of TOML's four kinds (owner: "sealed")
+
+**Got:** `634cad6` on `refactor/sealed-datetime` (stacked on `fix/sentinels`); build green (core 1148, serialization
+362, app 107):
+- `Datetime.OffsetDateTime`, `LocalDateTime`, `LocalDate`, `LocalTime` replace the data class of three nullable
+  parts. Nested, so they never clash with kotlinx-datetime's `LocalDate`. `date`, `time` and `offset` still read
+  on every kind, narrowed to non-null on the kinds that have them; ordering, `toString` and `parse` unchanged.
+- Serialization's decoding helper is generic over the subtype (`is D` instead of comparing kinds), so the four
+  kotlinx-datetime conversions lost their `!!`. The app's and the test harness's tagged JSON use a `when`.
+- One new test pins the kind each of the four forms parses to; core's README example and PARITY follow.
+
+**Found:** a property declared on the sealed interface cannot be smart-cast (`datetime.time != null &&
+datetime.time.second`), so the TOML 1.0 seconds check reads it once with `?.let`.
+
+### 74. 2026-10-04 07:59 - Corrects entry 73: a `when` on the kind does smart-cast (owner)
+
+**Got:** entry 73 said a sealed interface's property cannot be smart-cast and used `time?.let`. Only the property
+read through the interface cannot; a `when (datetime)` narrows the value itself, and each kind's `time` is then a
+non-null `Time`. The TOML 1.0 seconds check is now that `when`, amended into the commit (`5f6b6f3`); build green.
+
+**My miss:** I stated the limit wider than it is.
+
+### 75. 2026-10-04 10:09 - Deslop of the whole repository, module by module (owner: sequential)
+
+**Got:** five commits on `chore/deslop`, each after a green build (core 1148, serialization 362, app 107):
+- `295907f` docs: `.env.example` named kern; PARITY's sorting row argued in the old table names; one README wrap.
+  A script checked every kotoml-side name the READMEs and PARITY cite against the code; app's README, which no
+  test mirrors, was run on the native binary line by line.
+- `a90641a` app: `\u` in a filter key read a sign as a hex digit (`\u-041` became U+FFBF; checked with a script);
+  the jq bare-key rule lived twice (`isBareKeyChar`, `locate`); `SelectionSerializer.deserialize` and its JSON
+  reader had no caller but their own test, klap never decodes; three KDoc slips.
+- `e75a083` serialization: `decodeFromDocument` rebuilt `StandardTable.toInput()` and the merger rebuilt
+  `Item.tableOrNull`.
+- `c061010` core: the writer re-implemented the decoder's unquoted-key check (now `isUnquotedKeyChar`);
+  `keySeparator` had no caller.
+- core tests, serialization tests: nothing to change.
+
+**Left alone, on purpose:** the ported parsers' size and nesting (`Parser.kt` 1144 lines, depth 8), which mirror
+upstream for PARITY; the identical Linux and Apple `readStdinChunk` (a shared POSIX source set costs more than 4
+lines); `leavesOutDefaults` (only a custom list serializer can set it, but one can); the long KDoc on grammar,
+contracts and hazards.
+
+**Open, the owner's call:** the published jars ship only kotoml's MIT `LICENSE` and the POM declares MIT, while
+core is a port of toml-rs (MIT or Apache-2.0) whose notice MIT requires in copies. The Arch package already ships
+both upstream licenses.
+
+### 76. 2026-10-04 10:23 - Full review by 7 blind reviewers; every important finding reproduced
+
+**Got:** 7 read-only reviewers (lexer/decoders, document building/errors, editable model, printing, serialization,
+encodeInto, CLI/docs/build), about 45 findings. 33 of them reproduced by me: two throwaway JVM probe classes (deleted
+after) and the native binary. All behaved exactly as reported.
+
+**Highest:**
+- encodeInto writes a wrong value when a field's default instance differs from its class's defaults
+  (`server: Server = Server(port = 9090)` over `[server] host = "localhost"` stays port 8080 when read).
+- Array-of-tables elements print in their old position order, so a reorder, insert or replace reads back reordered
+  (shared with upstream; serialization works around it, core callers are unprotected).
+- A dotted table stored as an array-of-tables element prints nothing.
+- An empty slot keeps the kind it was handed out with, so an inline table can hold a standard table.
+- UIntArray / ULongArray / UByteArray / UShortArray bypass the unsigned handling (4000000000u writes -294967296).
+- encodeInto throws IllegalArgumentException on a hand-built invalid Date in the document.
+- The native CLI crashes on any stat failure but ENOENT (`kotoml check file/x`).
+
+Full triage in the session; nothing fixed yet.
+
+### 77. 2026-10-04 15:03 - Entry 76's findings fixed on `fix/qa-round`; every reproduced finding re-run green
+
+**Decided by the owner:** Date, Time and Offset.Custom validate with `require`; upstream bugs get fixed too (kotoml is
+a superset); what the user provides persists and invalid TOML is a typed error at use (lone surrogates: kept in the
+model and `toString()`, refused by `writeTo` with `TomlWriteError.NotUnicode` and by serialization with
+`TomlEncodeError.NotUnicode`); syntax errors carry `context`.
+
+**Got:** 6 fixer agents on disjoint files, then one gate. Commits `f38b183` (the round), `b2ce875` (encodeInto and a
+default differing from its class's defaults, at any depth: the second run also encodes such a value without
+defaults), `eb749f1` (PARITY and README), `e0963aa` (cleanup). Build green: core 1286, serialization 424, app 140
+(from 1148 / 362 / 107). All 33 reproduced findings re-run: each fixed.
+
+**Caught at the gate:** test names with a comma compile on the JVM but not on Kotlin/Native; the parser fixer's
+stray-character check in underscored integers pre-empted upstream's `_` message for `_0b1` (now runs after the
+underscore checks); one hand-traced caret line was off by a space; a serialization test built a Date the new
+`require` refuses, and the `IllegalArgumentException` catch it covered became unreachable, so both went.
+
+**Wire changes:** `JsonTooDeep` reports 81 (was 82); new `NotUnicode` (both), `TomlDecodeError.DiscriminatorConflict`,
+`FilterExpected.IndexInRange`; `writeTo` returns `TomlWriteError`.
+
+**Left open:**
+- A float too small for `Float` reads as 0 without an error (overflow is refused); plausibly by design.
+- Dotted keys inside nested inline tables can nest about 6,300 levels; a deep-stack risk on small threads. Not run.
+- `{ a = [1, 2] , b = [1] }` spacing when a key follows the last inline entry; upstream's too.
+- From the fixers: `Item.set(index, …)` stores an array-of-tables element without clearing `isDotted` (prints
+  correctly); a `StandardTable.get` handle on a table later made inline writes into the old table; comment lines
+  above a replaced dotted-key line, or above a table replaced by an empty item, are not carried; a comment above the
+  last removed dotted key of an emptied map is lost; the exponent fix assumes native `toDoubleOrNull` handles a
+  1M-digit mantissa (JVM checked).
+
+### 78. 2026-10-04 15:31 - Corrects entry 77's validation: `of()` with a typed error, nothing throws (owner)
+
+**Decided by the owner:** "private constructor and use `.of()`", replacing entry 77's `require`; and `getOrElse { … }`
+over `getOrNull() ?: …`.
+
+**Got:** `83125d7` (a failed document parse returns its error without resolving spans) and `07700b8`:
+- `Date`, `Time`, `Offset.Custom` have private constructors (`@ConsistentCopyVisibility`, so `copy` is private too)
+  and `of(…)` returning `Result<…, DatetimeParseError>`, the error a date-time in a file gets (`Range(field, min, max)`
+  with its part; new `SecondBeforeFraction` for a fraction without a second).
+- The parser builds through `of()`, so each range rule lives once; serialization's own year check folds into it.
+- Build green: core 1288, serialization 424, app 140.
+
+**Throws left in main code:** none on any input. Only internal can't-happen checks remain (two `checkNotNull`, the
+`SourceText.slice` `require`, now unreachable from a failed parse too), and the app's never-called
+`SelectionSerializer.deserialize`.
