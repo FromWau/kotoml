@@ -75,8 +75,9 @@ references, not places, so the port makes the difference explicit:
 - Storing an item stores a copy of its content (`assign`, `table[key] = item`, `put`, `putAll`, `getOrPut`,
   `putItem`), so two places never share a slot, a table or a value. Rust moves the value into its place; Kotlin
   cannot empty the caller's variable, and moving out of an array element would leave a hole in the array.
-- A `Value` or `StandardTable` handed to a container directly (`TomlArray.add`, `InlineTable.put`, `ArrayOfTables.add`,
-  the `Item` constructors) is stored as is, as Rust moves it: keep using it only through the document, or hand
+- A `Value` or `StandardTable` handed to a container directly (`TomlArray.add`, `ArrayOfTables.add`, the `Item`
+  constructors) is stored as is; `InlineTable.put`, `set`, `putAll`, `getOrPut` and `inlineTableOf` store copies, so a
+  table cannot hold itself. What is stored as is as Rust moves it: keep using it only through the document, or hand
   over its `copy()`.
 - An array element and an inline-table entry are always values, and an array-of-tables element always a
   table. Writing anything else into one fails with `NotAValue` or `NotATableElement`, so upstream's placeholder
@@ -293,7 +294,7 @@ section 1.
 | `toml_datetime::*` re-export | the date-time types in the same package | done | |
 | (none: an addition) | `TomlVersion`, and a `version` parameter on `TomlDocument.parse`, `TomlDocument.read`, `Value.parse`, `Key.parse`, `Key.parsePath` | added | `TomlVersionTest`, `` SuiteTest.`* V1_0 *` `` |
 | (none: an addition) | `removeAll(predicate)` on `StandardTable`, `InlineTable`, `TomlArray`, `ArrayOfTables` and `TomlDocument`, returning whether it removed anything; `keys` on `Table` and `TomlDocument`; `isNotEmpty()` on every container | added | `CollectionApiTest` |
-| (none: an addition) | `TomlDocument.read(Source)` and `TomlDocument.writeTo(Sink)` over kotlinx-io, failing with `TomlReadError` (`TomlIoError` or `Parse`) and `TomlIoError` | added | `TomlDocumentTest`, `` EditDocTest.`the module README example reads a document from a source and writes it to a sink` `` |
+| (none: an addition) | `TomlDocument.read(Source)` and `TomlDocument.writeTo(Sink)` over kotlinx-io, failing with `TomlReadError` (`TomlIoError` or `Parse`) and `TomlWriteError` (`TomlIoError` or `NotUnicode`) | added | `TomlDocumentTest`, `` EditDocTest.`the module README example reads a document from a source and writes it to a sink` `` |
 
 ## 4. Upstream tests
 
@@ -696,6 +697,22 @@ commands of [`:app`](../app/README.md) and compares their output by its own rule
 
 | where | upstream | Kotlin | why |
 |---|---|---|---|
+| Array-of-tables elements after a reorder, `replace` or an insert at the front | print by their old `position`, so in the old order or at the end | print in array order; the elements share out their places, the tables under each moving with it | the printed text must read back as the model |
+| A dotted table stored as an array-of-tables element or made a document's root | prints nothing | `isDotted` is cleared there, and the root and elements always print | the table would vanish from the text |
+| Sorting a table | sorts hand-made sub-tables with the values | sub-tables and arrays of tables keep their order, hand-made ones included | as its documentation says |
+| A leading byte order mark | dropped when printing | printed back | an unchanged document prints byte for byte |
+| The blank line above an inserted header in a CRLF document | a bare `\n` | the document's line ending | an inserted line ends like the line before it |
+| Replacing a `[table]` or `[[table]]` key (`put`, `set`, `assign`, `makeValue`) | drops the comment lines above its header | keeps them, above the new header or above the key; blank-only lines are not carried to a `key = value` line | they describe the place, like the comments above a key |
+| A slot handed out for a key | its kind is fixed when handed out and it detaches when `put` replaces the key | its kind follows where it is when written, and it keeps referring to the key after `put` | an item is a place in the document |
+| Sorting a multi-line array without a trailing comma | the line break before `]` moves with the last value | the text before `]` stays in place, and a comment after the last value moves behind its comma | the result keeps its layout |
+| An error's column on a multi-byte or invalid character after non-ASCII text | counted in bytes | counted in characters, as everywhere else (changes the `bom-not-at-start-03` snapshot) | the column is documented in characters |
+| `render` with text that lacks the error's line | panics | prints only the message | nothing throws |
+| A malformed `\x` escape under TOML 1.0 | too few unicode value digits | missing escaped value, with 1.0's escape list | `\x` is no escape in 1.0 |
+| A syntax error's `context` | set by the parser, dropped on the way out | carried, as indices into the parsed `String` | the error names the value it was found in |
+| An underscored decimal with a stray character | integer number overflowed | invalid integer number, at that character (changes the `arabic-zero-02` snapshot) | it is no overflow |
+| A float exponent too long to keep | clamped to six digits whatever the mantissa | weighed against the mantissa's length, so `0.0…01e1000000` reads as 1.0 | a long mantissa offsets a long exponent |
+| `Date`, `Time`, `Offset.Custom` | not validated | validated on construction: a real calendar date, the field ranges, a nanosecond only with a second, offsets within ±23:59 | an invalid one would print as invalid TOML |
+| A string or key holding half of a surrogate pair | (not representable in Rust) | kept in the model and `toString()`, refused by `writeTo` with `TomlWriteError.NotUnicode` | UTF-8 cannot write it, and the JVM and native would silently write different replacements |
 | The table types | `Table` for a `[section]` table, `TableLike` over it and `InlineTable` | `StandardTable` for a `[section]` table, the sealed interface `Table` over it and `InlineTable`; `Item.tableOrNull` reads either kind, `standardTableOrNull` the `[section]` kind | the Kotlin stdlib names a shared supertype after the concept (`Collection`, `CharSequence`), and TOML calls both kinds tables |
 | a parse error's `span` and `context` | UTF-8 byte offsets into the input | indices into the parsed `String`; for bytes that are not UTF-8, an empty span where the valid text ends | Kotlin indexes a `String` by UTF-16 unit, so byte offsets mis-slice any text after a non-ASCII character |
 | a decoder's output refusing text | `push_str` / `push_char` return `false` and the decoder reports `could not allocate for string` | the builder always accepts, and there is no `AllocationFailed` reason | only a borrowed `&str` builder refused, and kotoml has none |
@@ -753,8 +770,8 @@ commands of [`:app`](../app/README.md) and compares their output by its own rule
 | `DocumentMut` | named `DocumentMut`, beside the read-only `Document` | `TomlDocument`, the one document type | there is no second document type to tell it apart from |
 | `Document` | a read-only parse result that borrows its input, turned editable with `into_mut` | not public | Kotlin cannot hand out a read-only view of mutable classes, so a second type would only add a step |
 | The root of a `DocumentMut` | an `Item`, reached as an item or a table, that can be made to hold a non-table | `root: StandardTable` | a document's root is always a table, and one property says so |
-| Reading and writing a document | `&str` in through `FromStr`, text out through `Display` | also `TomlDocument.read(Source)` and `writeTo(Sink)`, failing with typed `TomlReadError` and `TomlIoError` | a Kotlin caller holding a file or stream uses kotlinx-io, and an I/O failure arrives as a value like a parse failure |
-| `Display` into a writer that refuses text | stops part-way, propagating `fmt::Error` | `toString()` cannot fail; `writeTo(sink)` reports a failing sink as `TomlIoError` | Kotlin's `toString` has no error channel |
+| Reading and writing a document | `&str` in through `FromStr`, text out through `Display` | also `TomlDocument.read(Source)` and `writeTo(Sink)`, failing with typed `TomlReadError` and `TomlWriteError` | a Kotlin caller holding a file or stream uses kotlinx-io, and an I/O failure arrives as a value like a parse failure |
+| `Display` into a writer that refuses text | stops part-way, propagating `fmt::Error` | `toString()` cannot fail; `writeTo(sink)` reports a failing or closed sink as `TomlIoError` and a lone surrogate as `NotUnicode`, writing nothing | Kotlin's `toString` has no error channel |
 | Line endings | every line printed with LF | each line keeps its own ending; an inserted line ends like the line before | the suite's round trip (`valid/newline-crlf`); upstream's `document_display_propagates_write_errors` therefore expects CRLF kept |
 | A key spelled differently on several lines | every occurrence printed with the first spelling | each line keeps its own while the shared keys are unchanged | the suite's round trip (`valid/key/dotted-01`, `valid/table/with-literal-string`); upstream's `test_key_unification` therefore expects each header as written |
 | Removing a key, a table or an element (`remove`, `removeItem`, `removeAt`, `retainAll`, `removeAll`, `clear`) | the comment and blank lines above it go with it | the comment and blank lines above it stay where they printed, above whatever follows; what belongs to it goes: the comment on its own line, every comment inside its value or body, and for a table or an array of tables the lines above every header after its first, those of its sub-tables and later elements | a comment above a key may be about something else, such as a commented-out alternative; upstream's `test_remove_leaf_table`, `test_remove_nonleaf_table`, `test_remove_array_entry`, `test_remove_array` and `test_remove_value` therefore expect the lines above kept, and `RemovalCommentScopeTest`, `RemovalKeepsCommentsTest` and `RemovalPropertyTest` pin the rule |
