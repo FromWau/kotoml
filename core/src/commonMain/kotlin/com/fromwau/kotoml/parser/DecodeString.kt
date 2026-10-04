@@ -42,7 +42,8 @@ private fun isBasicUnescaped(byte: Int): Boolean =
 private fun isHexDigit(byte: Int): Boolean =
     byte in '0'.code..'9'.code || byte in 'A'.code..'F'.code || byte in 'a'.code..'f'.code
 
-private fun isUnquotedChar(byte: Int): Boolean = byte in 'A'.code..'Z'.code ||
+/** Whether [byte] may appear in an `unquoted-key`, TOML's bare key. */
+internal fun isUnquotedKeyChar(byte: Int): Boolean = byte in 'A'.code..'Z'.code ||
     byte in 'a'.code..'z'.code ||
     byte in '0'.code..'9'.code ||
     byte == '-'.code ||
@@ -532,7 +533,7 @@ internal fun decodeUnquotedKey(raw: Raw, output: DecodedStringBuilder, error: Er
 
     var run: Span? = null
     for (offset in 0 until length) {
-        if (isUnquotedChar(raw.byteAt(offset))) continue
+        if (isUnquotedKeyChar(raw.byteAt(offset))) continue
         val current = run
         if (current != null && offset == current.end) {
             run = Span(current.start, offset + 1)

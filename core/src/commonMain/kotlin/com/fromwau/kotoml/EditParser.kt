@@ -25,7 +25,8 @@ private fun collectEvents(
 ): List<Event> {
     val tokens = source.lex().toList()
     val events = ArrayList<Event>(tokens.size)
-    val receiver = RecursionGuard(ValidateWhitespace(eventReceiver { events += it }, source), TomlDocument.NESTING_LIMIT.toUInt())
+    val validated = ValidateWhitespace(eventReceiver { events += it }, source)
+    val receiver = RecursionGuard(validated, TomlDocument.NESTING_LIMIT.toUInt())
     parse(tokens, receiver, errors)
     return events
 }

@@ -1,6 +1,7 @@
 package com.fromwau.kotoml.writer
 
 import com.fromwau.kotoml.Encoding
+import com.fromwau.kotoml.parser.isUnquotedKeyChar
 
 /**
  * Chooses how a string value is written: as a basic, literal, multi-line basic or multi-line literal string.
@@ -243,8 +244,7 @@ private class KeyMetrics(
             var escapeCodes = false
             var escape = false
             for (char in text) {
-                val isBare = char in 'a'..'z' || char in 'A'..'Z' || char in '0'..'9' || char == '-' || char == '_'
-                if (!isBare) unquoted = false
+                if (!isUnquotedKeyChar(char.code)) unquoted = false
                 when {
                     char == '\'' -> singleQuotes = true
                     char == '"' -> doubleQuotes = true

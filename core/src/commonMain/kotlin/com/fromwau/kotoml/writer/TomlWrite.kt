@@ -30,11 +30,6 @@ internal fun StringBuilder.closeArray() {
     append("]")
 }
 
-/** Writes `.`, between the parts of a dotted key. */
-internal fun StringBuilder.keySeparator() {
-    append(".")
-}
-
 /** Writes `=`, between a key and its value. */
 internal fun StringBuilder.keyValueSeparator() {
     append("=")
