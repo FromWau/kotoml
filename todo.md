@@ -16,8 +16,6 @@ reproduced on `dev` at `2781090` before it was filed.
   **Progress 2026-10-05:** both dangling references fixed (`:309` is now n/a with its reason, `:570` the current name);
   a script confirms all 455 test citations in PARITY.md resolve. Still open: the intended-difference rows that name no
   test.
-- [ ] **19. Pin every error wire name.** Core's `ErrorJsonTest` pins 10 of 85 `@SerialName`s, serialization's 7 of
-  18; a rename fails no test. One table-driven test per sealed hierarchy. Goal 8.
 - [ ] **20. KDoc for the `ParseErrorReason` objects.** About 25 public objects have none. Should 4.
 
 ## Candidate work
@@ -44,6 +42,12 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **19. Pin every error wire name.** Core's `ErrorJsonTest` pins 10 of 85 `@SerialName`s, serialization's 7 of
+  18; a rename fails no test. One table-driven test per sealed hierarchy. Goal 8.
+  **Verdict 2026-10-05:** fixed. `WireSchemaTest` in core, serialization and app derives each error hierarchy's wire
+  schema from its serializer descriptor (every subtype's serial name and fields, every enum entry) and compares it with
+  the expected text; 30 types. A rename of `NotFound` failed it (mutation check, reverted). Goal 8's check updated.
 
 - [x] **17. `TomlEditError`'s header is stale.** `core/.../TomlEditError.kt:7` says "refused by panicking";
   `NotFound`, `TypeMismatch` and `NotAValue` are not panics upstream.

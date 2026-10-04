@@ -58,7 +58,8 @@ official toml-test runner for TOML 1.0 and 1.1.
 8. **Typed, stable errors.** Every error is a `@Serializable` type whose wire name and fields are stable; renaming
    one is a breaking change. A parse error's `span` and `position`, when it has them, are `String` indices and a line
    and column.
-   Check: `ErrorJsonTest` in core and in serialization.
+   Check: `WireSchemaTest` in core, serialization and app pins every error type's wire names and fields;
+   `ErrorJsonTest` checks whole encodings.
 9. **One way to do each thing.** An `Item` always holds a value, a table or an array of tables. Writing never deletes a
    key. Storing into a table or an array stores a copy, so two places never share a slot; only a wrapper made from an
    object (`Item(…)`, `Value.Array(…)`, `TomlDocument(root)`) holds that object itself. Indexing a table or an item
