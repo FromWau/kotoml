@@ -61,11 +61,12 @@ internal class KeyValue(var key: Key, item: Item) {
      * above its later dotted-key lines stay where they print.
      */
     fun takeLinesAbove(next: Item): String {
-        item.headerTable?.let { return linesAbove(it.rawDecor.prefix) }
+        if (item.headerTable != null) return linesAboveHeader()
         val dottedTable = item.standardTableOrNull?.takeIf { it.isDotted }
         val dottedInline = item.inlineTableOrNull?.takeIf { it.isDotted }
         val lines = dottedTable?.bodyLines() ?: dottedInline?.bodyLines() ?: return ""
         val above: (KeptText?) -> String = if (dottedInline != null) ::linesAboveElement else ::linesAbove
+        // A value replacing dotted-key lines prints where the first of them did.
         if (order == null) order = lines.firstOrNull()?.order
         var carried = ""
         for ((index, line) in lines.withIndex()) {
