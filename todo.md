@@ -4,18 +4,8 @@ Numbers are never reused. A closed item keeps its place in **Done** with a verdi
 it was proved, and the date. Items come from the three-reviewer QA pass of 2026-10-05 against `GOALS.md`, each
 reproduced on `dev` at `2781090` before it was filed.
 
-## Defects
+Every defect, ruling and docs item from that pass is closed; see **Done**.
 
-## Decided: enforce (owner, 2026-10-05)
-
-## Docs and goals
-
-- [ ] **18. `PARITY.md` test references.** `:309` cites a nanosecond-without-second test that no longer exists (the
-  case cannot be built since `Time.of`); `:570` cites a drifted name. 79 of 85 intended-difference rows name no
-  test.
-  **Progress 2026-10-05:** both dangling references fixed (`:309` is now n/a with its reason, `:570` the current name);
-  a script confirms all 455 test citations in PARITY.md resolve. Still open: the intended-difference rows that name no
-  test.
 ## Candidate work
 
 - [ ] **21. `InvalidUtf8` speaks Rust and bytes.** `validUpTo` / `errorLength` are byte offsets from Rust's
@@ -25,7 +15,6 @@ reproduced on `dev` at `2781090` before it was filed.
 - [ ] **23. `encodeInto`'s list merge is quadratic.** 2000 tables: 877 ms; 10 000 integers: 1.4 s. Should 5.
 - [ ] **24. Exit codes are barely tested.** Only `FilterTest` asserts one; nothing pins `check --json` output or exits
   0 and 1. Goal 15.
-
 - [ ] **25. Printing and copying recurse once per nesting level.** `Encode.kt`, `Value.copy`,
   `StandardTable.copy`. A document built through the API thousands of levels deep overflows the stack in `toString()`,
   and, since arrays store copies (item 11), already while it is built. That is the hand-built case the owner ruled
@@ -40,6 +29,15 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **18. `PARITY.md` test references.** `:309` cites a nanosecond-without-second test that no longer exists (the
+  case cannot be built since `Time.of`); `:570` cites a drifted name. 79 of 85 intended-difference rows name no
+  test.
+  **Progress 2026-10-05:** both dangling references fixed (`:309` is now n/a with its reason, `:570` the current name);
+  a script confirms all 455 test citations in PARITY.md resolve. Still open: the intended-difference rows that name no
+  test.
+  **Verdict 2026-10-05:** not wanted. The owner deleted `PARITY.md`: kotoml has passed upstream and changes its
+  behaviour on purpose, so a row per difference only held it back. Goal 11 is retired.
 
 - [x] **20. KDoc for the `ParseErrorReason` objects.** About 25 public objects have none. Should 4.
   **Verdict 2026-10-05:** fixed: one-line KDoc on all 27 reasons, each example checked against what the parser reports

@@ -67,13 +67,12 @@ official toml-test runner for TOML 1.0 and 1.1.
    Check: `IndexingTest`, `SlotSemanticsTest`, `SlotFixesTest`.
 10. **Kotlin-first.** The public API uses Kotlin's vocabulary (collections, `xOrNull`, operators), not upstream's Rust
     names.
-    Check: review; `PARITY.md` maps every upstream name to its Kotlin one.
+    Check: review.
 
-### Parity and docs
+### Docs
 
-11. **Upstream parity.** Behaviour matches `toml_edit` at the commit `core/PARITY.md` pins, except where `PARITY.md`
-    lists an intended difference, each with its reason and a test.
-    Check: the ported upstream tests, and `PARITY.md` against the code.
+11. *Retired 2026-10-05.* Upstream parity is no longer a goal: kotoml's own tests, the ported ones included, pin its
+    behaviour. The number stays so that references to the goals below keep their meaning.
 12. **Docs are true.** Every README and KDoc example is mirrored by a test, and every behaviour the docs state is
     pinned by one.
     Check: `EditDocTest` and serialization's `ReadmeTest`; review new prose against the tests.

@@ -7,7 +7,7 @@ import kotlin.test.assertEquals
 /**
  * `toml_edit/tests/decoder_compliance.rs` and `encoder_compliance.rs`: toml-test's harness at spec 1.1.0, plus
  * upstream's own fixtures under `tests/fixtures`. Every refusal is checked against upstream's error snapshot
- * under `tests/snapshots`, copied; where kotoml's text differs on purpose, PARITY lists it.
+ * under `tests/snapshots`, copied and changed where kotoml words or places an error differently.
  */
 class ComplianceHarnessTest {
 

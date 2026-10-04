@@ -5,7 +5,7 @@ import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
 import kotlinx.io.readByteArray
 
-/** Upstream's snapshot files, copied under `src/commonTest/snapshots`; PARITY lists the texts kotoml changed. */
+/** Upstream's snapshot files, copied under `src/commonTest/snapshots` and changed where kotoml's text differs. */
 internal fun readSnapshot(relativePath: String): String =
     readBytes("src/commonTest/snapshots/$relativePath").decodeToString()
 

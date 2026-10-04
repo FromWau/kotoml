@@ -188,15 +188,15 @@ The types keep upstream's names (`Array` is `TomlArray`), and their members read
 `size` for `len`, `put` and `getOrPut` for `insert` and the entry API, `add` for `push`. A document is a
 `TomlDocument` whose `root` is its top-level table. Unchanged text prints back byte for byte, which goes past upstream: line endings are kept per
 line, each dotted key and header keeps its own spelling, and dotted keys keep the order they were read in.
-[PARITY.md](PARITY.md) lists every public item, every ported test, and every intended difference.
 
 The command-line tool [kotoml](../app/README.md) queries TOML files with this module, and runs the official
 toml-test suite against it.
 
 ## Credits
 
-The design, the behaviour and the tests are those of the toml-rs crates, by their
-[contributors](https://github.com/toml-rs/toml/graphs/contributors), ported from commit
-`342362803e41051e522127ca933a19d12a2711ac`. kotoml is licensed under the [MIT licence](../LICENSE); upstream's
+kotoml began as a port of the toml-rs crates, by their
+[contributors](https://github.com/toml-rs/toml/graphs/contributors), from commit
+`342362803e41051e522127ca933a19d12a2711ac`; their design and tests are its starting point, and it has since changed
+behaviour where it could do better. kotoml is licensed under the [MIT licence](../LICENSE); upstream's
 own [MIT](LICENSE-MIT) and [Apache 2.0](LICENSE-APACHE) licences, under which it was ported, are kept here with
 their copyright notices.
