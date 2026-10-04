@@ -1,9 +1,5 @@
 package com.fromwau.kotoml
 
-import com.fromwau.kern.result.Err
-import com.fromwau.kern.result.Ok
-import com.fromwau.kern.result.Result
-
 /**
  * An inline table value, `{ a = 1, b.c = 2 }`, with its formatting.
  *

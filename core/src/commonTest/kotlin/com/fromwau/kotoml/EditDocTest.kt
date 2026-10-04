@@ -64,7 +64,6 @@ c = { d = "hello" }
         assertEquals(text, doc.toString())
         doc["a"]["b"]["c"] = Value.InlineTable(InlineTable())
         doc["a"]["b"]["c"]["d"] = "hello"
-        doc["a"]["b"]["c"].getOrFail().inlineTableOrNull?.resetFormatting()
         assertEquals("\n\"hello\" = 'toml!' # comment\n['a'.b]\nc = { d = \"hello\" }\n", doc.toString())
     }
 

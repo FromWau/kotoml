@@ -11,7 +11,8 @@ import com.fromwau.kern.result.Result
  * A table added here is stored as is, not copied: keep using it only through the array, or add its `copy()`.
  *
  * A [StandardTable] has no content equality, so `contains(table)` and `indexOf(table)` find only that same table
- * object. Compare what the tables hold instead, as in `tables.indexOfFirst { it.getOrNull("name")?.stringOrNull == "a" }`.
+ * object. Compare what the tables hold instead, as in
+ * `tables.indexOfFirst { it.getOrNull("name")?.stringOrNull == "a" }`.
  */
 public class ArrayOfTables() : Iterable<StandardTable> {
     internal var span: Span? = null

@@ -35,7 +35,6 @@ check(doc.toString() == text)
 
 doc["a"]["b"]["c"] = Value.InlineTable(InlineTable())
 doc["a"]["b"]["c"]["d"] = "hello"
-doc["a"]["b"]["c"].getOrNull()?.inlineTableOrNull?.resetFormatting()
 // "hello" = 'toml!' # comment
 // ['a'.b]
 // c = { d = "hello" }
@@ -46,7 +45,7 @@ Indexing on through an error passes it on, so `doc["a"]["b"]` stops at the first
 with `getOrNull()` or `getOrElse { }`. Writing adds only the key it names, never a missing parent, so create
 each level first, as `c` is created above. Where `toml_edit` panics, for example on an index out of bounds or
 on writing a key into a string, the call returns a `TomlEditError` instead. The `item["key"] = value` form drops
-that error; call `item.set("key", value)` to see it. `remove` is the only way to delete a key.
+that error; call `item.set("key", value)` to see it. Writing never deletes a key; `remove` does.
 
 ## Make and read values
 
@@ -84,12 +83,13 @@ doc["client"] = standardTableOf("retries" to Item(Value.Integer(3L)))
 ```
 
 `StandardTable`, `InlineTable`, `TomlArray` and `ArrayOfTables` read like Kotlin collections: `size`, `isNotEmpty`,
-`keys`, `put`, `getOrPut`, `remove`, `add`, `removeAt`, `retainAll`, `removeAll` and iteration. Removing keeps
-the comment and blank lines above what it removes, and takes what belongs to it: the comment on its line, every
-comment inside its value, and for a table everything after its first header, the comments above its sub-tables'
-headers included. Replacing a value keeps its spacing and the comment after it. An `Item` is a slot that holds a value, a table or an array of tables; `valueOrNull`,
-`standardTableOrNull` and their siblings read what it holds, and `tableOrNull` reads a table of either kind. Storing an item stores a copy, so editing the original
-afterwards does not change the document.
+`keys`, `put`, `getOrPut`, `remove`, `add`, `removeAt`, `retainAll`, `removeAll` and iteration. Removing keeps the
+comment and blank lines above what it removes, and takes what belongs to it: the comment on its line, every comment
+inside its value, and for a table everything after its first header, the comments above its sub-tables' headers
+included. Replacing a value keeps its spacing and the comment after it. An `Item` is a slot that holds a value, a
+table or an array of tables; `valueOrNull`, `standardTableOrNull` and their siblings read what it holds, and
+`tableOrNull` reads a table of either kind. Storing an item stores a copy, so editing the original afterwards does
+not change the document.
 
 A document's top-level keys live in its `root` table. The document itself offers the map calls (`get`, `set`,
 `getOrNull`, `contains`, `keys`, `put`, `putAll`, `getOrPut`, `remove`, `retainAll`, `removeAll`, `clear`,
