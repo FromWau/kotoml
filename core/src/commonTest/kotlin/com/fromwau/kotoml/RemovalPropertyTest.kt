@@ -21,6 +21,10 @@ import kotlin.test.assertEquals
  * - a header whose path starts with the key, and its body: from the start of the header's line to the end of
  *   the last key/value line under it. The comment and blank lines after that line belong to what follows;
  * - the comment and blank lines above every such header but the first, which sit inside what the key removes.
+ *
+ * Where a removed header leaves blank lines meeting blank lines, or the end of the file, the blank lines above it go,
+ * and a file not read starting with a blank line does not print its first table below one once no key/value line
+ * stands above it.
  */
 class RemovalPropertyTest {
 
@@ -68,24 +72,51 @@ class RemovalPropertyTest {
         return keys.filter { key ->
             val document = TomlDocument.parse(text, version).getOrFail()
             document.remove(key)
-            !printsWithout(text, document.toString(), ownLines(text, version, key))
+            val tablesFirst = document.root.all { (_, item) -> item.printsOwnHeader }
+            !printsWithout(text, document.toString(), ownLines(text, version, key), tablesFirst)
         }
     }
 
     /**
-     * Whether [printed] is [text] without the byte ranges [removed]. A document that was read without a final
-     * newline keeps none, so when its last line goes, the line break ending the line before it goes too.
+     * Whether [printed] is [text] without the byte ranges [removed], with the blank lines a removed header leaves
+     * meeting others dropped. A document that was read without a final newline keeps none, so when its last line
+     * goes, the line break ending the line before it goes too.
      */
     private fun printsWithout(
         text: String,
         printed: String,
-        removed: List<IntRange>,
+        removed: List<OwnLines>,
+        tablesFirst: Boolean,
     ): Boolean {
         val bytes = text.encodeToByteArray()
-        val expected = bytes
-            .filterIndexed { index, _ -> removed.none { index in it } }
-            .toByteArray()
-            .decodeToString()
+        val kept = StringBuilder()
+        val headerCuts = mutableListOf<Int>()
+        var index = 0
+        while (index < bytes.size) {
+            val cut = removed.firstOrNull { index in it.range }
+            if (cut != null) {
+                if (cut.isHeader) headerCuts += kept.length
+                index = cut.range.last + 1
+                continue
+            }
+            val next = removed
+                .map { it.range.first }
+                .filter { it > index }
+                .minOrNull() ?: bytes.size
+            kept.append(bytes.decodeToString(index, next))
+            index = next
+        }
+        for (cut in headerCuts.distinct().asReversed()) {
+            val blankAfter = cut == kept.length || BLANK_LINES_AT_START.containsMatchIn(kept.substring(cut))
+            val blankBefore = BLANK_LINES_AT_END.find(kept.substring(0, cut)) ?: continue
+            if (blankAfter) kept.deleteRange(cut - blankBefore.groupValues[2].length, cut)
+        }
+        val readStartingBlank = text.substringBefore('\n', "x").isBlank()
+        val expected = if (readStartingBlank || !tablesFirst) {
+            kept.toString()
+        } else {
+            kept.replace(BLANK_LINES_AT_START, "")
+        }
         if (printed == expected) return true
         return !text.endsWith('\n') && expected.removeSuffix("\n").removeSuffix("\r") == printed
     }
@@ -93,14 +124,17 @@ class RemovalPropertyTest {
     /** One key/value line or header line, as byte offsets, and the top-level key it belongs to. */
     private class Statement(val owner: String, val lineStart: Int, val end: Int, val isHeader: Boolean)
 
+    /** A byte range of a key's own lines, and whether it holds a header. */
+    private class OwnLines(val range: IntRange, val isHeader: Boolean)
+
     /** The byte ranges of [key]'s own lines in [text]. */
     private fun ownLines(
         text: String,
         version: TomlVersion,
         key: String,
-    ): List<IntRange> {
+    ): List<OwnLines> {
         val statements = statements(text, version)
-        val ranges = mutableListOf<IntRange>()
+        val ranges = mutableListOf<OwnLines>()
         var seenHeader = false
         var index = 0
         while (index < statements.size) {
@@ -109,7 +143,7 @@ class RemovalPropertyTest {
                 val before = statements.getOrNull(index - 1)
                 val continues = before != null && !before.isHeader && before.owner == statement.owner
                 val start = if (continues) before.end else statement.lineStart
-                if (statement.owner == key) ranges += start until statement.end
+                if (statement.owner == key) ranges += OwnLines(start until statement.end, isHeader = false)
                 index++
                 continue
             }
@@ -117,7 +151,7 @@ class RemovalPropertyTest {
             while (last + 1 < statements.size && !statements[last + 1].isHeader) last++
             if (statement.owner == key) {
                 val start = if (seenHeader) statements.getOrNull(index - 1)?.end ?: 0 else statement.lineStart
-                ranges += start until statements[last].end
+                ranges += OwnLines(start until statements[last].end, isHeader = true)
                 seenHeader = true
             }
             index = last + 1
@@ -176,5 +210,10 @@ class RemovalPropertyTest {
     ): Int {
         for (index in before - 1 downTo 0) if (this[index] == byte) return index
         return -1
+    }
+
+    private companion object {
+        val BLANK_LINES_AT_START = Regex("^([ \t\r]*\n)+")
+        val BLANK_LINES_AT_END = Regex("(^|\n)((?:[ \t\r]*\n)+)$")
     }
 }

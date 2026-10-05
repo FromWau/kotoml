@@ -1,5 +1,6 @@
 package com.fromwau.kotoml.serialization
 
+import com.fromwau.kotoml.TomlDocument
 import com.fromwau.kotoml.Value
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -185,6 +186,28 @@ class EncodeTest {
             TomlEncodeError.Serializer("", "refused to write"),
             Toml.encodeToString(RefusingSerializer, Server("h")).errorOrFail(),
         )
+    }
+
+    @Test
+    fun `a map of classes prints no header of its own`() {
+        assertEquals(
+            "name = \"x\"\n\n[tool.ruff]\nhost = \"h\"\n",
+            Toml.encodeToString(Tools("x", mapOf("ruff" to Server("h")))).getOrFail(),
+        )
+    }
+
+    @Test
+    fun `a map of classes encoded into a document adds no header of its own`() {
+        val document = TomlDocument.parse("name = \"x\"\n").getOrFail()
+        Toml.encodeInto(document, Tools("x", mapOf("ruff" to Server("h")))).getOrFail()
+        assertEquals("name = \"x\"\n\n[tool.ruff]\nhost = \"h\"\n", document.toString())
+    }
+
+    @Test
+    fun `a map of classes encoded into a document keeps a header read from it`() {
+        val document = TomlDocument.parse("name = \"x\"\n\n[tool]\n").getOrFail()
+        Toml.encodeInto(document, Tools("x", mapOf("ruff" to Server("h")))).getOrFail()
+        assertEquals("name = \"x\"\n\n[tool]\n\n[tool.ruff]\nhost = \"h\"\n", document.toString())
     }
 
     @Test

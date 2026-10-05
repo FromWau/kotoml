@@ -10,8 +10,9 @@ import com.fromwau.kern.result.map
  * A standard table: the key/value pairs under a `[header]`, and the tables nested in it.
  *
  * A table that only exists because a deeper header names it, such as `a` in `[a.b]`, is implicit and is
- * not printed while it holds no values of its own. A table that stands for the parts of a dotted key, such as
- * `a` in `a.b = 1`, is dotted.
+ * not printed while it holds no values of its own. A table made in code that holds only tables under headers of their
+ * own prints no header either, as `[tool]` does not above `[tool.ruff]`, until it holds a value or is given a
+ * [decor]. A table that stands for the parts of a dotted key, such as `a` in `a.b = 1`, is dotted.
  *
  * Indexing reads and writes slots: `table["key"]` returns the [Item] stored there, or
  * [TomlEditError.NotFound]; `table["key"] = item` stores a copy of `item`, keeping the key's formatting.
@@ -27,7 +28,8 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
 
     /**
      * Whether the table's header is hidden while it holds no values of its own and tables under it print theirs. A
-     * table left holding nothing prints its header, so its key stays in the text.
+     * table left holding nothing prints its header, so its key stays in the text. A table made in code with no
+     * [decor] hides its header the same way while this is false.
      *
      * ```kotlin
      * val doc = TomlDocument.parse("[a]\n[a.b]\n").getOrElse { error(it) }
@@ -77,6 +79,9 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     /** Whether this table is a document's root, whose prefix prints as the document's head. */
     internal var isDocumentRoot: Boolean = false
 
+    /** Whether this root's head ends in the lines kept from a removed table, after the last table was removed. */
+    internal var headEndsInRemovedTable: Boolean = false
+
     /** Sets [isDotted] as reading or copying a table does, which gives it no new layout. */
     internal fun setDotted(value: Boolean) {
         dotted = value
@@ -122,12 +127,42 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     }
 
     /**
-     * Where the table prints among the document's tables: tables print in ascending order, and a table with
-     * none follows the table printed before it. The elements of an array of tables print in array order, sharing
-     * out the positions they and the tables under them hold; elements with none at the front print just before the
-     * first that has one.
+     * Where the table's header prints among the document's tables, which print in ascending order of it.
+     *
+     * Reading a document numbers its headers from 1 in the order they stand. A table made in code has none and prints
+     * right after the table printed before it in its parent: after its parent's own lines and the tables stored under
+     * the keys before its own. Setting a position moves the header and the tables under it that have none, such as
+     * -1 to print it before every table read. Storing a table keeps a position set this way; a table read from text
+     * and stored under another key drops the positions it and the tables under it were read with, so it prints with
+     * its new parent, and one stored in place of a table takes that table's position. Sorting a table shares out
+     * the positions of the tables under it again.
+     *
+     * The elements of an array of tables print in array order, sharing out the positions they and the tables under
+     * them hold; elements with none at the front print just before the first that has one.
+     *
+     * ```kotlin
+     * val doc = TomlDocument.parse("[b]\n[a]\n").getOrElse { error(it) }
+     * doc["a"].getOrNull()?.standardTableOrNull?.position = 0
+     * doc.toString() // "[a]\n[b]\n"
+     * ```
      */
     public var position: Long? = null
+        set(value) {
+            field = value
+            positionFromText = false
+        }
+
+    // Whether [position] is where the table was read, rather than a place a caller gave it.
+    internal var positionFromText: Boolean = false
+        private set
+
+    internal fun placeAt(
+        position: Long?,
+        fromText: Boolean,
+    ) {
+        this.position = position
+        positionFromText = fromText
+    }
 
     internal var span: Span? = null
     internal var items: KeyValuePairs = KeyValuePairs()
@@ -250,11 +285,16 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         get() = rawDecor.suffix?.textOrNull?.takeIf { '#' in it }.orEmpty()
 
     /**
-     * Whether the table prints a header. An implicit table with no values of its own is hidden while tables under it
-     * print their own headers; one left holding nothing prints its header, so its key stays in the text.
+     * Whether the table prints a header. An implicit table, or one made by hand with no decor, with no values of its
+     * own is hidden while tables under it print their own headers; one left holding nothing prints its header, so its
+     * key stays in the text.
      */
     internal fun printsHeader(isArrayOfTables: Boolean): Boolean = isArrayOfTables ||
-        !(isImplicit && visualValues().isEmpty() && items.entries.any { it.item.printsOwnHeader })
+        !((isImplicit || isMadeByHand) && visualValues().isEmpty() && items.entries.any { it.item.printsOwnHeader })
+
+    // A header read from text always has a prefix, if only an empty one.
+    private val isMadeByHand: Boolean
+        get() = rawDecor.prefix == null && rawDecor.suffix == null
 
     private fun appendValues(path: MutableList<Key>, values: MutableList<BodyLine>) {
         for (entry in items.entries) {
@@ -347,12 +387,21 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     }
 
     /**
-     * Sorts the key/value lines under this header in the natural order of what [selector] returns for each pair of
-     * key and item.
+     * Sorts the entries by key name in plain string order, as `sortBy { (key, _) -> key.name }` does.
      *
-     * Only the key/value lines move, each with its comments. Sub-tables and arrays of tables stay where their headers
-     * print, those made by hand included. The parts of a dotted key are sorted the same way, and their
-     * order replaces the one they were read in. The sort is stable, and nulls sort first.
+     * ```kotlin
+     * val doc = TomlDocument.parse("b = 1\n[z]\n[a]\n").getOrElse { error(it) }
+     * doc.root.sort()
+     * doc.toString() // "b = 1\n[a]\n[z]\n"
+     * ```
+     */
+    public fun sort() {
+        sortBy { (key, _) -> key.name }
+    }
+
+    /**
+     * Sorts the entries in the natural order of what [selector] returns for each pair of key and item, nulls first,
+     * moving lines and headers as [sortWith] says.
      *
      * ```kotlin
      * table.sortBy { (key, _) -> key }
@@ -363,12 +412,13 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     }
 
     /**
-     * Sorts the key/value lines under this header with [comparator], given each pair of key and item.
+     * Sorts the entries with [comparator], given each pair of key and item.
      *
-     * Only the key/value lines move, each with the comment lines right above it. Blank lines, and the comment block
-     * heading the file, stay in place. Sub-tables and arrays of tables stay where their headers print, those made by
-     * hand included. The parts of a dotted key are sorted the same way, and their order replaces the one they were
-     * read in. The sort is stable.
+     * The key/value lines under this header move, each with the comment lines right above it. The sub-tables and
+     * arrays of tables move among each other the same way, each header with the comment lines right above it and the
+     * tables under it, those made by hand included: they share out the [position]s they held. Blank lines, and the
+     * comment block heading the file, stay in place. The parts of a dotted key are sorted the same way, and their
+     * order replaces the one they were read in. The sort is stable.
      */
     public fun sortWith(comparator: Comparator<Pair<Key, Item>>) {
         forgetOrder()
@@ -380,17 +430,9 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         val lineEntries = items.entries.filter { !it.item.printsOwnHeader && it.item.valueOrNull != null }
         val places = lineEntries.mapIndexed { index, entry -> entry.splitLinesAbove(first = index == 0) }
         val own = lineEntries.zip(places).associate { (entry, split) -> entry to split.second }
-        val pairs = items.snapshot()
-        val sortedLines = pairs
-            .filter { !it.item.printsOwnHeader }
-            .sortedWith { left, right -> comparator.compare(left.key to left.item, right.key to right.item) }
-            .iterator()
-        // A table under its own header keeps its place among the entries, so hand-made tables keep their order too.
-        val slots = pairs
-            .map { if (it.item.printsOwnHeader) it else sortedLines.next() }
-            .withIndex()
-            .associate { (index, entry) -> entry to index }
-        items.sortBy(compareBy { slots.getValue(it) })
+        val headersBefore = items.entries.filter { it.item.printsOwnHeader }
+        items.sortBy { left, right -> comparator.compare(left.key to left.item, right.key to right.item) }
+        reorderHeaders(headersBefore, items.entries.filter { it.item.printsOwnHeader })
         val linesNow = items.entries.filter { !it.item.printsOwnHeader && it.item.valueOrNull != null }
         for ((index, entry) in linesNow.withIndex()) {
             val text = places[index].first + own.getValue(entry)
@@ -403,6 +445,59 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     }
 
     /**
+     * Prints the tables under their own headers, [before] in their order before a sort, in the order [after]: they
+     * share out the positions they and the tables under them held, and the blank lines above each header, with the
+     * comment block heading the file, stay in place while the comment lines right above it go with it.
+     */
+    private fun reorderHeaders(
+        before: List<KeyValue>,
+        after: List<KeyValue>,
+    ) {
+        // A table made by hand prints right after the one before it.
+        var previous = Long.MIN_VALUE
+        val printed = before
+            .map { entry -> (entry.item.headerTable?.position ?: previous).also { previous = it } to entry }
+            .sortedBy { it.first }
+            .map { it.second }
+        val slots = printed
+            .flatMap { placedParts(it.item) }
+            .mapNotNull { it.placement }
+            .sorted()
+            .iterator()
+        for (entry in after) {
+            val parts = placedParts(entry.item)
+                .filter { it.placement != null }
+                .sortedBy { it.placement }
+            for (part in parts) part.placement = slots.next()
+        }
+        shareSpacing(printed.mapNotNull { it.item.headerTable }, after.mapNotNull { it.item.headerTable })
+    }
+
+    /** Gives each of [after] the blank lines above the header that printed at its place among [printed]. */
+    private fun shareSpacing(
+        printed: List<StandardTable>,
+        after: List<StandardTable>,
+    ) {
+        // A null place is a header's default spacing.
+        val places = printed.map { table -> table.rawDecor.prefix?.textOrNull?.splitLinesAbove(table.opensFile) }
+        val opensFile = printed.map { it.opensFile }
+        val own = printed
+            .zip(places)
+            .associate { (table, split) -> table to split?.second.orEmpty() }
+        for ((index, table) in after.withIndex()) {
+            val place = places[index]?.first
+            val text = own.getValue(table)
+            table.rawDecor.prefix = when {
+                place != null -> KeptText.from(place + text)
+                text.isEmpty() -> null
+                index == 0 -> KeptText.from(text)
+                else -> KeptText.from((table.headerLineEnding ?: "\n") + text)
+            }
+            table.opensFile = opensFile[index]
+        }
+    }
+
+    /**
      * The text around the header: comments and blank lines before `[header]`, and what follows it on its line.
      * For a document's root table, the text before the first line and after the last.
      */
@@ -410,6 +505,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         get() = rawDecor.toDecor()
         set(value) {
             rawDecor.set(value)
+            headEndsInRemovedTable = false
         }
 
     /** The key [name] as stored, whose formatting can be changed in place; null when there is none. */
@@ -527,10 +623,10 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         return Ok(items.put(key.copy(), copyToStore(item)))
     }
 
-    // A copy from a document leaves its source's comments; one from this document prints after the tables there.
+    // A copy from a document leaves its source's comments.
     private fun copyToStore(item: Item): Item {
         val stored = item.copyFor(ValuePlace.Line)
-        if (copiesWithinDocument(item, this)) outermostTableOf(this)?.let { placeAfterAll(it, stored) }
+        placeStored(stored, copiesWithinDocument(item, this), this)
         return stored
     }
 
@@ -625,6 +721,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
             keptHeaderLines.sortedBy { it.order ?: Long.MAX_VALUE }
         if (kept.isEmpty()) return
         rawDecor.prefix = KeptText.from(rawDecor.prefix?.textOrNull.orEmpty() + kept.joinToString("") { it.text })
+        headEndsInRemovedTable = keptHeaderLines.isNotEmpty()
         items.keptLines.clear()
         keptHeaderLines.clear()
     }
@@ -661,7 +758,8 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         copy.setDotted(isDotted)
         copy.version = version
         copy.opensFile = opensFile
-        copy.position = position
+        copy.headEndsInRemovedTable = headEndsInRemovedTable
+        copy.placeAt(position, positionFromText)
         copy.span = span
         copy.headerLineEnding = headerLineEnding
         copy.headerSpelling = headerSpelling?.copy()
@@ -689,7 +787,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         isImplicit = other.isImplicit
         dotted = other.dotted
         version = other.version
-        position = other.position
+        placeAt(other.position, other.positionFromText)
         span = other.span
         keptHeaderLines.clear()
         keptHeaderLines += other.keptHeaderLines
@@ -799,8 +897,12 @@ private fun List<BodyLine>.indexOfFirstValue(from: Int): Int =
  * above it, and when it is the [first] line also a comment block those set apart from it, stay in place; the comment
  * lines right above it and its indentation go with it.
  */
-private fun KeyValue.splitLinesAbove(first: Boolean): Pair<String, String> {
-    val text = key.rawLeafDecor.prefix?.textOrNull.orEmpty()
+private fun KeyValue.splitLinesAbove(first: Boolean): Pair<String, String> =
+    key.rawLeafDecor.prefix?.textOrNull.orEmpty().splitLinesAbove(first)
+
+/** As [KeyValue.splitLinesAbove] says, for the text above a line. */
+private fun String.splitLinesAbove(first: Boolean): Pair<String, String> {
+    val text = this
     val lineStarts = listOf(0) + text.indices.filter { text[it] == '\n' }.map { it + 1 }
     val fullLines = lineStarts.zipWithNext()
     val blank = fullLines.filter { (start, end) -> text.substring(start, end).isBlank() }
@@ -952,13 +1054,13 @@ private var Any.placement: Long?
     }
     set(value) {
         when (this) {
-            is StandardTable -> position = value
+            is StandardTable -> placeAt(value, positionFromText)
             is KeptLines -> order = value
         }
     }
 
 /** Gives the tables [copy] holds positions after every table of the document under [root], keeping their order. */
-internal fun placeAfterAll(
+private fun placeAfterAll(
     root: StandardTable,
     copy: Item,
 ) {
@@ -967,6 +1069,51 @@ internal fun placeAfterAll(
         .filter { it.placement != null }
         .sortedBy { it.placement }
     for ((index, part) in parts.withIndex()) part.placement = last + 1 + index
+}
+
+/**
+ * Places what [stored], a copy just made to store in [receiver], holds among the document's tables: a table prints
+ * with the tables of its new parent, and an array of tables copied [within] its document after every table there.
+ */
+internal fun placeStored(
+    stored: Item,
+    within: Boolean,
+    receiver: Any,
+) {
+    if (stored.standardTableOrNull != null) {
+        placeUnderNewParent(stored)
+    } else if (within) {
+        outermostTableOf(receiver)?.let { placeAfterAll(it, stored) }
+    }
+}
+
+/**
+ * Makes the tables [copy] holds print with the tables of the table it is stored in, as tables made by hand do: right
+ * after the tables before its key there. Blank lines above its header were spacing where it stood, so it takes the
+ * default spacing; a header read right below the line before it stays right below what comes before it.
+ */
+private fun placeUnderNewParent(copy: Item) {
+    val header = copy.standardTableOrNull?.takeUnless { it.isDotted }
+    // A table that opened its file had nothing above it to be spaced from; one read close below a line stays close.
+    val spacing = header?.rawDecor?.prefix?.textOrNull.orEmpty()
+    if (header != null && '#' !in spacing && (header.opensFile || spacing.isNotEmpty())) header.rawDecor.prefix = null
+    for (part in placedParts(copy)) {
+        if (part is StandardTable) {
+            part.opensFile = false
+            if (!part.positionFromText) continue
+        }
+        part.placement = null
+    }
+}
+
+/** Gives [table], stored in place of [old], the place [old] held among the document's tables and its spacing. */
+internal fun takePlaceOf(
+    table: StandardTable,
+    old: StandardTable,
+) {
+    table.placeAt(old.position, old.positionFromText)
+    table.opensFile = old.opensFile
+    if (table.rawDecor.prefix == null) table.rawDecor.prefix = old.rawDecor.prefix?.textOrNull?.let(KeptText::from)
 }
 
 /** Drops the positions [copy] brought from where it was read, so it prints where it is stored. */

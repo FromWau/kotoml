@@ -160,23 +160,27 @@ public class Item private constructor(
     public fun assign(item: Item): EmptyResult<TomlEditError> {
         val within = owner?.let { copiesWithinDocument(item, it) } ?: false
         val next = item.content.deepCopy().placedIn(holds).also { if (copiesFromDocument(item)) it.leaveSource() }
-        if (within) owner?.let(::outermostTableOf)?.let { placeAfterAll(it, Item(next, Holds.Anything)) }
+        owner?.let { placeStored(Item(next, Holds.Anything), within, it) }
         refusal(next)?.let { return Err(it) }
         tooDeepToHold(item)?.let { return Err(it) }
         valuePlace?.let { place -> (next as? Content.ValueContent)?.value?.fitFor(place) }
         val entry = entry
         if (entry == null) {
+            val oldElement = standardTableOrNull?.takeIf { arrayOwner is ArrayOfTables }
             content = next
+            val element = standardTableOrNull
+            if (oldElement != null && element != null) takePlaceOf(element, oldElement)
             return Ok(Unit)
         }
         entry.prepareFor(item)
         val linesAbove = entry.takeLinesAbove(item)
         val oldDecor = valueOrNull?.rawDecor
-        val oldHeader = standardTableOrNull?.takeUnless { it.isDotted }?.rawDecor
+        val oldTable = standardTableOrNull?.takeUnless { it.isDotted }
         content = next
         entry.keepValueDecor(oldDecor)
-        entry.keepHeaderComment(oldHeader)
+        entry.keepHeaderComment(oldTable?.rawDecor)
         entry.keepLinesAbove(linesAbove)
+        entry.keepTablePlace(oldTable)
         return Ok(Unit)
     }
 

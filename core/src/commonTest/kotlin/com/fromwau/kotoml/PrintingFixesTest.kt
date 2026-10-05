@@ -64,7 +64,7 @@ class PrintingFixesTest {
 
         doc["arr"] = doc["arr"].getOrFail().arrayOfTablesOrNull!!.reversed().toArrayOfTables().getOrFail()
 
-        assertEquals("\n[[arr]]\nx = 2\n[[arr]]\nx = 1\n", doc.toString())
+        assertEquals("[[arr]]\nx = 2\n[[arr]]\nx = 1\n", doc.toString())
         assertEquals(listOf(2L, 1L), parse(doc.toString()).xs())
     }
 
@@ -143,28 +143,28 @@ class PrintingFixesTest {
     }
 
     @Test
-    fun `sorting keeps the order of tables made by hand`() {
+    fun `sorting orders tables made by hand`() {
         val doc = TomlDocument()
         doc["z"] = table("y" to 1L)
         doc["a"] = table("x" to 1L)
 
         doc.root.sortBy { (key, _) -> key }
 
-        assertEquals("[z]\ny = 1\n\n[a]\nx = 1\n", doc.toString())
+        assertEquals("[a]\nx = 1\n\n[z]\ny = 1\n", doc.toString())
     }
 
     @Test
-    fun `sorting keeps a table made by hand after a parsed one`() {
+    fun `sorting moves a table made by hand ahead of a parsed one`() {
         val doc = parse("[z]\ny = 1\n")
         doc["a"] = table("x" to 1L)
 
         doc.root.sortBy { (key, _) -> key }
 
-        assertEquals("[z]\ny = 1\n\n[a]\nx = 1\n", doc.toString())
+        assertEquals("[a]\nx = 1\n\n[z]\ny = 1\n", doc.toString())
     }
 
     @Test
-    fun `sorting moves the values around tables made by hand`() {
+    fun `sorting orders values and tables made by hand`() {
         val doc = TomlDocument()
         doc["b"] = 2L
         doc["z"] = table("y" to 1L)
@@ -172,7 +172,7 @@ class PrintingFixesTest {
 
         doc.root.sortBy { (key, _) -> key }
 
-        assertEquals(listOf("a", "z", "b"), doc.keys.toList())
+        assertEquals(listOf("a", "b", "z"), doc.keys.toList())
         assertEquals("a = 1\nb = 2\n\n[z]\ny = 1\n", doc.toString())
     }
 

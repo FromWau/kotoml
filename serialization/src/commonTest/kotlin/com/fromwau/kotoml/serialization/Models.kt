@@ -153,6 +153,9 @@ data class ModePorts(val ports: Map<Mode, Int>)
 @Serializable
 data class NumberedPorts(val ports: Map<Int, String>)
 
+@Serializable
+data class Tools(val name: String, val tool: Map<String, Server>)
+
 /** A serializer that fails the way a hand-written one might, with an exception of its own. */
 object RefusingSerializer : KSerializer<Server> {
     override val descriptor: SerialDescriptor = buildClassSerialDescriptor("Refusing")

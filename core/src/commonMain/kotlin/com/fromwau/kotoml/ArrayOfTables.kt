@@ -194,7 +194,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         val stored = copyToStore(table)
         if (keepDecor) {
             stored.rawDecor.assign(old.rawDecor)
-            stored.position = old.position
+            stored.placeAt(old.position, old.positionFromText)
         }
         values.set(index, Item.inArrayOfTables(stored, this)).arrayOwner = null
         return Ok(old)

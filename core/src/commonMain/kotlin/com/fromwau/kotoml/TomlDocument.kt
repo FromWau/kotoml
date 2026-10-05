@@ -47,6 +47,12 @@ public class TomlDocument internal constructor(
     private var withoutFinalNewline: Boolean =
         parsedFrom != null && parsedFrom.trimStart(BYTE_ORDER_MARK).isNotEmpty() && !parsedFrom.endsWith('\n')
 
+    /** Whether the text the document was read from opens with a blank line, which printing then keeps. */
+    internal var readStartingBlank: Boolean = parsedFrom
+        ?.removePrefix(BYTE_ORDER_MARK.toString())
+        ?.let { text -> '\n' in text && text.substringBefore('\n').isBlank() } == true
+        private set
+
     /** An empty document. */
     public constructor() : this(StandardTable.withPosition(0), KeptText(), "\n", null)
 
@@ -206,6 +212,7 @@ public class TomlDocument internal constructor(
         val copy = TomlDocument(root.copy(), rawTrailing, lineEnding, null)
         copy.byteOrderMark = byteOrderMark
         copy.withoutFinalNewline = withoutFinalNewline
+        copy.readStartingBlank = readStartingBlank
         return copy
     }
 

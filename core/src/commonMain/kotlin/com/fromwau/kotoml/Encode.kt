@@ -293,6 +293,7 @@ internal fun encodeDocument(buf: StringBuilder, document: TomlDocument) {
     val root = document.root
     settleHeadersForDepth(root)
     val decor = root.rawDecor
+    val headStart = buf.length
     decor.prefixEncode(buf, DEFAULT_ROOT_DECOR.first)
     val headEnd = buf.length
     val writer = LineWriter(buf, document.lineEnding, document.version)
@@ -306,21 +307,64 @@ internal fun encodeDocument(buf: StringBuilder, document: TomlDocument) {
     var firstTable = decor.prefix?.textOrNull.isNullOrEmpty()
     var headerPrinted = false
     val rootPrintsLines = root.visualValues().isNotEmpty()
+    val keptRanges = mutableListOf<IntRange>()
+    var rootPrinted = false
     for (part in ordered) {
         when (part) {
             is TableToVisit -> {
                 val firstHeader = !headerPrinted && part.path.isNotEmpty() && rootPrintsLines
                 firstTable = visitTable(writer, part.table, part.path, part.isArray, firstTable, firstHeader)
-                if (part.path.isNotEmpty()) headerPrinted = true
+                if (part.path.isNotEmpty()) headerPrinted = true else rootPrinted = buf.length > headEnd
             }
-            is KeptHeaderLines -> buf.append(part.text)
+            is KeptHeaderLines -> {
+                if (part.text.isNotEmpty()) keptRanges += buf.length until buf.length + part.text.length
+                buf.append(part.text)
+            }
         }
     }
+    val printedBelowHead = buf.length > headEnd
     decor.suffixEncode(buf, DEFAULT_ROOT_DECOR.second)
     encodeRaw(buf, document.rawTrailing.textOr(""))
-    // A head read without a final line break needs one once anything follows it.
+    for (range in keptRanges.asReversed()) dropBlankLinesMeeting(buf, range)
+    // Blank lines above the first table open the file only where it was read with them.
     val head = buf.substring(0, headEnd).removePrefix("\uFEFF")
+    if (head.isEmpty() && !rootPrinted && !document.readStartingBlank) {
+        buf.deleteRange(headEnd, headEnd + blankLinesAt(buf, headEnd))
+    }
+    // A head read without a final line break needs one once anything follows it.
     if (buf.length > headEnd && head.isNotEmpty() && !head.endsWith('\n')) buf.insert(headEnd, writer.ending)
+    // A head ending in the lines of the last removed table ends the file while nothing prints below it.
+    if (root.headEndsInRemovedTable && !printedBelowHead) dropBlankLinesMeeting(buf, headStart until headEnd)
+}
+
+/**
+ * Drops the blank lines ending the [kept] lines of a removed table when blank lines follow them or nothing does, so
+ * removing a table leaves one blank line between its neighbours and none at the end of the file.
+ */
+private fun dropBlankLinesMeeting(buf: StringBuilder, kept: IntRange) {
+    val after = kept.last + 1
+    if (after < buf.length && blankLinesAt(buf, after) == 0) return
+    var blankStart = after
+    while (blankStart > kept.first) {
+        val lineStart = buf.lastIndexOf("\n", blankStart - 2).let { if (it < kept.first) kept.first else it + 1 }
+        if (buf.substring(lineStart, blankStart).isNotBlank()) break
+        blankStart = lineStart
+    }
+    buf.deleteRange(blankStart, after)
+}
+
+/** The length of the blank lines starting at [start], up to the line holding anything else. */
+private fun blankLinesAt(buf: CharSequence, start: Int): Int {
+    var end = start
+    var index = start
+    while (index < buf.length) {
+        when (buf[index]) {
+            ' ', '\t', '\r' -> index++
+            '\n' -> end = ++index
+            else -> break
+        }
+    }
+    return end - start
 }
 
 /**

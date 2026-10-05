@@ -412,7 +412,6 @@ z = 3
 doc.remove("a")
 ```
 ```toml expected
-
 # about c
 [c]
 z = 3
@@ -535,7 +534,6 @@ z = 3
 doc.remove("a")
 ```
 ```toml expected
-
 # about b
 [b]
 m = 1
