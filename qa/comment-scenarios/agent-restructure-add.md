@@ -278,7 +278,8 @@ a = 1
 ```
 
 ### S-015: a key added to a file that is only a comment goes below it
-rule: 1, 9   version: 1.0   open: a lone comment is both the head and the end of the file; S-005 puts new keys above an end-of-file comment, but a file-head comment should stay on top. Which wins?
+rule: 1, 9   version: 1.0
+settled: owner ruling 2026-10-05 (Q3): in a document that is only comments, new content goes below them.
 ```toml input
 # just a comment
 ```
@@ -504,7 +505,8 @@ k = 1
 ```
 
 ### S-026: an array of tables added through the builder to a file that is only a comment
-rule: 1, 9   version: 1.0   open: same as S-015; should the lone comment stay on top, and does the first header then get a blank line?
+rule: 1, 9   version: 1.0
+settled: owner ruling 2026-10-05 (Q3): in a document that is only comments, new content goes below them.
 ```toml input
 # just a comment
 ```
@@ -1038,7 +1040,7 @@ a.z = 1 # z
 
 ### S-052: copying a value over another key keeps the target's comments, not the source's
 rule: 3   version: 1.0
-open: the target keeps its own same-line comment (rule 3), but a value given its own decor replaces the old decor (pinned in ReplacementCommentScopeTest); a copied value cannot be told apart from one built with a decor.
+settled: owner ruling 2026-10-05 (Q4): a copy takes only the comments inside it.
 ```toml input
 # about a
 a = 1 # one
@@ -1056,7 +1058,8 @@ b = 1 # two
 ```
 
 ### S-053: copying a value to a new key gives it default formatting
-rule: 9   version: 1.0   open: does the source's same-line comment travel with the copied value?
+rule: 9   version: 1.0
+settled: owner ruling 2026-10-05 (Q4): a copy takes only the comments inside it.
 ```toml input
 a = 1 # one
 ```
@@ -1069,7 +1072,8 @@ b = 1
 ```
 
 ### S-054: copying a multi-line array keeps the comments inside it
-rule: 1, 9   version: 1.0   open: comments inside the value travel; does the comment after `]` travel too?
+rule: 1, 9   version: 1.0
+settled: owner ruling 2026-10-05 (Q4): a copy takes only the comments inside it.
 ```toml input
 a = [
   1, # one
@@ -1091,7 +1095,8 @@ b = [
 ```
 
 ### S-055: copying a table to a new key
-rule: 1, 9   version: 1.0   open: which comments travel with a copied table: the key comments inside (as here), the header comment, the comment above the header?
+rule: 1, 9   version: 1.0
+settled: owner ruling 2026-10-05 (Q4): a copy takes only the comments inside it.
 ```toml input
 # about a
 [a] # a header
@@ -1415,7 +1420,8 @@ b = 2
 ```
 
 ### S-073: dotted keys after a root key made a table
-rule: 8, 9   version: 1.0   open: the table now prints after the root values; does the comment that was above `x.a` go with the new header (as here) and does the header get the new-table blank line?
+rule: 8, 9   version: 1.0
+settled: owner ruling 2026-10-05 (Q2): a new header after the root values gets its blank line above the comment that introduces it.
 ```toml input
 title = 1
 # about x

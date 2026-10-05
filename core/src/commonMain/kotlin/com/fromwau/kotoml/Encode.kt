@@ -221,6 +221,7 @@ internal fun encodeDocument(buf: StringBuilder, document: TomlDocument) {
     val root = document.root
     val decor = root.rawDecor
     decor.prefixEncode(buf, DEFAULT_ROOT_DECOR.first)
+    val headEnd = buf.length
     val writer = LineWriter(buf, document.lineEnding)
 
     val collected = DocumentParts()
@@ -228,7 +229,8 @@ internal fun encodeDocument(buf: StringBuilder, document: TomlDocument) {
     val ordered = collected.parts.sortedWith(
         compareBy({ it !is TableToVisit || it.path.isNotEmpty() }, { it.position }),
     )
-    var firstTable = true
+    // A document's head is content the first table is set apart from, like keys.
+    var firstTable = decor.prefix?.textOrNull.isNullOrEmpty()
     for (part in ordered) {
         when (part) {
             is TableToVisit -> firstTable = visitTable(writer, part.table, part.path, part.isArray, firstTable)
@@ -237,6 +239,9 @@ internal fun encodeDocument(buf: StringBuilder, document: TomlDocument) {
     }
     decor.suffixEncode(buf, DEFAULT_ROOT_DECOR.second)
     encodeRaw(buf, document.rawTrailing.textOr(""))
+    // A head read without a final line break needs one once anything follows it.
+    val head = buf.substring(0, headEnd).removePrefix("\uFEFF")
+    if (buf.length > headEnd && head.isNotEmpty() && !head.endsWith('\n')) buf.insert(headEnd, writer.ending)
 }
 
 /**

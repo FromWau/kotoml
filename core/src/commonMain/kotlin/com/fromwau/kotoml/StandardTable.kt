@@ -54,7 +54,12 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         val prefix = key.rawLeafDecor.prefix?.textOrNull ?: return
         val above = linesAbove(key.rawLeafDecor.prefix)
         if ('#' !in above) return
-        rawDecor.prefix = KeptText.from(above)
+        // A new header is set apart by a blank line, above the comment that introduces it, unless it comes first.
+        val lineBreak = if ("\r\n" in above) "\r\n" else "\n"
+        val top = outermostTableOf(this)
+        val firstLine = top?.bodyLines()?.firstOrNull()
+        val printsFirst = firstLine is VisualValue && firstLine.path.last() === key
+        rawDecor.prefix = KeptText.from(if (printsFirst) above else lineBreak + above)
         key.rawLeafDecor.prefix = KeptText.from(prefix.substring(above.length))
     }
 
@@ -390,7 +395,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     ): Result<Item?, TomlEditError> {
         tooDeepError(this, key, item)?.let { return Err(it) }
         items.getEntry(key)?.prepareFor(item)
-        return Ok(items.put(Key(key), item.copyFor(ValuePlace.Line)))
+        return Ok(items.put(Key(key), item.copyFor(ValuePlace.Line, copiesWithinDocument(item, this))))
     }
 
     /**
@@ -405,7 +410,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     ): Result<Item?, TomlEditError> {
         tooDeepError(this, key.name, item)?.let { return Err(it) }
         items.getEntry(key.name)?.key = key.copy()
-        return Ok(items.put(key.copy(), item.copyFor(ValuePlace.Line)))
+        return Ok(items.put(key.copy(), item.copyFor(ValuePlace.Line, copiesWithinDocument(item, this))))
     }
 
     override fun putItem(
@@ -431,7 +436,8 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         default: () -> Item,
     ): Result<Item, TomlEditError> {
         getOrNull(key.name)?.let { return Ok(it) }
-        val stored = default().copyFor(ValuePlace.Line)
+        val made = default()
+        val stored = made.copyFor(ValuePlace.Line, copiesWithinDocument(made, this))
         tooDeepError(this, key.name, stored)?.let { return Err(it) }
         items.put(key.copy(), stored)
         return Ok(stored)

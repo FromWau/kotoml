@@ -95,6 +95,15 @@ public class Item private constructor(
             is ArrayOfTablesContent -> array === container
         }
 
+        /** Drops the comments a copy read with its source's own lines; the comments inside it travel. */
+        fun leaveSource() {
+            when (this) {
+                is ValueContent -> value.rawDecor.dropReadComments(isHeader = false)
+                is TableContent -> table.rawDecor.dropReadComments(isHeader = true)
+                is ArrayOfTablesContent -> array.firstOrNull()?.rawDecor?.dropReadComments(isHeader = true)
+            }
+        }
+
         fun deepCopy(): Content = when (this) {
             is ValueContent -> ValueContent(value.copy())
             is TableContent -> TableContent(table.copy())
@@ -149,7 +158,8 @@ public class Item private constructor(
      * parser reads.
      */
     public fun assign(item: Item): EmptyResult<TomlEditError> {
-        val next = item.content.deepCopy().placedIn(holds)
+        val within = owner?.let { copiesWithinDocument(item, it) } ?: false
+        val next = item.content.deepCopy().placedIn(holds).also { if (within) it.leaveSource() }
         refusal(next)?.let { return Err(it) }
         tooDeepToHold(item)?.let { return Err(it) }
         valuePlace?.let { place -> (next as? Content.ValueContent)?.value?.fitFor(place) }
@@ -176,8 +186,17 @@ public class Item private constructor(
             else -> ValuePlace.Array
         }
 
-    /** A copy of what this item holds, its value's decor fitted to [place]. */
-    internal fun copyFor(place: ValuePlace): Item = copy().also { it.valueOrNull?.fitFor(place) }
+    /**
+     * A copy of what this item holds for storing at [place], leaving its source's comments when [leaveSource]; see
+     * [Content.leaveSource] and [Value.fitFor].
+     */
+    internal fun copyFor(
+        place: ValuePlace,
+        leaveSource: Boolean,
+    ): Item = copy().also { copy ->
+        if (leaveSource) copy.content.leaveSource()
+        copy.valueOrNull?.fitFor(place)
+    }
 
     /** Why this slot cannot hold [item] for nesting too deep, or null when it can. */
     private fun tooDeepToHold(item: Item): TomlEditError.TooDeep? {

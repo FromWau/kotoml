@@ -34,6 +34,35 @@ internal fun nestingOf(container: Any): Nesting {
     return nesting
 }
 
+/**
+ * Whether storing [item] in [receiver] copies it to another place of the document it is read from: then the copy
+ * leaves the comments of its source's own lines behind. Copying into another document keeps them, as does storing a
+ * table or array that is stored nowhere, or a bare value.
+ */
+internal fun copiesWithinDocument(
+    item: Item,
+    receiver: Any,
+): Boolean {
+    val source = item.owner ?: item.container?.let(::parentOf) ?: return false
+    return outermostTableOf(source) === outermostTableOf(receiver)
+}
+
+/** Whether storing [table] in [array] copies it from another place of their document, not reorders [array]. */
+internal fun copiesWithinDocument(
+    table: StandardTable,
+    array: ArrayOfTables,
+): Boolean {
+    val source = parentOf(table) ?: return false
+    return source !== array && outermostTableOf(source) === outermostTableOf(array)
+}
+
+/** The outermost table [container] is stored under: a document's root, or the table at the top of a detached tree. */
+internal fun outermostTableOf(container: Any): StandardTable? {
+    var current = container
+    while (true) current = parentOf(current) ?: break
+    return current as? StandardTable
+}
+
 private fun topNestingOf(container: Any): Nesting = when (container) {
     is StandardTable -> Nesting.InTable(parts = 0, dots = 0)
     is ArrayOfTables -> Nesting.InTables(parts = 1)

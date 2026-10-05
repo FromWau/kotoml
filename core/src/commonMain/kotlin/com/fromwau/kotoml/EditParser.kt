@@ -227,6 +227,11 @@ private class DocumentBuilder(private val input: EventStream, private val contex
             root.settleHeaderSpellings(emptyList())
         }
         val trailing = takeTrailing().let { if (failed) it else it.resolveSpans(input) }
+        // Text in a document with no keys is its head, so what is added later goes below it.
+        if (root.items.size == 0 && root.rawDecor.prefix == null) {
+            root.rawDecor.prefix = trailing
+            return TomlDocument(root, KeptText(), lineEnding, text)
+        }
         return TomlDocument(root, trailing, lineEnding, text)
     }
 

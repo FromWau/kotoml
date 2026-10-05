@@ -15,6 +15,12 @@ Every defect, ruling and docs item from that pass is closed; see **Done**.
   its first entry's key; made an inline table again, it prints `"new key" = { … }` and those comments, visually
   above its key, are gone. Moving them onto the holding key when it goes back into braces would keep them. Goal 4.
 
+- [ ] **29. A copied table prints where its source printed.** A table or array of tables copied to another key keeps
+  the source's print positions, so `[b]` copied from `[a]` over a value key above it prints before `[a]`, and a copied
+  `[[y]]` interleaves with the `[[x]]` it came from (scenarios S-056, S-057). Valid and the same data, but a copy
+  should print after the tables already there. Needs the document's highest position when storing, without making
+  repeated stores quadratic. Goal 4.
+
 ## Not in scope (owner, 2026-10-05)
 
 Deliberate misuse is not a defect: the goals cover what a caller can do by accident in normal use. Not filed:

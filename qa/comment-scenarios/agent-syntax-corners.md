@@ -356,7 +356,8 @@ x = []
 ```
 
 ### C-023: an emptied array of tables after another table must not land inside that table
-rule: 7, 10, 2   version: 1.0   open: does `x = []` move to the root body (before `[t]`), and where does `# top` stay?
+rule: 7, 10, 2   version: 1.0
+settled: owner ruling 2026-10-05 (Q1): the comment above an emptied or replaced array of tables moves up with its new line.
 ```toml input
 [t]
 b = 2
@@ -369,11 +370,11 @@ n = 1
 doc["x"].getOrFail().arrayOfTablesOrNull!!.removeAt(0)
 ```
 ```toml expected
+
+# top
 x = []
 [t]
 b = 2
-
-# top
 ```
 
 ### C-024: an emptied array of tables after root keys
@@ -1454,7 +1455,8 @@ b = 2
 ```
 
 ### C-087: a byte order mark stays when a key is added to a comment-only document
-rule: 9   version: 1.0   BOM   open: does the new key go above or below the comment?
+rule: 9   version: 1.0   BOM
+settled: owner ruling 2026-10-05 (Q3): in a document that is only comments, new content goes below them.
 ```toml input
 # only a comment
 ```
@@ -1537,7 +1539,8 @@ b = 3 # bee
 ## Comment-only documents and empty tables
 
 ### C-091: a key added to a comment-only document
-rule: 1   version: 1.0   open: above or below the only comment?
+rule: 1   version: 1.0
+settled: owner ruling 2026-10-05 (Q3): in a document that is only comments, new content goes below them.
 ```toml input
 # header comment
 
@@ -1554,7 +1557,8 @@ a = 1
 ```
 
 ### C-092: a table added to a comment-only document keeps the comments
-rule: 1   version: 1.0   open: does the new header get a blank line before it?
+rule: 1   version: 1.0
+settled: owner ruling 2026-10-05 (Q3): in a document that is only comments, new content goes below them.
 ```toml input
 # just comments
 ```

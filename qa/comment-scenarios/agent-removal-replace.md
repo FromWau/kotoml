@@ -757,7 +757,7 @@ bin = []
 
 ### R-038: an emptied array of tables after a table moves to the root values and stays valid
 rule: 5, 7, 9   version: 1.0
-open: `bin = []` cannot print where `[[bin]]` stood (it would land inside `[a]`); it is expected among the root values, and the comment above `[[bin]]` stays where it printed.
+settled: owner ruling 2026-10-05 (Q1): the comment above an emptied or replaced array of tables moves up with its new line.
 ```toml input
 [a]
 x = 1
@@ -770,11 +770,11 @@ name = "x"
 doc["bin"].getOrFail().arrayOfTablesOrNull!!.clear()
 ```
 ```toml expected
+
+# bins
 bin = []
 [a]
 x = 1
-
-# bins
 ```
 
 ### R-039: removing a key from inside an array-of-tables element keeps the comment above it
@@ -1677,7 +1677,7 @@ x = 0
 
 ### R-092: an array of tables after a table, replaced by a value, prints among the root values
 rule: 4, 9   version: 1.0
-open: `fruit = 0` cannot print where `[[fruit]]` stood; it is expected at the end of the root values, the comment above the old header stays where it printed
+settled: owner ruling 2026-10-05 (Q1): the comment above an emptied or replaced array of tables moves up with its new line.
 ```toml input
 [a]
 x = 1
@@ -1690,11 +1690,11 @@ name = "a"
 doc["fruit"] = 0L
 ```
 ```toml expected
+
+# fruits
 fruit = 0
 [a]
 x = 1
-
-# fruits
 ```
 
 ### R-093: a table replaced by a value drops its header comment and body comments
@@ -1781,7 +1781,7 @@ k = 1
 
 ### R-097: the last root value replaced by a table keeps the comment above, then the new header
 rule: 4   version: 1.0
-open: blank line before the new header?
+settled: owner ruling 2026-10-05 (Q2): a new header after the root values gets its blank line above the comment that introduces it.
 ```toml input
 a = 1
 # about x
@@ -1792,8 +1792,8 @@ doc["x"] = standardTableOf("k" to Item(Value.Integer(1L))).getOrFail()
 ```
 ```toml expected
 a = 1
-# about x
 
+# about x
 [x]
 k = 1
 ```
@@ -1902,7 +1902,7 @@ n = 2
 
 ### R-103: a value replaced by an array of tables
 rule: 4   version: 1.0
-open: is the same-line comment dropped (expected) and the comment above kept where it printed? blank line before the new header?
+settled: owner ruling 2026-10-05 (Q2): a new header after the root values gets its blank line above the comment that introduces it.
 ```toml input
 # about x
 x = 1 # one
@@ -1912,7 +1912,6 @@ doc["x"] = Item(ArrayOfTables().apply { add(standardTableOf("n" to Item(Value.In
 ```
 ```toml expected
 # about x
-
 [[x]]
 n = 1
 ```

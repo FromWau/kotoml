@@ -12,6 +12,9 @@ internal class KeptText private constructor(private val state: State) {
 
         data class Explicit(val text: String) : State
 
+        // Text read from a parse's input, as opposed to text a caller gave.
+        data class Read(val text: String) : State
+
         data class Spanned(val span: Span) : State
     }
 
@@ -22,8 +25,13 @@ internal class KeptText private constructor(private val state: State) {
         get() = when (state) {
             State.Empty -> ""
             is State.Explicit -> state.text
+            is State.Read -> state.text
             is State.Spanned -> null
         }
+
+    /** Whether this text was read from a document rather than given by a caller. */
+    val isRead: Boolean
+        get() = state is State.Read
 
     val span: Span?
         get() = (state as? State.Spanned)?.span
@@ -31,6 +39,7 @@ internal class KeptText private constructor(private val state: State) {
     fun text(input: SourceText): String = when (state) {
         State.Empty -> ""
         is State.Explicit -> state.text
+        is State.Read -> state.text
         is State.Spanned -> input.slice(state.span)
     }
 
@@ -38,22 +47,29 @@ internal class KeptText private constructor(private val state: State) {
     fun textOr(default: String): String = when (state) {
         State.Empty -> ""
         is State.Explicit -> state.text
+        is State.Read -> state.text
         is State.Spanned -> default
     }
 
     fun resolveSpans(input: SourceText): KeptText = when (state) {
-        is State.Spanned -> if (state.span.length <= 0) KeptText() else from(input.slice(state.span))
+        is State.Spanned -> if (state.span.length <= 0) KeptText() else KeptText(State.Read(input.slice(state.span)))
         else -> this
     }
 
-    override fun equals(other: Any?): Boolean = other is KeptText && state == other.state
+    // Text equals text however it came to be; a span equals only the same span.
+    override fun equals(other: Any?): Boolean {
+        if (other !is KeptText) return false
+        val text = textOrNull
+        return if (text != null) text == other.textOrNull else state == other.state
+    }
 
-    override fun hashCode(): Int = state.hashCode()
+    override fun hashCode(): Int = textOrNull?.hashCode() ?: state.hashCode()
 
     /** The text as given, or `start..end` for a span. */
     override fun toString(): String = when (state) {
         State.Empty -> ""
         is State.Explicit -> state.text
+        is State.Read -> state.text
         is State.Spanned -> state.span.toString()
     }
 
@@ -167,6 +183,17 @@ internal class RawDecor(
             ValuePlace.Array -> '#' in after
         }
         if (unfit) suffix = null
+    }
+
+    /**
+     * Drops what a copy must not take from the place it was read in: the comment on its line, and for a table under
+     * a header the comment lines above that header and the comment after it. A decor a caller gave stays.
+     */
+    fun dropReadComments(isHeader: Boolean) {
+        val before = prefix
+        if (isHeader && before != null && before.isRead && '#' in before.textOrNull.orEmpty()) prefix = null
+        val after = suffix
+        if (after != null && after.isRead && '#' in after.textOrNull.orEmpty()) suffix = null
     }
 
     fun prefixEncode(buf: StringBuilder, default: String) {

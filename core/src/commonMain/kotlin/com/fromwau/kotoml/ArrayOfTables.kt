@@ -84,8 +84,13 @@ public class ArrayOfTables() : Iterable<StandardTable> {
      */
     public fun add(table: StandardTable): EmptyResult<TomlEditError> {
         tooDeepError(this, null, Item(table))?.let { return Err(it) }
-        append(table.copy())
+        append(copyToStore(table))
         return Ok(Unit)
+    }
+
+    // A copy from elsewhere in the document leaves the comments of the header it was read under behind.
+    private fun copyToStore(table: StandardTable): StandardTable = table.copy().also { copy ->
+        if (copiesWithinDocument(table, this)) copy.rawDecor.dropReadComments(isHeader = true)
     }
 
     /** Appends [table] itself, for a caller that built it and holds no other reference to it. */
@@ -105,7 +110,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     ): EmptyResult<TomlEditError> {
         if (index < 0 || index > values.size) return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         tooDeepError(this, null, Item(table))?.let { return Err(it) }
-        values.add(index, Item.inArrayOfTables(table.copy(), this))
+        values.add(index, Item.inArrayOfTables(copyToStore(table), this))
         return Ok(Unit)
     }
 
@@ -139,7 +144,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     ): Result<StandardTable, TomlEditError> {
         val old = get(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         tooDeepError(this, null, Item(table))?.let { return Err(it) }
-        val stored = table.copy()
+        val stored = copyToStore(table)
         if (keepDecor) {
             stored.rawDecor.assign(old.rawDecor)
             stored.position = old.position
