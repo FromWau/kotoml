@@ -4,6 +4,7 @@ import com.fromwau.kern.result.EmptyResult
 import com.fromwau.kern.result.Err
 import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
+import com.fromwau.kern.result.map
 
 /**
  * An array value, `[1, 2, 3]`, with its formatting: the decor around it, a trailing comma, and the text
@@ -16,7 +17,7 @@ import com.fromwau.kern.result.Result
  * values hold instead, with `array.any { it.stringOrNull == "a" }` or `array.indexOfFirst { … }`.
  *
  * ```kotlin
- * val array = tomlArrayOf(Value.Integer(1L))
+ * val array = tomlArrayOf(Value.Integer(1L)).getOrElse { error(it) }
  * array.add("two")
  * array.toString() // "[1, \"two\"]"
  * ```
@@ -94,11 +95,15 @@ public class TomlArray() : Iterable<Value> {
     /**
      * Appends a copy of [value], keeping its formatting. A value without a prefix of its own starts a line of its own
      * when the array's elements do, below the last one and its comment; otherwise it gets the default spacing.
+     *
+     * @return [TomlEditError.TooDeep], storing nothing, when [value] would nest deeper than the parser reads.
      */
-    public fun add(value: Value) {
+    public fun add(value: Value): EmptyResult<TomlEditError> {
+        tooDeepError(this, null, Item(value))?.let { return Err(it) }
         val stored = value.copy()
         if (stored.decor.prefix == null) startOwnLine(stored)
         append(stored)
+        return Ok(Unit)
     }
 
     /** Appends [value] itself, for a caller that built it and holds no other reference to it. */
@@ -150,13 +155,14 @@ public class TomlArray() : Iterable<Value> {
      * Inserts a copy of [value] at [index], keeping its formatting and shifting later elements right.
      *
      * @return [TomlEditError.IndexOutOfBounds], with nothing inserted, when [index] is negative or greater
-     *   than [size].
+     *   than [size], or [TomlEditError.TooDeep] when [value] would nest deeper than the parser reads.
      */
     public fun add(
         index: Int,
         value: Value,
     ): EmptyResult<TomlEditError> {
         if (index < 0 || index > values.size) return Err(TomlEditError.IndexOutOfBounds(index, values.size))
+        tooDeepError(this, null, Item(value))?.let { return Err(it) }
         values.add(index, Item.inArray(value.copy(), this))
         return Ok(Unit)
     }
@@ -178,7 +184,7 @@ public class TomlArray() : Iterable<Value> {
      * @param keepDecor whether the copy takes over the old element's decor, so it sits where the old one did;
      *   false keeps [value]'s own decor.
      * @return the old element, or [TomlEditError.IndexOutOfBounds], with nothing replaced, when there is no
-     *   element at [index].
+     *   element at [index], or [TomlEditError.TooDeep] when [value] would nest deeper than the parser reads.
      */
     public fun replace(
         index: Int,
@@ -186,6 +192,7 @@ public class TomlArray() : Iterable<Value> {
         keepDecor: Boolean = true,
     ): Result<Value, TomlEditError> {
         val old = get(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
+        tooDeepError(this, null, Item(value))?.let { return Err(it) }
         val stored = value.copy()
         if (keepDecor) stored.rawDecor.assign(old.rawDecor)
         values.set(index, Item.inArray(stored, this)).arrayOwner = null
@@ -304,9 +311,16 @@ public class TomlArray() : Iterable<Value> {
         newLast.rawDecor.suffix = KeptText.from(lastSuffix + suffix.substring(lineBreak))
     }
 
-    /** Appends every value of [values], keeping their formatting. */
-    public fun addAll(values: Iterable<Value>) {
-        for (value in values) add(value)
+    /**
+     * Appends a copy of every value of [values], keeping their formatting.
+     *
+     * @return [TomlEditError.TooDeep], appending none of them, when one would nest deeper than the parser reads.
+     */
+    public fun addAll(values: Iterable<Value>): EmptyResult<TomlEditError> {
+        val added = values.toList()
+        for (value in added) tooDeepError(this, null, Item(value))?.let { return Err(it) }
+        for (value in added) add(value)
+        return Ok(Unit)
     }
 
     /** A deep copy of this array. */
@@ -324,12 +338,16 @@ public class TomlArray() : Iterable<Value> {
     override fun toString(): String = buildString { encodeArray(this, this@TomlArray, "", "") }
 }
 
-/** An array of [values], in order, keeping their formatting. */
-public fun tomlArrayOf(vararg values: Value): TomlArray = values.asIterable().toTomlArray()
+/** An array of copies of [values], in order, keeping their formatting; see [toTomlArray]. */
+public fun tomlArrayOf(vararg values: Value): Result<TomlArray, TomlEditError> = values.asIterable().toTomlArray()
 
-/** An array of these values, in order, keeping their formatting. */
-public fun Iterable<Value>.toTomlArray(): TomlArray {
+/**
+ * An array of copies of these values, in order, keeping their formatting.
+ *
+ * @return [TomlEditError.TooDeep] when a value would nest deeper than the parser reads in an array on a line of a
+ *   document's root table.
+ */
+public fun Iterable<Value>.toTomlArray(): Result<TomlArray, TomlEditError> {
     val array = TomlArray()
-    array.addAll(this)
-    return array
+    return array.addAll(this).map { array }
 }

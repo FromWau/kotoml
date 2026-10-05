@@ -72,33 +72,25 @@ public class TomlDocument internal constructor(
     public operator fun set(
         key: String,
         item: Item,
-    ) {
-        root[key] = item
-    }
+    ): EmptyResult<TomlEditError> = root.set(key, item)
 
     /** Stores a copy of [value] at [key] of the root table; see [StandardTable.set]. */
     public operator fun set(
         key: String,
         value: Value,
-    ) {
-        root[key] = value
-    }
+    ): EmptyResult<TomlEditError> = root.set(key, value)
 
     /** Stores a copy of [table] at [key] of the root table; see [StandardTable.set]. */
     public operator fun set(
         key: String,
         table: StandardTable,
-    ) {
-        root[key] = table
-    }
+    ): EmptyResult<TomlEditError> = root.set(key, table)
 
     /** Stores a copy of [arrayOfTables] at [key] of the root table; see [StandardTable.set]. */
     public operator fun set(
         key: String,
         arrayOfTables: ArrayOfTables,
-    ) {
-        root[key] = arrayOfTables
-    }
+    ): EmptyResult<TomlEditError> = root.set(key, arrayOfTables)
 
     /** The item at [key] of the root table, or null; see [StandardTable.getOrNull]. */
     public fun getOrNull(key: String): Item? = root.getOrNull(key)
@@ -116,7 +108,7 @@ public class TomlDocument internal constructor(
     public fun put(
         key: String,
         item: Item,
-    ): Item? = root.put(key, item)
+    ): Result<Item?, TomlEditError> = root.put(key, item)
 
     /**
      * Sets [key] of the root table, with its spelling and decor, to a copy of [item], and returns the item it held;
@@ -125,12 +117,10 @@ public class TomlDocument internal constructor(
     public fun put(
         key: Key,
         item: Item,
-    ): Item? = root.put(key, item)
+    ): Result<Item?, TomlEditError> = root.put(key, item)
 
     /** Stores a copy of every pair of [pairs] in the root table, in order; see [StandardTable.putAll]. */
-    public fun putAll(pairs: Iterable<Pair<String, Item>>) {
-        root.putAll(pairs)
-    }
+    public fun putAll(pairs: Iterable<Pair<String, Item>>): EmptyResult<TomlEditError> = root.putAll(pairs)
 
     /**
      * Removes [key] from the root table and returns its item, or null when it held none. The comment and blank
@@ -159,13 +149,13 @@ public class TomlDocument internal constructor(
     public fun getOrPut(
         key: String,
         default: () -> Item,
-    ): Item = root.getOrPut(key, default)
+    ): Result<Item, TomlEditError> = root.getOrPut(key, default)
 
     /** As [getOrPut], an inserted key keeping the spelling and decor of [key]; see [StandardTable.getOrPut]. */
     public fun getOrPut(
         key: Key,
         default: () -> Item,
-    ): Item = root.getOrPut(key, default)
+    ): Result<Item, TomlEditError> = root.getOrPut(key, default)
 
     /** The keys of the root table holding an item, in order, as a copy; see [StandardTable.keys]. */
     public val keys: Set<String>
@@ -208,7 +198,7 @@ public class TomlDocument internal constructor(
      *   UTF-8 cannot encode; or [TomlIoError] when the sink fails to take the text or is closed.
      */
     public fun writeTo(sink: Sink): EmptyResult<TomlWriteError> {
-        root.tooDeepPath()?.let { return Err(TomlWriteError.TooDeep(it)) }
+        tooDeepPathAtTop(root)?.let { return Err(TomlWriteError.TooDeep(it)) }
         val text = toString()
         if (text.hasLoneSurrogate()) return Err(TomlWriteError.NotUnicode(root.loneSurrogatePath()))
         return try {

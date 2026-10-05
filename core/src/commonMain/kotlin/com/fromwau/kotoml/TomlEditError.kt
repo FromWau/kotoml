@@ -41,4 +41,12 @@ public sealed interface TomlEditError : IError {
     @Serializable
     @SerialName("NotATableElement")
     public data class NotATableElement(val itemType: TomlType) : TomlEditError
+
+    /**
+     * Storing would nest deeper than [TomlDocument.NESTING_LIMIT] allows, so the document could not be read back;
+     * [keyPath] leads from where it was stored to where it gets too deep. Nothing was stored.
+     */
+    @Serializable
+    @SerialName("TooDeep")
+    public data class TooDeep(val keyPath: List<String>) : TomlEditError
 }

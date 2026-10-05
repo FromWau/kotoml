@@ -1,8 +1,10 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.EmptyResult
 import com.fromwau.kern.result.Err
 import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
+import com.fromwau.kern.result.map
 
 /**
  * A standard table: the key/value pairs under a `[header]`, and the tables nested in it.
@@ -15,7 +17,7 @@ import com.fromwau.kern.result.Result
  * [TomlEditError.NotFound]; `table["key"] = item` stores a copy of `item`, keeping the key's formatting.
  *
  * ```kotlin
- * val table = standardTableOf("name" to Item(Value.String("kotoml")))
+ * val table = standardTableOf("name" to Item(Value.String("kotoml"))).getOrElse { error(it) }
  * table["version"] = "0.1.0"
  * table.toString() // "name = \"kotoml\"\nversion = \"0.1.0\"\n"
  * ```
@@ -75,12 +77,16 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         this.items = items
     }
 
-    /** An inline table holding copies of this table's values, formatted anew; the table stays as it is. */
-    public fun toInlineTable(): InlineTable = copy().moveToInlineTable()
+    /**
+     * An inline table holding copies of this table's values, formatted anew; the table stays as it is.
+     *
+     * @return [TomlEditError.TooDeep] when its tables, nested as inline tables, would be deeper than the parser reads.
+     */
+    public fun toInlineTable(): Result<InlineTable, TomlEditError> = copy().moveToInlineTable().refusedWhenTooDeep()
 
     /** Moves the entries into a new inline table, formatted anew, leaving this table empty. */
     internal fun moveToInlineTable(): InlineTable {
-        for (entry in items.entries) entry.item.makeValue()
+        for (entry in items.entries) entry.item.holdValue(entry.item.copy().moveToValue())
         val table = InlineTable(items.takeAll())
         table.resetFormatting()
         return table
@@ -266,37 +272,33 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     public operator fun get(key: String): Result<Item, TomlEditError> =
         items.get(key)?.let { Ok(it) } ?: Err(TomlEditError.NotFound(key))
 
-    /** Stores a copy of [item] at [key], keeping the key's position and formatting when it is already there. */
+    /**
+     * Stores a copy of [item] at [key], keeping the key's position and formatting when it is already there.
+     *
+     * @return [TomlEditError.TooDeep], storing nothing, when [item] would nest deeper than the parser reads.
+     */
     public operator fun set(
         key: String,
         item: Item,
-    ) {
-        put(key, item)
-    }
+    ): EmptyResult<TomlEditError> = put(key, item).map { }
 
     /** Stores a copy of [value] at [key], as `table[key] = Item(value)` does. */
     public operator fun set(
         key: String,
         value: Value,
-    ) {
-        set(key, Item(value))
-    }
+    ): EmptyResult<TomlEditError> = set(key, Item(value))
 
     /** Stores a copy of [table] at [key], as `table[key] = Item(table)` does. */
     public operator fun set(
         key: String,
         table: StandardTable,
-    ) {
-        set(key, Item(table))
-    }
+    ): EmptyResult<TomlEditError> = set(key, Item(table))
 
     /** Stores a copy of [arrayOfTables] at [key], as `table[key] = Item(arrayOfTables)` does. */
     public operator fun set(
         key: String,
         arrayOfTables: ArrayOfTables,
-    ) {
-        set(key, Item(arrayOfTables))
-    }
+    ): EmptyResult<TomlEditError> = set(key, Item(arrayOfTables))
 
     /** Whether [key] holds an item. */
     override fun containsKey(key: String): Boolean = items.containsKey(key)
@@ -310,55 +312,60 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
      * line and a `[header]` or `[[header]]`, where it takes the default spacing. Pass a [Key] to replace all of
      * its formatting.
      *
-     * @return the item [key] held before, or null when it held none.
+     * @return the item [key] held before, or null when it held none; or [TomlEditError.TooDeep], storing nothing,
+     *   when [item] would nest deeper than the parser reads.
      */
     public fun put(
         key: String,
         item: Item,
-    ): Item? {
+    ): Result<Item?, TomlEditError> {
+        tooDeepError(this, key, item)?.let { return Err(it) }
         items.getEntry(key)?.prepareFor(item)
-        return items.put(Key(key), item.copy())
+        return Ok(items.put(Key(key), item.copy()))
     }
 
     /**
      * Sets [key], with its spelling and decor, to a copy of [item]. A key already there keeps its position but
      * takes the spelling and decor of [key].
      *
-     * @return the item the key held before, or null when it held none.
+     * @return the item the key held before, or null when it held none; or [TomlEditError.TooDeep], as [put] says.
      */
     public fun put(
         key: Key,
         item: Item,
-    ): Item? {
+    ): Result<Item?, TomlEditError> {
+        tooDeepError(this, key.name, item)?.let { return Err(it) }
         items.getEntry(key.name)?.key = key.copy()
-        return items.put(key.copy(), item.copy())
+        return Ok(items.put(key.copy(), item.copy()))
     }
 
     override fun putItem(
         key: String,
         item: Item,
-    ): Item? = put(key, item)
+    ): Result<Item?, TomlEditError> = put(key, item)
 
     /**
      * The item at [key], first storing a copy of what [default] makes when the key holds none. [default] is
      * called only then.
      *
-     * @return the stored item, to change in place.
+     * @return the stored item, to change in place; or [TomlEditError.TooDeep], storing nothing, when what [default]
+     *   makes would nest deeper than the parser reads.
      */
     public fun getOrPut(
         key: String,
         default: () -> Item,
-    ): Item = getOrPut(Key(key), default)
+    ): Result<Item, TomlEditError> = getOrPut(Key(key), default)
 
     /** As [getOrPut], an inserted key keeping the spelling and decor of [key]. */
     public fun getOrPut(
         key: Key,
         default: () -> Item,
-    ): Item {
-        getOrNull(key.name)?.let { return it }
+    ): Result<Item, TomlEditError> {
+        getOrNull(key.name)?.let { return Ok(it) }
         val stored = default().copy()
+        tooDeepError(this, key.name, stored)?.let { return Err(it) }
         items.put(key.copy(), stored)
-        return stored
+        return Ok(stored)
     }
 
     /**
@@ -425,9 +432,16 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         for (entry in removed) keepHeaderLinesOf(entry.item, keptHeaderLines)
     }
 
-    /** Stores a copy of every pair of [pairs], in order, as `table[key] = item` does. */
-    public fun putAll(pairs: Iterable<Pair<String, Item>>) {
-        for ((key, item) in pairs) set(key, item)
+    /**
+     * Stores a copy of every pair of [pairs], in order, as `table[key] = item` does.
+     *
+     * @return [TomlEditError.TooDeep], storing none of them, when one would nest deeper than the parser reads.
+     */
+    public fun putAll(pairs: Iterable<Pair<String, Item>>): EmptyResult<TomlEditError> {
+        val stored = pairs.toList()
+        for ((key, item) in stored) tooDeepError(this, key, item)?.let { return Err(it) }
+        for ((key, item) in stored) put(key, item)
+        return Ok(Unit)
     }
 
     /** A deep copy of this table. */
@@ -479,14 +493,18 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     }
 }
 
-/** A table holding copies of [pairs], in order. */
-public fun standardTableOf(vararg pairs: Pair<String, Item>): StandardTable = pairs.asIterable().toStandardTable()
+/** A table holding copies of [pairs], in order; see [toStandardTable]. */
+public fun standardTableOf(vararg pairs: Pair<String, Item>): Result<StandardTable, TomlEditError> =
+    pairs.asIterable().toStandardTable()
 
-/** A table holding copies of these pairs, in order; a later pair for the same key replaces an earlier one. */
-public fun Iterable<Pair<String, Item>>.toStandardTable(): StandardTable {
+/**
+ * A table holding copies of these pairs, in order; a later pair for the same key replaces an earlier one.
+ *
+ * @return [TomlEditError.TooDeep] when a pair would nest deeper than the parser reads in a document's root table.
+ */
+public fun Iterable<Pair<String, Item>>.toStandardTable(): Result<StandardTable, TomlEditError> {
     val table = StandardTable()
-    table.putAll(this)
-    return table
+    return table.putAll(this).map { table }
 }
 
 private fun Item.printsOwnHeader(): Boolean = standardTableOrNull?.let { !it.isDotted } ?: (arrayOfTablesOrNull != null)

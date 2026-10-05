@@ -1,12 +1,11 @@
 package com.fromwau.kotoml.app
 
+import com.fromwau.kern.result.getOrNull
 import com.fromwau.kotoml.Decor
 import com.fromwau.kotoml.TomlDocument
 import com.fromwau.kotoml.Item
 import com.fromwau.kotoml.StandardTable
 import com.fromwau.kotoml.Value
-import com.fromwau.kotoml.toInlineTable
-import com.fromwau.kotoml.toTomlArray
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.Serializable
@@ -92,16 +91,26 @@ internal fun Selected.toToml(): String {
     item.arrayOfTablesOrNull?.let { tables ->
         // Printed under the header path it has in the file, inside parents that print nothing themselves. Only a
         // key reaches an array of tables, so the path is never empty.
-        val holder = StandardTable().also { it[path.last()] = tables }
+        val holder = tableHolding(path.last(), Item(tables))
         val root = path.dropLast(1).foldRight(holder) { key, child ->
             child.isImplicit = true
-            StandardTable().also { it[key] = child }
+            tableHolding(key, Item(child))
         }
         return TomlDocument(root).toString().trim()
     }
     val value = checkNotNull(item.valueOrNull) { "an item holds a value when it holds no table" }.copy()
     value.decor = Decor()
     return value.toString()
+}
+
+/** A table holding a copy of [item], read from a file under the same keys, which therefore nests as it did there. */
+private fun tableHolding(
+    key: String,
+    item: Item,
+): StandardTable {
+    val table = StandardTable()
+    checkNotNull(table.set(key, item).getOrNull()) { "content read from a file fits under the keys it stood at" }
+    return table
 }
 
 internal fun Item.toJson(): JsonElement {

@@ -157,7 +157,11 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
         if (plan.movesElements) keepBlankLinesInPlace(merged, plan, old)
         // A kept element may land in another's slot, and must not take that slot's header comments.
         for ((index, table) in merged.withIndex()) {
-            if (index < tables.size) tables.replace(index, table, keepDecor = false) else tables.add(table)
+            if (index < tables.size) {
+                tables.replace(index, table, keepDecor = false).fits()
+            } else {
+                tables.add(table).fits()
+            }
         }
     }
 
@@ -193,7 +197,11 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
             }
         }
         for ((index, value) in placed.withIndex()) {
-            if (index < array.size) array.replace(index, value, keepDecor = false) else array.add(value)
+            if (index < array.size) {
+                array.replace(index, value, keepDecor = false).fits()
+            } else {
+                array.add(value).fits()
+            }
         }
         // The array stores copies, so the layout below works on what it holds.
         val merged = array.toList()
@@ -249,8 +257,8 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
         item: Item,
     ) {
         when (table) {
-            is StandardTable -> table[key] = item
-            is InlineTable -> item.valueOrNull?.let { table[key] = it }
+            is StandardTable -> table.set(key, item).fits()
+            is InlineTable -> item.valueOrNull?.let { table.set(key, it).fits() }
         }
     }
 }

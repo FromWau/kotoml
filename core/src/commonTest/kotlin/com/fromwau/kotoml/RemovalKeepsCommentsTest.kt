@@ -40,7 +40,7 @@ class RemovalKeepsCommentsTest {
     fun `a table added after a removal prints below the comment kept from the removed table`() {
         val doc = TomlDocument.parse("[b]\ny = 1\n\n# about a\n[a]\nx = 1\n").getOrFail()
         doc.remove("a")
-        doc["c"] = standardTableOf("z" to Item(Value.Integer(1L)))
+        doc["c"] = standardTableOf("z" to Item(Value.Integer(1L))).getOrFail()
         assertEquals("[b]\ny = 1\n\n# about a\n\n[c]\nz = 1\n", doc.toString())
     }
 

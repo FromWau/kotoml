@@ -89,7 +89,7 @@ c = { d = "hello" }
         doc["server"]["hosts"].getOrFail().arrayOrNull?.add("beta")
         val server = doc["server"].getOrFail().standardTableOrNull!!
         server.getOrPut("port") { Item(Value.Integer(8080L)) }
-        doc["client"] = standardTableOf("retries" to Item(Value.Integer(3L)))
+        doc["client"] = standardTableOf("retries" to Item(Value.Integer(3L))).getOrFail()
         assertEquals(
             "[server]\nhosts = [\"alpha\", \"beta\"]\nport = 8080\n\n[client]\nretries = 3\n",
             doc.toString(),
@@ -273,9 +273,9 @@ duplicate key `a`
     @Test
     fun `an array of tables element can be set to another table`() {
         val arr = ArrayOfTables()
-        arr.add(standardTableOf("name" to Item(Value.String("apple"))))
+        arr.add(standardTableOf("name" to Item(Value.String("apple"))).getOrFail())
 
-        arr.set(0, standardTableOf("name" to Item(Value.String("banana")))).getOrFail()
+        arr.set(0, standardTableOf("name" to Item(Value.String("banana"))).getOrFail()).getOrFail()
         assertEquals("banana", arr[0]!!["name"].getOrFail().stringOrNull)
     }
 

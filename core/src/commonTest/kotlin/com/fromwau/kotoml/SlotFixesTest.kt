@@ -15,7 +15,7 @@ class SlotFixesTest {
     @Test
     fun `a table replacing a table keeps the comment above its header`() {
         val doc = parse("a = 1\n\n# about t\n[t]\nx = 1\n")
-        doc["t"] = standardTableOf("y" to Item(Value.Integer(2L)))
+        doc["t"] = standardTableOf("y" to Item(Value.Integer(2L))).getOrFail()
         assertEquals("a = 1\n\n# about t\n[t]\ny = 2\n", doc.toString())
     }
 
@@ -92,8 +92,8 @@ class SlotFixesTest {
 
     @Test
     fun `an inline table built from pairs stores copies of the values`() {
-        val value = Value.Array(tomlArrayOf(Value.Integer(1L)))
-        val t = inlineTableOf("a" to value)
+        val value = Value.Array(tomlArrayOf(Value.Integer(1L)).getOrFail())
+        val t = inlineTableOf("a" to value).getOrFail()
         value.arrayOrNull!!.add(2L)
         assertEquals(1, t["a"]!!.arrayOrNull!!.size)
     }
@@ -102,7 +102,7 @@ class SlotFixesTest {
     fun `getOrPut on an inline table stores a copy and returns the stored value`() {
         val t = InlineTable()
         val made = Value.Array(TomlArray())
-        val stored = t.getOrPut("a") { made }
+        val stored = t.getOrPut("a") { made }.getOrFail()
         stored.arrayOrNull!!.add(1L)
         made.arrayOrNull!!.add(2L)
         assertEquals("{ a = [1] }", t.toString())

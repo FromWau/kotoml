@@ -1,5 +1,11 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.EmptyResult
+import com.fromwau.kern.result.Err
+import com.fromwau.kern.result.Ok
+import com.fromwau.kern.result.Result
+import com.fromwau.kern.result.map
+
 /**
  * An inline table value, `{ a = 1, b.c = 2 }`, with its formatting.
  *
@@ -10,7 +16,7 @@ package com.fromwau.kotoml
  * holds itself: after `table["b"] = table["a"]!!`, editing `table["a"]` leaves `table["b"]` as it was.
  *
  * ```kotlin
- * val table = inlineTableOf("a" to Value.Integer(1L))
+ * val table = inlineTableOf("a" to Value.Integer(1L)).getOrElse { error(it) }
  * table["b"] = "two"
  * table.toString() // "{ a = 1, b = \"two\" }"
  * ```
@@ -231,13 +237,15 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     /** The slot at [key], or null when there is none. */
     override fun getItem(key: String): Item? = items.get(key)
 
-    /** Sets [key] to a copy of [value], keeping the key's position and formatting when it is already there. */
+    /**
+     * Sets [key] to a copy of [value], keeping the key's position and formatting when it is already there.
+     *
+     * @return [TomlEditError.TooDeep], storing nothing, when [value] would nest deeper than the parser reads.
+     */
     public operator fun set(
         key: String,
         value: Value,
-    ) {
-        put(key, value)
-    }
+    ): EmptyResult<TomlEditError> = put(key, value).map { }
 
     /** Whether there is a value at [key]. */
     override fun containsKey(key: String): Boolean = items.get(key)?.valueOrNull != null
@@ -249,59 +257,66 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
      * The value at [key], first storing a copy of what [default] makes when there is none. [default] is called
      * only then.
      *
-     * @return the stored value, to change in place.
+     * @return the stored value, to change in place; or [TomlEditError.TooDeep], storing nothing, when what [default]
+     *   makes would nest deeper than the parser reads.
      */
     public fun getOrPut(
         key: String,
         default: () -> Value,
-    ): Value = getOrPut(Key(key), default)
+    ): Result<Value, TomlEditError> = getOrPut(Key(key), default)
 
     /** As [getOrPut], an inserted key keeping the spelling and decor of [key]. */
     public fun getOrPut(
         key: Key,
         default: () -> Value,
-    ): Value {
-        get(key.name)?.let { return it }
+    ): Result<Value, TomlEditError> {
+        get(key.name)?.let { return Ok(it) }
         val value = default().copy()
+        tooDeepError(this, key.name, Item(value))?.let { return Err(it) }
         putEntry(key.copy(), value)
-        return value
+        return Ok(value)
     }
 
     /**
      * Sets [key] to a copy of [value], as `table[key] = value` does: a key already there keeps its position, its
      * spelling and its decor. Pass a [Key] to replace those.
      *
-     * @return the value [key] held before, or null when it held none.
+     * @return the value [key] held before, or null when it held none; or [TomlEditError.TooDeep], storing nothing,
+     *   when [value] would nest deeper than the parser reads.
      */
     public fun put(
         key: String,
         value: Value,
-    ): Value? = store(key, value.copy())
+    ): Result<Value?, TomlEditError> = checkedStore(key, value.copy())
 
     /**
      * Sets [key], with its spelling and decor, to a copy of [value]. A key already there keeps its position but
      * takes the spelling and decor of [key].
      *
-     * @return the value the key held before, or null when it held none.
+     * @return the value the key held before, or null when it held none; or [TomlEditError.TooDeep], as [put] says.
      */
     public fun put(
         key: Key,
         value: Value,
-    ): Value? {
+    ): Result<Value?, TomlEditError> {
+        tooDeepError(this, key.name, Item(value))?.let { return Err(it) }
         items.getEntry(key.name)?.key = key.copy()
-        return putEntry(key.copy(), value.copy())
+        return Ok(putEntry(key.copy(), value.copy()))
     }
 
     override fun putItem(
         key: String,
         item: Item,
-    ): Item? = store(key, item.copy().moveToValue())?.let { Item(it) }
+    ): Result<Item?, TomlEditError> = checkedStore(key, item.copy().moveToValue()).map { old -> old?.let { Item(it) } }
 
     // Stores the value itself, so only for one nothing else holds.
-    private fun store(
+    private fun checkedStore(
         key: String,
         value: Value,
-    ): Value? = putEntry(Key(key), value)
+    ): Result<Value?, TomlEditError> {
+        tooDeepError(this, key, Item(value))?.let { return Err(it) }
+        return Ok(putEntry(Key(key), value))
+    }
 
     private fun putEntry(
         key: Key,
@@ -425,9 +440,16 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         null -> trailing
     }
 
-    /** Sets the key of every pair of [pairs] to a copy of its value, in order, as `table[key] = value` does. */
-    public fun putAll(pairs: Iterable<Pair<String, Value>>) {
-        for ((key, value) in pairs) set(key, value)
+    /**
+     * Sets the key of every pair of [pairs] to a copy of its value, in order, as `table[key] = value` does.
+     *
+     * @return [TomlEditError.TooDeep], storing none of them, when one would nest deeper than the parser reads.
+     */
+    public fun putAll(pairs: Iterable<Pair<String, Value>>): EmptyResult<TomlEditError> {
+        val stored = pairs.toList()
+        for ((key, value) in stored) tooDeepError(this, key, Item(value))?.let { return Err(it) }
+        for ((key, value) in stored) put(key, value)
+        return Ok(Unit)
     }
 
     /** A deep copy of this table. */
@@ -446,17 +468,20 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     override fun toString(): String = buildString { encodeInlineTable(this, this@InlineTable, "", "") }
 }
 
-/** An inline table of copies of the values of [pairs], in order, keeping their formatting. */
-public fun inlineTableOf(vararg pairs: Pair<String, Value>): InlineTable = pairs.asIterable().toInlineTable()
+/** An inline table of copies of the values of [pairs], in order, keeping their formatting; see [toInlineTable]. */
+public fun inlineTableOf(vararg pairs: Pair<String, Value>): Result<InlineTable, TomlEditError> =
+    pairs.asIterable().toInlineTable()
 
 /**
  * An inline table of copies of the values of these pairs, in order, keeping their formatting; a later pair for the
  * same key replaces an earlier one.
+ *
+ * @return [TomlEditError.TooDeep] when a value would nest deeper than the parser reads in an inline table on a line
+ *   of a document's root table.
  */
-public fun Iterable<Pair<String, Value>>.toInlineTable(): InlineTable {
+public fun Iterable<Pair<String, Value>>.toInlineTable(): Result<InlineTable, TomlEditError> {
     val table = InlineTable()
-    table.putAll(this)
-    return table
+    return table.putAll(this).map { table }
 }
 
 // `{ key1 = value1, ... }`

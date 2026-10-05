@@ -4,6 +4,7 @@ import com.fromwau.kern.result.EmptyResult
 import com.fromwau.kern.result.Err
 import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
+import com.fromwau.kern.result.getOrElse
 
 /** Keeps an inner block of the TOML builders from reaching an outer block's members by accident. */
 @DslMarker
@@ -25,7 +26,8 @@ public annotation class TomlDsl
  * }.getOrElse { error(it) }
  * ```
  *
- * @return the document, or the [TomlEditError.TypeMismatch] of a block that opened a key holding another kind.
+ * @return the document, or the [TomlEditError.TypeMismatch] of a block that opened a key holding another kind, or the
+ *   [TomlEditError.TooDeep] of one that wrote something nesting deeper than the parser reads.
  */
 public fun buildTomlDocument(block: TableScope.() -> Unit): Result<TomlDocument, TomlEditError> {
     val document = TomlDocument()
@@ -48,7 +50,8 @@ public fun buildTomlDocument(block: TableScope.() -> Unit): Result<TomlDocument,
  * An edit replaces the document's content with the edited one, so an [Item] taken from the document before a
  * successful edit no longer belongs to it; index the document again afterwards.
  *
- * @return [TomlEditError.TypeMismatch] when the block opened a key holding another kind, with nothing changed.
+ * @return [TomlEditError.TypeMismatch] when the block opened a key holding another kind, or [TomlEditError.TooDeep]
+ *   when it wrote something nesting deeper than the parser reads, with nothing changed.
  */
 public fun TomlDocument.edit(block: TableScope.() -> Unit): EmptyResult<TomlEditError> {
     val edited = copy()
@@ -74,6 +77,8 @@ private fun mismatch(
     expected: TomlType,
     found: Item,
 ): Nothing = throw EditAborted(TomlEditError.TypeMismatch(key, expected, found.type))
+
+private fun <T> Result<T, TomlEditError>.orAbort(): T = getOrElse { throw EditAborted(it) }
 
 /**
  * A block that writes keys: a table, the document root or an inline table.
@@ -142,10 +147,10 @@ public sealed class KeyedScope {
 /** A block writing into a standard table, or the document root. */
 public class TableScope internal constructor(private val table: StandardTable) : KeyedScope() {
     override fun put(key: String, value: Value) {
-        table[key] = value
+        table.set(key, value).orAbort()
     }
 
-    override fun storedOrPut(key: String, value: () -> Value): Item = table.getOrPut(key) { Item(value()) }
+    override fun storedOrPut(key: String, value: () -> Value): Item = table.getOrPut(key) { Item(value()) }.orAbort()
 
     override fun remove(key: String) {
         table.remove(key)
@@ -160,7 +165,7 @@ public class TableScope internal constructor(private val table: StandardTable) :
         block: TableScope.() -> Unit,
     ) {
         val existing = table.getOrNull(key)
-        val item = existing ?: table.getOrPut(key) { Item(StandardTable()) }
+        val item = existing ?: table.getOrPut(key) { Item(StandardTable()) }.orAbort()
         val child = item.standardTableOrNull ?: mismatch(key, TomlType.Table, item)
         TableScope(child).block()
         if (existing == null && child.isNotEmpty() && child.visualValues().isEmpty()) child.isImplicit = true
@@ -171,7 +176,7 @@ public class TableScope internal constructor(private val table: StandardTable) :
         key: String,
         block: ArrayOfTablesScope.() -> Unit,
     ) {
-        val item = table.getOrPut(key) { Item(ArrayOfTables()) }
+        val item = table.getOrPut(key) { Item(ArrayOfTables()) }.orAbort()
         val tables = item.arrayOfTablesOrNull ?: mismatch(key, TomlType.ArrayOfTables, item)
         ArrayOfTablesScope(tables).block()
     }
@@ -180,11 +185,11 @@ public class TableScope internal constructor(private val table: StandardTable) :
 /** A block writing into an inline table, which holds only values. */
 public class InlineTableScope internal constructor(private val table: InlineTable) : KeyedScope() {
     override fun put(key: String, value: Value) {
-        table[key] = value
+        table.set(key, value).orAbort()
     }
 
     override fun storedOrPut(key: String, value: () -> Value): Item {
-        table.getOrPut(key, value)
+        table.getOrPut(key, value).orAbort()
         return checkNotNull(table.getItem(key))
     }
 
@@ -215,20 +220,20 @@ public class ArrayScope internal constructor(private val array: TomlArray) {
     public fun add(value: Datetime): Unit = array.add(value)
 
     /** Appends a copy of [value]. */
-    public fun add(value: Value): Unit = array.add(value)
+    public fun add(value: Value): Unit = array.add(value).orAbort()
 
     /** Appends an array that [block] fills. */
     public fun array(block: ArrayScope.() -> Unit) {
         val inner = TomlArray()
         ArrayScope(inner).block()
-        array.add(Value.Array(inner))
+        array.add(Value.Array(inner)).orAbort()
     }
 
     /** Appends an inline table that [block] fills. */
     public fun inlineTable(block: InlineTableScope.() -> Unit) {
         val inner = InlineTable()
         InlineTableScope(inner).block()
-        array.add(Value.InlineTable(inner))
+        array.add(Value.InlineTable(inner)).orAbort()
     }
 }
 
@@ -239,6 +244,6 @@ public class ArrayOfTablesScope internal constructor(private val tables: ArrayOf
     public fun table(block: TableScope.() -> Unit) {
         val table = StandardTable()
         TableScope(table).block()
-        tables.add(table)
+        tables.add(table).orAbort()
     }
 }

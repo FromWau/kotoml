@@ -11,7 +11,7 @@ class EditUnitTest {
     @Test
     fun `an array built from strings prints with default spacing`() {
         val features = listOf("node", "mouth")
-        val value = Value.Array(features.map { Value.String(it) }.toTomlArray())
+        val value = Value.Array(features.map { Value.String(it) }.toTomlArray().getOrFail())
         assertEquals("[\"node\", \"mouth\"]", value.toString())
     }
 

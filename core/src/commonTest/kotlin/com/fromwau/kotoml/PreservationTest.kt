@@ -37,7 +37,7 @@ class PreservationTest {
     @Test
     fun `an array of tables element added later prints its header as the key is spelled`() {
         val doc = parse("[[\"x\"]]\nn = 1\n")
-        doc["x"].getOrFail().arrayOfTablesOrNull!!.add(standardTableOf("n" to Item(Value.Integer(2L))))
+        doc["x"].getOrFail().arrayOfTablesOrNull!!.add(standardTableOf("n" to Item(Value.Integer(2L))).getOrFail())
         assertEquals("[[\"x\"]]\nn = 1\n\n[[\"x\"]]\nn = 2\n", doc.toString())
     }
 

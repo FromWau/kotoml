@@ -1079,11 +1079,11 @@ edition = "2024"
     @Test
     fun `putAll copies another inline table's pairs and leaves that table as it was`() {
         val a = Value.InlineTable(
-            inlineTableOf("a" to Value.Integer(1L), "b" to Value.Integer(2L), "c" to Value.Integer(3L)),
+            inlineTableOf("a" to Value.Integer(1L), "b" to Value.Integer(2L), "c" to Value.Integer(3L)).getOrFail(),
         )
         val aTable = a.inlineTableOrNull!!
         val b = Value.InlineTable(
-            inlineTableOf("c" to Value.Integer(4L), "d" to Value.Integer(5L), "e" to Value.Integer(6L)),
+            inlineTableOf("c" to Value.Integer(4L), "d" to Value.Integer(5L), "e" to Value.Integer(6L)).getOrFail(),
         )
         val bTable = b.inlineTableOrNull!!
         aTable.putAll(bTable.map { (key, value) -> key to value.copy() })
@@ -1127,7 +1127,7 @@ src.git = "https://github.com/nixos/nixpkgs"
     @Test
     fun `an array of strings sorts with a comparator over its values`() {
         val values = listOf("foo", "qux", "bar")
-        val array = values.map { Value.String(it) }.toTomlArray()
+        val array = values.map { Value.String(it) }.toTomlArray().getOrFail()
         array.sortWith { lhs, rhs -> compareValues(lhs.stringOrNull, rhs.stringOrNull) }
         assertEquals("[\"bar\", \"foo\", \"qux\"]", array.toString())
     }

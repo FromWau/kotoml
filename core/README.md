@@ -44,8 +44,10 @@ Indexing returns a `Result`: the stored item, or `TomlEditError.NotFound` for a 
 Indexing on through an error passes it on, so `doc["a"]["b"]` stops at the first key it misses; read the end
 with `getOrNull()` or `getOrElse { }`. Writing adds only the key it names, never a missing parent, so create
 each level first, as `c` is created above. Where `toml_edit` panics, for example on an index out of bounds or
-on writing a key into a string, the call returns a `TomlEditError` instead. The `item["key"] = value` form drops
-that error; call `item.set("key", value)` to see it. Writing never deletes a key; `remove` does.
+on writing a key into a string, the call returns a `TomlEditError` instead. Every call that stores something
+refuses to nest deeper than `TomlDocument.NESTING_LIMIT` lets the parser read: it returns `TomlEditError.TooDeep`
+and stores nothing, as do the `…Of` builders and the conversions to inline content. The `item["key"] = value` form
+drops these errors; call `item.set("key", value)` to see them. Writing never deletes a key; `remove` does.
 
 ## Make and read values
 
@@ -73,7 +75,7 @@ val doc = TomlDocument.parse("[server]\nhosts = [\"alpha\"]\n").getOrElse { erro
 doc["server"]["hosts"].getOrNull()?.arrayOrNull?.add("beta")
 val server = doc["server"].getOrNull()?.standardTableOrNull!!
 server.getOrPut("port") { Item(Value.Integer(8080L)) }
-doc["client"] = standardTableOf("retries" to Item(Value.Integer(3L)))
+doc["client"] = standardTableOf("retries" to Item(Value.Integer(3L))).getOrElse { error(it) }
 // [server]
 // hosts = ["alpha", "beta"]
 // port = 8080
@@ -155,8 +157,8 @@ SystemFileSystem.sink(path).buffered().use { doc.writeTo(it) }
 it. Neither closes what it is given. A failure while reading or writing comes back as a `TomlIoError`, and text
 that is not TOML as a `TomlReadError.Parse` carrying the text it read, to render the error from. A document holding
 half of a surrogate pair, which UTF-8 cannot write, is not written: `writeTo` returns `TomlWriteError.NotUnicode`
-naming the key, and the document keeps the text as you gave it. A document built deeper than
-`TomlDocument.NESTING_LIMIT` is not written either: `writeTo` returns `TomlWriteError.TooDeep`. Opening the file
+naming the key, and the document keeps the text as you gave it. A document that `isDotted` changes made deeper
+than `TomlDocument.NESTING_LIMIT` is not written either: `writeTo` returns `TomlWriteError.TooDeep`. Opening the file
 is kotlinx-io's own call and throws its `IOException` when the file cannot be opened.
 
 ## Handle errors

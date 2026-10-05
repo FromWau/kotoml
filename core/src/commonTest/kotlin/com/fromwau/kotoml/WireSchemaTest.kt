@@ -96,6 +96,7 @@ class WireSchemaTest {
                 NotAValue(itemType)
                 NotAnArray(index, itemType)
                 NotFound(key)
+                TooDeep(keyPath)
                 TypeMismatch(key, expected, found)
             """.trimIndent(),
             TomlReadError.serializer().descriptor to """

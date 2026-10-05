@@ -4,6 +4,7 @@ import com.fromwau.kern.result.EmptyResult
 import com.fromwau.kern.result.Err
 import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
+import com.fromwau.kern.result.map
 
 /**
  * A sequence of tables, each under its own `[[header]]`.
@@ -26,8 +27,12 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     // Lines above the headers of tables removed from this array, printed among the tables by their position.
     internal val keptHeaderLines: MutableList<KeptLines> = mutableListOf()
 
-    /** An inline array of inline tables holding copies of these tables, formatted anew; this stays as it is. */
-    public fun toTomlArray(): TomlArray = copy().moveToTomlArray()
+    /**
+     * An inline array of inline tables holding copies of these tables, formatted anew; this stays as it is.
+     *
+     * @return [TomlEditError.TooDeep] when its tables, nested as inline tables, would be deeper than the parser reads.
+     */
+    public fun toTomlArray(): Result<TomlArray, TomlEditError> = copy().moveToTomlArray().refusedWhenTooDeep()
 
     /** Moves the tables into a new inline array of inline tables, formatted anew, leaving this empty. */
     internal fun moveToTomlArray(): TomlArray {
@@ -66,9 +71,15 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     /** The table at [index], or null when the index is out of bounds. */
     public operator fun get(index: Int): StandardTable? = values.getOrNull(index)?.standardTableOrNull
 
-    /** Appends a copy of [table], which prints under its own `[[header]]`, even when it was dotted. */
-    public fun add(table: StandardTable) {
+    /**
+     * Appends a copy of [table], which prints under its own `[[header]]`, even when it was dotted.
+     *
+     * @return [TomlEditError.TooDeep], storing nothing, when [table] would nest deeper than the parser reads.
+     */
+    public fun add(table: StandardTable): EmptyResult<TomlEditError> {
+        tooDeepError(this, null, Item(table))?.let { return Err(it) }
         append(table.copy())
+        return Ok(Unit)
     }
 
     /** Appends [table] itself, for a caller that built it and holds no other reference to it. */
@@ -80,13 +91,14 @@ public class ArrayOfTables() : Iterable<StandardTable> {
      * Inserts a copy of [table] at [index], shifting later tables right.
      *
      * @return [TomlEditError.IndexOutOfBounds], with nothing inserted, when [index] is negative or greater
-     *   than [size].
+     *   than [size], or [TomlEditError.TooDeep] when [table] would nest deeper than the parser reads.
      */
     public fun add(
         index: Int,
         table: StandardTable,
     ): EmptyResult<TomlEditError> {
         if (index < 0 || index > values.size) return Err(TomlEditError.IndexOutOfBounds(index, values.size))
+        tooDeepError(this, null, Item(table))?.let { return Err(it) }
         values.add(index, Item.inArrayOfTables(table.copy(), this))
         return Ok(Unit)
     }
@@ -110,7 +122,8 @@ public class ArrayOfTables() : Iterable<StandardTable> {
      * @param keepDecor whether the copy takes over the old table's [StandardTable.position] and header decor, the
      *   comment and blank lines above its `[[header]]` and the comment after it on its line; false keeps [table]'s
      *   own position and decor.
-     * @return the old table, or [TomlEditError.IndexOutOfBounds], with nothing replaced, when there is no table
+     * @return the old table; [TomlEditError.TooDeep], with nothing replaced, when [table] would nest deeper than the
+     *   parser reads; or [TomlEditError.IndexOutOfBounds], with nothing replaced, when there is no table
      *   at [index].
      */
     public fun replace(
@@ -119,6 +132,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         keepDecor: Boolean = true,
     ): Result<StandardTable, TomlEditError> {
         val old = get(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
+        tooDeepError(this, null, Item(table))?.let { return Err(it) }
         val stored = table.copy()
         if (keepDecor) {
             stored.rawDecor.assign(old.rawDecor)
@@ -171,9 +185,16 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         return removed.isNotEmpty()
     }
 
-    /** Appends every table of [tables]. */
-    public fun addAll(tables: Iterable<StandardTable>) {
-        for (table in tables) add(table)
+    /**
+     * Appends a copy of every table of [tables].
+     *
+     * @return [TomlEditError.TooDeep], appending none of them, when one would nest deeper than the parser reads.
+     */
+    public fun addAll(tables: Iterable<StandardTable>): EmptyResult<TomlEditError> {
+        val added = tables.toList()
+        for (table in added) tooDeepError(this, null, Item(table))?.let { return Err(it) }
+        for (table in added) append(table.copy())
+        return Ok(Unit)
     }
 
     /** A deep copy. */
@@ -186,15 +207,20 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     }
 
     /** The tables as an inline array; without a header there is no better way to print them. */
-    override fun toString(): String = toTomlArray().toString()
+    override fun toString(): String = copy().moveToTomlArray().toString()
 }
 
-/** An array of [tables], in order. */
-public fun arrayOfTablesOf(vararg tables: StandardTable): ArrayOfTables = tables.asIterable().toArrayOfTables()
+/** An array of copies of [tables], in order; see [toArrayOfTables]. */
+public fun arrayOfTablesOf(vararg tables: StandardTable): Result<ArrayOfTables, TomlEditError> =
+    tables.asIterable().toArrayOfTables()
 
-/** An array of these tables, in order. */
-public fun Iterable<StandardTable>.toArrayOfTables(): ArrayOfTables {
+/**
+ * An array of copies of these tables, in order.
+ *
+ * @return [TomlEditError.TooDeep] when a table would nest deeper than the parser reads in an array of tables under a
+ *   document's root.
+ */
+public fun Iterable<StandardTable>.toArrayOfTables(): Result<ArrayOfTables, TomlEditError> {
     val array = ArrayOfTables()
-    array.addAll(this)
-    return array
+    return array.addAll(this).map { array }
 }

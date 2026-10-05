@@ -1,5 +1,9 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.Err
+import com.fromwau.kern.result.Ok
+import com.fromwau.kern.result.Result
+
 /**
  * Where content stands in the text it prints, in the terms of the parser's rule: a header's path may have as many
  * parts as [TomlDocument.NESTING_LIMIT], while a line's dotted key and the brackets of its value count toward the limit
@@ -19,18 +23,21 @@ internal sealed interface Nesting {
 
 /**
  * Where [container], a table or an array of either kind, stands: below the slots holding it up to the document's
- * root, or up to the outermost one stored nowhere, which stands as a document's root or a value of its first line.
+ * root, or up to the outermost one stored nowhere, which stands as close to a root as it can: a table as the root
+ * itself, anything else under one of its keys.
  */
 internal fun nestingOf(container: Any): Nesting {
     val chain = mutableListOf(container)
     while (true) chain.add(parentOf(chain.last()) ?: break)
-    var nesting = when (chain.last()) {
-        is StandardTable -> Nesting.InTable(parts = 0, dots = 0)
-        is ArrayOfTables -> Nesting.InTables(parts = 1)
-        else -> Nesting.InLine(level = 1)
-    }
+    var nesting = topNestingOf(chain.last())
     for (index in chain.lastIndex - 1 downTo 0) nesting = nesting.inside(chain[index])
     return nesting
+}
+
+private fun topNestingOf(container: Any): Nesting = when (container) {
+    is StandardTable -> Nesting.InTable(parts = 0, dots = 0)
+    is ArrayOfTables -> Nesting.InTables(parts = 1)
+    else -> Nesting.InLine(level = 1)
 }
 
 private fun parentOf(container: Any): Any? {
@@ -56,22 +63,33 @@ private fun Nesting.inside(child: Any): Nesting = when (this) {
 }
 
 /**
- * The keys from [container] to the first place [item] would print deeper than the parser reads if stored in it under
- * [key] (null for an array's element), or null when it would not.
+ * [TomlEditError.TooDeep], with the keys from [container] to the first place [item] would print deeper than the parser
+ * reads if stored in it under [key] (null for an array's element); or null when it would not.
  */
-internal fun tooDeepPath(
+internal fun tooDeepError(
     container: Any,
     key: String?,
     item: Item,
-): List<String>? = DepthWalk().apply { place(nestingOf(container), key, item, emptyList()) }.run()
+): TomlEditError.TooDeep? = DepthWalk()
+    .apply { place(nestingOf(container), key, item, emptyList()) }
+    .run()
+    ?.let { TomlEditError.TooDeep(it) }
 
-/** The keys to the first place this table, standing as a document's root, prints deeper than the parser reads. */
-internal fun StandardTable.tooDeepPath(): List<String>? =
-    DepthWalk().apply { visit(this@tooDeepPath, Nesting.InTable(parts = 0, dots = 0), emptyList()) }.run()
+/** [TomlEditError.TooDeep] when the table or array [item] holds nests too deep standing at the top, else null. */
+internal fun tooDeepAtTop(item: Item): TomlEditError.TooDeep? =
+    item.container?.let(::tooDeepPathAtTop)?.let { TomlEditError.TooDeep(it) }
+
+/** The keys from [container] to the first place its content prints deeper than the parser reads at the top. */
+internal fun tooDeepPathAtTop(container: Any): List<String>? =
+    DepthWalk().apply { visit(container, topNestingOf(container), emptyList()) }.run()
+
+/** This new table or array, or [TomlEditError.TooDeep] when its content nests too deep standing at the top. */
+internal fun <T : Any> T.refusedWhenTooDeep(): Result<T, TomlEditError> =
+    tooDeepPathAtTop(this)?.let { Err(TomlEditError.TooDeep(it)) } ?: Ok(this)
 
 // Iterative, so that measuring content of any depth takes no more stack than measuring a flat table.
 private class DepthWalk {
-    private class Frame(val container: Any, val nesting: Nesting, val path: List<String>)
+    private data class Frame(val container: Any, val nesting: Nesting, val path: List<String>)
 
     private val limit = TomlDocument.NESTING_LIMIT
     private val frames = ArrayDeque<Frame>()
@@ -83,16 +101,23 @@ private class DepthWalk {
 
     fun run(): List<String>? {
         while (found == null) {
-            val frame = frames.removeLastOrNull() ?: break
-            val (nesting, path) = frame.nesting to frame.path
-            when (val container = frame.container) {
-                is StandardTable -> for (entry in container.items.entries) place(nesting, entry.key.name, entry.item, path)
-                is InlineTable -> for (entry in container.items.entries) place(nesting, entry.key.name, entry.item, path)
+            val (container, nesting, path) = frames.removeLastOrNull() ?: break
+            when (container) {
+                is StandardTable -> placeEntries(nesting, container.items, path)
+                is InlineTable -> placeEntries(nesting, container.items, path)
                 is TomlArray -> for (slot in container.values) place(nesting, null, slot, path)
                 is ArrayOfTables -> for (slot in container.values) place(nesting, null, slot, path)
             }
         }
         return found
+    }
+
+    private fun placeEntries(
+        at: Nesting,
+        pairs: KeyValuePairs,
+        path: List<String>,
+    ) {
+        for (entry in pairs.entries) place(at, entry.key.name, entry.item, path)
     }
 
     /** Measures [item] stored under [key] in a container standing at [at], whose keys are [path]. */
@@ -109,20 +134,18 @@ private class DepthWalk {
             is Nesting.InTables -> false
             is Nesting.InLine -> key != null && at.level >= limit
         }
-        val container: Any = item.standardTableOrNull
-            ?: item.arrayOfTablesOrNull
-            ?: item.arrayOrNull
-            ?: item.inlineTableOrNull
-            ?: run {
-                if (keyTooDeep) found = itemPath
-                return
-            }
+        val container = item.container
+        if (container == null) {
+            if (keyTooDeep) found = itemPath
+            return
+        }
         val inside = at.inside(container)
         val tooDeep = when (inside) {
-            is Nesting.InTable -> when {
-                at is Nesting.InTables || !(container as StandardTable).isDotted -> inside.parts > limit
-                // An empty dotted table prints its key with `{}` on a line of the table above.
-                else -> container.items.size == 0 && keyTooDeep
+            // A table prints under the header [Nesting.InTable.dots] levels up; an empty dotted one prints its key
+            // with `{}` on a line of the table above.
+            is Nesting.InTable -> {
+                val headerParts = inside.parts - inside.dots
+                headerParts > limit || (inside.dots > 0 && item.isEmptyTable() && keyTooDeep)
             }
             is Nesting.InTables -> false
             is Nesting.InLine -> keyTooDeep || inside.level > limit
@@ -130,3 +153,9 @@ private class DepthWalk {
         if (tooDeep) found = itemPath else visit(container, inside, itemPath)
     }
 }
+
+private fun Item.isEmptyTable(): Boolean = standardTableOrNull?.items?.size == 0
+
+/** The table or array of either kind this item holds, or null for a scalar. */
+private val Item.container: Any?
+    get() = standardTableOrNull ?: arrayOfTablesOrNull ?: arrayOrNull ?: inlineTableOrNull

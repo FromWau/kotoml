@@ -1,5 +1,7 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.Result
+
 /**
  * A TOML table of either kind: a [StandardTable] (`[section]`) or an [InlineTable] (`{ a = 1 }`), seen as key/item
  * pairs.
@@ -19,12 +21,13 @@ public sealed interface Table {
      * Sets [key] to a copy of [item]. An inline table holds only values, so it stores a table as an inline table
      * and an array of tables as an array of inline tables.
      *
-     * @return the item [key] held before, or null when it held none.
+     * @return the item [key] held before, or null when it held none; or [TomlEditError.TooDeep], storing nothing,
+     *   when [item] would nest deeper than the parser reads.
      */
     public fun putItem(
         key: String,
         item: Item,
-    ): Item?
+    ): Result<Item?, TomlEditError>
 
     /**
      * Removes [key] and returns its item, or null when it held none. Only the key's own text goes; the comment and

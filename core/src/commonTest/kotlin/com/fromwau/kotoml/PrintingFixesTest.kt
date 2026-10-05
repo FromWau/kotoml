@@ -18,7 +18,7 @@ class PrintingFixesTest {
     private fun parse(text: String): TomlDocument = TomlDocument.parse(text).getOrFail()
 
     private fun table(vararg pairs: Pair<String, Long>): StandardTable =
-        standardTableOf(*pairs.map { (key, value) -> key to Item(Value.Integer(value)) }.toTypedArray())
+        standardTableOf(*pairs.map { (key, value) -> key to Item(Value.Integer(value)) }.toTypedArray()).getOrFail()
 
     private fun TomlDocument.xs(): List<Long?> =
         this["arr"].getOrFail().arrayOfTablesOrNull!!.map { it["x"].getOrFail().longOrNull }
@@ -62,7 +62,7 @@ class PrintingFixesTest {
     fun `a reversed array of tables prints in its new order`() {
         val doc = parse("[[arr]]\nx = 1\n\n[[arr]]\nx = 2\n")
 
-        doc["arr"] = doc["arr"].getOrFail().arrayOfTablesOrNull!!.reversed().toArrayOfTables()
+        doc["arr"] = doc["arr"].getOrFail().arrayOfTablesOrNull!!.reversed().toArrayOfTables().getOrFail()
 
         assertEquals("\n[[arr]]\nx = 2\n[[arr]]\nx = 1\n", doc.toString())
         assertEquals(listOf(2L, 1L), parse(doc.toString()).xs())
@@ -72,7 +72,7 @@ class PrintingFixesTest {
     fun `reordered elements share their places while a table between them stays put`() {
         val doc = parse("[[arr]]\nx = 1\n[b]\n[[arr]]\nx = 2\n")
 
-        doc["arr"] = doc["arr"].getOrFail().arrayOfTablesOrNull!!.reversed().toArrayOfTables()
+        doc["arr"] = doc["arr"].getOrFail().arrayOfTablesOrNull!!.reversed().toArrayOfTables().getOrFail()
 
         assertEquals("[[arr]]\nx = 2\n[b]\n[[arr]]\nx = 1\n", doc.toString())
     }
@@ -81,7 +81,7 @@ class PrintingFixesTest {
     fun `the tables under an element move with it`() {
         val doc = parse("[[arr]]\nx = 1\n[arr.sub]\ny = 1\n[[arr]]\nx = 2\n")
 
-        doc["arr"] = doc["arr"].getOrFail().arrayOfTablesOrNull!!.reversed().toArrayOfTables()
+        doc["arr"] = doc["arr"].getOrFail().arrayOfTablesOrNull!!.reversed().toArrayOfTables().getOrFail()
 
         assertEquals("[[arr]]\nx = 2\n[[arr]]\nx = 1\n[arr.sub]\ny = 1\n", doc.toString())
     }
@@ -118,7 +118,7 @@ class PrintingFixesTest {
         val doc = parse("a.b = 1\n")
         val dotted = doc["a"].getOrFail().standardTableOrNull!!
 
-        doc["arr"] = arrayOfTablesOf(dotted.copy())
+        doc["arr"] = arrayOfTablesOf(dotted.copy()).getOrFail()
 
         assertEquals("a.b = 1\n\n[[arr]]\nb = 1\n", doc.toString())
     }

@@ -1,8 +1,11 @@
 package com.fromwau.kotoml.serialization
 
+import com.fromwau.kern.result.Result
+import com.fromwau.kern.result.getOrElse
 import com.fromwau.kotoml.ArrayOfTables
 import com.fromwau.kotoml.Item
 import com.fromwau.kotoml.StandardTable
+import com.fromwau.kotoml.TomlEditError
 import com.fromwau.kotoml.Value
 import com.fromwau.kotoml.toArrayOfTables
 import com.fromwau.kotoml.toInlineTable
@@ -13,7 +16,7 @@ internal class DocumentWriter(private val tableListStyle: TableListStyle) {
 
     fun table(struct: TomlNode.Struct): StandardTable {
         val table = StandardTable()
-        for ((key, node) in struct.entries) table[key] = item(node)
+        for ((key, node) in struct.entries) table.set(key, item(node)).fits()
         return table
     }
 
@@ -31,18 +34,23 @@ internal class DocumentWriter(private val tableListStyle: TableListStyle) {
     private fun arrayOfTables(node: TomlNode.Sequence): ArrayOfTables = node.elements
         .map { table(it as TomlNode.Struct) }
         .toArrayOfTables()
+        .fits()
 
     /** The value for [node] inside an array or an inline table, where everything is inline. */
     fun value(node: TomlNode): Value = when (node) {
         is TomlNode.Scalar -> node.value.copy()
-        is TomlNode.Sequence -> Value.Array(node.elements.map { value(it) }.toTomlArray())
+        is TomlNode.Sequence -> Value.Array(node.elements.map { value(it) }.toTomlArray().fits())
         is TomlNode.Struct -> Value.InlineTable(
             node.entries
                 .map { (key, child) -> key to value(child) }
-                .toInlineTable(),
+                .toInlineTable()
+                .fits(),
         )
     }
 }
+
+/** The stored result; the encoder refuses a model nested as deep as TOML reads, so storing what it encodes fits. */
+internal fun <T> Result<T, TomlEditError>.fits(): T = getOrElse { error("encoded content nests too deep: $it") }
 
 /** A non-empty list whose elements are all classes or maps, which TOML can write as an array of tables. */
 internal fun TomlNode.Sequence.isTableList(): Boolean =

@@ -145,11 +145,13 @@ public class Item private constructor(
     /**
      * Replaces this slot's content with a copy of [item]'s; a key keeps the lines above it, as [StandardTable.put]
      * says. Fails when this slot is in an array or an inline table and [item] holds no value, or in an array of
-     * tables and [item] holds no table.
+     * tables and [item] holds no table, and with [TomlEditError.TooDeep] when [item] would nest deeper than the
+     * parser reads.
      */
     public fun assign(item: Item): EmptyResult<TomlEditError> {
         val next = item.content.deepCopy().placedIn(holds)
         refusal(next)?.let { return Err(it) }
+        tooDeepToHold(item)?.let { return Err(it) }
         val entry = entry
         if (entry == null) {
             content = next
@@ -162,6 +164,12 @@ public class Item private constructor(
         entry.keepValueDecor(oldDecor)
         entry.keepLinesAbove(linesAbove)
         return Ok(Unit)
+    }
+
+    /** Why this slot cannot hold [item] for nesting too deep, or null when it can. */
+    private fun tooDeepToHold(item: Item): TomlEditError.TooDeep? {
+        val owner = owner ?: return tooDeepAtTop(item)
+        return tooDeepError(owner, entry?.takeIf { it.isStored }?.key?.name, item)
     }
 
     /** The kind of item. */
@@ -210,21 +218,18 @@ public class Item private constructor(
     /**
      * Stores a copy of [item] at [key], as [StandardTable.set] or [InlineTable.set] does.
      *
-     * @return [TomlEditError.NotATable] when this item holds neither a table nor an inline table, or
-     *   [TomlEditError.NotAValue] when this is an inline table and [item] holds no value.
+     * @return [TomlEditError.NotATable] when this item holds neither a table nor an inline table,
+     *   [TomlEditError.NotAValue] when this is an inline table and [item] holds no value, or [TomlEditError.TooDeep]
+     *   when [item] would nest deeper than the parser reads.
      */
     public operator fun set(
         key: String,
         item: Item,
     ): EmptyResult<TomlEditError> {
-        standardTableOrNull?.let { table ->
-            table[key] = item
-            return Ok(Unit)
-        }
+        standardTableOrNull?.let { table -> return table.set(key, item) }
         val inline = inlineTableOrNull ?: return Err(TomlEditError.NotATable(key, type))
         val value = item.valueOrNull ?: return Err(TomlEditError.NotAValue(item.type))
-        inline[key] = value
-        return Ok(Unit)
+        return inline.set(key, value)
     }
 
     /** Stores a copy of [value] at [key]; see [set]. */
@@ -247,7 +252,8 @@ public class Item private constructor(
 
     /**
      * Stores a copy of [item] at [index] of this array or array of tables. Fails when there is no such position,
-     * or when [item] does not hold a value for an array or a table for an array of tables.
+     * when [item] does not hold a value for an array or a table for an array of tables, or when it would nest
+     * deeper than the parser reads.
      */
     public operator fun set(
         index: Int,
@@ -288,16 +294,23 @@ public class Item private constructor(
      * formatted anew; a value stays as it is. The comment lines above the header move above the key. A table taken
      * from this slot earlier keeps its content and no longer belongs to the document.
      *
-     * @return [TomlEditError.NotATableElement], changing nothing, when this is a table in an array of tables.
+     * @return [TomlEditError.NotATableElement], changing nothing, when this is a table in an array of tables, or
+     *   [TomlEditError.TooDeep] when the value would nest deeper than the parser reads.
      */
     public fun makeValue(): EmptyResult<TomlEditError> {
         if (holds == Holds.Table) return Err(TomlEditError.NotATableElement(TomlType.InlineTable))
-        val linesAbove = entry?.linesAboveHeader().orEmpty()
         val value = copy().moveToValue()
+        tooDeepToHold(Item(value))?.let { return Err(it) }
+        holdValue(value)
+        return Ok(Unit)
+    }
+
+    /** Turns a table or array of tables in this slot into [value], made from it, keeping the lines above. */
+    internal fun holdValue(value: Value) {
+        val linesAbove = entry?.linesAboveHeader().orEmpty()
         entry?.prepareFor(Item(value))
         content = Content.ValueContent(value)
         entry?.keepLinesAbove(linesAbove)
-        return Ok(Unit)
     }
 
     /** This item as a table, moving an inline table's entries into one; null for anything else. */

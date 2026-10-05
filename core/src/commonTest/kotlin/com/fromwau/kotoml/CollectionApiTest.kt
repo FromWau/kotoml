@@ -14,7 +14,7 @@ class CollectionApiTest {
     @Test
     fun `put with a string keeps the spelling and comment of a quoted key`() {
         val doc = parse("# about it\n'my key' = 1\n")
-        val old = doc.root.put("my key", Item(Value.Integer(2L)))
+        val old = doc.root.put("my key", Item(Value.Integer(2L))).getOrFail()
         assertEquals(1L, old?.longOrNull)
         assertEquals("# about it\n'my key' = 2\n", doc.toString())
     }
@@ -22,7 +22,7 @@ class CollectionApiTest {
     @Test
     fun `put with a key replaces the spelling and comment of a quoted key`() {
         val doc = parse("# about it\n'my key' = 1\n")
-        val old = doc.root.put(Key("my key"), Item(Value.Integer(2L)))
+        val old = doc.root.put(Key("my key"), Item(Value.Integer(2L))).getOrFail()
         assertEquals(1L, old?.longOrNull)
         assertEquals("\"my key\" = 2\n", doc.toString())
     }
@@ -38,7 +38,7 @@ class CollectionApiTest {
     fun `put with a string on an inline table keeps the spelling of a quoted key`() {
         val doc = parse("t = { 'my key' = 1 }\n")
         val table = doc["t"].getOrFail().inlineTableOrNull!!
-        val old = table.put("my key", Value.Integer(2L))
+        val old = table.put("my key", Value.Integer(2L)).getOrFail()
         assertEquals(1L, old?.longOrNull)
         assertEquals("t = { 'my key' = 2 }\n", doc.toString())
     }
@@ -53,21 +53,21 @@ class CollectionApiTest {
     @Test
     fun `a value key replaced by a table prints a clean header with its spelling and the comment above it`() {
         val doc = parse("b = 2\n# about it\n'my key'   =   1\n")
-        doc.put("my key", Item(standardTableOf("x" to Item(Value.Integer(1L)))))
+        doc.put("my key", Item(standardTableOf("x" to Item(Value.Integer(1L))).getOrFail()))
         assertEquals("b = 2\n\n# about it\n['my key']\nx = 1\n", doc.toString())
     }
 
     @Test
     fun `a value key replaced by a table without a comment above it prints a blank line and then the header`() {
         val doc = parse("b = 2\n'my key'   =   1\n")
-        doc.put("my key", Item(standardTableOf("x" to Item(Value.Integer(1L)))))
+        doc.put("my key", Item(standardTableOf("x" to Item(Value.Integer(1L))).getOrFail()))
         assertEquals("b = 2\n\n['my key']\nx = 1\n", doc.toString())
     }
 
     @Test
     fun `a value key set to a table through an item prints a clean header keeping the comment above it`() {
         val doc = parse("[s]\nb = 2\n# about it\n'my key'   =   1\n")
-        doc["s"]["my key"] = standardTableOf("x" to Item(Value.Integer(1L)))
+        doc["s"]["my key"] = standardTableOf("x" to Item(Value.Integer(1L))).getOrFail()
         assertEquals("[s]\nb = 2\n\n# about it\n[s.'my key']\nx = 1\n", doc.toString())
     }
 
@@ -88,7 +88,7 @@ class CollectionApiTest {
     @Test
     fun `assigning a table to a value key's slot prints a clean header with the comment above it`() {
         val doc = parse("b = 2\n# about it\n'my key'   =   1\n")
-        doc["my key"].getOrFail().assign(Item(standardTableOf("x" to Item(Value.Integer(1L)))))
+        doc["my key"].getOrFail().assign(Item(standardTableOf("x" to Item(Value.Integer(1L))).getOrFail()))
         assertEquals("b = 2\n\n# about it\n['my key']\nx = 1\n", doc.toString())
     }
 
@@ -109,15 +109,15 @@ class CollectionApiTest {
     @Test
     fun `assigning a table to a nested value key's slot prints a clean header`() {
         val doc = parse("[s]\n'my key'   =   1\n")
-        doc["s"]["my key"].getOrFail().assign(Item(standardTableOf("x" to Item(Value.Integer(1L)))))
+        doc["s"]["my key"].getOrFail().assign(Item(standardTableOf("x" to Item(Value.Integer(1L))).getOrFail()))
         assertEquals("[s]\n\n[s.'my key']\nx = 1\n", doc.toString())
     }
 
     @Test
     fun `put with a string at a new key returns null`() {
         val table = StandardTable()
-        assertNull(table.put("a", Item(Value.Integer(1L))))
-        assertNull(InlineTable().put("a", Value.Integer(1L)))
+        assertNull(table.put("a", Item(Value.Integer(1L))).getOrFail())
+        assertNull(InlineTable().put("a", Value.Integer(1L)).getOrFail())
     }
 
     @Test
@@ -196,7 +196,7 @@ class CollectionApiTest {
 
     @Test
     fun `retainAll on an array returns whether it removed a value`() {
-        val array = tomlArrayOf(Value.Integer(1L), Value.Integer(2L), Value.Integer(3L))
+        val array = tomlArrayOf(Value.Integer(1L), Value.Integer(2L), Value.Integer(3L)).getOrFail()
         assertFalse(array.retainAll { true })
         assertTrue(array.retainAll { it.longOrNull != 2L })
         assertEquals("[1, 3]", array.toString())
@@ -261,7 +261,7 @@ class CollectionApiTest {
 
     @Test
     fun `keys is a copy that later changes to the table leave as it is`() {
-        val table = standardTableOf("a" to Item(Value.Integer(1L)))
+        val table = standardTableOf("a" to Item(Value.Integer(1L))).getOrFail()
         val keys = table.keys
         table["b"] = Value.Integer(2L)
         table.remove("a")
@@ -278,7 +278,7 @@ class CollectionApiTest {
     @Test
     fun `a document puts a parsed key with its spelling at the root`() {
         val doc = parse("'a' = 1\n")
-        val old = doc.put(Key.parse("\"a\"").getOrFail(), Item(Value.Integer(2L)))
+        val old = doc.put(Key.parse("\"a\"").getOrFail(), Item(Value.Integer(2L))).getOrFail()
         assertEquals(1L, old?.longOrNull)
         assertEquals("\"a\" = 2\n", doc.toString())
     }
@@ -286,9 +286,9 @@ class CollectionApiTest {
     @Test
     fun `a document stores a parsed key with its spelling through getOrPut`() {
         val doc = TomlDocument()
-        val stored = doc.getOrPut(Key.parse("'a'").getOrFail()) { Item(Value.Integer(1L)) }
+        val stored = doc.getOrPut(Key.parse("'a'").getOrFail()) { Item(Value.Integer(1L)) }.getOrFail()
         assertEquals(1L, stored.longOrNull)
-        assertEquals(1L, doc.getOrPut(Key("a")) { Item(Value.Integer(9L)) }.longOrNull)
+        assertEquals(1L, doc.getOrPut(Key("a")) { Item(Value.Integer(9L)) }.getOrFail().longOrNull)
         assertEquals("'a' = 1\n", doc.toString())
     }
 
@@ -320,7 +320,7 @@ class CollectionApiTest {
     fun `toTomlArray converts a copy of an array of tables and leaves it as it was`() {
         val doc = parse("[[x]]\nn = 1\n")
         val tables = doc["x"].getOrFail().arrayOfTablesOrNull!!
-        assertEquals("[{ n = 1 }]", tables.toTomlArray().toString())
+        assertEquals("[{ n = 1 }]", tables.toTomlArray().getOrFail().toString())
         assertEquals(1, tables.size)
         assertEquals("[[x]]\nn = 1\n", doc.toString())
     }
@@ -339,7 +339,7 @@ class CollectionApiTest {
     fun `setting an array of tables element keeps the comments around the old header`() {
         val doc = parse("[[x]]\nn = 1\n\n# second\n[[x]] # two\nn = 2\n")
         val tables = doc["x"].getOrFail().arrayOfTablesOrNull!!
-        tables[1] = standardTableOf("n" to Item(Value.Integer(3L)))
+        tables[1] = standardTableOf("n" to Item(Value.Integer(3L))).getOrFail()
         assertEquals("[[x]]\nn = 1\n\n# second\n[[x]] # two\nn = 3\n", doc.toString())
     }
 
@@ -347,16 +347,16 @@ class CollectionApiTest {
     fun `replacing an array of tables element without its decor prints the new table's own`() {
         val doc = parse("[[x]]\nn = 1\n\n# second\n[[x]] # two\nn = 2\n")
         val tables = doc["x"].getOrFail().arrayOfTablesOrNull!!
-        val old = tables.replace(1, standardTableOf("n" to Item(Value.Integer(3L))), keepDecor = false).getOrFail()
+        val old = tables.replace(1, standardTableOf("n" to Item(Value.Integer(3L))).getOrFail(), keepDecor = false).getOrFail()
         assertEquals(2L, old["n"].getOrFail().longOrNull)
         assertEquals("[[x]]\nn = 1\n\n[[x]]\nn = 3\n", doc.toString())
     }
 
     @Test
     fun `setting an element past the end through the index form leaves the containers as they were`() {
-        val array = tomlArrayOf(Value.Integer(1L))
+        val array = tomlArrayOf(Value.Integer(1L)).getOrFail()
         array[3] = Value.Integer(2L)
-        val tables = arrayOfTablesOf(StandardTable())
+        val tables = arrayOfTablesOf(StandardTable()).getOrFail()
         tables[3] = StandardTable()
         assertEquals("[1]", array.toString())
         assertEquals(1, tables.size)
@@ -364,7 +364,7 @@ class CollectionApiTest {
 
     @Test
     fun `an array finds a value by what it holds and not by an equal new value`() {
-        val array = tomlArrayOf(Value.String("a"))
+        val array = tomlArrayOf(Value.String("a")).getOrFail()
         assertFalse(array.contains(Value.String("a")))
         assertTrue(array.any { it.stringOrNull == "a" })
         assertEquals(0, array.indexOfFirst { it.stringOrNull == "a" })

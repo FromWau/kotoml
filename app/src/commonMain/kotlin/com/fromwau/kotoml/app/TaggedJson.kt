@@ -1,19 +1,21 @@
 package com.fromwau.kotoml.app
 
+import com.fromwau.kern.result.EmptyResult
 import com.fromwau.kern.result.Err
 import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
 import com.fromwau.kern.result.getOrElse
 import com.fromwau.kotoml.Datetime
-import com.fromwau.kotoml.Time
-import com.fromwau.kotoml.TomlDocument
-import com.fromwau.kotoml.TomlIoError
-import com.fromwau.kotoml.TomlWriteError
 import com.fromwau.kotoml.InlineTable
 import com.fromwau.kotoml.Item
 import com.fromwau.kotoml.StandardTable
 import com.fromwau.kotoml.TextPosition
+import com.fromwau.kotoml.Time
 import com.fromwau.kotoml.TomlArray
+import com.fromwau.kotoml.TomlDocument
+import com.fromwau.kotoml.TomlEditError
+import com.fromwau.kotoml.TomlIoError
+import com.fromwau.kotoml.TomlWriteError
 import com.fromwau.kotoml.Value
 import kotlinx.io.Buffer
 import kotlinx.io.readString
@@ -119,27 +121,22 @@ internal fun parseTaggedJson(text: String): Result<TomlDocument, AppError> {
     if (json !is JsonObject) return notTagged("$", TaggedJsonProblem.RootNotObject)
     val table = StandardTable()
     for ((key, element) in json) {
-        when (val value = element.toValue("$.$key", depth = 1)) {
-            is Result.Success -> table[key] = value.value
+        when (val value = element.toValue("$.$key")) {
+            is Result.Success -> table.set(key, value.value).orJsonTooDeep()?.let { return it }
             is Result.Error -> return value
         }
     }
     return Ok(TomlDocument(table))
 }
 
-/** This element as a TOML value, which as an array or inline table is nested [depth] levels deep. */
-private fun JsonElement.toValue(
-    path: String,
-    depth: Int,
-): Result<Value, AppError> {
-    val tooDeep = depth > TomlDocument.NESTING_LIMIT
+/** This element as a TOML value. */
+private fun JsonElement.toValue(path: String): Result<Value, AppError> {
     when (this) {
         is JsonArray -> {
-            if (tooDeep) return Err(AppError.JsonTooDeep(MAX_JSON_NESTING))
             val array = TomlArray()
             for ((index, element) in withIndex()) {
-                when (val value = element.toValue("$path[$index]", depth + 1)) {
-                    is Result.Success -> array.add(value.value)
+                when (val value = element.toValue("$path[$index]")) {
+                    is Result.Success -> array.add(value.value).orJsonTooDeep()?.let { return it }
                     is Result.Error -> return value
                 }
             }
@@ -149,14 +146,10 @@ private fun JsonElement.toValue(
             // A table's own `type` key holds a tagged object, never a string, so a string here tags a value.
             val type = get("type")
             if (type is JsonPrimitive && type.isString) return taggedValue(type.content, path)
-            // The parser takes as many nested inline tables as arrays, but refuses a key inside the deepest one.
-            if (tooDeep || (depth == TomlDocument.NESTING_LIMIT && isNotEmpty())) {
-                return Err(AppError.JsonTooDeep(MAX_JSON_NESTING))
-            }
             val table = InlineTable()
             for ((key, element) in this) {
-                when (val value = element.toValue("$path.$key", depth + 1)) {
-                    is Result.Success -> table[key] = value.value
+                when (val value = element.toValue("$path.$key")) {
+                    is Result.Success -> table.set(key, value.value).orJsonTooDeep()?.let { return it }
                     is Result.Error -> return value
                 }
             }
@@ -165,6 +158,10 @@ private fun JsonElement.toValue(
         else -> return notTagged(path, TaggedJsonProblem.Untagged)
     }
 }
+
+/** The error to return for a store that nested too deep, or null when it stored. */
+private fun EmptyResult<TomlEditError>.orJsonTooDeep(): Result<Nothing, AppError>? =
+    (this as? Result.Error)?.let { Err(AppError.JsonTooDeep(MAX_JSON_NESTING)) }
 
 private fun notTagged(
     path: String,

@@ -8,11 +8,7 @@ Every defect, ruling and docs item from that pass is closed; see **Done**.
 
 ## Candidate work
 
-- [ ] **25. Printing and copying recurse once per nesting level.** `Encode.kt`, `Value.copy`,
-  `StandardTable.copy`. A document built through the API thousands of levels deep overflows the stack in `toString()`,
-  and, since arrays store copies (item 11), already while it is built. That is the hand-built case the owner ruled
-  deliberate misuse; `writeTo` refuses anything past the limit with `TooDeep`. Making both iterative would remove the
-  overflow for good. Goal 5.
+None open.
 
 ## Not in scope (owner, 2026-10-05)
 
@@ -22,6 +18,24 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **25. Printing and copying recurse once per nesting level.** `Encode.kt`, `Value.copy`,
+  `StandardTable.copy`. A document built through the API thousands of levels deep overflows the stack in `toString()`,
+  and, since arrays store copies (item 11), already while it is built. That is the hand-built case the owner ruled
+  deliberate misuse; `writeTo` refuses anything past the limit with `TooDeep`. Making both iterative would remove the
+  overflow for good. Goal 5.
+  **Verdict 2026-10-05:** fixed by the owner's ruling "add a limit and if we reach that depth we error", enforced
+  from the root. Every table and array knows the slot holding it, and every slot its container (`Nesting.kt`), so a
+  store measures the incoming content, without recursion, from where it lands, by the parser's rule. Past
+  `NESTING_LIMIT` it returns the new `TomlEditError.TooDeep(keyPath)` and stores nothing; that covers `set`, `put`,
+  `getOrPut`, `putAll`, `add`, `addAll`, `replace`, `assign`, `makeValue`, the DSL, the `…Of` builders and the
+  conversions to inline content. A dotted table counts the header parts above it too, so turning dotted tables into
+  headers with the public `isDotted` cannot be used to stack tables without end; no tree gets deep enough to overflow
+  printing or copying. `writeTo`'s `TooDeep` stays for documents that `isDotted` changes made deeper. Scalar `add`
+  on an array cannot nest and still returns `Unit`. Tests: `NestingTest` (13), `StoreDepthTest` (17),
+  `WriteDepthTest` (3), each depth rule
+  mutation-checked; the CLI's tagged JSON reader now leans on the stores instead of its own copy of the rule. Clean
+  build green.
 
 - [x] **24. Exit codes are barely tested.** Only `FilterTest` asserts one; nothing pins `check --json` output or exits
   0 and 1. Goal 15.

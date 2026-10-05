@@ -18,7 +18,7 @@ class ReplacementCommentScopeTest {
         return document.toString()
     }
 
-    private val table = standardTableOf("q" to Item(Value.Integer(1L)))
+    private val table = standardTableOf("q" to Item(Value.Integer(1L))).getOrFail()
 
     @Test
     fun `a value replaced by a value keeps the comment after it`() {

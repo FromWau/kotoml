@@ -106,7 +106,7 @@ class VisitExampleTest {
                 // A single dependency: regular tables become inline ones.
                 val table = item.standardTableOrNull
                 if (table != null) {
-                    val inlineTable = table.toInlineTable()
+                    val inlineTable = table.toInlineTable().getOrFail()
                     key.resetFormatting()
                     item.assign(Item(Value.InlineTable(inlineTable)))
                 }
