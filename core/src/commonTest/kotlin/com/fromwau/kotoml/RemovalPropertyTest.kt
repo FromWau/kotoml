@@ -16,7 +16,8 @@ import kotlin.test.assertEquals
  *
  * A key's own lines are worked out from the parser's events, apart from the document model:
  * - a key/value line before the first header that starts with the key: from the start of the line its key is on
- *   to the end of the line its value ends on, the comment after it included;
+ *   to the end of the line its value ends on, the comment after it included. A line right after another of the same
+ *   key takes the comment and blank lines between them too;
  * - a header whose path starts with the key, and its body: from the start of the header's line to the end of
  *   the last key/value line under it. The comment and blank lines after that line belong to what follows;
  * - the comment and blank lines above every such header but the first, which sit inside what the key removes.
@@ -105,7 +106,10 @@ class RemovalPropertyTest {
         while (index < statements.size) {
             val statement = statements[index]
             if (!statement.isHeader) {
-                if (statement.owner == key) ranges += statement.lineStart until statement.end
+                val before = statements.getOrNull(index - 1)
+                val continues = before != null && !before.isHeader && before.owner == statement.owner
+                val start = if (continues) before.end else statement.lineStart
+                if (statement.owner == key) ranges += start until statement.end
                 index++
                 continue
             }

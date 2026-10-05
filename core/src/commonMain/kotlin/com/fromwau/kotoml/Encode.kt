@@ -288,7 +288,8 @@ private class DocumentParts {
             parts.subList(start, parts.size).toList()
         }
         placeInArrayOrder(blocks)
-        for (kept in array.keptHeaderLines) add(KeptHeaderLines(kept.order, kept.text))
+        // An empty array prints `key = []` among its parent's lines, under these lines.
+        if (array.isNotEmpty()) for (kept in array.keptHeaderLines) add(KeptHeaderLines(kept.order, kept.text))
     }
 
     private fun add(part: DocumentPart) {

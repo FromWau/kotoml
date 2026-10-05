@@ -103,10 +103,10 @@ class RemovalCommentScopeTest {
     }
 
     @Test
-    fun `clearing an array of tables keeps the comment above every element and its key as an empty array`() {
+    fun `clearing an array of tables keeps the comment above its first element above its key as an empty array`() {
         val text = "# all servers\n[[server]]\nhost = \"a\"\n# backup\n[[server]]\nhost = \"b\"\n"
         assertEquals(
-            "server = []\n# all servers\n# backup\n",
+            "# all servers\nserver = []\n",
             removing(text) { it["server"].getOrFail().arrayOfTablesOrNull!!.clear() },
         )
     }

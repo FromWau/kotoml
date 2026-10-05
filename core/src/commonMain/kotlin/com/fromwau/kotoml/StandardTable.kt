@@ -42,6 +42,21 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
      * element of an array of tables are never dotted: storing a table as either clears this.
      */
     override var isDotted: Boolean = false
+        set(value) {
+            if (field && !value) takeFirstLineCommentsAboveHeader()
+            field = value
+        }
+
+    // The comment lines introducing dotted lines introduce the header that replaces them, unless it has its own.
+    private fun takeFirstLineCommentsAboveHeader() {
+        if ('#' in rawDecor.prefix?.textOrNull.orEmpty()) return
+        val key = visualValues().firstOrNull()?.path?.lastOrNull() ?: return
+        val prefix = key.rawLeafDecor.prefix?.textOrNull ?: return
+        val above = linesAbove(key.rawLeafDecor.prefix)
+        if ('#' !in above) return
+        rawDecor.prefix = KeptText.from(above)
+        key.rawLeafDecor.prefix = KeptText.from(prefix.substring(above.length))
+    }
 
     /**
      * Where the table prints among the document's tables: tables print in ascending order, and a table with
@@ -137,6 +152,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
             path.add(entry.key)
             val table = entry.item.standardTableOrNull
             val value = entry.item.valueOrNull
+            val emptyTables = entry.item.arrayOfTablesOrNull?.takeIf { it.isEmpty() }
             when {
                 table != null && table.isDotted -> {
                     val start = values.size
@@ -166,10 +182,18 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
                     values.takeOutOfBraces(start, entry, value)
                 }
                 value != null -> values.add(VisualValue(path.toList(), value, entry))
-                entry.item.arrayOfTablesOrNull?.isEmpty() == true -> {
-                    // The key's spacing is its header's, which does not fit a `key = value` line.
-                    val key = entry.key.copy().also { it.rawLeafDecor.clear() }
-                    values.add(VisualValue(path.dropLast(1) + key, Value.Array(TomlArray()), entry))
+                emptyTables != null -> {
+                    // The lines kept from its removed headers print above it; its key's spacing was a header's.
+                    val above = linesAbove(entry.key.rawLeafDecor.prefix).takeIf { '#' in it }.orEmpty() +
+                        emptyTables.keptHeaderLines.sortedBy { it.order ?: Long.MAX_VALUE }.joinToString("") { it.text }
+                    val line = VisualValue(
+                        path.toList(),
+                        Value.Array(TomlArray()),
+                        entry,
+                        lineStart = KeptText.from(above),
+                        defaultKeySpacing = true,
+                    )
+                    values.add(line)
                 }
             }
             path.removeAt(path.size - 1)

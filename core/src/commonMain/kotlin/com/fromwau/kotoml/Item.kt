@@ -320,7 +320,7 @@ public class Item private constructor(
 
     /** Turns a table or array of tables in this slot into [value], made from it, keeping the lines above. */
     internal fun holdValue(value: Value) {
-        val linesAbove = entry?.linesAboveHeader().orEmpty()
+        val linesAbove = entry?.takeLinesAbove(Item(value)).orEmpty()
         entry?.prepareFor(Item(value))
         content = Content.ValueContent(value)
         entry?.keepLinesAbove(linesAbove)

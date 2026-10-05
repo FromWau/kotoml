@@ -101,9 +101,23 @@ public class TomlArray() : Iterable<Value> {
     public fun add(value: Value): EmptyResult<TomlEditError> {
         tooDeepError(this, null, Item(value))?.let { return Err(it) }
         val stored = value.copyFor(ValuePlace.Array)
-        if (stored.decor.prefix == null) startOwnLine(stored)
+        if (stored.decor.prefix == null) {
+            leaveLastLineForComma()
+            startOwnLine(stored)
+        }
         append(stored)
         return Ok(Unit)
+    }
+
+    // A last element without a comma after it holds the rest of its line, its comment included; a comma after it
+    // has to come before that text, which now belongs to the closing line.
+    private fun leaveLastLineForComma() {
+        if (trailingComma) return
+        val last = printedValues().lastOrNull() ?: return
+        val rest = last.rawDecor.suffix?.textOrNull ?: return
+        if ('\n' !in rest) return
+        last.rawDecor.suffix = null
+        trailing = rest + trailing
     }
 
     /** Appends [value] itself, for a caller that built it and holds no other reference to it. */
@@ -111,10 +125,33 @@ public class TomlArray() : Iterable<Value> {
         values.add(Item.inArray(value, this))
     }
 
+    /**
+     * Readies [value], inserted before [next], to take [next]'s place. On one line it takes [next]'s spacing, and
+     * [next] follows it after a comma. When [next]'s line starts after a comment ending the line before, [value] takes
+     * that comment and the indentation, so the comment stays on its line, and [next] goes on a line of its own below.
+     */
+    private fun takeLineStart(
+        value: Value,
+        next: Value,
+    ) {
+        val start = next.rawDecor.prefix?.textOrNull ?: return
+        val firstBreak = start.indexOf('\n')
+        if (firstBreak < 0) {
+            value.rawDecor.prefix = KeptText.from(start)
+            next.rawDecor.prefix = null
+            return
+        }
+        if ('#' !in start.substring(0, firstBreak)) return
+        val lineEnd = if (firstBreak > 0 && start[firstBreak - 1] == '\r') firstBreak - 1 else firstBreak
+        value.rawDecor.prefix = KeptText.from(start.substring(0, firstBreak + 1) + start.substringAfterLast('\n'))
+        next.rawDecor.prefix = KeptText.from(start.substring(lineEnd))
+    }
+
     // In a multi-line array the text after the last element, its comment included, ends at the closing line.
     private fun startOwnLine(value: Value) {
         val lineBreak = trailing.lastIndexOf('\n')
         if (lineBreak < 0) return
+        val closingLine = if (lineBreak > 0 && trailing[lineBreak - 1] == '\r') lineBreak - 1 else lineBreak
         val indent = values.lastOrNull()
             ?.valueOrNull
             ?.decor
@@ -122,8 +159,8 @@ public class TomlArray() : Iterable<Value> {
             ?.takeIf { '\n' in it }
             ?.substringAfterLast('\n')
             .orEmpty()
-        value.decor = value.decor.copy(prefix = trailing.substring(0, lineBreak) + "\n" + indent)
-        trailing = trailing.substring(lineBreak)
+        value.decor = value.decor.copy(prefix = trailing.substring(0, lineBreak + 1) + indent)
+        trailing = trailing.substring(closingLine)
     }
 
     /** Appends a string. */
@@ -163,7 +200,11 @@ public class TomlArray() : Iterable<Value> {
     ): EmptyResult<TomlEditError> {
         if (index < 0 || index > values.size) return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         tooDeepError(this, null, Item(value))?.let { return Err(it) }
-        values.add(index, Item.inArray(value.copyFor(ValuePlace.Array), this))
+        if (index == values.size) return add(value)
+        val stored = value.copyFor(ValuePlace.Array)
+        val next = values.subList(index, values.size).firstNotNullOfOrNull { it.valueOrNull }
+        if (stored.rawDecor.prefix == null && next != null) takeLineStart(stored, next)
+        values.add(index, Item.inArray(stored, this))
         return Ok(Unit)
     }
 
@@ -250,8 +291,12 @@ public class TomlArray() : Iterable<Value> {
                 next = next?.rawDecor?.prefix?.textOrNull ?: trailing,
                 nextIsElement = next != null,
             )
+            val isFirst = values.subList(0, index).none { it.valueOrNull != null }
             if (replacement != null && next != null) {
                 next.rawDecor.prefix = KeptText.from(replacement)
+            } else if (replacement == null && next != null && isFirst && '\n' !in next.decor.prefix.orEmpty()) {
+                // The next element, on the same line, becomes the first and takes its spacing after `[`.
+                next.rawDecor.prefix = decor.prefix
             } else if (replacement != null) {
                 trailing = replacement
                 // The comma before the removed element ends its line now, ahead of the lines kept.

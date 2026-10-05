@@ -325,8 +325,34 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         key: Key,
         value: Value,
     ): Value? {
-        if (!items.containsKey(key.name)) takeClosingSpace(value)
+        if (!items.containsKey(key.name)) {
+            takeClosingSpace(value)
+            startOwnLine(key, value)
+        }
         return items.put(key, Item.inInlineTable(value))?.valueOrNull
+    }
+
+    // Across lines, a new last entry starts a line of its own below the last one and its comment, which a comma has
+    // to come before; the text after them then ends at the closing line.
+    private fun startOwnLine(
+        key: Key,
+        value: Value,
+    ) {
+        if (isDotted || key.rawLeafDecor.prefix != null || printsOnOneLine()) return
+        val last = visualValues().lastOrNull() ?: return
+        val rest = last.value.rawDecor.suffix?.textOrNull
+        if (!trailingComma && rest != null && '\n' in rest) {
+            last.value.rawDecor.suffix = null
+            rawTrailing = KeptText.from(rest + trailing)
+        }
+        val text = trailing
+        val lineBreak = text.lastIndexOf('\n')
+        if (lineBreak < 0) return
+        val closingLine = if (lineBreak > 0 && text[lineBreak - 1] == '\r') lineBreak - 1 else lineBreak
+        val indent = last.entry.key.rawLeafDecor.prefix?.textOrNull?.takeIf { '\n' in it }?.substringAfterLast('\n')
+        key.rawLeafDecor.prefix = KeptText.from(text.substring(0, lineBreak + 1) + indent.orEmpty())
+        if (value.rawDecor.suffix == null) value.rawDecor.suffix = KeptText.from("")
+        rawTrailing = KeptText.from(text.substring(closingLine))
     }
 
     // On one line the space before `}` belongs to the position, not to the entry, so a new last entry takes it.

@@ -66,7 +66,10 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     /** Whether there is a table. */
     public fun isNotEmpty(): Boolean = !isEmpty()
 
-    /** Removes every table, each as [removeAt] removes it, so the lines above each `[[header]]` stay. */
+    /**
+     * Removes every table. The lines above the first `[[header]]` stay, now above the `key = []` the array prints; the
+     * comments between the tables go with them.
+     */
     public fun clear() {
         removeSlots(values.toList())
     }
@@ -160,16 +163,18 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     }
 
     /**
-     * Keeps only the tables [predicate] accepts, in order, visiting each once. A removed table goes as [removeAt]
-     * removes it, so the lines above its `[[header]]` stay.
+     * Keeps only the tables [predicate] accepts, in order, visiting each once. The lines above the `[[header]]` of a
+     * removed table stay, as [removeAt] keeps them, unless the table before it is removed too: the comments between
+     * removed tables go with them.
      *
      * @return whether any table was removed.
      */
     public fun retainAll(predicate: (StandardTable) -> Boolean): Boolean = removeSlots(slotsWhere { !predicate(it) })
 
     /**
-     * Removes the tables [predicate] accepts, in order, visiting each once. A removed table goes as [removeAt]
-     * removes it, so the lines above its `[[header]]` stay.
+     * Removes the tables [predicate] accepts, in order, visiting each once. The lines above the `[[header]]` of a
+     * removed table stay, as [removeAt] keeps them, unless the table before it is removed too: the comments between
+     * removed tables go with them.
      *
      * @return whether any table was removed.
      */
@@ -179,11 +184,14 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         values.filter { item -> item.standardTableOrNull?.let(predicate) ?: false }
 
     private fun removeSlots(removed: List<Item>): Boolean {
-        for (item in removed) {
-            item.standardTableOrNull?.let { keepHeaderLinesOf(it, isArrayOfTables = true, keptHeaderLines) }
+        val removedSlots = removed.toHashSet()
+        for ((index, item) in values.withIndex()) {
+            val startsRun = index == 0 || values[index - 1] !in removedSlots
+            if (item in removedSlots && startsRun) {
+                item.standardTableOrNull?.let { keepHeaderLinesOf(it, isArrayOfTables = true, keptHeaderLines) }
+            }
         }
         for (item in removed) item.arrayOwner = null
-        val removedSlots = removed.toHashSet()
         values.removeAll { it in removedSlots }
         return removed.isNotEmpty()
     }

@@ -31,16 +31,19 @@ official toml-test runner for TOML 1.0 and 1.1.
    hand-written documents, and reads each step's output back as the data the document holds; `EditOutputTest` pins
    what it found. `RemovalPropertyTest` checks removal byte for byte, `PrintingFixesTest` covers `NotUnicode`.
 4. **An edit touches only what it changes.** Comments and formatting are kept, except:
-   - a comment inside a structure whose key is removed or replaced goes with it;
+   - a comment inside a structure whose key is removed or replaced goes with it, the comments between the lines of a
+     removed dotted-key table included; a value replaced by a table takes the comment above it to its header;
    - a removed key's same-line comment goes with it, while a replaced value keeps its spacing and same-line comment;
    - making a table or an inline table dotted, or dotted back into a header or braces, replaces its layout: its
      comments may go, but for the lines above its key;
    - in an array of tables, removing elements drops the comments between them and keeps the one above the first
-     and the one after the last.
+     and the one after the last; one left empty prints `key = []` under the comment that was above its first header;
+   - dotted keys turned into a header put the comment above their first line above the header.
 
    Check: `CommentPropertyTest` applies random comment-keeping edits (adding, replacing a value with a value, removing a
    value, sorting, `isDotted` and `isImplicit`) and checks that every comment survives but those the rules above let
-   go; `RemovalCommentScopeTest`, `RemovalKeepsCommentsTest`, `ReplacementCommentScopeTest`, `HeaderCommentsTest`,
+   go; `CommentScenariosTest` runs the 330 scenarios three QA agents wrote from these rules (`qa/comment-scenarios`),
+   the firm ones byte for byte; `RemovalCommentScopeTest`, `RemovalKeepsCommentsTest`, `ReplacementCommentScopeTest`, `HeaderCommentsTest`,
    `RemovalPropertyTest`. Gap: one case in heavy runs, an inline table put back into braces (todo 28).
 
 ### Robustness

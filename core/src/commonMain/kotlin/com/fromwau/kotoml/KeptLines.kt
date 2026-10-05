@@ -103,7 +103,9 @@ internal class RemovedLines(removed: Collection<KeyValue>) {
 /**
  * Keeps the lines above the [removed] lines of a body printed as [lines], before they are removed. A run of them
  * goes in front of the line printed next, or to [keep] when none follows. In a dotted table, lines read from text
- * each stay at their own place in the reading order instead: it cannot see the lines of the table it prints in.
+ * each stay at their own place in the reading order instead: it cannot see the lines of the table it prints in. A
+ * removed key that prints several lines in a row, a dotted table, keeps only the lines above the first of them: those
+ * between them go with it.
  *
  * @param linesAbove the lines above a value's own line.
  * @param keyDefault the prefix a key prints while it has none of its own.
@@ -119,10 +121,15 @@ internal fun keepLinesAbove(
     val inPlace = isDotted && lines.any { it in removed && it.order != null }
     var pending = ""
     var pendingOrder: Long? = null
+    var previous: BodyLine? = null
     for (line in lines) {
+        val before = previous
+        previous = line
         if (line in removed) {
+            val continues = line is VisualValue && before is VisualValue && before in removed &&
+                before.path.first().name == line.path.first().name
             val text = when (line) {
-                is VisualValue -> linesAbove(line)
+                is VisualValue -> if (continues) "" else linesAbove(line)
                 is KeptLines -> line.text
             }
             if (inPlace) {
