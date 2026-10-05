@@ -76,21 +76,6 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
 
 ### Owner calls on wave 2 (2026-10-05)
 
-- [ ] **85. Core says "datetime", serialization "date-time".** **Ruling 2026-10-05:** "date-time" everywhere, the
-  TOML spec's word; core's messages and type names change.
-- [ ] **86. A date error does not name the bad value.** `Date.of(2021, 2, 29)` says
-  `expected day between 01 and 28`, without the 29. **Ruling 2026-10-05:** `DatetimeParseError` gains the value (wire
-  change), filled by `of` and by the parser, so the message reads `invalid date: day 29 is out of range 01 to 28`.
-- [ ] **87. `info` and `inn` are told they are a misspelt float.** Item 81's rule takes any word starting with
-  `inf`/`nan`. **Ruling 2026-10-05:** B: only a case variant of `inf`/`nan` (signed or not) or a word one edit
-  away from one; a longer word starting with them (`info`, `infinity`) is a string missing its quotes.
-- [ ] **88. Any word starting with `t` or `f` is told it is a misspelt boolean.** `fruit = tomato` says
-  `invalid boolean, expected true`. **Ruling 2026-10-05:** the item 87 rule for booleans: only a case variant of
-  `true`/`false` or a word one edit away (`ture`, `fals`) gets the boolean message.
-- [ ] **89. A container's `copy()` keeps every comment.** `src["db"].getOrFail().standardTableOrNull!!.copy()`
-  stored elsewhere brings `# Generated` and `# db hdr`; `src["db"].getOrFail().copy()` does not. **Ruling
-  2026-10-05:** rule 3 for every public `copy()` (table, inline table, array, array of tables, value): it leaves
-  the comments read from its source, as a store does; internal code uses a private deep copy.
 
 Settled with no change (wave 2): a caller's comment on a replaced value replaces the comment on that line; a
 removed table keeps the comment lines above its header in place; a copy of a document's root keeps its version.
@@ -111,6 +96,39 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **89. A container's `copy()` keeps every comment.** `src["db"].getOrFail().standardTableOrNull!!.copy()`
+  stored elsewhere brings `# Generated` and `# db hdr`; `src["db"].getOrFail().copy()` does not. **Ruling
+  2026-10-05:** rule 3 for every public `copy()` (table, inline table, array, array of tables, value): it leaves
+  the comments read from its source, as a store does; internal code uses a private deep copy.
+  **Verdict 2026-10-05:** fixed: every public `copy()` (table, inline table, array, array of tables, array or
+  inline-table value) is what a store would store and leaves the comments read from its source; `TomlDocument.copy()`
+  and a root's copy keep everything; internal code uses an internal `deepCopy()`. HandleRulesTest.
+
+- [x] **88. Any word starting with `t` or `f` is told it is a misspelt boolean.** `fruit = tomato` says
+  `invalid boolean, expected true`. **Ruling 2026-10-05:** the item 87 rule for booleans: only a case variant of
+  `true`/`false` or a word one edit away (`ture`, `fals`) gets the boolean message.
+  **Verdict 2026-10-05:** fixed: the same rule for `true`/`false`, through one shared helper: `True`, `ture`, `fals`
+  get the boolean message; `tomato`, `truthy`, `t` must be quoted. ParseMessageTest; 13 upstream snapshots changed.
+
+- [x] **87. `info` and `inn` are told they are a misspelt float.** Item 81's rule takes any word starting with
+  `inf`/`nan`. **Ruling 2026-10-05:** B: only a case variant of `inf`/`nan` (signed or not) or a word one edit
+  away from one; a longer word starting with them (`info`, `infinity`) is a string missing its quotes.
+  **Verdict 2026-10-05:** fixed: only a case variant of `inf`/`nan`, signed or not, or a word one edit away (a swap of
+  two neighbouring letters counts as one) gets the float message; a longer word starting with the keyword (`info`,
+  `infinity`) is "string values must be quoted". ParseMessageTest.
+
+- [x] **86. A date error does not name the bad value.** `Date.of(2021, 2, 29)` says
+  `expected day between 01 and 28`, without the 29. **Ruling 2026-10-05:** `DatetimeParseError` gains the value (wire
+  change), filled by `of` and by the parser, so the message reads `invalid date: day 29 is out of range 01 to 28`.
+  **Verdict 2026-10-05:** fixed: `DatetimeParseError` carries the value out of range (wire field `value`), filled by
+  `of` and the parser; a range error reads `invalid date: day 29 is out of range 01 to 28`. ErrorMessageTest,
+  ErrorJsonTest; 35 upstream snapshots changed in their last line.
+
+- [x] **85. Core says "datetime", serialization "date-time".** **Ruling 2026-10-05:** "date-time" everywhere, the
+  TOML spec's word; core's messages and type names change.
+  **Verdict 2026-10-05:** fixed: "date-time" in every core and CLI message (type names, the part-less
+  `DatetimeParseError`); identifiers and wire names unchanged.
 
 - [x] **83. A table's or value's own `toString()` prints the 1.1 forms in a 1.0 document.** Only a whole document
   prints in its version. **Ruling 2026-10-05:** it follows its document's version; TOML 1.1 is the default and 1.0
