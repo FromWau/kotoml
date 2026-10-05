@@ -106,6 +106,26 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     }
 
     /**
+     * The comment and blank lines above this table's header under [key], whether or not the header prints, or "" when
+     * they hold no comment: blank lines alone are the header's spacing.
+     */
+    internal fun headerLinesAbove(key: Key): String =
+        (linesAbove(key.rawLeafDecor.prefix) + linesAbove(rawDecor.prefix)).takeIf { '#' in it }.orEmpty()
+
+    /**
+     * Whether this dotted table has header comments to print but no line of its own to print them on: it holds only
+     * tables under headers of their own. An empty one prints `key = {}`, which carries them.
+     */
+    internal fun keepsHeaderCommentsAmongTables(key: Key): Boolean = isDotted &&
+        items.size > 0 &&
+        (headerLinesAbove(key).isNotEmpty() || headerComment.isNotEmpty()) &&
+        visualValues().isEmpty()
+
+    /** The comment on this table's header line, with the spacing before it, or "" when there is none. */
+    internal val headerComment: String
+        get() = rawDecor.suffix?.textOrNull?.takeIf { '#' in it }.orEmpty()
+
+    /**
      * Whether the table prints a header. An implicit table with no values of its own is hidden while tables under it
      * print their own headers; one left holding nothing prints its header, so its key stays in the text.
      */
@@ -119,18 +139,28 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
             val value = entry.item.valueOrNull
             when {
                 table != null && table.isDotted -> {
+                    val start = values.size
                     table.appendValues(path, values)
                     if (table.items.size == 0) values.add(emptyTableLine(path, entry, table.items.keptLines))
+                    // A table made dotted prints no header: its comments go with its first line.
+                    val first = values.indexOfFirstValue(start)
+                    if (first >= 0) {
+                        val line = values[first] as VisualValue
+                        val above = table.headerLinesAbove(entry.key)
+                        val comment = table.headerComment
+                        // A line with a comment of its own takes the header's on a line above it.
+                        values[first] = if (line.value.commentAfter().isEmpty()) {
+                            line.withLines(above, comment)
+                        } else {
+                            val ownLine = comment.trimStart().takeIf { it.isNotEmpty() }
+                            line.withLines(above + ownLine?.let { it + (table.headerLineEnding ?: "\n") }.orEmpty(), "")
+                        }
+                    }
                 }
                 value is Value.InlineTable && value.table.isDotted -> {
                     val start = values.size
                     value.table.appendDottedValues(path, values, entry)
-                    // Lines spaced for braces; the lines above the key that holds them print above the first.
-                    for (index in start until values.size) {
-                        val line = values[index] as? VisualValue ?: continue
-                        val above = if (index == start) entry.key.rawLeafDecor.prefix?.textOrNull.orEmpty() else ""
-                        values[index] = line.spacedForBraces(above)
-                    }
+                    values.takeOutOfBraces(start, entry, value)
                 }
                 value != null -> values.add(VisualValue(path.toList(), value, entry))
                 entry.item.arrayOfTablesOrNull?.isEmpty() == true -> {
@@ -519,6 +549,68 @@ public fun Iterable<Pair<String, Item>>.toStandardTable(): Result<StandardTable,
     return table.putAll(this).map { table }
 }
 
+/**
+ * Turns the lines from [start] on, spaced for the braces of the dotted inline table [inline], into lines of a table.
+ * The lines above [entry]'s key, which holds the table, print above the first; a comment that followed the opening
+ * brace prints on a line of its own above it, and one that followed a comma ends the line before. The comments before
+ * and after the closing brace end the last line.
+ */
+private fun MutableList<BodyLine>.takeOutOfBraces(
+    start: Int,
+    entry: KeyValue,
+    inline: Value.InlineTable,
+) {
+    val lines = (start until size).filter { this[it] is VisualValue }
+    if (lines.isEmpty()) return
+    var firstAbove = entry.key.rawLeafDecor.prefix?.textOrNull.orEmpty()
+    val ends = MutableList(lines.size) { "" }
+    // A comment joining a line that already ends in one goes on a line of its own below it.
+    fun endLine(position: Int, comment: String, lineBreak: String, ownLine: Boolean = false) {
+        if (comment.isEmpty()) return
+        val value = (this[lines[position]] as VisualValue).value
+        val hasComment = value.commentAfter().isNotEmpty() || '#' in ends[position]
+        ends[position] += if (ownLine || hasComment) lineBreak + comment.trimStart() else comment
+    }
+    for ((position, index) in lines.withIndex()) {
+        val key = (this[index] as VisualValue).path.last()
+        if (key === entry.key) continue
+        val prefix = key.rawLeafDecor.prefix?.textOrNull.orEmpty()
+        val carried = prefix.commentBeforeBreak()
+        when {
+            carried.isEmpty() -> {}
+            position == 0 -> firstAbove += carried.trimStart() + prefix.lineBreak()
+            else -> endLine(position - 1, carried, prefix.lineBreak())
+        }
+    }
+    val last = lines.lastIndex
+    val trailing = inline.table.rawTrailing.textOrNull.orEmpty()
+    val lineBreak = trailing.lineBreak()
+    endLine(last, trailing.commentBeforeBreak(), lineBreak)
+    val linesBefore = linesAboveOnTableLines(KeptText.from(trailing)).removeSuffix(lineBreak)
+    if (linesBefore.isNotEmpty()) ends[last] += lineBreak + linesBefore
+    endLine(last, inline.commentAfter(), lineBreak, ownLine = '\n' in trailing)
+    for ((position, index) in lines.withIndex()) {
+        val line = this[index] as VisualValue
+        val above = if (position == 0) firstAbove else ""
+        // An empty table's line is under the holding key itself, whose lines above are those of [entry].
+        this[index] = line.outOfBraces(above, ends[position], ownLinesAbove = line.path.last() !== entry.key)
+    }
+}
+
+/** The comment that ends the line this text starts on, with its spacing, or "" when it holds none. */
+private fun String.commentBeforeBreak(): String {
+    if ('\n' !in this) return ""
+    return substringBefore('\n').trimEnd('\r').takeIf { '#' in it }.orEmpty()
+}
+
+private fun String.lineBreak(): String = if ("\r\n" in this) "\r\n" else "\n"
+
+private fun List<BodyLine>.indexOfFirstValue(from: Int): Int =
+    (from until size).firstOrNull { this[it] is VisualValue } ?: -1
+
+/** The comment after this value, with the spacing before it, or "" when there is none. */
+private fun Value.commentAfter(): String = rawDecor.suffix?.textOrNull?.takeIf { '#' in it }.orEmpty()
+
 /** Whether this item prints under a header of its own; an array of no tables prints as `key = []` instead. */
 internal val Item.printsOwnHeader: Boolean
     get() = standardTableOrNull?.let { !it.isDotted } ?: (arrayOfTablesOrNull?.isNotEmpty() == true)
@@ -529,16 +621,31 @@ internal class VisualValue(
     val value: Value,
     val entry: KeyValue,
     private val placedAt: Long? = null,
-    // For a line of a dotted inline table printed on a table's lines: the text its line starts with.
+    // For a line printed away from where its spacing was made: the text it starts with, in place of its key's.
     val lineStart: KeptText? = null,
+    // Whether the value's spacing was made for braces, so only a comment after it carries over.
+    val spacedForBraces: Boolean = false,
+    // Comment text ending the line, after the value's own.
+    val lineEnd: String = "",
 ) : BodyLine {
     override val order: Long?
         get() = placedAt ?: entry.order
 
-    /** This line printed on a table's lines though spaced for braces, with [above] over its own lines above. */
-    fun spacedForBraces(above: String): VisualValue {
-        val start = above + linesAboveOnTableLines(path.last().rawLeafDecor.prefix)
-        return VisualValue(path, value, entry, placedAt, KeptText.from(start))
+    /** This line printed on a table's lines though spaced for braces, with [above] over it and [end] ending it. */
+    fun outOfBraces(
+        above: String,
+        end: String,
+        ownLinesAbove: Boolean,
+    ): VisualValue {
+        val own = if (ownLinesAbove) linesAboveOnTableLines(path.last().rawLeafDecor.prefix) else ""
+        val start = above + own
+        return VisualValue(path, value, entry, placedAt, KeptText.from(start), spacedForBraces = true, lineEnd = end)
+    }
+
+    /** This line with [above] over the lines above it and [end] ending it. */
+    fun withLines(above: String, end: String): VisualValue {
+        val start = above + (lineStart ?: path.last().rawLeafDecor.prefix)?.textOrNull.orEmpty()
+        return VisualValue(path, value, entry, placedAt, KeptText.from(start), spacedForBraces, lineEnd + end)
     }
 
     /** The path's keys as spelled on this value's own line. */

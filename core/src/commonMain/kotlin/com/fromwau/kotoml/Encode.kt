@@ -156,8 +156,8 @@ private fun encodeKeyValueLine(writer: LineWriter, visual: VisualValue) {
     val value = visual.value
     var leafDecor = keyPath.last().rawLeafDecor
     var valueDecor = value.rawDecor
-    visual.lineStart?.let { start ->
-        leafDecor = RawDecor(start, leafDecor.suffix)
+    visual.lineStart?.let { start -> leafDecor = RawDecor(start, leafDecor.suffix) }
+    if (visual.spacedForBraces) {
         // After a value in braces only a comment carries over; the space before `}` does not.
         val comment = valueDecor.suffix?.textOrNull?.takeIf { '#' in it }?.substringBefore('\n')?.trimEnd('\r')
         valueDecor = RawDecor(valueDecor.prefix, comment?.let(KeptText::from))
@@ -165,6 +165,7 @@ private fun encodeKeyValueLine(writer: LineWriter, visual: VisualValue) {
     encodeKeyPath(buf, keyPath, DEFAULT_KEY_DECOR.first, DEFAULT_KEY_DECOR.second, leafDecor)
     buf.append('=')
     encodeValue(buf, value, DEFAULT_VALUE_DECOR.first, DEFAULT_VALUE_DECOR.second, valueDecor)
+    buf.append(visual.lineEnd)
     writer.endLine(visual.entry.lineEnding)
 }
 
@@ -253,8 +254,9 @@ private class DocumentParts {
         path: MutableList<Key>,
         isArrayOfTables: Boolean,
     ) {
-        // A root or an array-of-tables element has nowhere to print its values but under its own header.
-        if (path.isEmpty() || isArrayOfTables || !table.isDotted) {
+        // A root or an array-of-tables element has nowhere to print its values but under its own header. A dotted
+        // table with no lines of its own prints its header's comments where its header would stand.
+        if (path.isEmpty() || isArrayOfTables || !table.isDotted || table.keepsHeaderCommentsAmongTables(path.last())) {
             val part = TableToVisit(table.position, table, path.toList(), isArrayOfTables)
             add(part)
             lastTable = part
@@ -350,9 +352,11 @@ private fun visitTable(
 ): Boolean {
     val buf = writer.buf
     var first = firstTable
+    // A root or an array-of-tables element prints under its own header, whatever it says about being dotted.
+    val dotted = table.isDotted && path.isNotEmpty() && !isArrayOfTables
     if (path.isEmpty()) {
         if (table.visualValues().isNotEmpty()) first = false
-    } else if (table.printsHeader(isArrayOfTables)) {
+    } else if (!dotted && table.printsHeader(isArrayOfTables)) {
         val defaultDecor = if (first) {
             first = false
             "" to DEFAULT_TABLE_DECOR.second
@@ -376,7 +380,16 @@ private fun visitTable(
         buf.append(if (isArrayOfTables) "]]" else "]")
         table.rawDecor.suffixEncode(buf, defaultDecor.second)
         writer.endLine(table.headerLineEnding)
+    } else {
+        // A header that does not print leaves its comments where it stood.
+        buf.append(table.headerLinesAbove(path.last()))
+        val comment = table.headerComment.trimStart()
+        if (comment.isNotEmpty()) {
+            buf.append(comment)
+            writer.endLine(table.headerLineEnding)
+        }
     }
-    encodeBodyLines(writer, table)
+    // A dotted table's lines print among its parent's.
+    if (!dotted) encodeBodyLines(writer, table)
     return first
 }

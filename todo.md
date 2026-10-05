@@ -8,11 +8,12 @@ Every defect, ruling and docs item from that pass is closed; see **Done**.
 
 ## Candidate work
 
-- [ ] **27. A multi-line inline table made dotted loses the comments between its entries.** TOML 1.1:
-  `t = {\n  # about c\n  c = 3, # three\n  d = 4, # four\n  # end\n}` with `isDotted = true` prints the lines
-  above each key but drops `# three`, `# four` (held at the start of the next key's prefix, before its first break)
-  and `# end` (the table's trailing text); after `remove("c")` the kept `# about c` prints above `# about t`. Each
-  needs comments moved to the end of the line before or after the group. Goal 4.
+- [ ] **28. Repeated `isDotted` changes still lose comments in rarer shapes.** `CommentPropertyTest` is clean at its
+  default size; at 25 steps and 2000 seeds it finds about 135 losses, all after an inline or standard table was made
+  dotted, often several times, combined with copies and empty tables. Seen: a dotted inline table inside another one
+  loses its own braces' comments (`takeOutOfBraces` converts only the outermost); a header comment applied at two
+  levels merges into one comment token; a comment on an empty dotted table's line is lost once the table gains a key.
+  Reproduce by raising the seeds and steps in `CommentPropertyTest`. Goal 4.
 
 ## Not in scope (owner, 2026-10-05)
 
@@ -22,6 +23,18 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **27. A multi-line inline table made dotted loses the comments between its entries.** TOML 1.1:
+  `t = {\n  # about c\n  c = 3, # three\n  d = 4, # four\n  # end\n}` with `isDotted = true` prints the lines
+  above each key but drops `# three`, `# four` (held at the start of the next key's prefix, before its first break)
+  and `# end` (the table's trailing text); after `remove("c")` the kept `# about c` prints above `# about t`. Each
+  needs comments moved to the end of the line before or after the group. Goal 4.
+  **Verdict 2026-10-05:** fixed with goal 4's property test. On a table's lines a dotted inline table now ends the line
+  before with a comment that followed a comma, puts one after its opening brace on a line of its own, and ends its last
+  line with the comments before and after its closing brace; a comment joining a line that already ends in one goes
+  on its own line. Removing a key from it edits the text in its braces' shape, so the key's same-line comment goes and
+  the opening-brace comment stays. `HeaderCommentsTest` pins it, failing on the old code.
+
 
 - [x] **26. Making nested inline tables dotted drops the comment above them.** `x = 1\n# about b\nt = { c = { c = 3 } }`,
   then `isDotted = true` on `t` and on `c`: the next edit to them prints `x = 1\n t.c.c = 3` (the comment line gone,

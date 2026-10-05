@@ -390,20 +390,17 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     }
 
     private fun keepLinesAbove(removed: Collection<KeyValue>) {
-        if (!isDotted) {
+        // On a table's lines the text keeps its braces' shape, which printing turns into lines.
+        if (!isDotted || printsOnTableLines()) {
             leaveTextAfterRemoved(bodyLines(), RemovedLines(removed))
             return
         }
-        val onTableLines = printsOnTableLines()
         keepLinesAbove(
             lines = bodyLines(),
             removed = RemovedLines(removed),
             isDotted = true,
-            linesAbove = { line ->
-                val prefix = line.entry.key.rawLeafDecor.prefix
-                if (onTableLines) linesAboveOnTableLines(prefix) else linesAboveElement(prefix)
-            },
-            keyDefault = if (onTableLines) DEFAULT_KEY_DECOR.first else DEFAULT_INLINE_KEY_DECOR.first,
+            linesAbove = { linesAboveElement(it.entry.key.rawLeafDecor.prefix) },
+            keyDefault = DEFAULT_INLINE_KEY_DECOR.first,
             keep = { items.keptLines += it },
         )
     }

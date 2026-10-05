@@ -103,15 +103,15 @@ class EditPropertyTest {
 }
 
 /** One random public edit to [doc], at a place [random] picks among all the document holds. */
-private class Edits(
+internal class Edits(
     private val doc: TomlDocument,
     private val random: Random,
 ) {
-    private val tables = mutableListOf<StandardTable>()
-    private val inlines = mutableListOf<InlineTable>()
-    private val arrays = mutableListOf<TomlArray>()
-    private val tableArrays = mutableListOf<ArrayOfTables>()
-    private val slots = mutableListOf<Item>()
+    val tables = mutableListOf<StandardTable>()
+    val inlines = mutableListOf<InlineTable>()
+    val arrays = mutableListOf<TomlArray>()
+    val tableArrays = mutableListOf<ArrayOfTables>()
+    val slots = mutableListOf<Item>()
 
     init {
         collect(doc.root)
@@ -210,7 +210,7 @@ private class Edits(
         "a", "b", "x", "new key", "", "a.b", "1", "true", "#", "'q'", "\"dq\"", "é", "tab\tkey",
     )
 
-    private fun keyFor(existing: Set<String>): String =
+    fun keyFor(existing: Set<String>): String =
         if (existing.isNotEmpty() && random.nextBoolean()) existing.random(random) else newKeys.random(random)
 
     private val strings = listOf(
@@ -223,7 +223,7 @@ private class Edits(
         "00:32:00.5",
     )
 
-    private fun value(depth: Int = 0): Value = when (random.nextInt(if (depth < 2) 8 else 6)) {
+    fun value(depth: Int = 0): Value = when (random.nextInt(if (depth < 2) 8 else 6)) {
         0 -> Value.String(strings.random(random))
         1 -> Value.Integer(listOf(0L, -1L, 42L, Long.MAX_VALUE, Long.MIN_VALUE).random(random))
         2 -> Value.Float(
@@ -239,7 +239,7 @@ private class Edits(
         )
     }
 
-    private fun table(depth: Int = 0): StandardTable {
+    fun table(depth: Int = 0): StandardTable {
         val table = StandardTable()
         repeat(random.nextInt(3)) {
             val item = if (depth < 2 && random.nextInt(4) == 0) Item(table(depth + 1)) else Item(value())
@@ -248,7 +248,7 @@ private class Edits(
         return table
     }
 
-    private fun item(): Item = when (random.nextInt(6)) {
+    fun item(): Item = when (random.nextInt(6)) {
         0 -> Item(table())
         1 -> Item(List(1 + random.nextInt(2)) { table() }.toArrayOfTables().getOrFail())
         2 -> slots.randomOrNull(random)?.copy() ?: Item(value())
