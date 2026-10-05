@@ -53,11 +53,7 @@ internal fun decodeUnquotedScalar(raw: Raw, output: DecodedStringBuilder, error:
             val kind = ScalarKind.Float
             if (ensureFloat(0, raw, error)) decodeFloatOrInteger(0, raw, kind, output, error) else kind
         }
-        't'.code, 'T'.code -> decodeKeyword(raw, "true", ScalarKind.Boolean(true), output, error)
-        'f'.code, 'F'.code -> decodeKeyword(raw, "false", ScalarKind.Boolean(false), output, error)
-        'i'.code, 'I'.code -> decodeKeyword(raw, "inf", ScalarKind.Float, output, error)
-        'n'.code, 'N'.code -> decodeKeyword(raw, "nan", ScalarKind.Float, output, error)
-        else -> decodeInvalid(raw, output, error)
+        else -> decodeKeyword(raw, 0, KEYWORDS, output, error)
     }
 }
 
@@ -87,33 +83,7 @@ private fun decodeSignPrefix(raw: Raw, valueStart: Int, output: DecodedStringBui
             val kind = ScalarKind.Float
             if (ensureFloat(0, raw, error)) decodeFloatOrInteger(0, raw, kind, output, error) else kind
         }
-        'i'.code, 'I'.code -> decodeSignedSymbol(raw, value, "inf", output, error)
-        'n'.code, 'N'.code -> decodeSignedSymbol(raw, value, "nan", output, error)
-        else -> decodeInvalid(raw, output, error)
-    }
-}
-
-private fun decodeSignedSymbol(
-    raw: Raw,
-    value: Int,
-    symbol: String,
-    output: DecodedStringBuilder,
-    error: ErrorSink,
-): ScalarKind {
-    val kind = ScalarKind.Float
-    if (!raw.looksLikeKeyword(value, symbol)) return decodeInvalid(raw, output, error)
-    return if (!raw.textEquals(value, symbol)) {
-        error.reportError(
-            ParseError(
-                ParseErrorReason.InvalidScalar(kind),
-                context = raw.wholeContext(),
-                expected = listOf(Expected.Literal(symbol)),
-                unexpected = Span(value, raw.length),
-            ),
-        )
-        decodeAs(raw, symbol, kind, output, error)
-    } else {
-        decodeAs(raw, raw.text, kind, output, error)
+        else -> decodeKeyword(raw, value, SIGNED_KEYWORDS, output, error)
     }
 }
 
@@ -463,29 +433,76 @@ private fun decodeAs(
     return kind
 }
 
+private class Keyword(val text: String, val kind: ScalarKind)
+
+// In the order a tie between two equally near keywords is settled.
+private val KEYWORDS = listOf(
+    Keyword("true", ScalarKind.Boolean(true)),
+    Keyword("false", ScalarKind.Boolean(false)),
+    Keyword("inf", ScalarKind.Float),
+    Keyword("nan", ScalarKind.Float),
+)
+
+private val SIGNED_KEYWORDS = KEYWORDS.filter { it.kind == ScalarKind.Float }
+
+/**
+ * Decodes the word from [from] as the nearest of [keywords] it may be a misspelling of, or as a string missing its
+ * quotes when it is none of them.
+ */
 private fun decodeKeyword(
     raw: Raw,
-    keyword: String,
-    kind: ScalarKind,
+    from: Int,
+    keywords: List<Keyword>,
     output: DecodedStringBuilder,
     error: ErrorSink,
-): ScalarKind = if (raw.looksLikeKeyword(0, keyword)) {
-    decodeSymbol(raw, keyword, kind, output, error)
-} else {
-    decodeInvalid(raw, output, error)
+): ScalarKind {
+    val controlled = keywords.firstOrNull { raw.isFollowedByControl(from, it.text) }
+    if (controlled != null) {
+        val control = from + controlled.text.length
+        error.reportError(
+            ParseError(
+                ParseErrorReason.InvalidScalar(controlled.kind),
+                context = raw.wholeContext(),
+                expected = EXPECTED_NOTHING,
+                unexpected = Span(control, control + 1),
+            ),
+        )
+        return decodeAs(raw, controlled.text, controlled.kind, output, error)
+    }
+    val word = raw.text(from, raw.length).lowercase()
+    if (keywords.any { word.length > it.text.length && word.startsWith(it.text) }) {
+        return decodeInvalid(raw, output, error)
+    }
+    val keyword = keywords
+        .filter { isOneEditAway(word, it.text) }
+        .minByOrNull { if (word == it.text) 0 else 1 }
+        ?: return decodeInvalid(raw, output, error)
+    if (!raw.textEquals(from, keyword.text)) {
+        error.reportError(
+            ParseError(
+                ParseErrorReason.InvalidScalar(keyword.kind),
+                context = raw.wholeContext(),
+                expected = listOf(Expected.Literal(keyword.text)),
+                unexpected = Span(from, raw.length),
+            ),
+        )
+        return decodeAs(raw, keyword.text, keyword.kind, output, error)
+    }
+    return decodeAs(raw, raw.text, keyword.kind, output, error)
+}
+
+/** Whether the word from [from] is [keyword], in any case, directly followed by a control character. */
+private fun Raw.isFollowedByControl(from: Int, keyword: String): Boolean {
+    val end = from + keyword.length
+    if (end >= length) return false
+    val next = byteAt(end)
+    return (next < 0x20 || next == 0x7F) && text(from, end).equals(keyword, ignoreCase = true)
 }
 
 /**
- * Whether the word from [from] is a misspelt [keyword] rather than a string missing its quotes: ignoring case, it
- * is [keyword] or one character inserted, removed or replaced, or two neighbours swapped, away from it. A longer word
- * that starts with [keyword] is a string.
+ * Whether [word] is one character inserted, removed or replaced, or two neighbours swapped, away from [symbol], or
+ * is [symbol] itself.
  */
-private fun Raw.looksLikeKeyword(from: Int, keyword: String): Boolean {
-    val word = text(from, length).lowercase()
-    val extendsKeyword = word.length > keyword.length && word.startsWith(keyword)
-    return !extendsKeyword && isOneEditAway(word, keyword)
-}
-
 private fun isOneEditAway(word: String, symbol: String): Boolean {
     if (word.length == symbol.length) {
         val differences = word.indices.filter { word[it] != symbol[it] }
@@ -500,28 +517,6 @@ private fun isOneEditAway(word: String, symbol: String): Boolean {
 private fun List<Int>.areSwappedNeighbours(word: String, symbol: String): Boolean {
     if (size != 2 || this[1] != this[0] + 1) return false
     return word[this[0]] == symbol[this[1]] && word[this[1]] == symbol[this[0]]
-}
-
-private fun decodeSymbol(
-    raw: Raw,
-    symbol: String,
-    kind: ScalarKind,
-    output: DecodedStringBuilder,
-    error: ErrorSink,
-): ScalarKind {
-    if (!raw.textEquals(0, symbol)) {
-        if (raw.containsByte(0, ' '.code)) return decodeInvalid(raw, output, error)
-        error.reportError(
-            ParseError(
-                ParseErrorReason.InvalidScalar(kind),
-                context = raw.wholeContext(),
-                expected = listOf(Expected.Literal(symbol)),
-                unexpected = raw.wholeContext(),
-            ),
-        )
-    }
-
-    return decodeAs(raw, symbol, kind, output, error)
 }
 
 private fun decodeInvalid(raw: Raw, output: DecodedStringBuilder, error: ErrorSink): ScalarKind {

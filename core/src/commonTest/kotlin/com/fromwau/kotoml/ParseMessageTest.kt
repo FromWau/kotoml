@@ -161,6 +161,48 @@ class ParseMessageTest {
     }
 
     @Test
+    fun `a word with a typo in its first letter is the nearest misspelt keyword`() {
+        val cases = mapOf(
+            "a = rue\n" to "true",
+            "a = yrue\n" to "true",
+            "a = Rue\n" to "true",
+            "a = alse\n" to "false",
+            "a = nf\n" to "inf",
+            "a = +nf\n" to "inf",
+            "a = an\n" to "nan",
+            "a = -man\n" to "nan",
+        )
+        for ((text, keyword) in cases) {
+            val error = errorOf(text)
+            val kind = keyword.toBooleanStrictOrNull()?.let { ScalarKind.Boolean(it) } ?: ScalarKind.Float
+            assertEquals(syntax(ParseErrorReason.InvalidScalar(kind)), error.reason, text)
+            assertEquals(listOf(Expected.Literal(keyword)), error.expected, text)
+        }
+    }
+
+    @Test
+    fun `a sign before a word near true or false is a string missing its quotes`() {
+        for (word in listOf("+true", "-rue", "+fals")) {
+            assertEquals(syntax(ParseErrorReason.UnquotedString), errorOf("a = $word\n").reason, word)
+        }
+    }
+
+    @Test
+    fun `a keyword followed by a control character points at the control character`() {
+        val cases = mapOf(
+            "a = +inf\u000B\n" to ScalarKind.Float,
+            "a = nan\u007F\n" to ScalarKind.Float,
+            "a = true\u000B\n" to ScalarKind.Boolean(true),
+            "a = FALSE\u0001\n" to ScalarKind.Boolean(false),
+        )
+        for ((text, kind) in cases) {
+            val error = errorOf(text)
+            assertEquals(syntax(ParseErrorReason.InvalidScalar(kind)), error.reason, text)
+            assertEquals(TextPosition(1, text.indexOfFirst { it.isISOControl() } + 1), error.position, text)
+        }
+    }
+
+    @Test
     fun `a longer word starting with a keyword is a string missing its quotes`() {
         val words = listOf("info", "infinity", "+infinity", "nana", "nann", "-nans", "truest", "trueish", "falsey")
         for (word in words) {

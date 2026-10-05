@@ -1,5 +1,5 @@
-TOML parse error at line 1, column 21
+TOML parse error at line 1, column 25
   |
 1 | linetab-number-04 = +inf\x0B
-  |                     ^^^^^^^^
-string values must be quoted, expected literal string
+  |                         ^^^^
+invalid float
