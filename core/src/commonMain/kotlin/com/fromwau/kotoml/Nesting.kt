@@ -49,9 +49,12 @@ internal fun copiesWithinDocument(
     item: Item,
     receiver: Any,
 ): Boolean {
-    val source = sourceOf(item) ?: return false
-    return outermostTableOf(source) === outermostTableOf(receiver)
+    val sourceRoot = outermostTableOfSource(item) ?: item.copiedWithin ?: return false
+    return sourceRoot === outermostTableOf(receiver)
 }
+
+/** The outermost table of the document [item] is read from, or null when it is stored nowhere. */
+internal fun outermostTableOfSource(item: Item): StandardTable? = sourceOf(item)?.let(::outermostTableOf)
 
 private fun sourceOf(item: Item): Any? = item.owner ?: item.container?.let(::parentOf)
 

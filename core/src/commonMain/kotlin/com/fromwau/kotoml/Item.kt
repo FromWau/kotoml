@@ -24,9 +24,10 @@ import com.fromwau.kern.result.Result
  * after `doc["b"] = doc["a"].getOrElse { error(it) }`, editing `doc["a"]` leaves `doc["b"]` as it was. A copy
  * taken from a place in a document, this one or another, leaves its source's own comments behind (its same-line
  * comment, its header comment and the comment lines above its header) and takes the comments inside it; a table
- * copied within one document prints after the tables already there. An item stored nowhere, built in code or
- * returned by `remove`, keeps what it holds; `remove` leaves the lines above in the document, so storing the item
- * again prints them once.
+ * copied within one document prints after the tables already there. [copy] gives exactly what a store would store.
+ * An item stored nowhere, built in code or returned by `remove`, keeps what it holds, its comments included;
+ * `remove` leaves the lines above in the document, so storing the item again prints them once. A comment a caller
+ * set through `decor` travels with every store and copy.
  *
  * A slot inside an array or an inline table holds only a value, and one inside an array of tables only a table;
  * writing anything else there fails with [TomlEditError.NotAValue] or [TomlEditError.NotATableElement].
@@ -193,12 +194,9 @@ public class Item private constructor(
             else -> ValuePlace.Array
         }
 
-    /**
-     * A copy of what this item holds for storing at [place], leaving its source's comments when it is read from a
-     * document; see [copiesFromDocument], [Content.leaveSource] and [Value.fitFor].
-     */
+    /** A [copy] of what this item holds for storing at [place]; see [Value.fitFor]. */
     internal fun copyFor(place: ValuePlace): Item = copy().also { copy ->
-        if (copiesFromDocument(this)) copy.content.leaveSource()
+        copy.copiedWithin = null
         copy.valueOrNull?.fitFor(place)
     }
 
@@ -342,7 +340,7 @@ public class Item private constructor(
         if (holds == Holds.Table) return Err(TomlEditError.NotATableElement(TomlType.InlineTable))
         val value = standardTableOrNull?.let(::inlineValueOf)
             ?: arrayOfTablesOrNull?.let(::arrayValueOf)
-            ?: copy().moveToValue()
+            ?: copyWithComments().moveToValue()
         tooDeepToHold(Item(value))?.let { return Err(it) }
         holdValue(value)
         return Ok(Unit)
@@ -360,7 +358,7 @@ public class Item private constructor(
             val lineBreak = table.headerLineEnding ?: "\n"
             return Value.InlineTable(table.copy().moveToInlineTableAcrossLines(headerComment, lineBreak))
         }
-        val value = copy().moveToValue()
+        val value = copyWithComments().moveToValue()
         if (headerComment.isNotEmpty()) value.rawDecor.suffix = KeptText.from(headerComment)
         return value
     }
@@ -453,8 +451,24 @@ public class Item private constructor(
         }
     }
 
-    /** A deep copy of this item, free to be put anywhere. */
-    public fun copy(): Item = Item(content.deepCopy(), Holds.Anything)
+    /**
+     * A deep copy of this item, stored nowhere and free to be put anywhere: exactly what storing this item would
+     * store. A copy of an item read from a place in a document leaves that place's own comments behind, its same-line
+     * comment, its header comment and the comment lines above its header, and takes the comments inside it, so
+     * `dst.set("db", src["db"].getOrFail().copy())` prints the same as `dst.set("db", src["db"].getOrFail())`.
+     * Comments a caller set through `decor` stay. A copy of an item stored nowhere, built in code or returned by
+     * `remove`, keeps all its comments.
+     */
+    public fun copy(): Item = copyWithComments().also { copy ->
+        copy.copiedWithin = outermostTableOfSource(this) ?: copiedWithin
+        if (copiesFromDocument(this)) copy.content.leaveSource()
+    }
+
+    /** For a copy stored nowhere, the outermost table of the document it was read from; see [copiesWithinDocument]. */
+    internal var copiedWithin: StandardTable? = null
+
+    /** A deep copy that keeps every comment, for turning this slot's content into another kind in place. */
+    internal fun copyWithComments(): Item = Item(content.deepCopy(), Holds.Anything)
 
     /** The item as TOML: a value, a table's key/value pairs, or an array of tables as an array. */
     override fun toString(): String = when (val content = content) {
