@@ -222,7 +222,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         indent: String = "",
     ): InlineTable {
         for (entry in items.entries) {
-            if (entry.item.valueOrNull == null) entry.item.holdValue(entry.item.copy().moveToValue())
+            if (entry.item.valueOrNull == null) entry.item.holdValue(entry.item.copyWithComments().moveToValue())
         }
         val entryIndent = "$indent$INDENT"
         var carried = headerComment
@@ -245,7 +245,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     }
 
     internal fun moveToInlineTable(): InlineTable {
-        for (entry in items.entries) entry.item.holdValue(entry.item.copy().moveToValue())
+        for (entry in items.entries) entry.item.holdValue(entry.item.copyWithComments().moveToValue())
         val table = InlineTable(items.takeAll())
         table.resetFormatting()
         return table

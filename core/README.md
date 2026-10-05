@@ -107,10 +107,9 @@ value drops it. Sorting, by key name with `sort()` or by your own order with `so
 and each table header with the comment lines right above it and leaves blank lines in place.
 Making a table dotted, or a header again, keeps the lines above its key and each value's same-line comment and drops
 its other comments. An `Item` is a slot that holds a value, a table or an array of tables; `valueOrNull`,
-`standardTableOrNull` and their siblings read what it holds, and `tableOrNull` reads a table of either kind. Storing
-an item stores a copy, so editing the original afterwards does not change the document; a copy from a place in a
-document, this one or another, takes only the comments inside it. A removed item does not carry the lines above it,
-which stay in the document, so storing it again prints them once. A table stored under a new key prints right after
+`standardTableOrNull` and their siblings read what it holds, and `tableOrNull` reads a table of either kind; how
+items carry comments when stored, copied or removed is under [Items and their comments](#items-and-their-comments).
+A table stored under a new key prints right after
 its new parent's lines and the tables stored before it there; one stored in place of a table prints where that table
 did. A table made in code that holds only tables prints no header of its own, as `[tool]` does not above
 `[tool.ruff]`. A table's `position` sets where its header prints among the document's tables. `toStandardTable` and
@@ -121,6 +120,32 @@ A document's top-level keys live in its `root` table. The document itself offers
 `size`) and iterates over the root's pairs; everything else a `StandardTable` does, such as `sortBy { (key, _) -> key }`
 or `keyOrNull(name)`, goes through `doc.root`. A key read from text knows its `position`, the line and column it
 was written at, so a program checking a parsed document can point at the line it complains about.
+
+## Items and their comments
+
+```kotlin
+val src = TomlDocument.parse("# Generated\n[db] # primary\nurl = \"x\" # local\n").getOrElse { error(it) }
+val dst = TomlDocument()
+dst["db"] = src["db"].getOrElse { error(it) } // prints as storing its copy() would
+// [db]
+// url = "x" # local
+```
+
+An item handed out by indexing, and the comments that go with it, follow five rules:
+
+1. **Reading gives a live view.** `doc["a"]` is the slot stored in the document: writing through it, its value's
+   `decor` included, changes the document.
+2. **Storing stores a copy that leaves its source's comments.** An item read from a document, this one or another,
+   is stored without its same-line comment, its header comment and the comment lines above its header; the comments
+   inside it go along. Editing the original afterwards does not change the copy.
+3. **`copy()` is exactly what a store would store.** `dst.set("db", src["db"].getOrFail().copy())` prints the same as
+   `dst.set("db", src["db"].getOrFail())`, in another document or the same one.
+4. **Removing is a move.** An item returned by `remove` or `removeAt` keeps its own comments, its same-line and header
+   comment included, and stores with them. The comment lines above it stay in the document it left, so storing it
+   there again prints them once. A comment a caller set through `decor` is the item's own too, so it travels with
+   every store and copy.
+5. **A replaced or removed item is detached.** It keeps what it held, but writing through it no longer changes the
+   document; index again.
 
 ## Build and edit with blocks
 
