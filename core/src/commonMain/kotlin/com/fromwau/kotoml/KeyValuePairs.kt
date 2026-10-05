@@ -71,8 +71,11 @@ internal class KeyValue(var key: Key, item: Item) {
         val dottedTable = item.standardTableOrNull?.takeIf { it.isDotted }
         val dottedInline = item.inlineTableOrNull?.takeIf { it.isDotted }
         val lines = dottedTable?.bodyLines() ?: dottedInline?.bodyLines() ?: return ""
-        val inBraces = dottedInline != null && !dottedInline.printsOnTableLines()
-        val above: (KeptText?) -> String = if (inBraces) ::linesAboveElement else ::linesAbove
+        val above: (KeptText?) -> String = when {
+            dottedInline == null -> ::linesAbove
+            dottedInline.printsOnTableLines() -> ::linesAboveOnTableLines
+            else -> ::linesAboveElement
+        }
         // A value replacing dotted-key lines prints where the first of them did.
         if (order == null) order = lines.firstOrNull()?.order
         var carried = ""

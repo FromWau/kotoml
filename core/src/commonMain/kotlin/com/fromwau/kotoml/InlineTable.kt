@@ -401,7 +401,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
             isDotted = true,
             linesAbove = { line ->
                 val prefix = line.entry.key.rawLeafDecor.prefix
-                if (onTableLines) linesAbove(prefix) else linesAboveElement(prefix)
+                if (onTableLines) linesAboveOnTableLines(prefix) else linesAboveElement(prefix)
             },
             keyDefault = if (onTableLines) DEFAULT_KEY_DECOR.first else DEFAULT_INLINE_KEY_DECOR.first,
             keep = { items.keptLines += it },

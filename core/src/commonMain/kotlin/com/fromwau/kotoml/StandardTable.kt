@@ -123,7 +123,14 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
                     if (table.items.size == 0) values.add(emptyTableLine(path, entry, table.items.keptLines))
                 }
                 value is Value.InlineTable && value.table.isDotted -> {
+                    val start = values.size
                     value.table.appendDottedValues(path, values, entry)
+                    // Lines spaced for braces; the lines above the key that holds them print above the first.
+                    for (index in start until values.size) {
+                        val line = values[index] as? VisualValue ?: continue
+                        val above = if (index == start) entry.key.rawLeafDecor.prefix?.textOrNull.orEmpty() else ""
+                        values[index] = line.spacedForBraces(above)
+                    }
                 }
                 value != null -> values.add(VisualValue(path.toList(), value, entry))
                 entry.item.arrayOfTablesOrNull?.isEmpty() == true -> {
@@ -522,9 +529,17 @@ internal class VisualValue(
     val value: Value,
     val entry: KeyValue,
     private val placedAt: Long? = null,
+    // For a line of a dotted inline table printed on a table's lines: the text its line starts with.
+    val lineStart: KeptText? = null,
 ) : BodyLine {
     override val order: Long?
         get() = placedAt ?: entry.order
+
+    /** This line printed on a table's lines though spaced for braces, with [above] over its own lines above. */
+    fun spacedForBraces(above: String): VisualValue {
+        val start = above + linesAboveOnTableLines(path.last().rawLeafDecor.prefix)
+        return VisualValue(path, value, entry, placedAt, KeptText.from(start))
+    }
 
     /** The path's keys as spelled on this value's own line. */
     fun spelledPath(): List<Key> {

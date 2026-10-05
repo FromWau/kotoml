@@ -119,4 +119,33 @@ class PreservationTest {
         val input = "t = { a.x = 1, b.y = 2, a.z = 3 }\n"
         assertEquals(input, parse(input).toString())
     }
+
+    @Test
+    fun `an inline table made dotted keeps the comment above its key`() {
+        val doc = parse("x = 1\n# about t\nt = { c = 3 }\n")
+        doc["t"].getOrFail().inlineTableOrNull!!.isDotted = true
+        assertEquals("x = 1\n# about t\nt.c = 3\n", doc.toString())
+    }
+
+    @Test
+    fun `nested inline tables made dotted keep the comment above and take new keys on lines of their own`() {
+        val doc = parse("x = 1\r\n# about t\r\nt = { c = { c = 3 } }\r\n")
+        val outer = doc["t"].getOrFail().inlineTableOrNull!!
+        val inner = outer["c"]!!.inlineTableOrNull!!
+        outer.isDotted = true
+        inner.isDotted = true
+        inner.set("d", 1L).getOrFail()
+        assertEquals("x = 1\r\n# about t\r\nt.c.c = 3\r\nt.c.d = 1\r\n", doc.toString())
+    }
+
+    @Test
+    fun `removing the last key of an inline table made dotted keeps the comment above it`() {
+        val doc = parse("x = 1\n# about t\nt = { c = { c = 3 } }\n")
+        val outer = doc["t"].getOrFail().inlineTableOrNull!!
+        val inner = outer["c"]!!.inlineTableOrNull!!
+        outer.isDotted = true
+        inner.isDotted = true
+        inner.remove("c")
+        assertEquals("x = 1\n# about t\nt.c = {}\n", doc.toString())
+    }
 }

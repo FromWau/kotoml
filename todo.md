@@ -8,11 +8,11 @@ Every defect, ruling and docs item from that pass is closed; see **Done**.
 
 ## Candidate work
 
-- [ ] **26. Making nested inline tables dotted drops the comment above them.** `x = 1\n# about b\nt = { c = { c = 3 } }`,
-  then `isDotted = true` on `t` and on `c`: the next edit to them prints `x = 1\n t.c.c = 3` (the comment line gone,
-  a stray space before `t`), and a new key prints with a space before its line ending. Found while cutting down
-  `EditPropertyTest` findings; it still reads back, so that test, which checks data, cannot see it. A comment-keeping
-  property (goal 4) would. Goal 4.
+- [ ] **27. A multi-line inline table made dotted loses the comments between its entries.** TOML 1.1:
+  `t = {\n  # about c\n  c = 3, # three\n  d = 4, # four\n  # end\n}` with `isDotted = true` prints the lines
+  above each key but drops `# three`, `# four` (held at the start of the next key's prefix, before its first break)
+  and `# end` (the table's trailing text); after `remove("c")` the kept `# about c` prints above `# about t`. Each
+  needs comments moved to the end of the line before or after the group. Goal 4.
 
 ## Not in scope (owner, 2026-10-05)
 
@@ -22,6 +22,19 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **26. Making nested inline tables dotted drops the comment above them.** `x = 1\n# about b\nt = { c = { c = 3 } }`,
+  then `isDotted = true` on `t` and on `c`: the next edit to them prints `x = 1\n t.c.c = 3` (the comment line gone,
+  a stray space before `t`), and a new key prints with a space before its line ending. Found while cutting down
+  `EditPropertyTest` findings; it still reads back, so that test, which checks data, cannot see it. A comment-keeping
+  property (goal 4) would. Goal 4.
+  **Verdict 2026-10-05:** fixed, and wider than filed: making even one inline table dotted dropped the comment, since
+  a line takes its leading text from its last key, and the keys of an inline table hold the spacing inside its braces.
+  An inline table made dotted on a table's lines now prints its first line under the text above the key that holds
+  it, turns each key's spacing into the lines above it, and keeps only a comment after each value. Removing and
+  replacing its keys keep lines by the same rule. Three tests in `PreservationTest`, each failing on the old code;
+  `EditPropertyTest` clean at 25 steps and 2000 seeds.
+
 
 - [x] **25. Printing and copying recurse once per nesting level.** `Encode.kt`, `Value.copy`,
   `StandardTable.copy`. A document built through the API thousands of levels deep overflows the stack in `toString()`,

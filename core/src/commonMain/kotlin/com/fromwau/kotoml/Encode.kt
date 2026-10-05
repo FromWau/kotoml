@@ -42,15 +42,20 @@ internal fun encodeFormatted(
     formatted: Formatted<*>,
     defaultPrefix: String,
     defaultSuffix: String,
+    decor: RawDecor = formatted.decor,
 ) {
-    val decor = formatted.decor
     decor.prefixEncode(buf, defaultPrefix)
     buf.append(formatted.displaySpelling)
     decor.suffixEncode(buf, defaultSuffix)
 }
 
-internal fun encodeArray(buf: StringBuilder, array: TomlArray, defaultPrefix: String, defaultSuffix: String) {
-    val decor = array.rawDecor
+internal fun encodeArray(
+    buf: StringBuilder,
+    array: TomlArray,
+    defaultPrefix: String,
+    defaultSuffix: String,
+    decor: RawDecor = array.rawDecor,
+) {
     decor.prefixEncode(buf, defaultPrefix)
     buf.append('[')
 
@@ -72,8 +77,13 @@ internal fun encodeArray(buf: StringBuilder, array: TomlArray, defaultPrefix: St
     decor.suffixEncode(buf, defaultSuffix)
 }
 
-internal fun encodeInlineTable(buf: StringBuilder, table: InlineTable, defaultPrefix: String, defaultSuffix: String) {
-    val decor = table.rawDecor
+internal fun encodeInlineTable(
+    buf: StringBuilder,
+    table: InlineTable,
+    defaultPrefix: String,
+    defaultSuffix: String,
+    decor: RawDecor = table.rawDecor,
+) {
     decor.prefixEncode(buf, defaultPrefix)
     buf.append('{')
 
@@ -110,15 +120,21 @@ internal fun encodeInlineTable(buf: StringBuilder, table: InlineTable, defaultPr
     decor.suffixEncode(buf, defaultSuffix)
 }
 
-internal fun encodeValue(buf: StringBuilder, value: Value, defaultPrefix: String, defaultSuffix: String) {
+internal fun encodeValue(
+    buf: StringBuilder,
+    value: Value,
+    defaultPrefix: String,
+    defaultSuffix: String,
+    decor: RawDecor = value.rawDecor,
+) {
     when (value) {
-        is Value.String -> encodeFormatted(buf, value.formatted, defaultPrefix, defaultSuffix)
-        is Value.Integer -> encodeFormatted(buf, value.formatted, defaultPrefix, defaultSuffix)
-        is Value.Float -> encodeFormatted(buf, value.formatted, defaultPrefix, defaultSuffix)
-        is Value.Boolean -> encodeFormatted(buf, value.formatted, defaultPrefix, defaultSuffix)
-        is Value.Datetime -> encodeFormatted(buf, value.formatted, defaultPrefix, defaultSuffix)
-        is Value.Array -> encodeArray(buf, value.array, defaultPrefix, defaultSuffix)
-        is Value.InlineTable -> encodeInlineTable(buf, value.table, defaultPrefix, defaultSuffix)
+        is Value.String -> encodeFormatted(buf, value.formatted, defaultPrefix, defaultSuffix, decor)
+        is Value.Integer -> encodeFormatted(buf, value.formatted, defaultPrefix, defaultSuffix, decor)
+        is Value.Float -> encodeFormatted(buf, value.formatted, defaultPrefix, defaultSuffix, decor)
+        is Value.Boolean -> encodeFormatted(buf, value.formatted, defaultPrefix, defaultSuffix, decor)
+        is Value.Datetime -> encodeFormatted(buf, value.formatted, defaultPrefix, defaultSuffix, decor)
+        is Value.Array -> encodeArray(buf, value.array, defaultPrefix, defaultSuffix, decor)
+        is Value.InlineTable -> encodeInlineTable(buf, value.table, defaultPrefix, defaultSuffix, decor)
     }
 }
 
@@ -137,10 +153,18 @@ internal class LineWriter(val buf: StringBuilder, private var lastEnding: String
 private fun encodeKeyValueLine(writer: LineWriter, visual: VisualValue) {
     val buf = writer.buf
     val keyPath = visual.spelledPath()
-    val leafDecor = keyPath.last().rawLeafDecor
+    val value = visual.value
+    var leafDecor = keyPath.last().rawLeafDecor
+    var valueDecor = value.rawDecor
+    visual.lineStart?.let { start ->
+        leafDecor = RawDecor(start, leafDecor.suffix)
+        // After a value in braces only a comment carries over; the space before `}` does not.
+        val comment = valueDecor.suffix?.textOrNull?.takeIf { '#' in it }?.substringBefore('\n')?.trimEnd('\r')
+        valueDecor = RawDecor(valueDecor.prefix, comment?.let(KeptText::from))
+    }
     encodeKeyPath(buf, keyPath, DEFAULT_KEY_DECOR.first, DEFAULT_KEY_DECOR.second, leafDecor)
     buf.append('=')
-    encodeValue(buf, visual.value, DEFAULT_VALUE_DECOR.first, DEFAULT_VALUE_DECOR.second)
+    encodeValue(buf, value, DEFAULT_VALUE_DECOR.first, DEFAULT_VALUE_DECOR.second, valueDecor)
     writer.endLine(visual.entry.lineEnding)
 }
 

@@ -23,6 +23,17 @@ internal fun linesAbove(prefix: KeptText?): String {
     return text.substring(0, text.lastIndexOf('\n') + 1)
 }
 
+/**
+ * The whole lines above an inline table's entry whose [prefix] was spaced for braces, as they print on lines of a
+ * table: the prefix's first break ends the line before, and spacing after its last break goes.
+ */
+internal fun linesAboveOnTableLines(prefix: KeptText?): String {
+    val text = prefix?.textOrNull ?: return ""
+    val firstBreak = text.indexOf('\n')
+    if (firstBreak < 0) return ""
+    return text.substring(firstBreak + 1, text.lastIndexOf('\n') + 1)
+}
+
 // Between the elements of an inline table or an array the break ending a line opens the next prefix, so the
 // lines above an element end before its prefix's last break.
 internal fun linesAboveElement(prefix: KeptText?): String {
