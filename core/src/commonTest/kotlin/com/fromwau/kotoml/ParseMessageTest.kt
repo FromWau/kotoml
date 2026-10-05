@@ -120,17 +120,59 @@ class ParseMessageTest {
             "a = in\n" to "inf",
             "a = -in\n" to "inf",
             "a = Inf\n" to "inf",
+            "a = INF\n" to "inf",
             "a = in_f\n" to "inf",
-            "a = infinity\n" to "inf",
             "a = imf\n" to "inf",
+            "a = inn\n" to "inf",
+            "a = ifn\n" to "inf",
             "a = na\n" to "nan",
             "a = +NaN\n" to "nan",
-            "a = nann\n" to "nan",
+            "a = -nAn\n" to "nan",
+            "a = nam\n" to "nan",
+            "a = nna\n" to "nan",
         )
         for ((text, symbol) in cases) {
             val error = errorOf(text)
             assertEquals(syntax(ParseErrorReason.InvalidScalar(ScalarKind.Float)), error.reason, text)
             assertEquals(listOf(Expected.Literal(symbol)), error.expected, text)
+        }
+    }
+
+    @Test
+    fun `a word near true or false is a misspelt boolean`() {
+        val cases = mapOf(
+            "a = True\n" to "true",
+            "a = TRUE\n" to "true",
+            "a = tru\n" to "true",
+            "a = ture\n" to "true",
+            "a = trye\n" to "true",
+            "a = tdue\n" to "true",
+            "a = fals\n" to "false",
+            "a = False\n" to "false",
+            "a = fasle\n" to "false",
+            "a = faalse\n" to "false",
+        )
+        for ((text, keyword) in cases) {
+            val error = errorOf(text)
+            val value = keyword.toBooleanStrict()
+            assertEquals(syntax(ParseErrorReason.InvalidScalar(ScalarKind.Boolean(value))), error.reason, text)
+            assertEquals(listOf(Expected.Literal(keyword)), error.expected, text)
+        }
+    }
+
+    @Test
+    fun `a longer word starting with a keyword is a string missing its quotes`() {
+        val words = listOf("info", "infinity", "+infinity", "nana", "nann", "-nans", "truest", "trueish", "falsey")
+        for (word in words) {
+            assertEquals(syntax(ParseErrorReason.UnquotedString), errorOf("a = $word\n").reason, word)
+        }
+    }
+
+    @Test
+    fun `a word far from every keyword is a string missing its quotes`() {
+        val words = listOf("tomato", "foo", "t", "f", "tr", "fa", "trash", "fail", "index", "-nil", "n", "in_fo")
+        for (word in words) {
+            assertEquals(syntax(ParseErrorReason.UnquotedString), errorOf("a = $word\n").reason, word)
         }
     }
 

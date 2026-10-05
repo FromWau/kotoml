@@ -2,4 +2,4 @@ TOML parse error at line 1, column 7
   |
 1 | foo = T
   |       ^
-invalid boolean, expected `true`
+string values must be quoted, expected literal string
