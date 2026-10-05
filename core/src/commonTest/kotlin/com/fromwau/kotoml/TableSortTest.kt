@@ -37,7 +37,7 @@ class TableSortTest {
     }
 
     @Test
-    fun `sorting a table leaves its sub-tables and arrays of tables in their order`() {
+    fun `sorting a table moves its sub-tables and arrays of tables by key`() {
         val input = """
             b = 2
             a = 1
@@ -57,14 +57,14 @@ class TableSortTest {
             a = 1
             b = 2
 
-            [z]
-            y = 1
+            [m]
+            n = 1
 
             [[x]]
             w = 1
 
-            [m]
-            n = 1
+            [z]
+            y = 1
         """.trimIndent() + "\n"
         assertEquals(expected, doc.toString())
     }

@@ -1135,7 +1135,7 @@ x = 1 # x
 
 ### S-056: copying a table over a value key leaves the value's comment line in place
 rule: 2, 4   version: 1.0
-settled: fixed 2026-10-05 (todo 29): a copy stored elsewhere in its document prints after the tables already there.
+settled: fixed 2026-10-05 (todo 38): a copied table prints with its new parent's tables, where its key stands.
 ```toml input
 # about b
 b = 1 # b
@@ -1147,12 +1147,11 @@ x = 1 # x
 doc.set("b", doc["a"].getOrFail())
 ```
 ```toml expected
-
-[a]
-x = 1 # x
-
 # about b
 [b]
+x = 1 # x
+
+[a]
 x = 1 # x
 ```
 

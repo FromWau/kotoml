@@ -391,7 +391,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
         currentTable.opensFile = currentPosition == 1L && root.visualValues().isEmpty()
         currentTable.isImplicit = false
         currentTable.setDotted(false)
-        currentTable.position = currentPosition
+        currentTable.placeAt(currentPosition, fromText = true)
         currentTable.span = header.span
         currentHeader = header
     }

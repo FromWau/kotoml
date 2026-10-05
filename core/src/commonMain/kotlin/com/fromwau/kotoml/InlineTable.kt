@@ -179,6 +179,13 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         }
 
     /**
+     * Sorts the entries by key name in plain string order, as `sortBy { (key, _) -> key.name }` does.
+     */
+    public fun sort() {
+        sortBy { (key, _) -> key.name }
+    }
+
+    /**
      * Sorts the entries in the natural order of what [selector] returns for each pair of key and value.
      *
      * The parts of a dotted key are sorted the same way, and their order replaces the one they were read in. The

@@ -97,19 +97,24 @@ doc["client"] = standardTableOf("retries" to Item(Value.Integer(3L))).getOrElse 
 `keys`, `put`, `getOrPut`, `remove`, `add`, `removeAt`, `retainAll`, `removeAll` and iteration. Removing keeps the
 comment and blank lines above what it removes, and takes what belongs to it: the comment on its line, every comment
 inside its value, and for a table everything after its first header, the comments above its sub-tables' headers
-included. Replacing a value keeps its spacing and the comment after it. An array of tables left with no tables
-prints `key = []`. A new key takes the indentation of the key above it, and an element or key added to an array or
+included. Where a removed table leaves two blank lines meeting, one stays, and none at the start or end of the file.
+Replacing a value keeps its spacing and the comment after it. An array of tables left with no tables prints
+`key = []`. A new key takes the indentation of the key above it, and an element or key added to an array or
 inline table on one line takes the spacing already there. A comment a caller gives an element or an inline table's
 value in its decor, such as `Decor(suffix = " # note")`, puts a one-line array or inline table on lines of its own,
 one entry per line; in a document that writes TOML 1.0, which has no comments inside an inline table, an inline table's
-value drops it. Sorting moves each key with the comment lines right above it and leaves blank lines in place.
+value drops it. Sorting, by key name with `sort()` or by your own order with `sortBy` and `sortWith`, moves each key
+and each table header with the comment lines right above it and leaves blank lines in place.
 Making a table dotted, or a header again, keeps the lines above its key and each value's same-line comment and drops
 its other comments. An `Item` is a slot that holds a value, a table or an array of tables; `valueOrNull`,
 `standardTableOrNull` and their siblings read what it holds, and `tableOrNull` reads a table of either kind. Storing
 an item stores a copy, so editing the original afterwards does not change the document; a copy from a place in a
 document, this one or another, takes only the comments inside it. A removed item does not carry the lines above it,
-which stay in the document, so storing it again prints them once. `toStandardTable` and `makeValue` keep the
-comments of what they convert. The full set of rules is goal 4 in [GOALS.md](../GOALS.md).
+which stay in the document, so storing it again prints them once. A table stored under a new key prints right after
+its new parent's lines and the tables stored before it there; one stored in place of a table prints where that table
+did. A table made in code that holds only tables prints no header of its own, as `[tool]` does not above
+`[tool.ruff]`. A table's `position` sets where its header prints among the document's tables. `toStandardTable` and
+`makeValue` keep the comments of what they convert. The full set of rules is goal 4 in [GOALS.md](../GOALS.md).
 
 A document's top-level keys live in its `root` table. The document itself offers the map calls (`get`, `set`,
 `getOrNull`, `contains`, `keys`, `put`, `putAll`, `getOrPut`, `remove`, `retainAll`, `removeAll`, `clear`,

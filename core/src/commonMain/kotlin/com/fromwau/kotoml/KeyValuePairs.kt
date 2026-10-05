@@ -51,13 +51,20 @@ internal class KeyValue(var key: Key, item: Item) {
         val lines = takeLinesAbove(next)
         val old = item
         val oldDecor = old.valueOrNull?.rawDecor
-        val oldHeader = old.standardTableOrNull?.takeUnless { it.isDotted }?.rawDecor
+        val oldTable = old.standardTableOrNull?.takeUnless { it.isDotted }
         item = next
         old.entry = null
         keepValueDecor(oldDecor)
-        keepHeaderComment(oldHeader)
+        keepHeaderComment(oldTable?.rawDecor)
         keepLinesAbove(lines)
+        keepTablePlace(oldTable)
         return old
+    }
+
+    /** Gives a table now in the slot the place among the document's tables of the table [old] it replaced. */
+    fun keepTablePlace(old: StandardTable?) {
+        val table = item.standardTableOrNull?.takeUnless { it.isDotted } ?: return
+        if (old != null) takePlaceOf(table, old)
     }
 
     /** Gives a table now in the slot the comment on the header of the table [old] it replaced, unless it has one. */
@@ -146,7 +153,7 @@ private val Item.isHeaderKind: Boolean
     get() = standardTableOrNull?.let { !it.isDotted } ?: (arrayOfTablesOrNull != null)
 
 /** The table whose header prints first for this item: its table, or the first of its array of tables. */
-private val Item.headerTable: StandardTable?
+internal val Item.headerTable: StandardTable?
     get() = standardTableOrNull?.takeUnless { it.isDotted } ?: arrayOfTablesOrNull?.firstOrNull()
 
 /**

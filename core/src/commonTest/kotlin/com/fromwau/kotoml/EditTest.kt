@@ -467,12 +467,13 @@ dc = "eqdc10"
             }
             .prints("""
 [a]
+
 [b]
 """)
     }
 
     @Test
-    fun `a new table with a sub-table prints both headers after the existing tables`() {
+    fun `a new table holding only a sub-table prints the sub-table's header after the existing tables`() {
         given("""
         [other.table]""")
             .running { root ->
@@ -484,8 +485,6 @@ dc = "eqdc10"
             .prints("""
 
         [other.table]
-
-[servers]
 
 [servers.alpha]
 ip = "10.0.0.1"
@@ -556,8 +555,6 @@ key3 = 8.1415926
         name = "foo"
 
         [target]
-
-[target.'cfg(target_os = "linux")']
 
 [target.'cfg(target_os = "linux")'.dependencies]
 name = "dep"
@@ -668,7 +665,6 @@ name = "dep"
 
         [dependencies]
         nom = "4.0" # future is here
-
 """)
     }
 
@@ -687,7 +683,6 @@ name = "dep"
         [package]
         name = "hello"
         version = "1.0.0"
-
 
         [dependencies]
         nom = "4.0" # future is here
@@ -748,7 +743,7 @@ name = "dep"
             }
             .prints("""
 
-        [a.z]
+        [a.y]
 
         [a]
         a = 1
@@ -756,7 +751,7 @@ name = "dep"
         b = 2 # as well as this
         c = 3
 
-        [a.y]
+        [a.z]
 """)
     }
 
@@ -780,7 +775,7 @@ name = "dep"
             }
             .prints("""
 
-        [a.z]
+        [a.y]
 
         [a]
         "c" = 3
@@ -788,7 +783,7 @@ name = "dep"
         # this comment is attached to b
         b = 2 # as well as this
 
-        [a.y]
+        [a.z]
 """)
     }
 
