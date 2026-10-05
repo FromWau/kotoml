@@ -90,8 +90,9 @@ internal fun Selected.toToml(): String {
     }
     item.arrayOfTablesOrNull?.let { tables ->
         // Printed under the header path it has in the file, inside parents that print nothing themselves. Only a
-        // key reaches an array of tables, so the path is never empty.
-        val holder = tableHolding(path.last(), Item(tables))
+        // key reaches an array of tables, so the path is never empty. A copy stored nowhere keeps the comments above
+        // its first header, which storing the file's own array would leave behind.
+        val holder = tableHolding(path.last(), Item(tables.copy()))
         val root = path.dropLast(1).foldRight(holder) { key, child ->
             child.isImplicit = true
             tableHolding(key, Item(child))

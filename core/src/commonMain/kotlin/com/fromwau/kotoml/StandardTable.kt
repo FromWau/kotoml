@@ -66,6 +66,9 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     /** For a document's root, the TOML version the document was read as; null for one built in code. */
     internal var readAs: TomlVersion? = null
 
+    /** Whether this table is a document's root, whose prefix prints as the document's head. */
+    internal var isDocumentRoot: Boolean = false
+
     /** Sets [isDotted] as reading or copying a table does, which gives it no new layout. */
     internal fun setDotted(value: Boolean) {
         dotted = value
@@ -167,35 +170,34 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     /**
      * Moves the entries into a new inline table across lines that keeps their comments, which only TOML 1.1 reads:
      * [headerComment] after `{`, each value's comment after its comma, and the comment lines above a key above it.
-     * Tables under this one become inline tables on one line.
+     * Its lines are indented by [indent] more than the line holding `{`. Tables under this one become inline tables
+     * on one line.
      */
     internal fun moveToInlineTableAcrossLines(
         headerComment: String,
         lineBreak: String,
+        indent: String = "",
     ): InlineTable {
         for (entry in items.entries) {
             if (entry.item.valueOrNull == null) entry.item.holdValue(entry.item.copy().moveToValue())
         }
-        val indent = "  "
-        fun indented(lines: String): String = lines
-            .lines()
-            .filter { it.isNotBlank() }
-            .joinToString("") { indent + it.trim() + lineBreak }
+        val entryIndent = "$indent  "
         var carried = headerComment
         for ((index, entry) in items.entries.withIndex()) {
             val decor = entry.key.rawLeafDecor
             val above = if (isDotted && index == 0) "" else linesAbove(decor.prefix)
-            decor.prefix = KeptText.from(carried + lineBreak + indented(above) + indent)
+            val lines = indentedCommentLines(above, entryIndent, lineBreak)
+            decor.prefix = KeptText.from(carried + lineBreak + lines + entryIndent)
             decor.suffix = null
             val value = entry.item.valueOrNull ?: continue
             carried = value.commentAfter()
             value.rawDecor.suffix = KeptText.from("")
         }
-        val kept = items.keptLines.joinToString("") { indented(it.text) }
+        val kept = items.keptLines.joinToString("") { indentedCommentLines(it.text, entryIndent, lineBreak) }
         items.keptLines.clear()
         val table = InlineTable(items.takeAll())
         table.trailingComma = false
-        table.rawTrailing = KeptText.from(carried + lineBreak + kept)
+        table.rawTrailing = KeptText.from(carried + lineBreak + kept + indent)
         return table
     }
 
@@ -517,11 +519,10 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         return Ok(items.put(key.copy(), copyToStore(item)))
     }
 
-    // A copy from elsewhere in this document leaves its source's comments and prints after the tables there.
+    // A copy from a document leaves its source's comments; one from this document prints after the tables there.
     private fun copyToStore(item: Item): Item {
-        val within = copiesWithinDocument(item, this)
-        val stored = item.copyFor(ValuePlace.Line, within)
-        if (within) outermostTableOf(this)?.let { placeAfterAll(it, stored) }
+        val stored = item.copyFor(ValuePlace.Line)
+        if (copiesWithinDocument(item, this)) outermostTableOf(this)?.let { placeAfterAll(it, stored) }
         return stored
     }
 
@@ -562,12 +563,14 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
      * key to the end of its value and the comment after it, with every comment inside a multi-line value. For a
      * table or an array of tables that is everything after its first header: its headers, its bodies, and the
      * comment and blank lines above the headers of the tables under it and of its later elements. Upstream drops
-     * the lines above the key too.
+     * the lines above the key too. The returned item does not hold the lines that stay, so storing it again prints
+     * them once, and a document left with only such lines keeps them at its top, above anything added later.
      */
     public fun remove(key: String): Item? {
         val entry = items.getEntry(key) ?: return null
         keepLinesAbove(listOf(entry))
         items.remove(key)
+        keepOnlyLinesAsHead()
         return entry.item
     }
 
@@ -603,7 +606,19 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         keepLinesAbove(removed)
         val names = removed.mapTo(HashSet()) { it.key.name }
         items.retainAll { it.key.name !in names }
+        keepOnlyLinesAsHead()
         return true
+    }
+
+    // A document left with only comment and blank lines holds them as its head, so what is added goes below them.
+    private fun keepOnlyLinesAsHead() {
+        if (!isDocumentRoot || items.size != 0) return
+        val kept = items.keptLines.sortedBy { it.order ?: Long.MAX_VALUE } +
+            keptHeaderLines.sortedBy { it.order ?: Long.MAX_VALUE }
+        if (kept.isEmpty()) return
+        rawDecor.prefix = KeptText.from(rawDecor.prefix?.textOrNull.orEmpty() + kept.joinToString("") { it.text })
+        items.keptLines.clear()
+        keptHeaderLines.clear()
     }
 
     private fun keepLinesAbove(removed: Collection<KeyValue>) {
@@ -788,6 +803,16 @@ private fun KeyValue.splitLinesAbove(first: Boolean): Pair<String, String> {
     }
     return text.substring(0, placeEnd) to text.substring(placeEnd)
 }
+
+/** The comment lines of [lines], each indented by [indent] and ended by [lineBreak]; blank lines go. */
+internal fun indentedCommentLines(
+    lines: String,
+    indent: String,
+    lineBreak: String,
+): String = lines
+    .lines()
+    .filter { it.isNotBlank() }
+    .joinToString("") { indent + it.trim() + lineBreak }
 
 /** The comment after this value, with the spacing before it, or "" when there is none. */
 internal fun Value.commentAfter(): String = rawDecor.suffix?.textOrNull?.takeIf { '#' in it }.orEmpty()
