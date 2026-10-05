@@ -1,6 +1,9 @@
 package com.fromwau.kotoml.app
 
+import com.fromwau.kern.result.EmptyResult
+import com.fromwau.kern.result.Err
 import com.fromwau.kern.terminal.Terminal
+import com.fromwau.kern.terminal.WriteError
 import com.fromwau.klap.run
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
@@ -12,7 +15,6 @@ import kotlin.test.AfterTest
 import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 /** The README's exit codes and `--json` output, from whole `kotoml` invocations. */
@@ -50,8 +52,8 @@ class ExitCodeTest {
         return kotomlCli().run(args.toList(), terminal) to terminal
     }
 
-    private class FailingWrites : Recorded() {
-        override fun writeErrored(): Boolean = true
+    private class FailingWrites(private val error: WriteError) : Recorded() {
+        override fun writeResult(): EmptyResult<WriteError> = Err(error)
     }
 
     @Test
@@ -109,8 +111,17 @@ class ExitCodeTest {
     }
 
     @Test
-    fun `a failed write to standard output exits non-zero`() {
-        assertNotEquals(0, kotomlCli().run(listOf("get", ".a", file("a = 1\n")), FailingWrites()))
+    fun `output the system refused exits 1 and says so`() {
+        val terminal = FailingWrites(WriteError.Refused("No space left on device"))
+        assertEquals(1, kotomlCli().run(listOf("get", ".a", file("a = 1\n")), terminal))
+        assertEquals("error: cannot write to standard output: No space left on device\n", terminal.err.toString())
+    }
+
+    @Test
+    fun `a reader that closes the pipe ends the run with 141 and no message`() {
+        val terminal = FailingWrites(WriteError.BrokenPipe)
+        assertEquals(141, kotomlCli().run(listOf("get", ".a", file("a = 1\n")), terminal))
+        assertEquals("", terminal.err.toString())
     }
 
     @Ignore

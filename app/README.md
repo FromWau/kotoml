@@ -55,7 +55,8 @@ $ printf 'a = 1\na = 2\n' | kotoml check --json
 ```
 
 Exit codes: 0 on success; 1 when the input cannot be read, is not TOML or tagged JSON, or has nothing where
-the filter looks; 2 for a usage error, such as a filter that does not parse or an unknown option.
+the filter looks, or when the output cannot be written; 2 for a usage error, such as a filter that does not
+parse or an unknown option; 141, with no message, when a reader such as `head` closes the pipe early.
 
 ## Build and install
 

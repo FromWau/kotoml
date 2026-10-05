@@ -70,15 +70,6 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
   2500 print in 378 ms, 5000 in 1.46 s; the same text parsed prints in 31 ms. Built tables have no position.
   `encodeInto` of 8000 reversed `[[servers]]` takes 5.6 s (todo 23 left wholly changed lists quadratic). Should 5.
   **Ruling 2026-10-05:** expected: printing a built document is linear.
-- [ ] **40. CLI: a failed write to standard output exits 0.** ✓ `kotoml get . f.toml > /dev/full` exits 0 with
-  nothing on standard error; jq exits 2. Goal 15.
-  **Ruling 2026-10-05:** the cause is kern's native terminal, which has no `writeFailed` (it assumes SIGPIPE kills
-  first); klap already exits non-zero when `writeErrored()`. Fix in kern (`fflush` + `ferror`); a readable message is
-  klap's.
-  **Pinned:** `ExitCodeTest` checks a failed write exits non-zero, which holds through klap; the gap is kern's
-  native terminal.
-  **Progress 2026-10-05:** kern 0.4.1 reports the failed write; the native CLI now exits 141 on `/dev/full` and a
-  closed stdout. Left: klap's message, `error: cannot write to standard output`.
 - [ ] **41. CLI: a value from a CRLF file prints with `\r\n`.** ✓ `kotoml get -r .t.x` on a CRLF file gives `y\r`
   in `$(…)`. In a mixed file the first line ending is used for every line printed. Goals 2, 15.
   **Ruling 2026-10-05:** expected: a single value ends in `\n`; a table keeps each line's own ending.
@@ -243,6 +234,21 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **40. CLI: a failed write to standard output exits 0.** ✓ `kotoml get . f.toml > /dev/full` exits 0 with
+  nothing on standard error; jq exits 2. Goal 15.
+  **Ruling 2026-10-05:** the cause is kern's native terminal, which has no `writeFailed` (it assumes SIGPIPE kills
+  first); klap already exits non-zero when `writeErrored()`. Fix in kern (`fflush` + `ferror`); a readable message is
+  klap's.
+  **Pinned:** `ExitCodeTest` checks a failed write exits non-zero, which holds through klap; the gap is kern's
+  native terminal.
+  **Progress 2026-10-05:** kern 0.4.1 reports the failed write; the native CLI now exits 141 on `/dev/full` and a
+  closed stdout. Left: klap's message, `error: cannot write to standard output`.
+  **Verdict 2026-10-05:** fixed upstream. kern 0.4.2's terminal says why a write failed (`writeResult()`: a closed
+  pipe, a refused write, or on the JVM an unknown one); klap 0.5.1 turns a refused write into exit 1 with
+  `error: cannot write to standard output: <reason>` and a closed pipe into a silent 141, as `head` users expect.
+  Native CLI checked by hand: `> /dev/full` and a closed stdout exit 1 with the message, `| head -1` exits 141
+  with nothing on stderr. Two tests in `ExitCodeTest`; `app/README.md` exit codes; build green.
 
 - [x] **28. An inline table put back into braces loses the comments on its first key's line.** Owner ruling
   2026-10-05: an `isDotted` change gives a table a new layout, so its comments may go, but for the lines above its
