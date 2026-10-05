@@ -48,8 +48,10 @@ class ExitCodeTest {
     }
 
     @Test
-    fun `a valid file checks with exit 0`() {
-        assertEquals(0, kotoml("check", file("a = 1\n")).first)
+    fun `a valid file checks with exit 0 and prints OK`() {
+        val (code, terminal) = kotoml("check", file("a = 1\n"))
+        assertEquals(0, code)
+        assertEquals("OK", terminal.out.toString().trim())
     }
 
     @Test

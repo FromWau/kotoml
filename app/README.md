@@ -36,7 +36,8 @@ port = 8081
   - `.[]` over tables prints one after another, separated by a blank line;
   - a value prints as TOML, and `-r` prints strings without quotes;
   - a key or index that is not there is an error, such as `no key "nope" at .nope`.
-- `check [file]` exits 0 when the file is valid TOML, and otherwise prints why it is not, pointing at the line.
+- `check [file]` prints `OK` and exits 0 when the file is valid TOML, and otherwise prints why it is not,
+  pointing at the line.
 - `decode` and `encode` speak [toml-test](https://github.com/toml-lang/toml-test)'s protocol: TOML in and
   tagged JSON out, or the reverse, on standard input and output. `encode` refuses JSON nested deeper than the TOML
   kotoml reads.

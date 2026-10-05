@@ -91,10 +91,10 @@ internal fun kotomlCli(): Cli = cli("kotoml") {
         }
     }
 
-    command("check", "exit 0 when the file is valid TOML, or print why it is not") {
+    command("check", "print OK when the file is valid TOML, or print why it is not") {
         val file = fileArgument()
         val spec = specOption()
-        action(human = { "" }) { parseToml(file(), spec()).orCliError().map { Checked(valid = true) } }
+        action(human = { "OK" }) { parseToml(file(), spec()).orCliError().map { Checked(valid = true) } }
     }
 
     command("decode", "toml-test decoder: TOML on standard input, tagged JSON on standard output") {
