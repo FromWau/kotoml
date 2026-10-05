@@ -46,7 +46,8 @@ class ValueTest {
         original.decor = Decor(" ", " ")
         val copy = original.copy()
         original.decor = Decor()
-        assertEquals(" 0x10 ", copy.toString())
+        assertEquals("0x10", copy.toString())
+        assertEquals(Decor(" ", " "), copy.decor)
     }
 
     @Test

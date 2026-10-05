@@ -10,6 +10,7 @@ import com.fromwau.kotoml.parser.RecursionGuard
 import com.fromwau.kotoml.parser.TomlSource
 import com.fromwau.kotoml.parser.StringOutput
 import com.fromwau.kotoml.parser.Token
+import com.fromwau.kotoml.parser.TokenKind
 import com.fromwau.kotoml.parser.ValidateWhitespace
 import com.fromwau.kotoml.parser.eventReceiver
 import com.fromwau.kotoml.parser.isValid
@@ -127,10 +128,19 @@ internal fun parseKeyPath(source: TomlSource, errors: TomlSink, version: TomlVer
     return (path ?: emptyList()) + last
 }
 
-/** The parsed value, or null once an error is reported. */
+/** The parsed value, or null once an error is reported. Whitespace and line breaks around the value are skipped. */
 internal fun parseValueItem(source: TomlSource, errors: TomlSink, version: TomlVersion): Value? {
-    val events = collectEvents(source, errors, ::parseValueEvents)
+    val events = collectEvents(source, errors) { tokens, receiver, sink ->
+        parseValueEvents(withoutBlankEnds(tokens), receiver, sink)
+    }
     return value(EventStream(events), ParseContext(source, errors, version))
+}
+
+private fun withoutBlankEnds(tokens: List<Token>): List<Token> {
+    fun Token.isBlank() = kind == TokenKind.Whitespace || kind == TokenKind.Newline
+    val first = tokens.indexOfFirst { !it.isBlank() }
+    val last = tokens.indexOfLast { !it.isBlank() && it.kind != TokenKind.Eof }
+    return tokens.filterIndexed { index, token -> index in first..last || token.kind == TokenKind.Eof }
 }
 
 /** The events of a parse, consumed front to back. */

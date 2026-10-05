@@ -1396,9 +1396,9 @@ b = 2 # crlf
 c = 3
 ```
 
-### C-081: CRLF without a final newline gains a CRLF once changed
+### C-081: CRLF without a final newline keeps none once changed
 rule: 9, 3   version: 1.0   line endings: CRLF   input has no final newline
-settled: owner confirmed 2026-10-05: as kotoml prints it.
+settled: todo 31, 2026-10-05: a file read without a final newline keeps none after an edit.
 ```toml input
 # top
 a = 1 # c
@@ -1408,11 +1408,11 @@ doc["a"] = 2L
 ```
 ```toml expected
 # top
-a = 2 # c
-```
+a = 2 # c```
 
-### C-082: no final newline after a same-line comment: the value changes and a newline is gained
+### C-082: no final newline after a same-line comment: the value changes and no newline is gained
 rule: 9, 3   version: 1.0   input has no final newline
+settled: todo 31, 2026-10-05: a file read without a final newline keeps none after an edit.
 ```toml input
 a = 1 # c
 ```
@@ -1420,8 +1420,7 @@ a = 1 # c
 doc["a"] = 2L
 ```
 ```toml expected
-a = 2 # c
-```
+a = 2 # c```
 
 ### C-083: a final comment without a newline stays last when a key is added
 rule: 9, 1   version: 1.0   input has no final newline
@@ -1822,7 +1821,7 @@ b = 1 # bee
 
 ### C-104: sorting where the last key had no final newline
 rule: 1, 9   version: 1.0   input has no final newline
-settled: owner confirmed 2026-10-05: as kotoml prints it.
+settled: todo 31, 2026-10-05: a file read without a final newline keeps none after an edit.
 ```toml input
 [t]
 b = 1 # bee
@@ -1834,8 +1833,7 @@ doc["t"].getOrFail().standardTableOrNull!!.sortWith(compareBy { it.first.name })
 ```toml expected
 [t]
 a = 2 # ay
-b = 1 # bee
-```
+b = 1 # bee```
 
 ## Restructuring
 

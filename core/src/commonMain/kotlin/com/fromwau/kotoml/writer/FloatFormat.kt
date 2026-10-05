@@ -24,6 +24,32 @@ internal fun toShortestDecimalString(value: Float): String {
     return (if (negative) "-" else "") + plainDecimal(digits)
 }
 
+/**
+ * A finite, non-zero `Double` in its shortest round-tripping digits: in exponent form such as `1e300` or `5e-324` at
+ * 1e16 and above or below 1e-5, otherwise as [toShortestDecimalString].
+ */
+internal fun toShortestTomlFloat(value: Double): String {
+    val magnitude = kotlin.math.abs(value)
+    if (magnitude in EXPONENT_BELOW..<EXPONENT_FROM) return toShortestDecimalString(value)
+    return (if (value.toRawBits() < 0) "-" else "") + exponentForm(shortestDigits(value))
+}
+
+/** A finite, non-zero `Float` in its shortest round-tripping digits, as for a `Double`. */
+internal fun toShortestTomlFloat(value: Float): String {
+    val magnitude = kotlin.math.abs(value.toDouble())
+    if (magnitude in EXPONENT_BELOW..<EXPONENT_FROM) return toShortestDecimalString(value)
+    return (if (value.toRawBits() < 0) "-" else "") + exponentForm(shortestDigits(value))
+}
+
+private const val EXPONENT_FROM = 1e16
+private const val EXPONENT_BELOW = 1e-5
+
+private fun exponentForm(shortest: ShortestDigits): String {
+    val digits = shortest.digits
+    val mantissa = if (digits.length == 1) digits else digits.substring(0, 1) + "." + digits.substring(1)
+    return mantissa + "e" + (shortest.exponent - 1)
+}
+
 internal fun plainDecimal(shortest: ShortestDigits): String {
     val digits = shortest.digits
     val point = shortest.exponent

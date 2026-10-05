@@ -16,7 +16,6 @@ class ValueTextTest {
         return doc.toString().removePrefix("a = ").removeSuffix("\n")
     }
 
-    @Ignore
     @Test
     fun `a float far from one prints in exponent form`() {
         assertEquals("1e300", printed(Value.Float(1e300)))
@@ -27,12 +26,17 @@ class ValueTextTest {
     }
 
     @Test
+    fun `a negative float far from one prints in exponent form`() {
+        assertEquals("-1.5e-7", printed(Value.Float(-1.5e-7)))
+        assertEquals("-2.5e20", printed(Value.Float(-2.5e20)))
+    }
+
+    @Test
     fun `a float near one prints in plain form`() {
         assertEquals("12345.5", printed(Value.Float(12345.5)))
         assertEquals("0.0001", printed(Value.Float(0.0001)))
     }
 
-    @Ignore
     @Test
     fun `a value's text leaves out the spacing and comment around it`() {
         val doc = TomlDocument.parse("a =   1   # one\nb = [\n    \"macros\",\n]\n").getOrFail()
@@ -40,7 +44,6 @@ class ValueTextTest {
         assertEquals("\"macros\"", doc["b"][0].getOrFail().valueOrNull.toString())
     }
 
-    @Ignore
     @Test
     fun `parsing a value ignores the whitespace around it`() {
         assertEquals(1L, Value.parse("  1  ").getOrFail().longOrNull)

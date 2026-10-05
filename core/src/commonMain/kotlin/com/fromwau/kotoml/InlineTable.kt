@@ -323,15 +323,20 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         default: () -> Value,
     ): Result<Value, TomlEditError> {
         get(key.name)?.let { return Ok(it) }
-        val value = default().copyFor(ValuePlace.InlineTable)
+        val made = default()
+        val value = made.copyFor(ValuePlace.InlineTable)
         tooDeepError(this, key.name, Item(value))?.let { return Err(it) }
-        putEntry(key.copy(), value)
+        putEntry(key.copy(), value, commentToKeep(made))
         return Ok(value)
     }
 
     /**
      * Sets [key] to a copy of [value], as `table[key] = value` does: a key already there keeps its position, its
-     * spelling and its decor. Pass a [Key] to replace those.
+     * spelling and its decor. Pass a [Key] to replace those. A new key is spaced like the entries already there.
+     *
+     * A comment in [value]'s decor suffix, such as `Decor(suffix = " # note")`, puts a table on one line on lines of
+     * its own, one entry per line, and prints after the value's comma. TOML 1.0 has no comments inside an inline
+     * table, so in a document whose [TomlDocument.version] is 1.0 the comment is dropped.
      *
      * @return the value [key] held before, or null when it held none; or [TomlEditError.TooDeep], storing nothing,
      *   when [value] would nest deeper than the parser reads.
@@ -339,7 +344,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     public fun put(
         key: String,
         value: Value,
-    ): Result<Value?, TomlEditError> = checkedStore(key, value.copyFor(ValuePlace.InlineTable))
+    ): Result<Value?, TomlEditError> = checkedStore(key, value.copyFor(ValuePlace.InlineTable), commentToKeep(value))
 
     /**
      * Sets [key], with its spelling and decor, to a copy of [value]. A key already there keeps its position but
@@ -353,7 +358,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     ): Result<Value?, TomlEditError> {
         tooDeepError(this, key.name, Item(value))?.let { return Err(it) }
         items.getEntry(key.name)?.key = key.copy()
-        return Ok(putEntry(key.copy(), value.copyFor(ValuePlace.InlineTable)))
+        return Ok(putEntry(key.copy(), value.copyFor(ValuePlace.InlineTable), commentToKeep(value)))
     }
 
     override fun putItem(
@@ -368,20 +373,80 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     private fun checkedStore(
         key: String,
         value: Value,
+        comment: String = "",
     ): Result<Value?, TomlEditError> {
         tooDeepError(this, key, Item(value))?.let { return Err(it) }
-        return Ok(putEntry(Key(key), value))
+        return Ok(putEntry(Key(key), value, comment))
     }
 
     private fun putEntry(
         key: Key,
         value: Value,
+        comment: String = "",
     ): Value? {
-        if (!items.containsKey(key.name)) {
+        val isNew = !items.containsKey(key.name)
+        if (comment.isNotEmpty() && printsOnOneLine()) {
+            spreadOverLines()
+            if (isNew && key.rawLeafDecor.prefix == null) key.rawLeafDecor.prefix = KeptText.from(LINE_BREAK + INDENT)
+            value.rawDecor.suffix = KeptText.from("")
+        }
+        if (isNew) {
             takeClosingSpace(value)
             startOwnLine(key, value)
+            takeSpacingOfLast(key, value)
         }
-        return items.put(key, Item.inInlineTable(value))?.valueOrNull
+        val old = items.put(key, Item.inInlineTable(value))?.valueOrNull
+        if (comment.isNotEmpty()) putCommentAfter(value, comment)
+        return old
+    }
+
+    // The comment a caller gave [value], which a table of key/value lines or one in TOML 1.0 cannot hold after it.
+    private fun commentToKeep(value: Value): String {
+        val version = outermostTableOf(this)?.version ?: TomlVersion.V1_1
+        return if (isDotted || version == TomlVersion.V1_0) "" else value.callerComment()
+    }
+
+    // One entry per line, indented, as a comment after a value needs.
+    private fun spreadOverLines() {
+        for (line in visualValues()) {
+            line.path.last().rawLeafDecor.prefix = KeptText.from(LINE_BREAK + INDENT)
+            line.value.rawDecor.suffix = KeptText.from("")
+        }
+        trailingComma = false
+        rawTrailing = KeptText.from(LINE_BREAK)
+    }
+
+    // A comment after a value holds the start of the next entry's line, or of the closing line, after the comma.
+    private fun putCommentAfter(
+        value: Value,
+        comment: String,
+    ) {
+        val lines = visualValues()
+        val next = lines.getOrNull(lines.indexOfFirst { it.value === value } + 1)
+        if (next == null) {
+            rawTrailing = KeptText.from(comment + trailing.let { if ('\n' in it) it else LINE_BREAK + it })
+            return
+        }
+        val decor = next.path.last().rawLeafDecor
+        val start = decor.prefix?.textOrNull.orEmpty()
+        decor.prefix = KeptText.from(comment + if ('\n' in start) start else LINE_BREAK + INDENT)
+    }
+
+    // A new entry is spaced around `=` like the last one, and on one line after its comma like it too.
+    private fun takeSpacingOfLast(
+        key: Key,
+        value: Value,
+    ) {
+        if (isDotted) return
+        val lines = visualValues()
+        val last = lines.lastOrNull() ?: return
+        val lastKey = last.path.last().rawLeafDecor
+        if (key.rawLeafDecor.suffix == null) key.rawLeafDecor.suffix = lastKey.suffix
+        if (value.rawDecor.prefix == null) value.rawDecor.prefix = last.value.rawDecor.prefix
+        val start = lastKey.prefix
+        if (key.rawLeafDecor.prefix == null && lines.size > 1 && '\n' !in start?.textOrNull.orEmpty()) {
+            key.rawLeafDecor.prefix = start
+        }
     }
 
     // Across lines, a new last entry starts a line of its own below the last one and its comment, which a comma has
@@ -563,8 +628,10 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         return copy
     }
 
-    /** The table as TOML, with its decor. */
-    override fun toString(): String = buildString { encodeInlineTable(this, this@InlineTable, "", "") }
+    /** The table as TOML, without its own decor. */
+    override fun toString(): String = buildString {
+        encodeInlineTable(this, this@InlineTable, "", "", RawDecor.EMPTY)
+    }
 }
 
 /** An inline table of copies of the values of [pairs], in order, keeping their formatting; see [toInlineTable]. */

@@ -1,6 +1,5 @@
 package com.fromwau.kotoml
 
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -69,7 +68,6 @@ class CommentPlacementTest {
         assertEquals("# banner\n\nx = 1\n", doc.toString())
     }
 
-    @Ignore
     @Test
     fun `a comment given to an element puts a one-line array on lines of its own`() {
         val doc = parse("a = [1, 2]\n")
@@ -78,13 +76,44 @@ class CommentPlacementTest {
         assertEquals("a = [\n  1,\n  2,\n  3, # c\n]\n", doc.toString())
     }
 
-    @Ignore
     @Test
     fun `a comment given to a value puts a one-line inline table on lines of its own`() {
         val doc = parse("t = { a = 1 }\n")
         val value = Value.Integer(2L).also { it.decor = Decor(suffix = " # c") }
         doc["t"].getOrFail().valueOrNull!!.inlineTableOrNull!!.set("b", value).getOrFail()
         assertEquals("t = {\n  a = 1,\n  b = 2 # c\n}\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given to a value in a TOML 1_0 document leaves the inline table on one line`() {
+        val doc = parse("t = { a = 1 }\n", TomlVersion.V1_0)
+        val value = Value.Integer(2L).also { it.decor = Decor(suffix = " # c") }
+        doc["t"].getOrFail().valueOrNull!!.inlineTableOrNull!!.set("b", value).getOrFail()
+        assertEquals("t = { a = 1, b = 2 }\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given to an element of an empty array puts it on a line of its own`() {
+        val doc = parse("a = []\n")
+        val element = Value.Integer(1L).also { it.decor = Decor(suffix = " # c") }
+        doc["a"].getOrFail().valueOrNull!!.arrayOrNull!!.add(element).getOrFail()
+        assertEquals("a = [\n  1, # c\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given to an element of an array closed on its last line ends that line`() {
+        val doc = parse("a = [\n  1,\n  2]\n")
+        val element = Value.Integer(3L).also { it.decor = Decor(suffix = " # c") }
+        doc["a"].getOrFail().valueOrNull!!.arrayOrNull!!.add(element).getOrFail()
+        assertEquals("a = [\n  1,\n  2,\n  3, # c\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given to a value set at a key in the middle prints after its comma`() {
+        val doc = parse("t = { a = 1, b = 2 }\n")
+        val value = Value.Integer(5L).also { it.decor = Decor(suffix = " # c") }
+        doc["t"].getOrFail().valueOrNull!!.inlineTableOrNull!!.set("a", value).getOrFail()
+        assertEquals("t = {\n  a = 5, # c\n  b = 2\n}\n", doc.toString())
     }
 
     @Test

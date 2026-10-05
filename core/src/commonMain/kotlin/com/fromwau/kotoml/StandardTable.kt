@@ -189,7 +189,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         for (entry in items.entries) {
             if (entry.item.valueOrNull == null) entry.item.holdValue(entry.item.copy().moveToValue())
         }
-        val entryIndent = "$indent  "
+        val entryIndent = "$indent$INDENT"
         var carried = headerComment
         for ((index, entry) in items.entries.withIndex()) {
             val decor = entry.key.rawLeafDecor

@@ -94,6 +94,14 @@ class ScalarTest {
     }
 
     @Test
+    fun `a float far from one is written in exponent form and reads back`() {
+        val numbers = Numbers(float = 3e20f, double = Double.MIN_VALUE)
+        val text = Toml { encodeDefaults = false }.encodeToString(numbers).getOrFail()
+        assertEquals("float = 3e20\ndouble = 5e-324\n", text)
+        assertEquals(numbers, Toml.decodeFromString<Numbers>(text).getOrFail())
+    }
+
+    @Test
     fun `nan and infinity round-trip`() {
         val numbers = Numbers(float = Float.NEGATIVE_INFINITY, double = Double.NaN)
         val text = Toml.encodeToString(numbers).getOrFail()
