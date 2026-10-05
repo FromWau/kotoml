@@ -334,7 +334,8 @@ n = 3
 ## Arrays of tables emptied and extended
 
 ### C-022: an array of tables left empty prints `x = []` and drops comments between the removed tables
-rule: 5, 7   version: 1.0   open: where `# top` prints relative to `x = []`
+rule: 5, 7   version: 1.0
+settled: owner ruling 2026-10-05 (Q9): each removal keeps the lines above its own header where they print, unlike one clear().
 ```toml input
 # top
 [[x]]
@@ -351,6 +352,7 @@ aot.removeAt(0)
 ```
 ```toml expected
 # top
+# mid
 x = []
 # tail
 ```
@@ -403,7 +405,8 @@ b = 2
 ```
 
 ### C-025: appending to an array of tables keeps the last element's same-line comment and the trailing comment
-rule: 1, 5   version: 1.0   open: does the new header go above or below the document's trailing `# tail`, and does it get a blank line before it?
+rule: 1, 5   version: 1.0
+settled: owner ruling 2026-10-05 (Q10): a comment at the end of the file stays last when a table is appended.
 ```toml input
 [[x]]
 n = 1 # one
@@ -415,9 +418,10 @@ doc["x"].getOrFail().arrayOfTablesOrNull!!.add(standardTableOf("n" to Item(Value
 ```toml expected
 [[x]]
 n = 1 # one
-# tail
+
 [[x]]
 n = 2
+# tail
 ```
 
 ### C-026: removing an array of tables whole keeps the lines above its first header only
@@ -1601,7 +1605,8 @@ x = 1
 ```
 
 ### C-094: removing an empty table removes everything after its header
-rule: 2   version: 1.0   open: is `# nothing here` (after `[t]`, separated from `[u]` by a blank line) t's text or u's?
+rule: 2   version: 1.0
+settled: owner ruling 2026-10-05 (Q11): a comment after a table's last line belongs to what follows, even for an empty table.
 ```toml input
 # about t
 [t] # empty
@@ -1615,6 +1620,8 @@ doc.remove("t")
 ```
 ```toml expected
 # about t
+# nothing here
+
 [u]
 x = 1
 ```

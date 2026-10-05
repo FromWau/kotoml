@@ -287,14 +287,21 @@ private class DocumentParts {
         array: ArrayOfTables,
         path: MutableList<Key>,
     ) {
+        // An empty array prints `key = []` among its parent's lines, under these lines.
+        val kept = array.keptHeaderLines
+            .takeIf { array.isNotEmpty() }
+            .orEmpty()
+            .map { KeptHeaderLines(it.order, it.text) }
+        kept.forEach(::add)
+        // The lines kept from removed elements stay where they printed, so an element made by hand comes after them.
+        keptOfParents.addLast(kept)
         val blocks = array.map { element ->
             val start = parts.size
             visitTable(element, path, isArrayOfTables = true)
             parts.subList(start, parts.size).toList()
         }
+        keptOfParents.removeLast()
         placeInArrayOrder(blocks)
-        // An empty array prints `key = []` among its parent's lines, under these lines.
-        if (array.isNotEmpty()) for (kept in array.keptHeaderLines) add(KeptHeaderLines(kept.order, kept.text))
     }
 
     private fun add(part: DocumentPart) {

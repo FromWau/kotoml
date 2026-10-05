@@ -828,7 +828,8 @@ a = 2
 ```
 
 ### S-042: emptying an array of tables and adding a new element
-rule: 2, 5, 7, 9   version: 1.0   open: after `removeAt(0)` the comment stays where it printed; does the new `[[x]]` then go below it with a blank line (as here)?
+rule: 2, 5, 7, 9   version: 1.0
+settled: owner ruling 2026-10-05 (Q9): each removal keeps the lines above its own header where they print; a new element follows them.
 ```toml input
 a = 1
 
@@ -874,7 +875,7 @@ a = 2
 
 ### S-044: an array of tables emptied entirely prints `key = []` and keeps the comment above
 rule: 2, 5, 7   version: 1.0
-open: two removeAt calls keep `# between` (the lines above a removed header stay), unlike one clear(); and the comments now print above `x = []`.
+settled: owner ruling 2026-10-05 (Q9): each removal keeps the lines above its own header where they print, unlike one clear().
 ```toml input
 a = 1
 
@@ -892,9 +893,10 @@ aot.removeAt(0)
 ```
 ```toml expected
 a = 1
-x = []
 
 # xs
+# between
+x = []
 ```
 
 ## Sorting
@@ -1118,7 +1120,8 @@ x = 1 # x
 ```
 
 ### S-056: copying a table over a value key leaves the value's comment line in place
-rule: 2, 4   version: 1.0   open: same question as S-055 for the copied content; the line above `b` stays where it printed
+rule: 2, 4   version: 1.0
+open: todo 29, a copied table prints where its source printed.
 ```toml input
 # about b
 b = 1 # b
@@ -1140,7 +1143,8 @@ x = 1 # x
 ```
 
 ### S-057: copying an array of tables to a new key
-rule: 1, 9   version: 1.0   open: do the header comments and the comment between elements travel (as here), and does the first copied header get a blank line?
+rule: 1, 9   version: 1.0
+open: todo 29, a copied table prints where its source printed.
 ```toml input
 [[x]] # first
 a = 1
