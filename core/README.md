@@ -49,7 +49,9 @@ with `getOrNull()` or `getOrElse { }`. Writing adds only the key it names, never
 each level first, as `c` is created above. Where `toml_edit` panics, for example on an index out of bounds or
 on writing a key into a string, the call returns a `TomlEditError` instead. Every call that stores something
 refuses to nest deeper than `TomlDocument.NESTING_LIMIT` lets the parser read: it returns `TomlEditError.TooDeep`
-and stores nothing, as do the `…Of` builders and the conversions to inline content. The `item["key"] = value` form
+and stores nothing, as do the `…Of` builders and the conversions to inline content. Its `keyPath` leads from the
+document's root to where the content gets too deep, or from the top of what is built when it is stored nowhere yet,
+and passes over array elements without a part. The `item["key"] = value` form
 drops these errors; call `item.set("key", value)` to see them. Writing never deletes a key; `remove` does.
 An item taken before its key is removed, or replaced by `set` or `put`, keeps what it held but no longer belongs
 to the document: writing through it changes nothing there, so index again.
@@ -184,7 +186,7 @@ val text = "a = 1\na = 2\n"
 when (val parsed = TomlDocument.parse(text)) {
     is Result.Success -> use(parsed.value)
     is Result.Error -> when (val reason = parsed.error.reason) {
-        is TomlParseError.Reason.DuplicateKey -> println("`${reason.key}` is defined twice")
+        is TomlParseError.Reason.DuplicateKey -> println("`${reason.keyPath.joinToString(".")}` is defined twice")
         else -> println(parsed.error.render(text))
     }
 }
@@ -193,7 +195,9 @@ when (val parsed = TomlDocument.parse(text)) {
 Every error type is `@Serializable`, so a program can pass it on as JSON. A `TomlParseError` says what went
 wrong as a typed `reason`, where as a `span` of indices into the parsed text and a line and column
 `position`, and what would have been accepted there. `render(text)` gives the message as `toml_edit` words it,
-with the offending line and a caret under it.
+with the offending line and a caret under each character of the offending text. A long line is shown only around
+the error, about 80 characters with `…` where it is cut, and a control character as an escape such as `\x0D`; the
+error itself keeps the full span. A duplicate key names its whole path from the document's root, `a.b.c`.
 
 ## TOML versions
 

@@ -121,7 +121,7 @@ internal fun AppError.describe(): String = when (this) {
             is ReadFailure.Io -> "$name: cannot read" + (failure.detail?.let { ": $it" } ?: "")
         }
     }
-    is AppError.InvalidToml -> rendered()
+    is AppError.InvalidToml -> error.render(source).trimEnd()
     is AppError.InvalidJson ->
         "invalid JSON" + (position?.let { " at line ${it.line}, column ${it.column}" } ?: "")
     is AppError.NotTaggedJson -> "not toml-test's tagged JSON at $path: ${reason.describe()}"
@@ -148,14 +148,6 @@ internal fun AppError.describe(): String = when (this) {
     is AppError.NoSuchKey -> "no key \"$key\" at $path"
     is AppError.NoSuchIndex -> "no index $index at $path, it has $size"
     is AppError.CannotApply -> "cannot apply ${step.describe()} to ${itemType.words()}"
-}
-
-// A CRLF file's quoted line keeps its `\r`, which klap prints escaped; a lone `\r` ending the file is the error.
-private fun AppError.InvalidToml.rendered(): String {
-    val text = error.render(source).trimEnd()
-    val lastLine = source.count { it == '\n' } + 1
-    val quotesLoneCarriageReturn = source.endsWith('\r') && error.position?.line == lastLine
-    return if (quotesLoneCarriageReturn) text else text.replace("\r\n", "\n")
 }
 
 private fun TomlType.words(): String = when (this) {

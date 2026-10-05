@@ -466,16 +466,16 @@ clippy.exhaustive_enums = "warn"
     }
 
     @Test
-    fun `garbage inside an inline table reports an extra assignment at column 5`() {
+    fun `garbage inside an inline table reports the unquoted value at column 4`() {
         val input = "={=<=u=="
         val err = TomlDocument.parse(input).errorOrFail()
         assertSnapshot(
             """
-TOML parse error at line 1, column 5
+TOML parse error at line 1, column 4
   |
 1 | ={=<=u==
-  |     ^
-extra assignment between key-value pairs, expected `,`
+  |    ^
+string values must be quoted, expected literal string
 
 """,
             err.render(input),
@@ -483,16 +483,16 @@ extra assignment between key-value pairs, expected `,`
     }
 
     @Test
-    fun `garbage inside a closed inline table reports an extra assignment at column 5`() {
+    fun `garbage inside a closed inline table reports the unquoted value at column 4`() {
         val input = "={=<=u==}"
         val err = TomlDocument.parse(input).errorOrFail()
         assertSnapshot(
             """
-TOML parse error at line 1, column 5
+TOML parse error at line 1, column 4
   |
 1 | ={=<=u==}
-  |     ^
-extra assignment between key-value pairs, expected `,`
+  |    ^
+string values must be quoted, expected literal string
 
 """,
             err.render(input),

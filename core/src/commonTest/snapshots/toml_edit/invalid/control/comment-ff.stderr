@@ -1,5 +1,5 @@
 TOML parse error at line 1, column 27
   |
-1 | comment-ff   = "0x7f"   # 
+1 | comment-ff   = "0x7f"   # \x0C
   |                           ^
 invalid comment character, expected printable characters

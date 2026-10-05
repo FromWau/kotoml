@@ -23,8 +23,8 @@ class CheckTest {
     }
 
     @Test
-    fun `a lone carriage return ending the file stays in the quoted line`() {
+    fun `a lone carriage return ending the file is quoted as an escape`() {
         val described = invalid("a = 1\r").describe()
-        assertTrue("1 | a = 1\r\n" in described, described)
+        assertTrue("1 | a = 1\\x0D\n" in described, described)
     }
 }

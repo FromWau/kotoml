@@ -55,12 +55,6 @@ internal class TokenStream(private val tokens: List<Token>) {
 
     fun peek(): Token? = tokens.getOrNull(position)
 
-    fun get(offset: Int): Token? = tokens.getOrNull(position + offset)
-
-    fun skip(count: Int) {
-        position = minOf(position + count, tokens.size)
-    }
-
     fun seek(offset: Int) {
         val target = position + offset
         position = if (target in 0 until tokens.size) target else tokens.size
@@ -484,6 +478,14 @@ internal class DocumentParser(
             TokenKind.Eof,
             TokenKind.Whitespace,
             -> {
+                error.reportError(
+                    ParseError(
+                        ParseErrorReason.MissingValue,
+                        context = tokens.previousSignificantSpan(),
+                        expected = EXPECTED_VALUE,
+                        unexpected = current.span.before(),
+                    ),
+                )
                 receiver.scalar(current.span.before(), null, error)
                 tokens.seek(-1)
             }
@@ -537,15 +539,6 @@ internal class DocumentParser(
                 while (true) {
                     val next = tokens.peek() ?: break
                     when (next.kind) {
-                        TokenKind.Whitespace -> {
-                            val second = tokens.get(1)
-                            if (second != null && second.kind == TokenKind.Atom) {
-                                span = span.append(second.span)
-                                tokens.skip(2)
-                                continue
-                            }
-                            break
-                        }
                         TokenKind.Dot, TokenKind.Atom -> {
                             span = span.append(next.span)
                             tokens.next()

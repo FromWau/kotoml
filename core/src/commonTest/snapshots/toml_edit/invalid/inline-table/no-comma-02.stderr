@@ -1,5 +1,5 @@
-TOML parse error at line 1, column 42
+TOML parse error at line 1, column 31
   |
 1 | arrr = { comma-missing = true valid-toml = false }
-  |                                          ^
-extra assignment between key-value pairs, expected `,`
+  |                               ^
+missing comma between key-value pairs, expected `,`

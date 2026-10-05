@@ -2,4 +2,4 @@ TOML parse error at line 4, column 14
   |
 4 | [fruit.apple.taste] # INVALID
   |              ^^^^^
-duplicate key `taste`
+duplicate key `fruit.apple.taste`

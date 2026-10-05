@@ -353,12 +353,13 @@ private fun hexEscape(stream: Stream, digits: Int, error: ErrorSink): Int {
         value = value * 16 + digit
     }
     if (value > 0x10FFFF || value in 0xD800L..0xDFFFL) {
+        // The escape's backslash and letter are one byte each.
+        val escapeStart = start - 2
         error.reportError(
             ParseError(
-                ParseErrorReason.InvalidValue,
+                ParseErrorReason.InvalidCodePoint,
                 context = Span(0, length),
-                expected = listOf(Expected.Token(ExpectedToken.UnicodeHexadecimalValue)),
-                unexpected = Span(start, start),
+                unexpected = Span(escapeStart, stream.position),
             ),
         )
         return REPLACEMENT_CHARACTER

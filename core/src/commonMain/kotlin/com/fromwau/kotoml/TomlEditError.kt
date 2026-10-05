@@ -44,7 +44,8 @@ public sealed interface TomlEditError : IError {
 
     /**
      * Storing would nest deeper than [TomlDocument.NESTING_LIMIT] allows, so the document could not be read back;
-     * [keyPath] leads from where it was stored to where it gets too deep. Nothing was stored.
+     * nothing was stored. [keyPath] leads to where it gets too deep from the document's root, or from the top of the
+     * table, array or value being built when that is stored in no document; an element of an array adds no part.
      */
     @Serializable
     @SerialName("TooDeep")

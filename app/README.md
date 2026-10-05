@@ -51,7 +51,7 @@ error itself on standard error, its kind under `type`:
 
 ```console
 $ printf 'a = 1\na = 2\n' | kotoml check --json
-{"error":{"type":"InvalidToml","error":{"reason":{"type":"DuplicateKey","key":"a"},"span":{"start":6,"end":7},"position":{"line":2,"column":1},"context":{"start":0,"end":1}}},"code":1}
+{"error":{"type":"InvalidToml","error":{"reason":{"type":"DuplicateKey","keyPath":["a"]},"span":{"start":6,"end":7},"position":{"line":2,"column":1},"context":{"start":0,"end":1}}},"code":1}
 ```
 
 Exit codes: 0 on success; 1 when the input cannot be read, is not TOML or tagged JSON, or has nothing where

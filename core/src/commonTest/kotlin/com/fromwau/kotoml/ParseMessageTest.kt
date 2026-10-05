@@ -1,6 +1,5 @@
 package com.fromwau.kotoml
 
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -17,7 +16,6 @@ class ParseMessageTest {
 
     private fun syntax(reason: ParseErrorReason) = TomlParseError.Reason.Syntax(reason)
 
-    @Ignore
     @Test
     fun `a line break inside a basic string is an unclosed string on its own line`() {
         val error = errorOf("desc = \"hello\nworld\"\n")
@@ -25,7 +23,6 @@ class ParseMessageTest {
         assertEquals(TextPosition(1, 14), error.position)
     }
 
-    @Ignore
     @Test
     fun `a second value after a value is unexpected content`() {
         val numbers = errorOf("port = 80 80\n")
@@ -36,7 +33,6 @@ class ParseMessageTest {
         assertEquals(TextPosition(1, 10), booleans.position)
     }
 
-    @Ignore
     @Test
     fun `numbers in an array without a comma between them miss a comma`() {
         val two = errorOf("a = [1 2]\n")
@@ -47,7 +43,6 @@ class ParseMessageTest {
         assertEquals(TextPosition(1, 11), three.position)
     }
 
-    @Ignore
     @Test
     fun `a key with nothing after its equals sign misses a value`() {
         val error = errorOf("x = \n")
@@ -55,14 +50,12 @@ class ParseMessageTest {
         assertEquals(TextPosition(1, 5), error.position)
     }
 
-    @Ignore
     @Test
     fun `the escapes TOML 1_1 added are refused under 1_0 as 1_1 features`() {
         assertIs<TomlParseError.Reason.NotInToml10>(errorOf("a = \"\\x41\"\n", TomlVersion.V1_0).reason)
         assertIs<TomlParseError.Reason.NotInToml10>(errorOf("a = \"\\e\"\n", TomlVersion.V1_0).reason)
     }
 
-    @Ignore
     @Test
     fun `an escape for a surrogate points at the whole escape`() {
         for (escape in listOf("\\uD800", "\\U00110000")) {
@@ -72,21 +65,18 @@ class ParseMessageTest {
         }
     }
 
-    @Ignore
     @Test
     fun `an error on a long line shows only the part around it`() {
         val text = "a = \"" + "x".repeat(1_000_000) + "\" junk\n"
         assertTrue(errorOf(text).render(text).length < 1000)
     }
 
-    @Ignore
     @Test
     fun `an error shows a carriage return as an escape`() {
         val text = "a = \"x\ry\"\n"
         assertFalse('\r' in errorOf(text).render(text))
     }
 
-    @Ignore
     @Test
     fun `the caret under a character outside ASCII is one wide`() {
         val text = "é = 1\n"
@@ -94,13 +84,33 @@ class ParseMessageTest {
         assertEquals(1, caretLine.count { it == '^' })
     }
 
-    @Ignore
     @Test
     fun `a malformed time names the time as the part refused`() {
         for (text in listOf("a = 07:32.5\n", "a = 07:32:00Z\n")) {
             val reason = errorOf(text).reason
             assertIs<TomlParseError.Reason.InvalidDatetime>(reason, text)
             assertEquals(DatetimePart.Time, reason.error.part, text)
+        }
+    }
+
+    @Test
+    fun `the caret after a tab lines up under the tab`() {
+        val text = "a\tb = 1\n"
+        val caretLine = errorOf(text).render(text).lines().first { '^' in it }
+        assertEquals("  |  \t^", caretLine)
+    }
+
+    @Test
+    fun `a duplicate key names its path from the document root`() {
+        val cases = mapOf(
+            "[a.b]\nx = 1\n[a.b]\n" to listOf("a", "b"),
+            "[t]\nx.y = 1\nx.y = 2\n" to listOf("t", "x", "y"),
+            "[[t]]\nx = 1\nx = 2\n" to listOf("t", "x"),
+            "a = { b = { c = 1, c = 2 } }\n" to listOf("a", "b", "c"),
+            "a = [{ b = { c = 1 } }, { d = 1, d = 2 }]\n" to listOf("a", "d"),
+        )
+        for ((text, keyPath) in cases) {
+            assertEquals(TomlParseError.Reason.DuplicateKey(keyPath), errorOf(text).reason, text)
         }
     }
 }

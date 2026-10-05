@@ -1,5 +1,5 @@
-TOML parse error at line 1, column 11
+TOML parse error at line 1, column 13
   |
 1 | wrong = [ 1 2 3 ]
-  |           ^^^^^
-string values must be quoted, expected literal string
+  |             ^
+missing comma between array elements, expected `,`

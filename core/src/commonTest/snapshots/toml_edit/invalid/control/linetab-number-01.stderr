@@ -1,5 +1,5 @@
 TOML parse error at line 1, column 21
   |
-1 | linetab-number-01 = 1
-  |                     ^^
+1 | linetab-number-01 = 1\x0B
+  |                     ^^^^^
 string values must be quoted, expected literal string

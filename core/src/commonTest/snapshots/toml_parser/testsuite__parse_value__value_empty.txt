@@ -12,6 +12,22 @@ EventResults {
             context: Some(
                 0..0,
             ),
+            description: "missing value",
+            expected: Some(
+                [
+                    Description(
+                        "value",
+                    ),
+                ],
+            ),
+            unexpected: Some(
+                0..0,
+            ),
+        },
+        ParseError {
+            context: Some(
+                0..0,
+            ),
             description: "string values must be quoted",
             expected: Some(
                 [

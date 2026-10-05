@@ -1,5 +1,5 @@
 TOML parse error at line 1, column 21
   |
-1 | bare-formfeed     = 
-  |                     ^
+1 | bare-formfeed     = \x0C
+  |                     ^^^^
 string values must be quoted, expected literal string

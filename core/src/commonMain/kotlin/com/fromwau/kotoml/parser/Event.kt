@@ -1,6 +1,7 @@
 package com.fromwau.kotoml.parser
 
 import com.fromwau.kotoml.Encoding
+import com.fromwau.kotoml.Expected
 import com.fromwau.kotoml.ParseErrorReason
 import com.fromwau.kotoml.Span
 
@@ -122,6 +123,10 @@ internal fun eventReceiver(push: (Event) -> Unit): EventReceiver = object : Even
 /**
  * Validates whitespace, comments and newlines as they pass, reporting what TOML forbids in them, and
  * forwards every event to [receiver] unchanged.
+ *
+ * Unquoted values, and one-line strings a line break cut off, are checked as they pass too: values are decoded only
+ * once the whole text is parsed, and the parser's errors for the text after such a value, such as the rest of a line
+ * the cut string leaves to be read as keys, would otherwise come first.
  */
 internal class ValidateWhitespace(
     private val receiver: EventReceiver,
@@ -143,15 +148,44 @@ internal class ValidateWhitespace(
 
     override fun arrayClose(span: Span, error: ErrorSink): Unit = receiver.arrayClose(span, error)
 
-    override fun simpleKey(span: Span, encoding: Encoding?, error: ErrorSink): Unit =
+    override fun simpleKey(span: Span, encoding: Encoding?, error: ErrorSink) {
+        reportUnclosedString(span, encoding, error)
         receiver.simpleKey(span, encoding, error)
+    }
 
     override fun keySep(span: Span, error: ErrorSink): Unit = receiver.keySep(span, error)
 
     override fun keyValSep(span: Span, error: ErrorSink): Unit = receiver.keyValSep(span, error)
 
-    override fun scalar(span: Span, encoding: Encoding?, error: ErrorSink): Unit =
+    override fun scalar(span: Span, encoding: Encoding?, error: ErrorSink) {
+        if (encoding == null) {
+            source.get(span)?.decodeScalar(DecodedStringBuilder.DISCARD, error)
+        } else {
+            reportUnclosedString(span, encoding, error)
+        }
         receiver.scalar(span, encoding, error)
+    }
+
+    /** Reports the one-line string at [span] when it has no closing quote, as decoding it would. */
+    private fun reportUnclosedString(span: Span, encoding: Encoding?, error: ErrorSink) {
+        val quote = when (encoding) {
+            Encoding.BasicString -> QUOTATION_MARK
+            Encoding.LiteralString -> APOSTROPHE
+            else -> return
+        }
+        val length = span.end - span.start
+        // An empty string is recovery standing in for a missing value, not a string that was cut off.
+        if (length <= 0) return
+        if (length >= 2 && source.bytes[span.end - 1].toInt() == quote) return
+        error.reportError(
+            ParseError(
+                ParseErrorReason.InvalidString(encoding),
+                context = span,
+                expected = listOf(Expected.Literal(quote.toChar().toString())),
+                unexpected = Span(span.end, span.end),
+            ),
+        )
+    }
 
     override fun valueSep(span: Span, error: ErrorSink): Unit = receiver.valueSep(span, error)
 

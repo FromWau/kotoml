@@ -19,7 +19,17 @@ EventResults {
         Event {
             kind: Scalar,
             encoding: None,
-            span: 3..7,
+            span: 3..5,
+        },
+        Event {
+            kind: Whitespace,
+            encoding: None,
+            span: 5..6,
+        },
+        Event {
+            kind: Error,
+            encoding: None,
+            span: 6..7,
         },
         Event {
             kind: Newline,
@@ -30,18 +40,31 @@ EventResults {
     errors: [
         ParseError {
             context: Some(
-                3..7,
+                5..7,
             ),
-            description: "string values must be quoted",
+            description: "unexpected key or value",
             expected: Some(
                 [
-                    Description(
-                        "literal string",
+                    Literal(
+                        "\n",
+                    ),
+                    Literal(
+                        "#",
                     ),
                 ],
             ),
             unexpected: Some(
-                3..7,
+                6..6,
+            ),
+        },
+        ParseError {
+            context: Some(
+                0..2,
+            ),
+            description: "failed to parse i64",
+            expected: None,
+            unexpected: Some(
+                0..2,
             ),
         },
     ],

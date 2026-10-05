@@ -345,6 +345,11 @@ public sealed interface DatetimeExpected {
     @Serializable
     @SerialName("SecondBeforeFraction")
     public data object SecondBeforeFraction : DatetimeExpected
+
+    /** Nothing more, as after a time without a date, which takes no offset. */
+    @Serializable
+    @SerialName("End")
+    public data object End : DatetimeExpected
 }
 
 private fun outOfRange(

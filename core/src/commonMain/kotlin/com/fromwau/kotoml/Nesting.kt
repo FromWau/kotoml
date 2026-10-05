@@ -87,7 +87,10 @@ private fun topNestingOf(container: Any): Nesting = when (container) {
     else -> Nesting.InLine(level = 1)
 }
 
-private fun parentOf(container: Any): Any? {
+private fun parentOf(container: Any): Any? = slotOf(container)?.owner
+
+/** The slot [container] is stored in, or null when it is stored nowhere. */
+private fun slotOf(container: Any): Item? {
     val slot = when (container) {
         is StandardTable -> container.holder
         is InlineTable -> container.holder
@@ -95,7 +98,22 @@ private fun parentOf(container: Any): Any? {
         is ArrayOfTables -> container.holder
         else -> null
     }
-    return slot?.takeIf { it.holdsContainer(container) }?.owner
+    return slot?.takeIf { it.holdsContainer(container) && it.owner != null }
+}
+
+/**
+ * The keys from the document's root down to [container], or from the outermost table or array it is stored under
+ * when that is stored nowhere; an element of an array adds none.
+ */
+private fun keyPathOf(container: Any): List<String> {
+    val keys = ArrayDeque<String>()
+    var current = container
+    while (true) {
+        val slot = slotOf(current) ?: break
+        slot.entry?.takeIf { it.isStored }?.key?.name?.let(keys::addFirst)
+        current = slot.owner ?: break
+    }
+    return keys
 }
 
 /** Where [child], stored in a container standing here, stands. */
@@ -110,15 +128,15 @@ private fun Nesting.inside(child: Any): Nesting = when (this) {
 }
 
 /**
- * [TomlEditError.TooDeep], with the keys from [container] to the first place [item] would print deeper than the parser
- * reads if stored in it under [key] (null for an array's element); or null when it would not.
+ * [TomlEditError.TooDeep], with the keys to the first place [item] would print deeper than the parser reads if stored
+ * in [container] under [key] (null for an array's element), from where [keyPathOf] starts; or null when it would not.
  */
 internal fun tooDeepError(
     container: Any,
     key: String?,
     item: Item,
 ): TomlEditError.TooDeep? = DepthWalk()
-    .apply { place(nestingOf(container), key, item, emptyList()) }
+    .apply { place(nestingOf(container), key, item, keyPathOf(container)) }
     .run()
     ?.let { TomlEditError.TooDeep(it) }
 

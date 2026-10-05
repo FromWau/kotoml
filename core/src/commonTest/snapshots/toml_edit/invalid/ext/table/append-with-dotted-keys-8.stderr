@@ -2,4 +2,4 @@ TOML parse error at line 4, column 4
   |
 4 | [_.s]
   |    ^
-duplicate key `s`
+duplicate key `_.s`

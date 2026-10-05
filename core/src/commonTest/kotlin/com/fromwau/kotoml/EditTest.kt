@@ -68,7 +68,7 @@ class EditTest {
     fun `a parse error renders against the input it came from`() {
         val input = "[table]\nkey = 1\n[table]\nkey = 2\n"
         val error = TomlDocument.parse(input).errorOrFail()
-        assertEquals(TomlParseError.Reason.DuplicateKey("table"), error.reason)
+        assertEquals(TomlParseError.Reason.DuplicateKey(listOf("table")), error.reason)
         assertTrue(error.render(input).contains("[table]"))
     }
 

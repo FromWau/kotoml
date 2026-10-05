@@ -6,9 +6,11 @@ import com.fromwau.kern.result.Result
 import com.fromwau.kotoml.DatetimeExpected.DateOrTimeSeparator
 import com.fromwau.kotoml.DatetimeExpected.DaySeparator
 import com.fromwau.kotoml.DatetimeExpected.Digits
+import com.fromwau.kotoml.DatetimeExpected.End
 import com.fromwau.kotoml.DatetimeExpected.MinuteSeparator
 import com.fromwau.kotoml.DatetimeExpected.OffsetStart
 import com.fromwau.kotoml.DatetimeExpected.Range
+import com.fromwau.kotoml.DatetimeExpected.SecondBeforeFraction
 import com.fromwau.kotoml.DatetimeExpected.TimeStart
 import com.fromwau.kotoml.DatetimeExpected.Width
 import com.fromwau.kotoml.DatetimeExpected.YearOrHour
@@ -132,6 +134,7 @@ internal class DatetimeParser(private val input: String) {
             } else {
                 null
             }
+            if (second == null && peekKind() == Kind.Dot) return timeError(SecondBeforeFraction)
             val nanosecond = if (second != null && peekKind() == Kind.Dot) {
                 next()
                 val nanosecond = next() ?: return timeError(Digits(Nanosecond))
@@ -193,7 +196,7 @@ internal class DatetimeParser(private val input: String) {
             }
         }
 
-        if (position < input.length) return error()
+        if (position < input.length) return if (date == null) timeError(End) else error()
 
         return Ok(
             when {
