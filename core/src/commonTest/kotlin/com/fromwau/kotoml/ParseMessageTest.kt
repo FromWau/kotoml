@@ -113,4 +113,31 @@ class ParseMessageTest {
             assertEquals(TomlParseError.Reason.DuplicateKey(keyPath), errorOf(text).reason, text)
         }
     }
+
+    @Test
+    fun `a word near inf or nan is a misspelt float`() {
+        val cases = mapOf(
+            "a = in\n" to "inf",
+            "a = -in\n" to "inf",
+            "a = Inf\n" to "inf",
+            "a = in_f\n" to "inf",
+            "a = infinity\n" to "inf",
+            "a = imf\n" to "inf",
+            "a = na\n" to "nan",
+            "a = +NaN\n" to "nan",
+            "a = nann\n" to "nan",
+        )
+        for ((text, symbol) in cases) {
+            val error = errorOf(text)
+            assertEquals(syntax(ParseErrorReason.InvalidScalar(ScalarKind.Float)), error.reason, text)
+            assertEquals(listOf(Expected.Literal(symbol)), error.expected, text)
+        }
+    }
+
+    @Test
+    fun `any other unquoted word is a string missing its quotes`() {
+        for (text in listOf("a = [I don't belong]\n", "a = [\"x\", No]\n", "a = index\n", "a = -nil\n", "a = n\n")) {
+            assertEquals(syntax(ParseErrorReason.UnquotedString), errorOf(text).reason, text)
+        }
+    }
 }
