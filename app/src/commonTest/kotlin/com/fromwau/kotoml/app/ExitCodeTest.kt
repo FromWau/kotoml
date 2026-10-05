@@ -219,6 +219,14 @@ class ExitCodeTest {
     }
 
     @Test
+    fun `kotoml offers no --color option`() {
+        val (_, help) = kotoml("--help-all")
+        assertTrue("--color" !in help.out.toString(), help.out.toString())
+        val (code, _) = kotoml("--color=always", "--help")
+        assertEquals(2, code)
+    }
+
+    @Test
     fun `decode reads a file`() {
         val (code, terminal) = kotoml("decode", file("a = 1\n"))
         assertEquals(0, code)

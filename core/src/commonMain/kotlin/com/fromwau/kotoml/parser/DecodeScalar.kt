@@ -55,8 +55,8 @@ internal fun decodeUnquotedScalar(raw: Raw, output: DecodedStringBuilder, error:
         }
         't'.code, 'T'.code -> decodeSymbol(raw, "true", ScalarKind.Boolean(true), output, error)
         'f'.code, 'F'.code -> decodeSymbol(raw, "false", ScalarKind.Boolean(false), output, error)
-        'i'.code, 'I'.code -> decodeSymbol(raw, "inf", ScalarKind.Float, output, error)
-        'n'.code, 'N'.code -> decodeSymbol(raw, "nan", ScalarKind.Float, output, error)
+        'i'.code, 'I'.code -> decodeFloatSymbol(raw, "inf", output, error)
+        'n'.code, 'N'.code -> decodeFloatSymbol(raw, "nan", output, error)
         else -> decodeInvalid(raw, output, error)
     }
 }
@@ -101,6 +101,7 @@ private fun decodeSignedSymbol(
     error: ErrorSink,
 ): ScalarKind {
     val kind = ScalarKind.Float
+    if (!raw.looksLikeSymbol(value, symbol)) return decodeInvalid(raw, output, error)
     return if (!raw.textEquals(value, symbol)) {
         error.reportError(
             ParseError(
@@ -460,6 +461,30 @@ private fun decodeAs(
     output.clear()
     output.append(symbol)
     return kind
+}
+
+private fun decodeFloatSymbol(raw: Raw, symbol: String, output: DecodedStringBuilder, error: ErrorSink): ScalarKind =
+    if (raw.looksLikeSymbol(0, symbol)) {
+        decodeSymbol(raw, symbol, ScalarKind.Float, output, error)
+    } else {
+        decodeInvalid(raw, output, error)
+    }
+
+/**
+ * Whether the word from [from] is a misspelt [symbol] rather than a string missing its quotes: ignoring case, it
+ * starts with [symbol] or is one inserted, removed or replaced character away from it.
+ */
+private fun Raw.looksLikeSymbol(from: Int, symbol: String): Boolean {
+    val word = text(from, length).lowercase()
+    return word.startsWith(symbol) || isOneEditAway(word, symbol)
+}
+
+private fun isOneEditAway(word: String, symbol: String): Boolean {
+    if (word.length == symbol.length) return word.indices.count { word[it] != symbol[it] } <= 1
+    val (shorter, longer) = if (word.length < symbol.length) word to symbol else symbol to word
+    if (longer.length - shorter.length != 1) return false
+    val firstDifference = shorter.indices.firstOrNull { shorter[it] != longer[it] } ?: return true
+    return shorter.substring(firstDifference) == longer.substring(firstDifference + 1)
 }
 
 private fun decodeSymbol(

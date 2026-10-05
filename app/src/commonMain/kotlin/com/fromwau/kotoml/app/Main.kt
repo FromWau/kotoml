@@ -141,6 +141,7 @@ private class StandardErrorOnly(private val terminal: Terminal) : Terminal by te
 internal fun kotomlCli(terminal: Terminal): Cli = cli("kotoml") {
     description = "Query TOML like jq, keeping every comment and spelling of what it prints"
     version = VERSION
+    builtins { color = false }
 
     command("get", "print what a jq path selects") {
         example("kotoml get '.servers[0].port' config.toml", "one value")
