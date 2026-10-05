@@ -304,15 +304,36 @@ private sealed class DocumentPart(
     // The part a part made by hand prints next to, before it when walked before it and after it otherwise.
     var anchor: DocumentPart? = null
 
-    // Anchors point to parts walked earlier or to slotted parts, so following them ends.
+    // The slotted part found by following the anchors, kept so a long run of parts made by hand prints in linear time.
+    private var slotted: DocumentPart? = null
+    private var isResolved = false
+
     val position: Long
-        get() {
-            var part = this
-            while (true) {
-                part.slot?.let { return it }
-                part = part.anchor ?: return 0L
-            }
+        get() = slottedPart()?.slot ?: 0L
+
+    /** Forgets the slotted part found for this part, for when an anchor on the way to it changes. */
+    fun forgetPosition() {
+        slotted = null
+        isResolved = false
+    }
+
+    // Anchors point to parts walked earlier or to slotted parts, so following them ends.
+    private fun slottedPart(): DocumentPart? {
+        if (slot != null) return this
+        if (isResolved) return slotted
+        val walked = mutableListOf<DocumentPart>()
+        var part: DocumentPart? = this
+        while (part != null && part.slot == null && !part.isResolved) {
+            walked += part
+            part = part.anchor
         }
+        val found = if (part == null || part.slot != null) part else part.slotted
+        for (each in walked) {
+            each.slotted = found
+            each.isResolved = true
+        }
+        return found
+    }
 }
 
 private class TableToVisit(
@@ -497,6 +518,8 @@ private fun placeInArrayOrder(blocks: List<List<DocumentPart>>) {
         listOfNotNull(header.takeIf { it.slot != null }) + under
     }
     val first = slotted.firstOrNull() ?: return
+    // Only these parts can have found their slotted part through what changes here: later parts are not walked yet.
+    for (block in blocks) for (part in block) part.forgetPosition()
     val slots = slotted
         .mapNotNull { it.slot }
         .sorted()
@@ -524,8 +547,12 @@ private fun leafDecorBeforeBracket(path: List<Key>): Pair<RawDecor?, RawDecor> {
     return if (needsExtraction) leafDecor to RawDecor.EMPTY else null to leafDecor
 }
 
-private fun StandardTable.isFirstElement(): Boolean =
-    (holder?.arrayOwner as? ArrayOfTables)?.firstOrNull()?.let { it === this } ?: true
+private fun StandardTable.isFirstElement(): Boolean {
+    val array = holder?.arrayOwner as? ArrayOfTables ?: return true
+    // Iterating an array of tables copies every element, which per element would print in quadratic time.
+    val firstElement = array.values.firstNotNullOfOrNull { it.standardTableOrNull } ?: return true
+    return firstElement === this
+}
 
 /** Writes one table's header and body; returns whether no table has been written yet. */
 private fun visitTable(
