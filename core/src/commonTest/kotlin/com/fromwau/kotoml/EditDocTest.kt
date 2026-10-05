@@ -341,11 +341,13 @@ duplicate key `a`
     }
 
     @Test
-    fun `a value's decor prints around its text`() {
+    fun `a value's decor prints around its text where it is stored`() {
         val v = Value.Integer(42L)
+        v.decor = Decor(" ", " # c")
         assertEquals("42", v.toString())
-        v.decor = Decor(" ", " ")
-        assertEquals(" 42 ", v.toString())
+        val doc = TomlDocument()
+        doc.set("a", v).getOrFail()
+        assertEquals("a = 42 # c\n", doc.toString())
     }
 
     private fun collectStrings(

@@ -228,13 +228,14 @@ class PrintingFixesTest {
     }
 
     @Test
-    fun `a document without a final newline prints as read until changed`() {
+    fun `a document without a final newline prints without one after a change`() {
         val doc = parse("a = 1")
 
         assertEquals("a = 1", doc.toString())
         assertEquals("a = 1", doc.copy().toString())
         doc["b"] = 2L
-        assertEquals("a = 1\nb = 2\n", doc.toString())
+        assertEquals("a = 1\nb = 2", doc.toString())
+        assertEquals("a = 1\nb = 2", doc.copy().toString())
     }
 
     @Test

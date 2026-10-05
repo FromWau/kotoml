@@ -11,7 +11,6 @@ class EditLayoutTest {
 
     private fun TomlDocument.array(key: String): TomlArray = this[key].getOrFail().valueOrNull!!.arrayOrNull!!
 
-    @Ignore
     @Test
     fun `replacing a value keeps a missing final newline`() {
         val doc = parse("a = 1\nb = 2")
@@ -19,7 +18,6 @@ class EditLayoutTest {
         assertEquals("a = 5\nb = 2", doc.toString())
     }
 
-    @Ignore
     @Test
     fun `adding a key keeps a missing final newline`() {
         val doc = parse("a = 1\nb = 2")
@@ -27,7 +25,6 @@ class EditLayoutTest {
         assertEquals("a = 1\nb = 2\nc = 3", doc.toString())
     }
 
-    @Ignore
     @Test
     fun `replacing the last value of a CRLF file keeps its missing final newline`() {
         val doc = parse("a = 1\r\nb = 2")
@@ -110,7 +107,6 @@ class EditLayoutTest {
         assertEquals("[a]\nx = 1\n\n# about b\n\n[c]\nz = 3\n", doc.toString())
     }
 
-    @Ignore
     @Test
     fun `adding to a one-line array keeps its spacing`() {
         val padded = parse("a = [ 1, 2 ]\n")
@@ -121,7 +117,6 @@ class EditLayoutTest {
         assertEquals("a = [1,2,3]\n", tight.toString())
     }
 
-    @Ignore
     @Test
     fun `adding to an array closed on its last element's line puts the element on a line of its own`() {
         val doc = parse("a = [\n  1,\n  2]\n")
@@ -129,7 +124,6 @@ class EditLayoutTest {
         assertEquals("a = [\n  1,\n  2,\n  3]\n", doc.toString())
     }
 
-    @Ignore
     @Test
     fun `adding to a one-line inline table keeps its spacing`() {
         val doc = parse("t = {a=1}\n")
@@ -137,7 +131,6 @@ class EditLayoutTest {
         assertEquals("t = {a=1, b=2}\n", doc.toString())
     }
 
-    @Ignore
     @Test
     fun `a key added to an indented table takes its indentation`() {
         val doc = parse("[server]\n  host = \"h\"\n  port = 1\n")

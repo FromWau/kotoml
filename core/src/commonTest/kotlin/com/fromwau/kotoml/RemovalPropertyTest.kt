@@ -74,7 +74,7 @@ class RemovalPropertyTest {
 
     /**
      * Whether [printed] is [text] without the byte ranges [removed]. A document that was read without a final
-     * newline ends with one once it is changed, so that newline is allowed.
+     * newline keeps none, so when its last line goes, the line break ending the line before it goes too.
      */
     private fun printsWithout(
         text: String,
@@ -87,7 +87,7 @@ class RemovalPropertyTest {
             .toByteArray()
             .decodeToString()
         if (printed == expected) return true
-        return !expected.endsWith('\n') && printed.removeSuffix("\n").removeSuffix("\r") == expected
+        return !text.endsWith('\n') && expected.removeSuffix("\n").removeSuffix("\r") == printed
     }
 
     /** One key/value line or header line, as byte offsets, and the top-level key it belongs to. */

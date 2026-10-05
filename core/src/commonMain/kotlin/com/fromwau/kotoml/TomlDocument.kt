@@ -15,8 +15,8 @@ import kotlinx.io.readByteArray
  *
  * Printing it with [toString] reproduces every comment, blank line, spelling and line ending that was not
  * changed, and the byte order mark the text began with, so an unchanged document prints back byte for byte. What
- * was changed prints in its new form, and an inserted line ends like the line before it. Text without a final
- * newline keeps that only while the document prints as it was read; once changed it ends with a newline.
+ * was changed prints in its new form, and an inserted line ends like the line before it. Text read without a final
+ * newline keeps it missing after any edit.
  *
  * ```kotlin
  * val doc = TomlDocument.parse("\"hello\" = 'toml!' # comment\n['a'.b]\n").getOrElse { error(it) }
@@ -43,11 +43,8 @@ public class TomlDocument internal constructor(
     // The parser skips a byte order mark at the start of the text, so the document prints it back itself.
     private var byteOrderMark: Boolean = parsedFrom?.startsWith(BYTE_ORDER_MARK) == true
 
-    // Text read without a final newline, kept to print it back while the document prints as it did when read.
-    private var readWithoutFinalNewline: ReadText? = parsedFrom
-        ?.takeIf { !it.endsWith('\n') }
-        ?.let { text -> ReadText(text, render()) }
-        ?.takeIf { it.printed == it.text + "\n" || it.printed == it.text + "\r\n" }
+    private var withoutFinalNewline: Boolean =
+        parsedFrom != null && parsedFrom.trimStart(BYTE_ORDER_MARK).isNotEmpty() && !parsedFrom.endsWith('\n')
 
     /** An empty document. */
     public constructor() : this(StandardTable.withPosition(0), KeptText(), "\n", null)
@@ -79,11 +76,15 @@ public class TomlDocument internal constructor(
     /** The root table's key/item pairs, in order. */
     override fun iterator(): Iterator<Pair<String, Item>> = root.iterator()
 
-    /** The text after the last item, such as comments and blank lines at the end of the file. */
+    /**
+     * The text after the last item, such as comments and blank lines at the end of the file. Text ending in a line
+     * break gives a document read without a final newline one.
+     */
     public var trailing: String
         get() = rawTrailing.textOr("")
         set(value) {
             rawTrailing = KeptText.from(value)
+            if (value.endsWith('\n')) withoutFinalNewline = false
         }
 
     /** The item at [key] of the root table, or [TomlEditError.NotFound]; see [StandardTable.get]. */
@@ -203,7 +204,7 @@ public class TomlDocument internal constructor(
     public fun copy(): TomlDocument {
         val copy = TomlDocument(root.copy(), rawTrailing, lineEnding, null)
         copy.byteOrderMark = byteOrderMark
-        copy.readWithoutFinalNewline = readWithoutFinalNewline
+        copy.withoutFinalNewline = withoutFinalNewline
         return copy
     }
 
@@ -239,20 +240,14 @@ public class TomlDocument internal constructor(
     /** The document as TOML text. */
     override fun toString(): String {
         val text = render()
-        val read = readWithoutFinalNewline
-        return if (read != null && text == read.printed) read.text else text
+        if (!withoutFinalNewline) return text
+        return text.removeSuffix("\n").let { if (it.length < text.length) it.removeSuffix("\r") else it }
     }
 
     private fun render(): String = buildString {
         if (byteOrderMark) append(BYTE_ORDER_MARK)
         encodeDocument(this, this@TomlDocument)
     }
-
-    // What the document printed right after it was read from [text].
-    private class ReadText(
-        val text: String,
-        val printed: String,
-    )
 
     public companion object {
         /**

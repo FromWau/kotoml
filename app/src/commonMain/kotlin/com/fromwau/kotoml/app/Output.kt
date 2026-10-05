@@ -98,9 +98,7 @@ internal fun Selected.toToml(): String {
         }
         return TomlDocument(root).toString().trim()
     }
-    val value = checkNotNull(item.valueOrNull) { "an item holds a value when it holds no table" }.copy()
-    value.decor = Decor()
-    return value.toString()
+    return checkNotNull(item.valueOrNull) { "an item holds a value when it holds no table" }.toString()
 }
 
 /** A table holding a copy of [item], read from a file under the same keys, which therefore nests as it did there. */

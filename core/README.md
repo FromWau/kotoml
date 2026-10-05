@@ -40,6 +40,9 @@ doc["a"]["b"]["c"]["d"] = "hello"
 // c = { d = "hello" }
 ```
 
+An unchanged document prints back byte for byte, and one read without a final newline prints none after an edit
+either.
+
 Indexing returns a `Result`: the stored item, or `TomlEditError.NotFound` for a key that is not there.
 Indexing on through an error passes it on, so `doc["a"]["b"]` stops at the first key it misses; read the end
 with `getOrNull()` or `getOrElse { }`. Writing adds only the key it names, never a missing parent, so create
@@ -67,8 +70,10 @@ val spelled = TomlDocument.parse("n = 0x10\n").getOrElse { error(it) }["n"].getO
 
 Each kind of value has a constructor, and an optional `Decor` sets the text before and after it; a side left
 `null` prints the default spacing for where the value stands. A parsed value keeps the text it was written as
-in `spelling`, and `resetFormatting()` drops it. The `OrNull` properties read a value of one kind, or `null`
-for any other kind.
+in `spelling`, and `resetFormatting()` drops it. `toString()` gives the value's text alone, without its decor, and
+`Value.parse` reads such text back, ignoring whitespace and line breaks around it. A float without a spelling of its
+own prints in the shortest digits that read back as it, in exponent form such as `1e300` at 1e16 and above or below
+1e-5. The `OrNull` properties read a value of one kind, or `null` for any other kind.
 
 ## Tables and arrays
 
@@ -91,7 +96,11 @@ doc["client"] = standardTableOf("retries" to Item(Value.Integer(3L))).getOrElse 
 comment and blank lines above what it removes, and takes what belongs to it: the comment on its line, every comment
 inside its value, and for a table everything after its first header, the comments above its sub-tables' headers
 included. Replacing a value keeps its spacing and the comment after it. An array of tables left with no tables
-prints `key = []`. Sorting moves each key with the comment lines right above it and leaves blank lines in place.
+prints `key = []`. A new key takes the indentation of the key above it, and an element or key added to an array or
+inline table on one line takes the spacing already there. A comment a caller gives an element or an inline table's
+value in its decor, such as `Decor(suffix = " # note")`, puts a one-line array or inline table on lines of its own,
+one entry per line; in a document that writes TOML 1.0, which has no comments inside an inline table, an inline table's
+value drops it. Sorting moves each key with the comment lines right above it and leaves blank lines in place.
 Making a table dotted, or a header again, keeps the lines above its key and each value's same-line comment and drops
 its other comments. An `Item` is a slot that holds a value, a table or an array of tables; `valueOrNull`,
 `standardTableOrNull` and their siblings read what it holds, and `tableOrNull` reads a table of either kind. Storing

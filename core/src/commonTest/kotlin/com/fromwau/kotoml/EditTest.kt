@@ -432,7 +432,6 @@ ip = "10.0.0.2"
 dc = "eqdc10"
 
         [other.table]
-
 """)
     }
 
@@ -456,7 +455,6 @@ dc = "eqdc10"
 
 [dependencies.newthing]
         [dev-dependencies]
-
 """)
     }
 
@@ -470,7 +468,6 @@ dc = "eqdc10"
             .prints("""
 [a]
 [b]
-
 """)
     }
 
@@ -493,7 +490,6 @@ dc = "eqdc10"
 [servers.alpha]
 ip = "10.0.0.1"
 dc = "eqdc10"
-
 """)
     }
 
@@ -519,7 +515,6 @@ dc = "eqdc10"
 hello = "world"
 
 [[bin]]
-
 """)
     }
 
@@ -539,7 +534,6 @@ key2 = 42
 key3 = 8.1415926
 
         [tbl.son]
-
 """)
     }
 
@@ -591,7 +585,6 @@ name = "dep"
         [servers.beta]
         ip = "10.0.0.2"
         dc = "eqdc10"
-
 """)
     }
 
@@ -676,7 +669,6 @@ name = "dep"
         [dependencies]
         nom = "4.0" # future is here
 
-
 """)
     }
 
@@ -699,7 +691,6 @@ name = "dep"
 
         [dependencies]
         nom = "4.0" # future is here
-
 """)
     }
 
@@ -720,7 +711,6 @@ name = "dep"
         name = "hello"
         # delete this
         documentation = "https://docs.rs/hello"
-
 """)
     }
 
@@ -737,7 +727,7 @@ name = "dep"
                 assertNotNull(value)
                 assertEquals(1L, assertNotNull(value.valueOrNull).longOrNull)
             }
-            .prints("\n\n        [a]\n\n")
+            .prints("\n\n        [a]\n")
     }
 
     @Test
@@ -767,7 +757,6 @@ name = "dep"
         c = 3
 
         [a.y]
-
 """)
     }
 
@@ -800,7 +789,6 @@ name = "dep"
         b = 2 # as well as this
 
         [a.y]
-
 """)
     }
 
@@ -827,7 +815,6 @@ name = "dep"
         [package]
         [dev-dependencies]
         [dependencies.opencl]
-
 """)
     }
 
@@ -855,7 +842,6 @@ edition = "2024"
         [dependencies]
         [dependencies.opencl]
         [dev-dependencies]
-
 """)
     }
 
@@ -879,7 +865,6 @@ edition = "2024"
         [dev-dependencies]
         [dependencies.opencl]
         a=""
-
 """)
     }
 
@@ -903,7 +888,6 @@ edition = "2024"
         [package]
         [dependencies]
         [dev-dependencies]
-
 """)
     }
 
@@ -946,7 +930,6 @@ edition = "2024"
         b = ["hello", "beep",   "zoink"   ,
 "world"
 ,  "yikes"]
-
 """)
     }
 
@@ -971,7 +954,6 @@ edition = "2024"
 
         a = [1, 2, 3]
         b = []
-
 """)
     }
 
@@ -1021,7 +1003,6 @@ edition = "2024"
 
         a = { a = 2, c = 3, b = 42 }
         b = { hello = "world" }
-
 """)
     }
 
@@ -1046,7 +1027,6 @@ edition = "2024"
 
         a = {a=2, b = 42}
         b = {}
-
 """)
     }
 
@@ -1144,7 +1124,6 @@ src.git = "https://github.com/nixos/nixpkgs"
         assertSnapshot("""
 [[bookmark]]
 name = "test.swf"
-
 """, document.toString())
     }
 
@@ -1160,7 +1139,6 @@ name = "test.swf"
         assertSnapshot("""
 [[  bookmark   ]]
 name = "test.swf"
-
 """, document.toString())
     }
 
@@ -1259,7 +1237,7 @@ other = "world"
         val key = Key.parse("bbb").getOrFail()
         val table = doc.root
         table.put(key, Item(Value.Integer(2L)))
-        assertEquals("aaaaaa = 1\nbbb = 2\n", doc.toString())
+        assertEquals("aaaaaa = 1\nbbb = 2", doc.toString())
     }
 
     @Test

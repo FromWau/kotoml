@@ -233,9 +233,19 @@ private fun encodeKeyValueLine(writer: LineWriter, visual: VisualValue) {
 }
 
 private fun encodeBodyLines(writer: LineWriter, table: StandardTable) {
+    var indent = ""
     for (line in table.bodyLines()) {
         when (line) {
-            is VisualValue -> encodeKeyValueLine(writer, line)
+            is VisualValue -> {
+                val start = line.lineStart ?: line.spelledPath().last().rawLeafDecor.prefix
+                if (start == null) {
+                    // A line made by hand is indented like the line above it.
+                    encodeKeyValueLine(writer, if (indent.isEmpty()) line else line.startingWith(KeptText.from(indent)))
+                } else {
+                    start.textOrNull?.let { indent = it.substringAfterLast('\n') }
+                    encodeKeyValueLine(writer, line)
+                }
+            }
             is KeptLines -> writer.buf.append(line.text)
         }
     }

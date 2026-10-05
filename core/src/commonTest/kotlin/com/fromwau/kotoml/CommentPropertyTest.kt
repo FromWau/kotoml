@@ -121,7 +121,7 @@ class CommentPropertyTest {
             edits.inlines.randomOrNull(random)?.let { inline ->
                 add(Edit("inline isDotted") {
                     // A new layout for the table: its comments may go, but for those above it.
-                    val inside = comments(inline.toString()).minusAll(comments(inline.decor.prefix.orEmpty()))
+                    val inside = comments(inline.toString()) + comments(inline.decor.suffix.orEmpty())
                     inline.isDotted = !inline.isDotted
                     inside
                 })

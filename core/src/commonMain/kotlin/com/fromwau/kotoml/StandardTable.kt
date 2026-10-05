@@ -184,7 +184,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         for (entry in items.entries) {
             if (entry.item.valueOrNull == null) entry.item.holdValue(entry.item.copy().moveToValue())
         }
-        val indent = "  "
+        val indent = INDENT
         fun indented(lines: String): String = lines
             .lines()
             .filter { it.isNotBlank() }

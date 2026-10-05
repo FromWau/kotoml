@@ -94,19 +94,62 @@ public class TomlArray() : Iterable<Value> {
 
     /**
      * Appends a copy of [value], keeping its formatting. A value without a prefix of its own starts a line of its own
-     * when the array's elements do, below the last one and its comment; otherwise it gets the default spacing.
+     * when the array's elements do, below the last one and its comment; on one line it takes the spacing the
+     * elements already have.
+     *
+     * A comment in [value]'s decor suffix, such as `Decor(suffix = " # note")`, puts an array on one line on lines of
+     * its own, one element per line with a comma after each, and prints after the new element's comma.
      *
      * @return [TomlEditError.TooDeep], storing nothing, when [value] would nest deeper than the parser reads.
      */
     public fun add(value: Value): EmptyResult<TomlEditError> {
         tooDeepError(this, null, Item(value))?.let { return Err(it) }
+        val comment = value.callerComment()
         val stored = value.copyFor(ValuePlace.Array)
+        if (comment.isNotEmpty() && printsOnOneLine()) {
+            spreadOverLines()
+            if (stored.decor.prefix == null) stored.rawDecor.prefix = KeptText.from(LINE_BREAK + INDENT)
+        }
         if (stored.decor.prefix == null) {
             leaveLastLineForComma()
             startOwnLine(stored)
         }
+        if (stored.decor.prefix == null) takeSpacingOfLast(stored)
         append(stored)
+        if (comment.isNotEmpty()) {
+            trailingComma = true
+            trailing = comment + trailing.let { if ('\n' in it) it else LINE_BREAK + it }
+        }
         return Ok(Unit)
+    }
+
+    // On one line the space before `]` goes with the last element, and the spacing after a comma is the array's own.
+    // An element closing a multi-line array on its line has the next one follow on a line of its own.
+    private fun takeSpacingOfLast(value: Value) {
+        val printed = printedValues()
+        val last = printed.lastOrNull() ?: return
+        val start = last.rawDecor.prefix?.textOrNull
+        if (start != null && '\n' in start) {
+            val lineBreak = if ("\r\n" in start) "\r\n" else "\n"
+            value.rawDecor.prefix = KeptText.from(lineBreak + start.substringAfterLast('\n'))
+            return
+        }
+        if (printed.size > 1) value.rawDecor.prefix = last.rawDecor.prefix
+        val end = last.rawDecor.suffix
+        if (!trailingComma && value.rawDecor.suffix == null && '\n' !in end?.textOrNull.orEmpty()) {
+            value.rawDecor.suffix = end
+            last.rawDecor.suffix = null
+        }
+    }
+
+    // One element per line, indented, with a comma after each, as a comment after an element needs.
+    private fun spreadOverLines() {
+        for (element in printedValues()) {
+            element.rawDecor.prefix = KeptText.from(LINE_BREAK + INDENT)
+            element.rawDecor.suffix = KeptText.from("")
+        }
+        trailingComma = isNotEmpty()
+        trailing = LINE_BREAK
     }
 
     // A last element without a comma after it holds the rest of its line, its comment included; a comma after it
@@ -396,8 +439,8 @@ public class TomlArray() : Iterable<Value> {
         return copy
     }
 
-    /** The array as TOML, with its decor. */
-    override fun toString(): String = buildString { encodeArray(this, this@TomlArray, "", "") }
+    /** The array as TOML, without its own decor. */
+    override fun toString(): String = buildString { encodeArray(this, this@TomlArray, "", "", RawDecor.EMPTY) }
 }
 
 /** An array of copies of [values], in order, keeping their formatting; see [toTomlArray]. */

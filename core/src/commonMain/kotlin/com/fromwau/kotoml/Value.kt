@@ -50,7 +50,7 @@ public sealed interface Value {
         public val displaySpelling: kotlin.String
             get() = formatted.displaySpelling
 
-        /** The value as TOML, with its decor. */
+        /** The value as TOML, without its [decor]. */
         override fun toString(): kotlin.String = display()
     }
 
@@ -81,7 +81,7 @@ public sealed interface Value {
         public val displaySpelling: kotlin.String
             get() = formatted.displaySpelling
 
-        /** The value as TOML, with its decor. */
+        /** The value as TOML, without its [decor]. */
         override fun toString(): kotlin.String = display()
     }
 
@@ -112,7 +112,7 @@ public sealed interface Value {
         public val displaySpelling: kotlin.String
             get() = formatted.displaySpelling
 
-        /** The value as TOML, with its decor. */
+        /** The value as TOML, without its [decor]. */
         override fun toString(): kotlin.String = display()
     }
 
@@ -143,7 +143,7 @@ public sealed interface Value {
         public val displaySpelling: kotlin.String
             get() = formatted.displaySpelling
 
-        /** The value as TOML, with its decor. */
+        /** The value as TOML, without its [decor]. */
         override fun toString(): kotlin.String = display()
     }
 
@@ -174,7 +174,7 @@ public sealed interface Value {
         public val displaySpelling: kotlin.String
             get() = formatted.displaySpelling
 
-        /** The value as TOML, with its decor. */
+        /** The value as TOML, without its [decor]. */
         override fun toString(): kotlin.String = display()
     }
     /**
@@ -192,7 +192,7 @@ public sealed interface Value {
             array.decor = decor
         }
 
-        /** The value as TOML, with its decor. */
+        /** The value as TOML, without its [decor]. */
         override fun toString(): kotlin.String = display()
     }
 
@@ -211,7 +211,7 @@ public sealed interface Value {
             table.decor = decor
         }
 
-        /** The value as TOML, with its decor. */
+        /** The value as TOML, without its [decor]. */
         override fun toString(): kotlin.String = display()
     }
 
@@ -256,13 +256,15 @@ public sealed interface Value {
         get() = (this as? InlineTable)?.table
 
     /**
-     * The text around the value. Setting it changes how this value prints:
+     * The text around the value. Setting it changes how this value prints where it is stored:
      *
      * ```kotlin
      * val value = Value.Integer(42L)
-     * value.decor = Decor(" ", " ")
-     * value.toString() // " 42 "
+     * value.decor = Decor(" ", " # the answer")
+     * TomlDocument().apply { set("a", value) }.toString() // "a = 42 # the answer\n"
      * ```
+     *
+     * [toString] leaves the decor out: it is the value's text alone.
      */
     public var decor: Decor
         get() = rawDecor.toDecor()
@@ -299,7 +301,8 @@ public sealed interface Value {
 
     public companion object {
         /**
-         * Parses one TOML value of [version], keeping its spelling but not the whitespace around it.
+         * Parses one TOML value of [version], keeping its spelling. Whitespace and line breaks around it are skipped,
+         * so `Value.parse("  1\n")` reads as `1`.
          *
          * ```kotlin
          * Value.parse("'literal'") // a string that prints as 'literal'
@@ -363,8 +366,8 @@ internal fun Value.resolveSpans(input: SourceText) {
     }
 }
 
-/** The value as TOML, with its decor. */
-internal fun Value.display(): String = buildString { encodeValue(this, this@display, "", "") }
+/** The value as TOML, without its decor. */
+internal fun Value.display(): String = buildString { encodeValue(this, this@display, "", "", RawDecor.EMPTY) }
 
 // `key1 = value1`
 internal val DEFAULT_VALUE_DECOR: kotlin.Pair<String, String> = " " to ""
@@ -380,3 +383,13 @@ internal fun Value.copyFor(place: ValuePlace): Value = copy().fitFor(place)
 
 /** This value, its decor fitted to [place]. */
 internal fun Value.fitFor(place: ValuePlace): Value = also { rawDecor.fitFor(place) }
+
+/** The comment a caller gave this value to print after it, with the spacing before it; "" when there is none. */
+internal fun Value.callerComment(): String {
+    if (rawDecor.suffix?.isRead != false) return ""
+    return commentAfter().substringBefore('\n').trimEnd('\r')
+}
+
+// An array or inline table spread over lines: one entry per line, indented like a table across lines.
+internal const val LINE_BREAK: String = "\n"
+internal const val INDENT: String = "  "

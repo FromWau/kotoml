@@ -57,7 +57,8 @@ internal fun interface WriteTomlValue {
 
         /**
          * A float in its shortest round-tripping form, with `.0` added to a whole number and `inf`, `nan` and
-         * their negative forms for the special values. The sign of zero and of NaN is kept.
+         * their negative forms for the special values. At 1e16 and above or below 1e-5 it takes exponent form, such
+         * as `1e300`. The sign of zero and of NaN is kept.
          */
         fun of(value: Float): WriteTomlValue = WriteTomlValue { writer ->
             writer.append(
@@ -67,14 +68,15 @@ internal fun interface WriteTomlValue {
                     isZero = value == 0.0f,
                     isWhole = value % 1.0f == 0.0f,
                     isInfinite = value.isInfinite(),
-                    display = { toShortestDecimalString(value) },
+                    display = { toShortestTomlFloat(value) },
                 ),
             )
         }
 
         /**
          * A float in its shortest round-tripping form, with `.0` added to a whole number and `inf`, `nan` and
-         * their negative forms for the special values. The sign of zero and of NaN is kept.
+         * their negative forms for the special values. At 1e16 and above or below 1e-5 it takes exponent form, such
+         * as `1e300`. The sign of zero and of NaN is kept.
          */
         fun of(value: Double): WriteTomlValue = WriteTomlValue { writer ->
             writer.append(
@@ -84,7 +86,7 @@ internal fun interface WriteTomlValue {
                     isZero = value == 0.0,
                     isWhole = value % 1.0 == 0.0,
                     isInfinite = value.isInfinite(),
-                    display = { toShortestDecimalString(value) },
+                    display = { toShortestTomlFloat(value) },
                 ),
             )
         }
@@ -151,6 +153,5 @@ private inline fun formatFloat(
     isNaN -> if (isNegative) "-nan" else "nan"
     isZero -> if (isNegative) "-0.0" else "0.0"
     isInfinite -> if (isNegative) "-inf" else "inf"
-    isWhole -> display() + ".0"
-    else -> display()
+    else -> display().let { if (isWhole && 'e' !in it) "$it.0" else it }
 }

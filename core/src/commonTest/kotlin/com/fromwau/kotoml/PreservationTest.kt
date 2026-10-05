@@ -61,13 +61,6 @@ class PreservationTest {
     }
 
     @Test
-    fun `a changed document ends with a newline`() {
-        val doc = parse("a = 1\nb = 2")
-        doc["a"] = 5L
-        assertEquals("a = 5\nb = 2\n", doc.toString())
-    }
-
-    @Test
     fun `each dotted key keeps its own spelling`() {
         val input = "name.first = \"Arthur\"\n\"name\" . 'last' = \"Dent\"\n"
         val doc = parse(input)

@@ -251,8 +251,8 @@ c = 3
 ```
 
 ### R-015: removing the last key of a file without a final newline
-rule: 2   version: 1.0   (input has no final newline after `# bee`; expected ends with `a = 1` and a newline)
-settled: owner confirmed 2026-10-05: as kotoml prints it.
+rule: 2   version: 1.0   (input has no final newline after `# bee`; expected ends with `a = 1` and no newline)
+settled: todo 31, 2026-10-05: a file read without a final newline keeps none after an edit.
 ```toml input
 a = 1
 b = 2 # bee
@@ -261,8 +261,7 @@ b = 2 # bee
 doc.remove("b")
 ```
 ```toml expected
-a = 1
-```
+a = 1```
 
 ### R-016: removing a missing key changes nothing
 rule: 1   version: 1.0
