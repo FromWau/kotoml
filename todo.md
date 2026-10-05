@@ -8,18 +8,7 @@ Every defect, ruling and docs item from that pass is closed; see **Done**.
 
 ## Candidate work
 
-- [ ] **28. An inline table put back into braces loses the comments on its first key's line.** Owner ruling
-  2026-10-05: an `isDotted` change gives a table a new layout, so its comments may go, but for the lines above its
-  key. One heavy-run case still breaks that (`CommentPropertyTest` at 25 steps and 2000 seeds, hand-written 0 seed
-  1660): an inline table printed on dotted lines, `"new key"."é"…`, holds the comments printed above that line on
-  its first entry's key; made an inline table again, it prints `"new key" = { … }` and those comments, visually
-  above its key, are gone. Moving them onto the holding key when it goes back into braces would keep them. Goal 4.
-
-- [ ] **29. A copied table prints where its source printed.** A table or array of tables copied to another key keeps
-  the source's print positions, so `[b]` copied from `[a]` over a value key above it prints before `[a]`, and a copied
-  `[[y]]` interleaves with the `[[x]]` it came from (scenarios S-056, S-057). Valid and the same data, but a copy
-  should print after the tables already there. Needs the document's highest position when storing, without making
-  repeated stores quadratic. Goal 4.
+None open.
 
 ## Not in scope (owner, 2026-10-05)
 
@@ -29,6 +18,30 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **28. An inline table put back into braces loses the comments on its first key's line.** Owner ruling
+  2026-10-05: an `isDotted` change gives a table a new layout, so its comments may go, but for the lines above its
+  key. One heavy-run case still breaks that (`CommentPropertyTest` at 25 steps and 2000 seeds, hand-written 0 seed
+  1660): an inline table printed on dotted lines, `"new key"."é"…`, holds the comments printed above that line on
+  its first entry's key; made an inline table again, it prints `"new key" = { … }` and those comments, visually
+  above its key, are gone. Moving them onto the holding key when it goes back into braces would keep them. Goal 4.
+  **Verdict 2026-10-05:** fixed with todo 29's follow-up: a dotted key printed inside braces now starts its first
+  line with the holding key's own spacing, the same rule the table-lines case uses, which also kept the comment
+  ending the line before a nested inline table made dotted (32 heavy-run cases). `CommentPropertyTest` and
+  `EditPropertyTest` are clean at 25 steps, 2000 seeds per hand-written document and 100 per suite file.
+
+
+- [x] **29. A copied table prints where its source printed.** A table or array of tables copied to another key keeps
+  the source's print positions, so `[b]` copied from `[a]` over a value key above it prints before `[a]`, and a copied
+  `[[y]]` interleaves with the `[[x]]` it came from (scenarios S-056, S-057). Valid and the same data, but a copy
+  should print after the tables already there. Needs the document's highest position when storing, without making
+  repeated stores quadratic. Goal 4.
+  **Verdict 2026-10-05:** fixed. A table or array of tables copied to a key elsewhere in its own document now gets
+  print positions after every table already there, its own tables keeping their order, and takes the default
+  spacing of a new header; a table copied into an array of tables drops its positions and prints after the element
+  before it. Copies into another document or reorders inside an array keep everything. S-056 and S-057 pass, which
+  makes all 330 QA scenarios firm.
+
 
 - [x] **27. A multi-line inline table made dotted loses the comments between its entries.** TOML 1.1:
   `t = {\n  # about c\n  c = 3, # three\n  d = 4, # four\n  # end\n}` with `isDotted = true` prints the lines

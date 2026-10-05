@@ -113,7 +113,12 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
             val table = item.standardTableOrNull
             when {
                 value is Value.InlineTable && value.table.isDotted -> {
+                    val start = values.size
                     value.table.appendDottedValues(path, values, entry)
+                    // The dotted key's first line starts where the key stood, with the key's own spacing.
+                    val first = values.getOrNull(start) as? VisualValue
+                    val spacing = entry.key.rawLeafDecor.prefix
+                    if (first != null && spacing != null) values[start] = first.startingWith(spacing)
                 }
                 value != null -> values.add(VisualValue(path.toList(), value, entry))
                 table != null -> table.appendAllValues(path, values)

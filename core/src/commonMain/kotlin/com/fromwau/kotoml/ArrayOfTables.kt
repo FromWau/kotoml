@@ -90,7 +90,11 @@ public class ArrayOfTables() : Iterable<StandardTable> {
 
     // A copy from elsewhere in the document leaves the comments of the header it was read under behind.
     private fun copyToStore(table: StandardTable): StandardTable = table.copy().also { copy ->
-        if (copiesWithinDocument(table, this)) copy.rawDecor.dropReadComments(isHeader = true)
+        if (copiesWithinDocument(table, this)) {
+            copy.rawDecor.dropReadComments(isHeader = true)
+            // It prints after the element before it, not where its source printed.
+            forgetPlacement(Item(copy))
+        }
     }
 
     /** Appends [table] itself, for a caller that built it and holds no other reference to it. */

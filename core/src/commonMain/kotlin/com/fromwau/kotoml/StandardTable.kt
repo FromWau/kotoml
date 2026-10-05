@@ -58,7 +58,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
 
     private var dotted: Boolean = false
 
-    /** Whether this table's header was the first text of the file it was read from. */
+    /** Whether this table's header was the first header of the file it was read from, with no key/value line above. */
     internal var opensFile: Boolean = false
 
     /** For a document's root, the TOML version the document was read as; null for one built in code. */
@@ -496,7 +496,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     ): Result<Item?, TomlEditError> {
         tooDeepError(this, key, item)?.let { return Err(it) }
         items.getEntry(key)?.prepareFor(item)
-        return Ok(items.put(Key(key), item.copyFor(ValuePlace.Line, copiesWithinDocument(item, this))))
+        return Ok(items.put(Key(key), copyToStore(item)))
     }
 
     /**
@@ -511,7 +511,15 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     ): Result<Item?, TomlEditError> {
         tooDeepError(this, key.name, item)?.let { return Err(it) }
         items.getEntry(key.name)?.key = key.copy()
-        return Ok(items.put(key.copy(), item.copyFor(ValuePlace.Line, copiesWithinDocument(item, this))))
+        return Ok(items.put(key.copy(), copyToStore(item)))
+    }
+
+    // A copy from elsewhere in this document leaves its source's comments and prints after the tables there.
+    private fun copyToStore(item: Item): Item {
+        val within = copiesWithinDocument(item, this)
+        val stored = item.copyFor(ValuePlace.Line, within)
+        if (within) outermostTableOf(this)?.let { placeAfterAll(it, stored) }
+        return stored
     }
 
     override fun putItem(
@@ -537,8 +545,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         default: () -> Item,
     ): Result<Item, TomlEditError> {
         getOrNull(key.name)?.let { return Ok(it) }
-        val made = default()
-        val stored = made.copyFor(ValuePlace.Line, copiesWithinDocument(made, this))
+        val stored = copyToStore(default())
         tooDeepError(this, key.name, stored)?.let { return Err(it) }
         items.put(key.copy(), stored)
         return Ok(stored)
@@ -813,6 +820,10 @@ internal class VisualValue(
         return VisualValue(path, value, entry, placedAt, start, spacedForBraces = true, lineEnd = end)
     }
 
+    /** This line starting with [spacing] in place of its key's own. */
+    fun startingWith(spacing: KeptText): VisualValue =
+        VisualValue(path, value, entry, placedAt, spacing, spacedForBraces, lineEnd, defaultKeySpacing)
+
     /** This line with [above] over its lines above, or in their place when not [ownLinesAbove], and [end] ending it. */
     fun withLines(
         above: String,
@@ -875,4 +886,54 @@ internal fun emptyTableLine(
 ): VisualValue {
     val belowKept = kept.mapNotNull { it.order }.maxOrNull()
     return VisualValue(path.toList(), Value.InlineTable(InlineTable()), entry, belowKept)
+}
+
+/** The tables under [start] and the lines kept among their headers: what has a position among a document's tables. */
+private fun placedParts(start: Item): List<Any> {
+    val parts = mutableListOf<Any>()
+    val items = ArrayDeque<Item>()
+    items.addLast(start)
+    while (items.isNotEmpty()) {
+        val item = items.removeLast()
+        item.standardTableOrNull?.let { table ->
+            parts.add(table)
+            parts.addAll(table.keptHeaderLines)
+            for (entry in table.items.entries) items.addLast(entry.item)
+        }
+        item.arrayOfTablesOrNull?.let { tables ->
+            parts.addAll(tables.keptHeaderLines)
+            tables.values.forEach(items::addLast)
+        }
+    }
+    return parts
+}
+
+private var Any.placement: Long?
+    get() = when (this) {
+        is StandardTable -> position
+        is KeptLines -> order
+        else -> null
+    }
+    set(value) {
+        when (this) {
+            is StandardTable -> position = value
+            is KeptLines -> order = value
+        }
+    }
+
+/** Gives the tables [copy] holds positions after every table of the document under [root], keeping their order. */
+internal fun placeAfterAll(
+    root: StandardTable,
+    copy: Item,
+) {
+    val last = placedParts(Item(root)).mapNotNull { it.placement }.maxOrNull() ?: 0L
+    val parts = placedParts(copy)
+        .filter { it.placement != null }
+        .sortedBy { it.placement }
+    for ((index, part) in parts.withIndex()) part.placement = last + 1 + index
+}
+
+/** Drops the positions [copy] brought from where it was read, so it prints where it is stored. */
+internal fun forgetPlacement(copy: Item) {
+    for (part in placedParts(copy)) part.placement = null
 }

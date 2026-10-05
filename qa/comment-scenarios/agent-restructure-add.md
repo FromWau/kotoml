@@ -1135,7 +1135,7 @@ x = 1 # x
 
 ### S-056: copying a table over a value key leaves the value's comment line in place
 rule: 2, 4   version: 1.0
-open: todo 29, a copied table prints where its source printed.
+settled: fixed 2026-10-05 (todo 29): a copy stored elsewhere in its document prints after the tables already there.
 ```toml input
 # about b
 b = 1 # b
@@ -1147,18 +1147,18 @@ x = 1 # x
 doc.set("b", doc["a"].getOrFail())
 ```
 ```toml expected
-# about b
 
 [a]
 x = 1 # x
 
+# about b
 [b]
 x = 1 # x
 ```
 
 ### S-057: copying an array of tables to a new key
 rule: 1, 9   version: 1.0
-open: todo 29, a copied table prints where its source printed.
+settled: fixed 2026-10-05 (todo 29): a copy stored elsewhere in its document prints after the tables already there.
 ```toml input
 [[x]] # first
 a = 1
@@ -1176,7 +1176,7 @@ a = 1
 [[x]] # second
 a = 2
 
-[[y]] # first
+[[y]]
 a = 1
 # between
 [[y]] # second

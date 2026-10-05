@@ -54,7 +54,7 @@ official toml-test runner for TOML 1.0 and 1.1.
    value, sorting, `isDotted` and `isImplicit`) and checks that every comment survives but those the rules above let
    go; `CommentScenariosTest` runs the 330 scenarios three QA agents wrote from these rules (`qa/comment-scenarios`),
    the firm ones byte for byte; `RemovalCommentScopeTest`, `RemovalKeepsCommentsTest`, `ReplacementCommentScopeTest`,
-   `HeaderCommentsTest`, `RemovalPropertyTest`. Gap: one case in heavy runs, an inline table put back into braces (todo 28).
+   `HeaderCommentsTest`, `RemovalPropertyTest`.
 
 ### Robustness
 

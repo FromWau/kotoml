@@ -107,7 +107,8 @@ internal fun encodeInlineTable(
         buf.append(kept)
         kept.clear()
         val inner = if (index == lastValue) DEFAULT_TRAILING_VALUE_DECOR else DEFAULT_VALUE_DECOR
-        val leafDecor = keyPath.last().rawLeafDecor
+        val keyDecor = keyPath.last().rawLeafDecor
+        val leafDecor = child.lineStart?.let { RawDecor(it, keyDecor.suffix) } ?: keyDecor
         encodeKeyPath(buf, keyPath, DEFAULT_INLINE_KEY_DECOR.first, DEFAULT_INLINE_KEY_DECOR.second, leafDecor)
         buf.append('=')
         encodeValue(buf, value, inner.first, inner.second)

@@ -160,6 +160,7 @@ public class Item private constructor(
     public fun assign(item: Item): EmptyResult<TomlEditError> {
         val within = owner?.let { copiesWithinDocument(item, it) } ?: false
         val next = item.content.deepCopy().placedIn(holds).also { if (within) it.leaveSource() }
+        if (within) owner?.let(::outermostTableOf)?.let { placeAfterAll(it, Item(next, Holds.Anything)) }
         refusal(next)?.let { return Err(it) }
         tooDeepToHold(item)?.let { return Err(it) }
         valuePlace?.let { place -> (next as? Content.ValueContent)?.value?.fitFor(place) }

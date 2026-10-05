@@ -187,11 +187,12 @@ internal class RawDecor(
 
     /**
      * Drops what a copy must not take from the place it was read in: the comment on its line, and for a table under
-     * a header the comment lines above that header and the comment after it. A decor a caller gave stays.
+     * a header the lines above that header, which take the default spacing of a new header, and the comment after
+     * it. A decor a caller gave stays.
      */
     fun dropReadComments(isHeader: Boolean) {
-        val before = prefix
-        if (isHeader && before != null && before.isRead && '#' in before.textOrNull.orEmpty()) prefix = null
+        // Read spacing, the empty spacing of a file's first header included, is the source's.
+        if (isHeader && (prefix?.isRead == true || prefix?.textOrNull == "")) prefix = null
         val after = suffix
         if (after != null && after.isRead && '#' in after.textOrNull.orEmpty()) suffix = null
     }

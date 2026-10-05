@@ -369,9 +369,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
 
         currentPosition += 1
         currentTable.rawDecor.assign(decor)
-        val prefix = decor.prefix
-        val nothingBefore = prefix == null || prefix.span?.length == 0 || prefix.textOrNull == ""
-        currentTable.opensFile = nothingBefore && currentPosition == 1L && root.visualValues().isEmpty()
+        currentTable.opensFile = currentPosition == 1L && root.visualValues().isEmpty()
         currentTable.isImplicit = false
         currentTable.setDotted(false)
         currentTable.position = currentPosition
