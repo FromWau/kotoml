@@ -50,7 +50,7 @@ class GetTest {
         filter: String,
         raw: Boolean = false,
         text: String = sample,
-    ): String = selection(filter, text).print(raw)
+    ): String = selection(filter, text).humanText(raw)
 
     private fun json(filter: String): String = Json.encodeToString(SelectionSerializer, selection(filter))
 
@@ -62,7 +62,7 @@ class GetTest {
     @Test
     fun `the root prints the comments and blank lines after the last item`() {
         assertEquals("a = 1\n\n# end", get(".", text = "a = 1\n\n# end\n"))
-        assertEquals("a = 1\r\n# end", get(".", text = "a = 1\r\n# end\r\n"))
+        assertEquals("a = 1\r\n# end\r", get(".", text = "a = 1\r\n# end\r\n"))
     }
 
     @Test
@@ -77,9 +77,14 @@ class GetTest {
     }
 
     @Test
-    fun `a result in a CRLF file ends its last line with a carriage return`() {
-        assertEquals("1\r", selection(".a", text = "a = 1\r\n").humanText(raw = false))
-        assertEquals("1", selection(".a", text = "a = 1\n").humanText(raw = false))
+    fun `a value in a CRLF file ends with a bare newline`() {
+        assertEquals("1\n", selection(".a", text = "a = 1\r\n").print(raw = false))
+        assertEquals("1\n2\n", selection(".a[]", text = "a = [1, 2]\r\n").print(raw = false))
+    }
+
+    @Test
+    fun `a table ends each line as the file does`() {
+        assertEquals("x = 1\r\ny = 2\n", selection(".t", text = "[t]\nx = 1\r\ny = 2\n").print(raw = false))
     }
 
     @Test
@@ -137,10 +142,9 @@ class GetTest {
     @Test
     fun `a table in a CRLF file prints with CRLF line endings`() {
         val text = "[t]\r\nc = 2\r\nd = 3\r\n\r\n[[s]]\r\nh = 1\r\n\r\n[[s]]\r\nh = 2\r\n"
-        assertEquals("c = 2\r\nd = 3", get(".t", text = text))
-        assertEquals("h = 1\r\n\r\nh = 2", get(".s[]", text = text))
-        assertEquals("[[s]]\r\nh = 1\r\n\r\n[[s]]\r\nh = 2", get(".s", text = text))
-        assertEquals("\r\n", selection(".t", text = text).lineEnding)
+        assertEquals("c = 2\r\nd = 3\r", get(".t", text = text))
+        assertEquals("h = 1\r\n\r\nh = 2\r", get(".s[]", text = text))
+        assertEquals("[[s]]\r\nh = 1\r\n\r\n[[s]]\r\nh = 2\r", get(".s", text = text))
     }
 
     @Test

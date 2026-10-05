@@ -9,7 +9,10 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 
-/** Why a kotoml command failed; `--json` prints it as it is. */
+/**
+ * Why a kotoml command failed; `--json` prints it as it is. An error in an input names it as `path`, `-` for
+ * standard input.
+ */
 @Serializable
 internal sealed interface AppError : IError {
     /** [path] could not be read; `-` is standard input. */
@@ -17,25 +20,42 @@ internal sealed interface AppError : IError {
     @SerialName("ReadFailed")
     data class ReadFailed(val path: String, val failure: ReadFailure) : AppError
 
-    /** The input is not TOML; [source] is kept to render the error, not to print it. */
+    /** The input at [path] is not TOML; [source] is kept to render the error, not to print it. */
     @Serializable
     @SerialName("InvalidToml")
-    data class InvalidToml(val error: TomlParseError, @Transient val source: String = "") : AppError
+    data class InvalidToml(
+        val path: String,
+        val error: TomlParseError,
+        @Transient val source: String = "",
+    ) : AppError
 
-    /** The input is not JSON; [position] is where the JSON parser stopped, when it said. */
+    /** The input at [path] is not JSON; [position] is where the JSON parser stopped, when it said. */
     @Serializable
     @SerialName("InvalidJson")
-    data class InvalidJson(val position: TextPosition?) : AppError
+    data class InvalidJson(
+        val path: String,
+        val position: TextPosition?,
+    ) : AppError
 
-    /** The JSON is not toml-test's tagged form at [path], for [reason]. */
+    /** The JSON at [path] is not toml-test's tagged form at the JSON path [at], for [reason]. */
     @Serializable
     @SerialName("NotTaggedJson")
-    data class NotTaggedJson(val path: String, val reason: TaggedJsonProblem) : AppError
+    data class NotTaggedJson(
+        val path: String,
+        val at: String,
+        val reason: TaggedJsonProblem,
+    ) : AppError
 
-    /** The JSON nests deeper than [limit] levels of objects and arrays, a tagged value's own object not counted. */
+    /**
+     * The JSON at [path] nests deeper than [limit] levels of objects and arrays, a tagged value's own object not
+     * counted.
+     */
     @Serializable
     @SerialName("JsonTooDeep")
-    data class JsonTooDeep(val limit: Int) : AppError
+    data class JsonTooDeep(
+        val path: String,
+        val limit: Int,
+    ) : AppError
 
     /** The filter does not parse: at [position], [expected] would have fitted. */
     @Serializable
@@ -106,14 +126,24 @@ internal enum class FilterExpected {
     PipeOrEnd,
 }
 
-/** The exit status for this error: 2 for a malformed invocation, 1 for an input that failed. */
+/** The exit status for a filter that found nothing where it looked. */
+internal const val NOTHING_FOUND_EXIT: Int = 3
+
+/** The exit status for this error: 2 for a malformed invocation, 3 for nothing found, 1 for an input that failed. */
 internal val AppError.exitCode: Int
-    get() = if (this is AppError.FilterSyntax) 2 else 1
+    get() = when (this) {
+        is AppError.FilterSyntax -> 2
+        is AppError.NoSuchKey, is AppError.NoSuchIndex -> NOTHING_FOUND_EXIT
+        else -> 1
+    }
+
+/** How an error names the input at [path]. */
+internal fun inputName(path: String): String = if (path == "-") "standard input" else path
 
 /** This error as a person reads it. */
 internal fun AppError.describe(): String = when (this) {
     is AppError.ReadFailed -> {
-        val name = if (path == "-") "standard input" else path
+        val name = inputName(path)
         when (failure) {
             ReadFailure.NotFound -> "$name: no such file"
             ReadFailure.IsADirectory -> "$name: is a directory"
@@ -121,11 +151,11 @@ internal fun AppError.describe(): String = when (this) {
             is ReadFailure.Io -> "$name: cannot read" + (failure.detail?.let { ": $it" } ?: "")
         }
     }
-    is AppError.InvalidToml -> rendered()
+    is AppError.InvalidToml -> "${inputName(path)}: ${rendered()}"
     is AppError.InvalidJson ->
-        "invalid JSON" + (position?.let { " at line ${it.line}, column ${it.column}" } ?: "")
-    is AppError.NotTaggedJson -> "not toml-test's tagged JSON at $path: ${reason.describe()}"
-    is AppError.JsonTooDeep -> "JSON nests deeper than $limit levels"
+        "${inputName(path)}: invalid JSON" + (position?.let { " at line ${it.line}, column ${it.column}" } ?: "")
+    is AppError.NotTaggedJson -> "${inputName(path)}: not toml-test's tagged JSON at $at: ${reason.describe()}"
+    is AppError.JsonTooDeep -> "${inputName(path)}: JSON nests deeper than $limit levels"
     is AppError.FilterSyntax -> buildString {
         append("invalid filter at character ${position + 1}, expected ")
         append(

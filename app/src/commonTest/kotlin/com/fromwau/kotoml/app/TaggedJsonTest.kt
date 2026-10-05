@@ -45,11 +45,11 @@ class TaggedJsonTest {
     @Test
     fun `untagged JSON is refused with where it was found`() {
         assertEquals(
-            Result.Error(AppError.NotTaggedJson("$.a", TaggedJsonProblem.Untagged)),
+            Result.Error(AppError.NotTaggedJson("-", "$.a", TaggedJsonProblem.Untagged)),
             parseTaggedJson("""{"a": 1}"""),
         )
         assertEquals(
-            Result.Error(AppError.NotTaggedJson("$.a[1]", TaggedJsonProblem.BadValue("integer", "x"))),
+            Result.Error(AppError.NotTaggedJson("-", "$.a[1]", TaggedJsonProblem.BadValue("integer", "x"))),
             parseTaggedJson("""{"a": [{"type": "integer", "value": "1"}, {"type": "integer", "value": "x"}]}"""),
         )
     }
@@ -65,7 +65,7 @@ class TaggedJsonTest {
         )
         for ((type, value) in mismatches) {
             assertEquals(
-                Result.Error(AppError.NotTaggedJson("$.a", TaggedJsonProblem.BadValue(type, value))),
+                Result.Error(AppError.NotTaggedJson("-", "$.a", TaggedJsonProblem.BadValue(type, value))),
                 parseTaggedJson("""{"a": {"type": "$type", "value": "$value"}}"""),
                 "$type with $value",
             )
@@ -102,21 +102,21 @@ class TaggedJsonTest {
     fun `JSON nested one level deeper than TOML reads is refused`() {
         val json = "{\"a\":" + "[".repeat(TomlDocument.NESTING_LIMIT + 1) +
             "{\"type\":\"integer\",\"value\":\"1\"}" + "]".repeat(TomlDocument.NESTING_LIMIT + 1) + "}"
-        assertEquals(Result.Error(AppError.JsonTooDeep(TomlDocument.NESTING_LIMIT + 1)), parseTaggedJson(json))
+        assertEquals(Result.Error(AppError.JsonTooDeep("-", TomlDocument.NESTING_LIMIT + 1)), parseTaggedJson(json))
     }
 
     @Test
     fun `empty arrays nested one level deeper than TOML reads are refused`() {
         val depth = TomlDocument.NESTING_LIMIT + 1
         val json = "{\"a\":" + "[".repeat(depth) + "]".repeat(depth) + "}"
-        assertEquals(Result.Error(AppError.JsonTooDeep(TomlDocument.NESTING_LIMIT + 1)), parseTaggedJson(json))
+        assertEquals(Result.Error(AppError.JsonTooDeep("-", TomlDocument.NESTING_LIMIT + 1)), parseTaggedJson(json))
     }
 
     @Test
     fun `empty tables nested one level deeper than TOML reads are refused`() {
         val json = "{\"a\":" + "{\"b\":".repeat(TomlDocument.NESTING_LIMIT) + "{}" +
             "}".repeat(TomlDocument.NESTING_LIMIT + 1)
-        assertEquals(Result.Error(AppError.JsonTooDeep(TomlDocument.NESTING_LIMIT + 1)), parseTaggedJson(json))
+        assertEquals(Result.Error(AppError.JsonTooDeep("-", TomlDocument.NESTING_LIMIT + 1)), parseTaggedJson(json))
     }
 
     @Test
@@ -140,7 +140,7 @@ class TaggedJsonTest {
         val limit = TomlDocument.NESTING_LIMIT
         val value = "{\"type\":\"integer\",\"value\":\"1\"}"
         val json = "{\"a\":" + "{\"k\":".repeat(limit) + value + "}".repeat(limit + 1)
-        assertEquals(Result.Error(AppError.JsonTooDeep(limit + 1)), parseTaggedJson(json))
+        assertEquals(Result.Error(AppError.JsonTooDeep("-", limit + 1)), parseTaggedJson(json))
     }
 
     @Test
@@ -155,7 +155,7 @@ class TaggedJsonTest {
     fun `a string holding half of a surrogate pair is refused at its path`() {
         val json = "{\"t\":{\"s\":{\"type\":\"string\",\"value\":\"a\\ud800\"}}}"
         assertEquals(
-            Result.Error(AppError.NotTaggedJson("$.t.s", TaggedJsonProblem.NotUnicode)),
+            Result.Error(AppError.NotTaggedJson("-", "$.t.s", TaggedJsonProblem.NotUnicode)),
             parsedOrFail(json).encodedText(),
         )
     }
@@ -169,7 +169,7 @@ class TaggedJsonTest {
     @Test
     fun `JSON nested far deeper is refused instead of crashing`() {
         val json = "{\"a\":" + "[".repeat(50_000) + "]".repeat(50_000) + "}"
-        assertEquals(Result.Error(AppError.JsonTooDeep(TomlDocument.NESTING_LIMIT + 1)), parseTaggedJson(json))
+        assertEquals(Result.Error(AppError.JsonTooDeep("-", TomlDocument.NESTING_LIMIT + 1)), parseTaggedJson(json))
     }
 
     @Test
@@ -180,7 +180,7 @@ class TaggedJsonTest {
     }
 
     private fun badValue(type: String, value: String): Result<TomlDocument, AppError> =
-        Result.Error(AppError.NotTaggedJson("$.a", TaggedJsonProblem.BadValue(type, value)))
+        Result.Error(AppError.NotTaggedJson("-", "$.a", TaggedJsonProblem.BadValue(type, value)))
 
     private fun scalar(type: String, value: String): Result<TomlDocument, AppError> =
         parseTaggedJson("""{"a": {"type": "$type", "value": "$value"}}""")
@@ -245,13 +245,13 @@ class TaggedJsonTest {
 
     @Test
     fun `a root that is not an object is refused at the root`() {
-        assertEquals(Result.Error(AppError.NotTaggedJson("$", TaggedJsonProblem.RootNotObject)), problem("[1]"))
+        assertEquals(Result.Error(AppError.NotTaggedJson("-", "$", TaggedJsonProblem.RootNotObject)), problem("[1]"))
     }
 
     @Test
     fun `an unknown type is named`() {
         assertEquals(
-            Result.Error(AppError.NotTaggedJson("$.a", TaggedJsonProblem.UnknownType("bogus"))),
+            Result.Error(AppError.NotTaggedJson("-", "$.a", TaggedJsonProblem.UnknownType("bogus"))),
             problem("""{"a":{"type":"bogus","value":"x"}}"""),
         )
     }
@@ -259,7 +259,7 @@ class TaggedJsonTest {
     @Test
     fun `a tagged value without a value is refused at its own key`() {
         assertEquals(
-            Result.Error(AppError.NotTaggedJson("$.a", TaggedJsonProblem.MissingValue)),
+            Result.Error(AppError.NotTaggedJson("-", "$.a", TaggedJsonProblem.MissingValue)),
             problem("""{"a":{"type":"string"}}"""),
         )
     }
@@ -267,7 +267,7 @@ class TaggedJsonTest {
     @Test
     fun `a value that is not a JSON string is refused at its own key`() {
         assertEquals(
-            Result.Error(AppError.NotTaggedJson("$.a", TaggedJsonProblem.ValueNotString)),
+            Result.Error(AppError.NotTaggedJson("-", "$.a", TaggedJsonProblem.ValueNotString)),
             problem("""{"a":{"type":"integer","value":5}}"""),
         )
     }
@@ -275,7 +275,7 @@ class TaggedJsonTest {
     @Test
     fun `an extra key beside type and value is named`() {
         assertEquals(
-            Result.Error(AppError.NotTaggedJson("$.a", TaggedJsonProblem.ExtraKey("extra"))),
+            Result.Error(AppError.NotTaggedJson("-", "$.a", TaggedJsonProblem.ExtraKey("extra"))),
             problem("""{"a":{"type":"string","value":"x","extra":1}}"""),
         )
     }
@@ -292,19 +292,25 @@ class TaggedJsonTest {
 
     @Test
     fun `the human text says where and what`() {
-        val error = AppError.NotTaggedJson("$.a", TaggedJsonProblem.BadValue("integer", "x"))
-        assertEquals("not toml-test's tagged JSON at $.a: \"x\" is not a valid integer", error.describe())
+        val error = AppError.NotTaggedJson("-", "$.a", TaggedJsonProblem.BadValue("integer", "x"))
+        assertEquals(
+            "standard input: not toml-test's tagged JSON at $.a: \"x\" is not a valid integer",
+            error.describe(),
+        )
     }
 
     @Test
     fun `invalid JSON is refused with the line and column where it broke`() {
-        assertEquals(Result.Error(AppError.InvalidJson(TextPosition(1, 2))), parseTaggedJson("{bad"))
-        assertEquals(Result.Error(AppError.InvalidJson(TextPosition(2, 7))), parseTaggedJson("{\n  \"a\" 1}"))
+        assertEquals(Result.Error(AppError.InvalidJson("-", TextPosition(1, 2))), parseTaggedJson("{bad"))
+        assertEquals(Result.Error(AppError.InvalidJson("-", TextPosition(2, 7))), parseTaggedJson("{\n  \"a\" 1}"))
     }
 
     @Test
     fun `invalid JSON reads as where it broke and nothing more`() {
-        assertEquals("invalid JSON at line 2, column 6", AppError.InvalidJson(TextPosition(2, 6)).describe())
+        assertEquals(
+            "standard input: invalid JSON at line 2, column 6",
+            AppError.InvalidJson("-", TextPosition(2, 6)).describe(),
+        )
     }
 
     @Test
