@@ -18,7 +18,6 @@ import com.fromwau.kotoml.TomlDocument
 import com.fromwau.kotoml.TomlVersion
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
-import kotlin.system.exitProcess
 
 private fun CommandBuilder.specOption() = option("--toml", help = "the TOML version to accept")
     .choice("1.0", "1.1")
@@ -108,8 +107,11 @@ private fun String.escapingControls(): String = buildString {
 }
 
 fun main(args: Array<String>) {
-    exitProcess(runKotoml(args.toList(), defaultTerminal()))
+    exitWith(runKotoml(args.toList(), defaultTerminal()))
 }
+
+/** Ends the process with [status]. */
+internal expect fun exitWith(status: Int): Nothing
 
 private val HELP_FLAGS = setOf("--help", "-h", "--help-all")
 
