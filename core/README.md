@@ -251,10 +251,14 @@ doc.version = TomlVersion.V1_0
 doc.toString() // "t = 07:32:00\n"
 ```
 
-Under TOML 1.0 a time prints with its seconds and a string or key spelled with `\e` or `\x` prints in its default
-spelling. What has no 1.0 form, an inline table across lines, with a comment or with a trailing comma, stays in
-the document and prints in `toString()`, but `writeTo` refuses it with `TomlWriteError.NotInToml10`, naming the key
-and the feature.
+Under TOML 1.0 a time without seconds prints with `:00`, in `toString()` as in `writeTo`. A string or key spelled
+with `\e` or `\x` prints in its default spelling, such as `\u001B` for `\e`, so `toString()` reads back as TOML 1.0,
+but `writeTo` refuses it with `TomlWriteError.NotInToml10`, naming the key and the escape. It refuses what has no 1.0
+form too, an inline table across lines, with a comment or with a trailing comma, which stays in the document and
+prints in `toString()` as it is.
+
+A table, array, inline table or value prints in its own `toString()` as its document prints it, in the document's
+version, and in TOML 1.1 when it is stored in no document, such as a value removed from one.
 
 ## Differences from `toml_edit`
 

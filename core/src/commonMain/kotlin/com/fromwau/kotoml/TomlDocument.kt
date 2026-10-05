@@ -66,8 +66,9 @@ public class TomlDocument internal constructor(
      *
      * Under [TomlVersion.V1_0] what TOML 1.1 added prints in its TOML 1.0 form where it has one: a time written without
      * seconds, such as `07:32`, prints as `07:32:00`, and a string or key spelled with a `\e` or `\x` escape prints
-     * in its default spelling. An inline table across lines, with a comment or with a trailing comma has none, and
-     * [writeTo] refuses it.
+     * in its default spelling, such as `\u001B` for `\e`. [writeTo] writes the time but refuses the escape, as it
+     * refuses an inline table across lines, with a comment or with a trailing comma, which has no TOML 1.0 form.
+     * The tables, arrays and values stored in the document print in its version in their own `toString()` too.
      *
      * ```kotlin
      * val doc = TomlDocument.parse("t = 07:32\n").getOrElse { error(it) }
@@ -226,14 +227,16 @@ public class TomlDocument internal constructor(
      * ```
      *
      * @return [TomlWriteError.NotInToml10], with nothing written, when the document's [version] is TOML 1.0 and it
-     *   holds what only TOML 1.1 reads; [TomlWriteError.NotUnicode] when the text holds half of a surrogate pair,
-     *   which UTF-8 cannot encode; or [TomlIoError] when the sink fails to take the text or is closed.
+     *   holds what only TOML 1.1 reads, a key or string spelled with a `\e` or `\x` escape among it;
+     *   [TomlWriteError.NotUnicode] when the text holds half of a surrogate pair, which UTF-8 cannot encode;
+     *   or [TomlIoError] when the sink fails to take the text or is closed.
      */
     public fun writeTo(sink: Sink): EmptyResult<TomlWriteError> {
         settleHeadersForDepth(root)
         tooDeepPathAtTop(root)?.let { return Err(TomlWriteError.TooDeep(it)) }
         if (version == TomlVersion.V1_0) root.toml11Only()?.let { return Err(it) }
-        val text = toString()
+        val (text, respelled) = printed()
+        respelled?.let { return Err(it) }
         if (text.hasLoneSurrogate()) return Err(TomlWriteError.NotUnicode(root.loneSurrogatePath()))
         return try {
             sink.write(text.encodeToByteArray())
@@ -247,15 +250,17 @@ public class TomlDocument internal constructor(
     }
 
     /** The document as TOML text. */
-    override fun toString(): String {
-        val text = render()
-        if (!withoutFinalNewline) return text
-        return text.removeSuffix("\n").let { if (it.length < text.length) it.removeSuffix("\r") else it }
-    }
+    override fun toString(): String = printed().first
 
-    private fun render(): String = buildString {
-        if (byteOrderMark) append(BYTE_ORDER_MARK)
-        encodeDocument(this, this@TomlDocument)
+    // The text, and where it printed a key or string in its TOML 1.0 spelling, which writing refuses.
+    private fun printed(): Pair<String, TomlWriteError.NotInToml10?> {
+        val buf = StringBuilder()
+        if (byteOrderMark) buf.append(BYTE_ORDER_MARK)
+        val respelled = encodeDocument(buf, this)
+        val text = buf.toString()
+        if (!withoutFinalNewline) return text to respelled
+        val trimmed = text.removeSuffix("\n").let { if (it.length < text.length) it.removeSuffix("\r") else it }
+        return trimmed to respelled
     }
 
     public companion object {
@@ -385,7 +390,9 @@ private fun Value.toml11Only(path: List<String>): TomlWriteError.NotInToml10? {
     // A dotted inline table prints as the parts of dotted keys, not in braces.
     if (this is Value.InlineTable && table.isDotted) return table.toml11Only(path)
     if (this !is Value.Array && this !is Value.InlineTable) return null
-    val text = buildString { encodeValue(this, this@toml11Only, "", "", RawDecor.EMPTY, TomlVersion.V1_0) }
+    val text = buildString {
+        encodeValue(this, this@toml11Only, "", "", RawDecor.EMPTY, PrintVersion(TomlVersion.V1_0))
+    }
     val parsed = Value.parse(text, TomlVersion.V1_0) as? Result.Error ?: return null
     val reason = parsed.error.reason as? TomlParseError.Reason.NotInToml10 ?: return null
     return TomlWriteError.NotInToml10(path, reason.feature)

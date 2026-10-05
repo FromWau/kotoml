@@ -87,6 +87,9 @@ internal fun outermostTableOf(container: Any): StandardTable? {
 /** The line ending of the document [container] is stored in, which the lines it adds end in; `\n` outside one. */
 internal fun lineEndingOf(container: Any): String = outermostTableOf(container)?.lineEnding ?: LINE_BREAK
 
+/** The TOML version of the document [container] is stored in, or TOML 1.1 when it is stored nowhere. */
+internal fun documentVersionOf(container: Any): TomlVersion = outermostTableOf(container)?.version ?: TomlVersion.V1_1
+
 private fun topNestingOf(container: Any): Nesting = when (container) {
     is StandardTable -> Nesting.InTable(parts = 0, dots = 0)
     is ArrayOfTables -> Nesting.InTables(parts = 1)
@@ -102,6 +105,8 @@ private fun slotOf(container: Any): Item? {
         is InlineTable -> container.holder
         is TomlArray -> container.holder
         is ArrayOfTables -> container.holder
+        is Value.String -> container.holder
+        is Value.Datetime -> container.holder
         else -> null
     }
     return slot?.takeIf { it.holdsContainer(container) && it.owner != null }
