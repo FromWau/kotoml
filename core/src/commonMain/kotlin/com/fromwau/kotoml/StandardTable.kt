@@ -795,8 +795,13 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         headerSpelling = other.headerSpelling
     }
 
-    /** The key/value pairs under this table, one per line, without its header or sub-tables. */
-    override fun toString(): String = buildString { encodeTableBody(this, this@StandardTable) }
+    /**
+     * The key/value pairs under this table, one per line, without its header or sub-tables, in its document's
+     * [TomlDocument.version] or else TOML 1.1.
+     */
+    override fun toString(): String = buildString {
+        encodeTableBody(this, this@StandardTable, documentVersionOf(this@StandardTable))
+    }
 
     internal companion object {
         fun withPosition(position: Long?): StandardTable = StandardTable().also { it.position = position }

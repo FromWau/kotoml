@@ -20,6 +20,9 @@ import com.fromwau.kotoml.InlineTable as TomlInlineTable
  *
  * [Array] and [InlineTable] wrap the containers, which change in place. To replace a value with a different
  * one, assign through the container that holds it.
+ *
+ * `toString()` prints a value in the [TomlDocument.version] of the document it is stored in, and in TOML 1.1 when it
+ * is stored in none.
  */
 public sealed interface Value {
 
@@ -37,6 +40,9 @@ public sealed interface Value {
         ) : this(Formatted.of(value)) {
             formatted.decor.set(decor)
         }
+
+        // The slot holding this value, whose document's version its spelling can depend on.
+        internal var holder: Item? = null
 
         /** The string. */
         public val value: kotlin.String
@@ -161,6 +167,9 @@ public sealed interface Value {
         ) : this(Formatted.of(value)) {
             formatted.decor.set(decor)
         }
+
+        // The slot holding this value, whose document's version its spelling can depend on.
+        internal var holder: Item? = null
 
         /** The date-time. */
         public val value: TomlDatetime
@@ -367,7 +376,14 @@ internal fun Value.resolveSpans(input: SourceText) {
 }
 
 /** The value as TOML, without its decor. */
-internal fun Value.display(): String = buildString { encodeValue(this, this@display, "", "", RawDecor.EMPTY) }
+internal fun Value.display(): String {
+    val version = when (this) {
+        is Value.Array -> documentVersionOf(array)
+        is Value.InlineTable -> documentVersionOf(table)
+        else -> documentVersionOf(this)
+    }
+    return buildString { encodeValue(this, this@display, "", "", RawDecor.EMPTY, PrintVersion(version)) }
+}
 
 // `key1 = value1`
 internal val DEFAULT_VALUE_DECOR: kotlin.Pair<String, String> = " " to ""

@@ -439,8 +439,10 @@ public class TomlArray() : Iterable<Value> {
         return copy
     }
 
-    /** The array as TOML, without its own decor. */
-    override fun toString(): String = buildString { encodeArray(this, this@TomlArray, "", "", RawDecor.EMPTY) }
+    /** The array as TOML, without its own decor, in its document's [TomlDocument.version] or else TOML 1.1. */
+    override fun toString(): String = buildString {
+        encodeArray(this, this@TomlArray, "", "", RawDecor.EMPTY, PrintVersion(documentVersionOf(this@TomlArray)))
+    }
 }
 
 /** An array of copies of [values], in order, keeping their formatting; see [toTomlArray]. */

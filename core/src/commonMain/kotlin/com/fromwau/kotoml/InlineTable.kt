@@ -409,7 +409,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
 
     // The comment a caller gave [value], which a table of key/value lines or one in TOML 1.0 cannot hold after it.
     private fun commentToKeep(value: Value): String {
-        val version = outermostTableOf(this)?.version ?: TomlVersion.V1_1
+        val version = documentVersionOf(this)
         return if (isDotted || version == TomlVersion.V1_0) "" else value.callerComment()
     }
 
@@ -635,9 +635,10 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         return copy
     }
 
-    /** The table as TOML, without its own decor. */
+    /** The table as TOML, without its own decor, in its document's [TomlDocument.version] or else TOML 1.1. */
     override fun toString(): String = buildString {
-        encodeInlineTable(this, this@InlineTable, "", "", RawDecor.EMPTY)
+        val version = PrintVersion(documentVersionOf(this@InlineTable))
+        encodeInlineTable(this, this@InlineTable, "", "", RawDecor.EMPTY, version)
     }
 }
 

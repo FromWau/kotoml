@@ -87,9 +87,12 @@ public class Item private constructor(
 
         fun adoptedBy(slot: Item) {
             when (this) {
-                is ValueContent -> {
-                    value.arrayOrNull?.holder = slot
-                    value.inlineTableOrNull?.holder = slot
+                is ValueContent -> when (value) {
+                    is Value.String -> value.holder = slot
+                    is Value.Datetime -> value.holder = slot
+                    is Value.Array -> value.array.holder = slot
+                    is Value.InlineTable -> value.table.holder = slot
+                    is Value.Integer, is Value.Float, is Value.Boolean -> Unit
                 }
                 is TableContent -> table.holder = slot
                 is ArrayOfTablesContent -> array.holder = slot
@@ -97,7 +100,9 @@ public class Item private constructor(
         }
 
         fun holds(container: Any): Boolean = when (this) {
-            is ValueContent -> value.arrayOrNull === container || value.inlineTableOrNull === container
+            is ValueContent -> value === container ||
+                value.arrayOrNull === container ||
+                value.inlineTableOrNull === container
             is TableContent -> table === container
             is ArrayOfTablesContent -> array === container
         }
@@ -354,7 +359,7 @@ public class Item private constructor(
      * only the comment on its header survives, after `}`.
      */
     private fun inlineValueOf(table: StandardTable): Value {
-        val version = owner?.let(::outermostTableOf)?.version ?: TomlVersion.V1_1
+        val version = owner?.let(::documentVersionOf) ?: TomlVersion.V1_1
         val headerComment = if (table.isDotted) "" else table.headerComment
         if (version == TomlVersion.V1_1 && table.holdsComments()) {
             val lineBreak = table.headerLineEnding ?: "\n"
@@ -371,7 +376,7 @@ public class Item private constructor(
      * lines too, keeping them as [inlineValueOf] does. Otherwise its comments inside go.
      */
     private fun arrayValueOf(array: ArrayOfTables): Value {
-        val version = owner?.let(::outermostTableOf)?.version ?: TomlVersion.V1_1
+        val version = owner?.let(::documentVersionOf) ?: TomlVersion.V1_1
         val lineBreak = array.firstOrNull()?.headerLineEnding ?: "\n"
         return Value.Array(array.copy().moveToTomlArrayKeepingComments(lineBreak, version == TomlVersion.V1_1))
     }
