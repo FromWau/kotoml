@@ -1337,3 +1337,346 @@ over `getOrNull() ?: …`.
 **Throws left in main code:** none on any input. Only internal can't-happen checks remain (two `checkNotNull`, the
 `SourceText.slice` `require`, now unreachable from a failed parse too), and the app's never-called
 `SelectionSerializer.deserialize`.
+
+### 79. 2026-10-04 20:44 - Entry 77's leftovers reproduced on `dev` (`8b456ed`)
+
+**Got:** throwaway probe tests in core and serialization (JVM; linuxX64 for the mantissa), and the native release
+binary for deep nesting. Probes deleted after.
+- **Reproduced:**
+  - Deep dotted keys in nested inline tables: `StackOverflowError` thrown on the JVM test thread from
+    `resolveSpans` (`Value.kt:361` / `InlineTable.kt:182` / `Item.kt:373` recursion). 20 inline levels of 78-part
+    keys (1560 levels, 3.2 KB) parse; 40 levels (3120, 6.5 KB) throw. The native binary's `check` and `get` pass at
+    78 x 78 (12.6 KB) on its 8 MB main stack. So "nothing throws on any input" (entry 78) is false on the JVM.
+  - Comments lost when replacing: `# about a` above `a.b = 1` goes when `doc["a"] = 5` (or `put`); both comments of
+    a two-line dotted key go. `doc["t"].assign(Item())` and `put("t", Item())` remove `[t]` and its `# about t`,
+    while removing keeps it (entry 20, case 3); replacing `[t]` with a value keeps it.
+  - Emptied map: `encodeInto` with an empty `Map` over `# about b\nm.b = 1` prints `m = {}` and drops the comment.
+    Core's own `remove` of the last dotted key keeps it, as does the `[m]` header form.
+  - `Item.set(0, dottedTable)` on an array of tables: `isDotted` stays true; prints `[[a]]\ny = 2` correctly.
+  - Stale handle: after `doc["t"].makeValue()`, writes through the old `StandardTable` land in a detached table.
+  - A float below `Float`'s range: `1e-50` and `1e-46` decode to `0.0`, `-1e-50` to `-0.0`; `1e50` is `OutOfRange`.
+- **Not reproduced:**
+  - 1M-digit mantissa on native: `1` + 1M zeros `e-1000000` and `0.` + 999999 zeros + `1e1000000` read `1.0` on
+    linuxX64 as on the JVM.
+  - `{ a = [1, 2] , b = [1] }` plus `c = 3` prints `{ a = [1, 2] , b = [1] , c = 3 }`, the written ` ,` style
+    carried on. NOT YET CLEAR what entry 77 meant as wrong here.
+- **New:** `makeValue()` on `[t]\nx = 1` prints `t= { x = 1 }`, no space before `=`.
+
+### 80. 2026-10-04 20:52 - RESOLVES entry 79's deep nesting: one limit for brackets and dots (owner)
+
+**Got:** `8ffb1cd` on `dev`. `ParseContext.nesting` counts each enclosing array or inline table and each dot of
+the keys leading to a value. A key reaching the limit is `KeyTooDeep` at the key, and a bracket past it is
+`RecursionLimit` at the bracket. Each kind alone keeps upstream's boundary (80 brackets read, 80 dots refused).
+78 x 78 is now refused, not a `StackOverflowError`. Five tests in `NestingLimitTest`; a PARITY row. Clean build
+green: core 1298, serialization 424, app 140; toml-test 1.0 and 1.1 all pass.
+
+**Not checked:** whether `encode` can now print an inline table that `decode` refuses (the same class as entry 44's
+gap); the encoder suite passes.
+
+### 81. 2026-10-04 21:09 - RESOLVES entry 79's lost comments on replace and the emptied map (owner rule)
+
+**Rule (owner):** a comment is dropped only when it is inside the structure whose key is removed or changed.
+
+**Got:** `1e2931d` on `dev`. A `KeyValue` now knows its `KeyValuePairs` (`pairs`), and the pairs know their table's
+removal routine (`keepLinesOfRemoved`). `KeyValue.takeLinesAbove(next)`, used by `put` and `Item.assign`:
+- an empty `next` keeps what `remove` keeps;
+- a header keeps its lines (as before);
+- dotted-key lines: those above the first line go above the new item (through the key's prefix when it is a header,
+  so the header's blank line stays above them), those above later lines stay in place as kept lines.
+`encodeInto` emptying a dotted map follows through core. 8 tests in `ReplacementCommentScopeTest`, 1 in
+`EncodeIntoFixesTest`, a PARITY row. Clean build green: core 1314, serialization 426, app 140; toml-test passes.
+
+**Known quirk:** a key emptied and written again prints above the comment it had, since emptying hands that comment to
+the next line, as `remove` does, while the slot keeps its place.
+
+**My miss:** two test names with a comma again; the native compile caught them (entry 77's gotcha).
+
+### 82. 2026-10-04 21:31 - Comments are kept on set and remove; supersedes entry 20's case 2 (owner)
+
+**Decided by the owner:** comments and formatting are kept almost always. They are dropped only between the items of
+a list (array of tables): the comment above the first `[[x]]` and the trailing comment after the last stay,
+those between elements go. Measured: `remove`, replacing with a value and replacing with a new array of tables
+already do that. A key's same-line comment stays on `set` and on `remove`.
+
+**Got:** `2236040` on `dev`.
+- `set` / `put` / `assign` of a value over a value: the new value takes the old one's decor on each side it leaves
+  at the default (`RawDecor.fillDefaultsFrom`), as `encodeInto` and `TomlArray.replace` already did. A value with
+  its own `Decor` keeps it. Side effect: the value's spacing survives too (`=   2`); three tests changed.
+- `remove` of a `key = value` line keeps its comment as a line of its own at the line's indentation
+  (`VisualValue.commentOnLine`). Reverses entry 20 case 2; `RemovalPropertyTest`'s oracle now keeps the comment;
+  upstream's `test_remove_value` keeps `# please` (PARITY row).
+- Clean build green before the last two tests: core 1314, serialization 426, app 140, toml-test all pass; with them
+  core 1318 on JVM and linuxX64.
+
+**Left as is, NOT YET ASKED:** a same-line comment on a removed array element or inline-table entry still goes
+(entry 20 case 10), as does a removed header's `[t] # comment`. Array elements are list items under the owner's
+rule; a header line's comment is not covered by it.
+
+### 83. 2026-10-04 21:37 - Corrects entry 82: removing a key drops the comment on its line (owner)
+
+**Decided by the owner:** removing a key with a same-line comment drops the comment too; entry 20 case 2 stands.
+Only `set` / `put` / `assign` keep it.
+
+**Got:** the removal half of `2236040` is reverted (`StandardTable`, `KeptLines`, the removal tests and the
+property oracle restored from `1e2931d`), and the commit amended to `41514af`, so `dev` never
+carries the reversed rule. Clean build green: core 1318, serialization 426, app 140; toml-test passes.
+
+**Still open:** the empty-then-rewrite order (entry 81), and header-line comments on replace (`[t] # about t` set
+to a value drops it).
+
+### 84. 2026-10-04 22:52 - An Item is never empty; indexing returns a typed Result (owner)
+
+**Decided by the owner:** no `Item::None`. Three ways to delete a key (`remove`, writing `Item()`, `assign(Item())`)
+and a hidden entry that kept the key's place were the cost. `get`/`set` stay operators; `doc["a"]["b"]` is
+`Result<Item, TomlEditError>` and stops at the first missing key with `NotFound(key)`; writing below a missing key
+creates nothing (write each level); reads end with `getOrNull()` / `getOrElse`; tests use `getOrFail()`.
+
+**Got:** `2aaf242` and `d16ba39` on `dev`.
+- `Item()`, `Content.None`, `isMissing`, the detached placeholders and every hidden-entry filter are gone.
+  `ItemResult.kt` holds `get`/`set` on the `Result`. `TomlEditError.NotFound(key)` is new on the wire.
+- `Table.putItem` returns `Item?`: with no empty item it cannot fail.
+- Five ported tests that wrote through missing keys now write each level, same output; PARITY records it.
+  11 empty-item tests deleted; `IndexingTest` (9) added.
+- About 200 test reads got `.getOrFail()` at the compiler-reported positions by a script; it misplaced 4 on
+  nullable collection getters, fixed by hand.
+- Cleanup pass: unused imports, a false "remove is the only way to delete" (retainAll/removeAll/clear also do).
+- Clean build green: core 1314, serialization 426, app 140; toml-test 1.0 and 1.1 pass. serialization and app
+  needed no change.
+
+**Left alone:** `KeyValue.pairs` stays nullable, since `EditParser.kt:322` builds a throwaway `KeyValue`.
+`InlineTable`, `TomlArray` and `ArrayOfTables` keep nullable collection-style `get`.
+
+### 85. 2026-10-04 23:13 - A builder DSL: buildTomlDocument and doc.edit (owner)
+
+**Decided by the owner:** one DSL for building and editing; `"key" to value`; `table(name)` creates a missing table;
+`edit` all or nothing, accepting that an `Item` taken before a successful edit is detached afterwards.
+
+**Got:** `68ec473` on `dev`. `TomlDsl.kt`: `@TomlDsl`, `KeyedScope` (the `to` overloads once),
+`TableScope`, `InlineTableScope`, `ArrayScope`, `ArrayOfTablesScope`; `TomlEditError.TypeMismatch(key, expected,
+found)`; `StandardTable.takeStateOf` moves the edited copy's state into the live root. A failing block stops through a
+private `EditAborted` caught only at the two entry points. A created table that holds only tables is implicit, so
+`[tool.poetry]` prints without an empty `[tool]`; an empty one prints its header. 13 tests in `TomlDslTest` and a
+README mirror; all passed on the first run against expectations written before running. Clean build green: core
+1342, serialization 426, app 140; toml-test passes.
+
+**Measured:** `"k" to listOf(1)` is a compile error with the deprecation message; `mapOf("a" to 1)` inside a block is
+also a compile error (the builder's `to` returns Unit), never a silent wrong value.
+
+**Out of scope:** editing an existing `[[x]]` element by index from the DSL (`table {}` only appends);
+standalone `buildStandardTable` / `buildTomlArray`.
+
+### 86. 2026-10-04 23:31 - RESOLVES entry 79's open bugs and the tiny-float ruling (owner: refuse)
+
+**Got:** `0f863ac` on `dev`. Clean build green: core 1346, serialization 430, app 140; toml-test passes.
+- `makeValue` calls `KeyValue.prepareFor`, so `[t]` becomes `t = { x = 1 }`. Two ported upstream tests
+  (`table_into_inline`, `array_of_tables_to_array`) and one kotoml test pinned `table= {`; changed, PARITY row.
+- `makeValue` converts a copy: a `StandardTable` taken earlier keeps its content and is detached, as after `remove`.
+  Writes through it reaching the inline table would have let a table into an inline table. The test that pinned a
+  slot taken before `makeValue` staying attached is deleted.
+- `Item.assign` into an array-of-tables slot clears `isDotted`. The rule moved from `ArrayOfTables.slotOf`
+  (deleted) into `Item.Content.placedIn`, used by `inArrayOfTables` and `assign`.
+- serialization `decodeFloat`: a non-zero value that rounds to `0f` is `OutOfRange`; `0.0`, `-0.0` and
+  `1.4e-45` (`Float.MIN_VALUE`) still read.
+
+### 87. 2026-10-04 23:32 - Corrects entry 86's commit: amended to `8740463`
+
+**Got:** wrapping a 121-column line exposed two comments in the ported `makeValue` tests explaining `table=` as
+upstream's unformatted key, which described the fixed bug; both deleted and the commit amended. `EditTest` green.
+
+### 88. 2026-10-05 01:15 - Three-reviewer QA pass against GOALS.md, and the round that followed
+
+**Got:** three read-only reviewers (correctness, robustness, API and docs) audited the whole codebase against
+GOALS.md, each in its own worktree. Their worktrees started at "Initial commit", not at `dev`; each reset itself
+after one noticed (lesson: check a worktree's HEAD before trusting a subagent's review). 24 items went to `todo.md`;
+the owner ruled deliberate misuse out of scope (GOALS.md, memory `no-deliberate-misuse`) and enforced D2, D3, D4, D6.
+
+**Fixed, each with tests, gate green** (core 1404, serialization 450, app 150, toml-test 1.0 and 1.1):
+`b720877` array-of-tables header spelling; `9785a53` CLI encode depth and lone surrogates; `f9b8f09` encodeInto
+numbers; `f499638` multi-line append layout; `43555b1` inline closing space; `4d2de15` kept comment vs new table;
+`e8fbb13` reorder blank lines (owner flipped two approved expectations); `752c476` BOM column (two upstream
+snapshots regenerated); `528309c` EINTR; `ac82508` arrays store copies; `030ed99`/`988cf20` TooDeep in
+serialization and `writeTo`; `1d43124` lone surrogate parse error; `27a3ec7` empty tables keep their key;
+`4877b66`, `79698fc`, `f2a0996` docs and wire-schema pinning.
+
+**My misses:** two test expectations miscounted (CLI depth, trailing comma), a KDoc example set that three probes
+contradicted, an unmeasured U+FFFD claim written into PARITY, and `serializer<Enum>()` that only the native build
+showed does not work there.
+
+**Open:** todo 18 (PARITY rows without a test), candidates 21-25.
+
+### 89. 2026-10-05 02:19 - Todo 25: a depth limit enforced when storing
+
+**Wanted:** the owner's ruling "add a limit and if we reach that depth we error", enforced from the root: a store
+that would nest past `NESTING_LIMIT` fails with a typed error, so no built tree can overflow printing or copying.
+
+**Got:** parent links (content learns its slot, slots their container, stale links detected by identity) and one
+iterative walker (`Nesting.kt`) that `writeTo` and every store share. `TomlEditError.TooDeep(keyPath)`; every
+storing call, the `…Of` builders and the inline conversions return a `Result`. Three things the compiler did not
+show:
+- statement-form stores compile silently and drop the new result. Grepping for them found the CLI's tagged JSON
+  reader and `Output` would have silently lost content, and `Item.set` discarded its table's error;
+- the reader's own copy of the depth rule became redundant once stores enforce it, so it went;
+- my first verdict claimed no tree could grow without end. Public `isDotted` broke that: dotted tables added under
+  a full header and then turned into headers stack forever. A dotted table now counts the header parts above it,
+  which is the parser's rule anyway. Caught while writing the verdict, with a test that fails under the old rule.
+
+**Severity:** detour, about an hour of compiler-driven call-site updates (≈80 test sites, scripted, then by hand
+where the script unwrapped at the wrong place).
+
+**Doing:** scalar `TomlArray.add` keeps returning `Unit`, since it cannot nest (a deviation from the plan, which
+listed every `add`). The serialization writer unwraps with an internal check: its encoder refuses models one level
+short of the limit, so a store there cannot fail.
+
+### 90. 2026-10-05 03:12 - Goal 3's property test over all edits found six bugs at once
+
+**Wanted:** close goal 3's gap: random sequences of public edits over every valid toml-test file and hand-written
+documents, each step's output read back and compared as data (`toTagged`).
+
+**Got:** 210 failures on the first run, from six causes:
+- an emptied array of tables printed nothing, so its key vanished (owner: print `key = []`, checked live with
+  `tomllib`; `x = []` followed by `[[x]]` is invalid, so the empty form must only print while it is empty);
+- a value copied out of a multi-line array kept its newline prefix (`key =\n value`), and a value with a same-line
+  comment kept it inside brackets;
+- three print-order bugs in `Encode.kt`: an element's copied descendants sorted ahead of its `[[header]]`, a new
+  table with nothing to anchor fell to position 0, and anchors were copied at walk time while a later pass reshuffled
+  slots (ties included);
+- a dotted inline table on table lines (public `isDotted`) kept the lines above a removed key with the brace rule,
+  leaving a lone `\r` under CRLF.
+
+**Severity:** detour; the cut-down needed a part dump of the print order twice.
+
+**Doing:** fixed all six; `EditOutputTest` pins five from minimal reproductions (each fails on the old code), and the
+property test replays the seeds behind the other two. Two hand-built "reproductions" passed on the old code and were
+dropped rather than kept as tests that pin nothing. Filed todo 26: nested inline tables made dotted drop the comment
+above them, which reads back fine, so a data check cannot see it (goal 4).
+
+### 91. 2026-10-05 03:40 - Todo 26 was wider than filed: one inline table made dotted already lost its comment
+
+**Wanted:** fix todo 26 (nested inline tables made dotted drop the comment above them).
+
+**Got:** a probe without any edit after the flip showed the single-level case fails too: a `key = value` line takes
+its leading text from its last key, and an inline table's keys hold the spacing inside its braces (`" "`), so the
+comment on the holding key never printed and a stray space did. Fixed at print time (`VisualValue.lineStart`), so
+it holds however the table became dotted; removal and replacement use the same conversion
+(`linesAboveOnTableLines`).
+
+**Severity:** paper cut once probed; the todo's framing ("nested", "next edit") came from the cut-down in entry 90
+and was narrower than the bug.
+
+**Doing:** the TOML 1.1 multi-line case with comments between entries is filed as todo 27 rather than widened into
+this fix.
+
+### 92. 2026-10-05 10:40 - Goal 4's comment property test: header comments had nowhere to go
+
+**Wanted:** a property for goal 4: comment-keeping edits (adds, value-for-value replacements, value removals, sorts,
+`isDotted`/`isImplicit`) lose no comment but a removed value's own.
+
+**Got:** 184 failures at first, from two causes: an inline table made dotted dropped the comment after its `}`, and a
+header that stopped printing (made dotted, or hidden as implicit) dropped the comments above it and on its line.
+Owner chose "follow the content": above the first dotted line (the header comment ends it, or takes its own line when
+the line has a comment), and where the header stood when hidden or when the dotted table has only sub-tables.
+
+**My misses on the way:** my "a dotted table's lines print with its parent" rule also caught array-of-tables elements
+and the root, which `EditPropertyTest` caught as data loss; an empty dotted table's comments printed twice; blank
+lines above a never-real header printed (`VisitExampleTest`). TOML 1.1 multi-line inline tables (todo 27) also
+needed removal to stay in the braces' shape rather than use the dotted-key rule.
+
+**Doing:** fixed and pinned (`HeaderCommentsTest`, failing on the old code); todo 27 closed. Heavy runs still find a
+long tail after repeated flips and nested dotted inline tables: todo 28, not chased now.
+
+### 93. 2026-10-05 - Corrects entry 92 and my explanation of the doubled "# about b"
+
+**Wanted:** explain to the owner why a second `# about b` appeared in a heavy-run case.
+
+**Got:** I first explained it as a comment living inside the dotted table `t`. Replaying the seed step by step showed
+otherwise: removing `b` moved its comment onto `t`'s key, correctly, and my printer change from `87a0439` printed it
+twice, once as `t`'s header comments and once as the line's own key's lines, since an emptied table's line sits under
+its own key. The same double count I had fixed for inline tables, missed in its twin.
+
+**Severity:** detour; a confident wrong explanation reached the owner before the replay.
+
+**Doing:** fixed and pinned in `HeaderCommentsTest`; also `t= {}` now takes the default spacing. Owner ruled that an
+`isDotted` change gives a table a new layout (comments may go, but for the lines above its key), for inline and
+standard tables; the test encodes it, nested keys' lines above are now carried, and a heavy run is down to one case
+(todo 28). Lesson: replay before explaining a property-test failure.
+
+### 94. 2026-10-05 - Three QA agents wrote 330 comment scenarios; 17 firm ones failed
+
+**Wanted:** an independent spec of comment behaviour: three agents, each with the rules and the API but not the code
+or tests, wrote input, edit and expected output; a generator (`qa/tools/gen.py`) turns them into one test.
+
+**Got:** 262 of 330 matched at once, none threw or printed invalid TOML. Of 17 firm differences, 7 were kotoml bugs
+(array insert/append/remove layout, a CRLF closing line, an emptied `[[x]]`'s comment, `makeValue` on a dotted
+table), 4 were rulings the owner then made (Q1 to Q4, two overturning pins from earlier sessions), and the rest were
+expectations to correct or open questions. Two agents found the emptied-array placement independently.
+
+**Severity:** detour; my report viewer read CRLF files in text mode and hid the very difference one case was about.
+
+**Doing:** fixed all seven; the property tests caught one of my fixes (first-element removal deleting a comment). 45
+open scenarios still differ and wait for owner rulings, grouped.
+
+### 95. 2026-10-05 - Owner rulings Q1 to Q4 on the open scenarios; my habit of running only core bit again
+
+**Got:** owner chose: an emptied array of tables' comment moves with its new line (Q1), a new header's blank line
+goes above its comment (Q2), content added to a comment-only file goes below the comments (Q3), a copy takes only
+the comments inside it (Q4). Q3: the parser now keeps such a file's text as the document's head. Q4 needed a way to
+tell text read from a file from text a caller gave (`KeptText` read state) and then a narrower scope: only copies
+within the same document, not reorders inside an array (the `encodeInto` merge) or copies into another document
+(the CLI's `get`).
+
+**My miss:** I iterated on core's JVM tests only; the full build showed 8 serialization and app failures from Q4.
+The property tests also caught a head without a final newline swallowing the next key, and the BOM sharing the
+head.
+
+**Doing:** fixed; scenarios settled with their rulings; todo 29 filed for copied tables printing at their source's
+position. Lesson: run every module's tests before calling a behaviour change done.
+
+### 96. 2026-10-05 - Owner rulings Q5 to Q8; layout changes drop comments in the model, not at print time
+
+**Got:** Q5 (a new layout keeps the lines above the key and each value's same-line comment, drops the rest), Q6
+(makeValue keeps value comments in a multi-line inline table in TOML 1.1, else one line with the header comment
+after `}`; documents now remember the version they were read as), Q7 (a table replacing a table keeps its header
+comment), Q8 (new elements below a closing comment line). Q5 overturned the earlier "follow the content" choice, so
+seven `HeaderCommentsTest` pins and seven firm scenarios changed with it.
+
+**Doing:** the `isDotted` setters now drop the comments for the new layout in the model; reading and copying set the
+flag through internal setters with no side effects. The property tests caught two over-reaches on the way: dropping
+lines kept from removed keys, and dropping the comment above an interleaved dotted line (the Q2 run rule applies).
+S-075, the owner's own earlier example, now prints `t.u.k = 1 # one`: Q5 keeps `# one` and drops `# open u`, unlike
+the output the owner called correct before; flagged in the report.
+
+### 97. 2026-10-05 - Owner rulings Q9 to Q11 kept today's behaviour; one bug surfaced while settling
+
+**Got:** owner chose today's behaviour for removing elements one by one (each keeps the lines above its header),
+appending before an end-of-file comment, and a comment after an empty table belonging to what follows. Settling
+S-042 showed a new element of an emptied array printed above the comment kept from the removed one; the printer now
+anchors elements made by hand after the lines kept from the array's removed elements.
+
+**Doing:** 263 scenarios firm and passing, 65 open ones pass (kotoml matches the agent's guess), 2 open differ (todo
+29, copied table order). S-075's question to the owner (Q5 against their earlier example) is unanswered; Q5 stands.
+
+### 98. 2026-10-05 - The owner stepped through the last 65 open scenarios; two rule changes
+
+**Got:** the owner confirmed 63 as kotoml prints them and changed two things: sorting keeps blank lines and the
+comment block heading a file in place (S-046, S-050), and the header that opened a file gets a blank line once
+key/value lines print above it (S-014). The owner asked to see before and after TOML for every case, not one
+example per theme; showing all of them made each batch quick to confirm.
+
+**My miss:** my first S-014 fix gave a file's first header default spacing in the parser, which also added blank
+lines when such a header moved (reversed arrays of tables, copies into other documents) and doubled a blank line
+under a caller-set document head. Narrowed to a parse-time mark and a print-time rule for the first header below
+root key/value lines.
+
+**Doing:** 328 of 330 scenarios firm and passing; S-056 and S-057 stay open for todo 29.
+
+### 99. 2026-10-05 - Todo 29 fixed; its heavy run found an older bug that also closed todo 28
+
+**Got:** copies stored elsewhere in their document now print after the existing tables with default header
+spacing (S-056, S-057; all 330 scenarios firm). A rule for "a header that now prints first drops its read blank
+line" broke `RemovalPropertyTest`'s byte-exact removal and pinned EditTest ordering, so it was dropped. The heavy
+comment sweep then showed 32 losses: a nested inline table made dotted inside braces lost the comment ending the line
+before it, stored on its key, because inline-table lines start with the last key's spacing. Masked until Q5 removed
+the comment that used to print in that spot. Fixed with the line-start rule the table-lines case already had; it also
+fixed todo 28's last case.
+
+**Lesson:** rerun the heavy property sweeps after every rule change, not only the default sizes.
