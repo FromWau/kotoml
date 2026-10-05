@@ -342,8 +342,9 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
      * spelling and its decor. Pass a [Key] to replace those. A new key is spaced like the entries already there.
      *
      * A comment in [value]'s decor suffix, such as `Decor(suffix = " # note")`, puts a table on one line on lines of
-     * its own, one entry per line, and prints after the value's comma. TOML 1.0 has no comments inside an inline
-     * table, so in a document whose [TomlDocument.version] is 1.0 the comment is dropped.
+     * its own, one entry per line, and prints after the value's comma, in place of the comment that stood there. The
+     * lines it adds end as the document's lines do, in `\r\n` in a document read with them. TOML 1.0 has no comments
+     * inside an inline table, so in a document whose [TomlDocument.version] is 1.0 the comment is dropped.
      *
      * @return the value [key] held before, or null when it held none; or [TomlEditError.TooDeep], storing nothing,
      *   when [value] would nest deeper than the parser reads.
@@ -393,8 +394,9 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     ): Value? {
         val isNew = !items.containsKey(key.name)
         if (comment.isNotEmpty() && printsOnOneLine()) {
-            spreadOverLines()
-            if (isNew && key.rawLeafDecor.prefix == null) key.rawLeafDecor.prefix = KeptText.from(LINE_BREAK + INDENT)
+            val lineBreak = lineEndingOf(this)
+            spreadOverLines(lineBreak)
+            if (isNew && key.rawLeafDecor.prefix == null) key.rawLeafDecor.prefix = KeptText.from(lineBreak + INDENT)
             value.rawDecor.suffix = KeptText.from("")
         }
         if (isNew) {
@@ -414,29 +416,35 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     }
 
     // One entry per line, indented, as a comment after a value needs.
-    private fun spreadOverLines() {
+    private fun spreadOverLines(lineBreak: String) {
         for (line in visualValues()) {
-            line.path.last().rawLeafDecor.prefix = KeptText.from(LINE_BREAK + INDENT)
+            line.path.last().rawLeafDecor.prefix = KeptText.from(lineBreak + INDENT)
             line.value.rawDecor.suffix = KeptText.from("")
         }
         trailingComma = false
-        rawTrailing = KeptText.from(LINE_BREAK)
+        rawTrailing = KeptText.from(lineBreak)
     }
 
-    // A comment after a value holds the start of the next entry's line, or of the closing line, after the comma.
+    // A comment after a value holds the start of the next entry's line, or of the closing line, after the comma, in
+    // place of the comment that stood there.
     private fun putCommentAfter(
         value: Value,
         comment: String,
     ) {
+        val lineBreak = lineEndingOf(this)
         val lines = visualValues()
         val next = lines.getOrNull(lines.indexOfFirst { it.value === value } + 1)
         if (next == null) {
-            rawTrailing = KeptText.from(comment + trailing.let { if ('\n' in it) it else LINE_BREAK + it })
+            // A last value kept from the text holds the rest of its line, the comment to replace included.
+            val rest = value.rawDecor.suffix?.textOrNull?.takeIf { '\n' in it }
+            if (rest != null) value.rawDecor.suffix = KeptText.from("")
+            val text = rest.orEmpty() + trailing
+            rawTrailing = KeptText.from(text.withCommentEndingLine(comment, lineBreak, text))
             return
         }
         val decor = next.path.last().rawLeafDecor
         val start = decor.prefix?.textOrNull.orEmpty()
-        decor.prefix = KeptText.from(comment + if ('\n' in start) start else LINE_BREAK + INDENT)
+        decor.prefix = KeptText.from(start.withCommentEndingLine(comment, lineBreak, INDENT))
     }
 
     // A new entry is spaced around `=` like the last one, and on one line after its comma like it too.

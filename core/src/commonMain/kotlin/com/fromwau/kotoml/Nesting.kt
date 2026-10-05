@@ -81,6 +81,9 @@ internal fun outermostTableOf(container: Any): StandardTable? {
     return current as? StandardTable
 }
 
+/** The line ending of the document [container] is stored in, which the lines it adds end in; `\n` outside one. */
+internal fun lineEndingOf(container: Any): String = outermostTableOf(container)?.lineEnding ?: LINE_BREAK
+
 private fun topNestingOf(container: Any): Nesting = when (container) {
     is StandardTable -> Nesting.InTable(parts = 0, dots = 0)
     is ArrayOfTables -> Nesting.InTables(parts = 1)

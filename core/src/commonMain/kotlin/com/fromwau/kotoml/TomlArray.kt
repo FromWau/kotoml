@@ -98,7 +98,8 @@ public class TomlArray() : Iterable<Value> {
      * elements already have.
      *
      * A comment in [value]'s decor suffix, such as `Decor(suffix = " # note")`, puts an array on one line on lines of
-     * its own, one element per line with a comma after each, and prints after the new element's comma.
+     * its own, one element per line with a comma after each, and prints after the new element's comma. The lines it
+     * adds end as the document's lines do, in `\r\n` in a document read with them.
      *
      * @return [TomlEditError.TooDeep], storing nothing, when [value] would nest deeper than the parser reads.
      */
@@ -106,21 +107,41 @@ public class TomlArray() : Iterable<Value> {
         tooDeepError(this, null, Item(value))?.let { return Err(it) }
         val comment = value.callerComment()
         val stored = value.copyFor(ValuePlace.Array)
-        if (comment.isNotEmpty() && printsOnOneLine()) {
-            spreadOverLines()
-            if (stored.decor.prefix == null) stored.rawDecor.prefix = KeptText.from(LINE_BREAK + INDENT)
-        }
+        if (comment.isNotEmpty()) spreadForComment(stored)
         if (stored.decor.prefix == null) {
             leaveLastLineForComma()
             startOwnLine(stored)
         }
         if (stored.decor.prefix == null) takeSpacingOfLast(stored)
         append(stored)
-        if (comment.isNotEmpty()) {
-            trailingComma = true
-            trailing = comment + trailing.let { if ('\n' in it) it else LINE_BREAK + it }
-        }
+        if (comment.isNotEmpty()) putCommentAfter(stored, comment)
         return Ok(Unit)
+    }
+
+    // A comment after an element needs one element per line; [value], going in, starts a line when it has no prefix.
+    private fun spreadForComment(value: Value) {
+        if (!printsOnOneLine()) return
+        val lineBreak = lineEndingOf(this)
+        spreadOverLines(lineBreak)
+        if (value.decor.prefix == null) value.rawDecor.prefix = KeptText.from(lineBreak + INDENT)
+    }
+
+    // A comment after an element ends its line after the comma, so it starts the next element's prefix or the text
+    // before `]`, in place of the comment that stood there.
+    private fun putCommentAfter(
+        value: Value,
+        comment: String,
+    ) {
+        val lineBreak = lineEndingOf(this)
+        val printed = printedValues()
+        val next = printed.getOrNull(printed.indexOfFirst { it === value } + 1)
+        if (next == null) {
+            trailingComma = true
+            trailing = trailing.withCommentEndingLine(comment, lineBreak, trailing)
+            return
+        }
+        val start = next.rawDecor.prefix?.textOrNull.orEmpty()
+        next.rawDecor.prefix = KeptText.from(start.withCommentEndingLine(comment, lineBreak, INDENT))
     }
 
     // On one line the space before `]` goes with the last element, and the spacing after a comma is the array's own.
@@ -143,13 +164,13 @@ public class TomlArray() : Iterable<Value> {
     }
 
     // One element per line, indented, with a comma after each, as a comment after an element needs.
-    private fun spreadOverLines() {
+    private fun spreadOverLines(lineBreak: String) {
         for (element in printedValues()) {
-            element.rawDecor.prefix = KeptText.from(LINE_BREAK + INDENT)
+            element.rawDecor.prefix = KeptText.from(lineBreak + INDENT)
             element.rawDecor.suffix = KeptText.from("")
         }
         trailingComma = isNotEmpty()
-        trailing = LINE_BREAK
+        trailing = lineBreak
     }
 
     // A last element without a comma after it holds the rest of its line, its comment included; a comma after it
@@ -244,7 +265,8 @@ public class TomlArray() : Iterable<Value> {
     }
 
     /**
-     * Inserts a copy of [value] at [index], keeping its formatting and shifting later elements right.
+     * Inserts a copy of [value] at [index], keeping its formatting and shifting later elements right. A comment in
+     * [value]'s decor suffix prints after the new element's comma, as [add] says.
      *
      * @return [TomlEditError.IndexOutOfBounds], with nothing inserted, when [index] is negative or greater
      *   than [size], or [TomlEditError.TooDeep] when [value] would nest deeper than the parser reads.
@@ -256,10 +278,13 @@ public class TomlArray() : Iterable<Value> {
         if (index < 0 || index > values.size) return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         tooDeepError(this, null, Item(value))?.let { return Err(it) }
         if (index == values.size) return add(value)
+        val comment = value.callerComment()
         val stored = value.copyFor(ValuePlace.Array)
+        if (comment.isNotEmpty()) spreadForComment(stored)
         val next = values.subList(index, values.size).firstNotNullOfOrNull { it.valueOrNull }
         if (stored.rawDecor.prefix == null && next != null) takeLineStart(stored, next)
         values.add(index, Item.inArray(stored, this))
+        if (comment.isNotEmpty()) putCommentAfter(stored, comment)
         return Ok(Unit)
     }
 
@@ -275,7 +300,8 @@ public class TomlArray() : Iterable<Value> {
     ): Result<Value, TomlEditError> = replace(index, value)
 
     /**
-     * Replaces the element at [index] with a copy of [value].
+     * Replaces the element at [index] with a copy of [value]. A comment in [value]'s decor suffix prints after the
+     * element's comma, as [add] says, in place of the comment that stood there.
      *
      * @param keepDecor whether the copy takes over the old element's decor, so it sits where the old one did;
      *   false keeps [value]'s own decor.
@@ -289,9 +315,15 @@ public class TomlArray() : Iterable<Value> {
     ): Result<Value, TomlEditError> {
         val old = get(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         tooDeepError(this, null, Item(value))?.let { return Err(it) }
+        val comment = value.callerComment()
         val stored = value.copyFor(ValuePlace.Array)
+        if (comment.isNotEmpty()) {
+            spreadForComment(stored)
+            if (old === printedValues().last()) leaveLastLineForComma()
+        }
         if (keepDecor) stored.rawDecor.assign(old.rawDecor)
         values.set(index, Item.inArray(stored, this)).arrayOwner = null
+        if (comment.isNotEmpty()) putCommentAfter(stored, comment)
         return Ok(old)
     }
 

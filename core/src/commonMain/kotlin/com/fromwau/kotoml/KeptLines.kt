@@ -83,6 +83,22 @@ internal fun passClosingSpace(
 }
 
 /**
+ * This text after an entry, starting the next entry's prefix or the text before the closing bracket, with [comment]
+ * ending the entry's line in place of what stood there; with no line break in it, [comment] and [lineBreak] come
+ * before [lineStart].
+ */
+internal fun String.withCommentEndingLine(
+    comment: String,
+    lineBreak: String,
+    lineStart: String,
+): String {
+    val firstBreak = indexOf('\n')
+    if (firstBreak < 0) return comment + lineBreak + lineStart
+    val lineEnd = if (firstBreak > 0 && this[firstBreak - 1] == '\r') firstBreak - 1 else firstBreak
+    return comment + substring(lineEnd)
+}
+
+/**
  * This text between elements without its comment lines: the comment ending the line before stays when
  * [keepFirstLineComment], then the line break and the indentation of the line after.
  */

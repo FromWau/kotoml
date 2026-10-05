@@ -102,7 +102,8 @@ Replacing a value keeps its spacing and the comment after it. An array of tables
 `key = []`. A new key takes the indentation of the key above it, and an element or key added to an array or
 inline table on one line takes the spacing already there. A comment a caller gives an element or an inline table's
 value in its decor, such as `Decor(suffix = " # note")`, puts a one-line array or inline table on lines of its own,
-one entry per line; in a document that writes TOML 1.0, which has no comments inside an inline table, an inline table's
+one entry per line, whether the entry is added, inserted at an index or replaces another; its comment takes the place
+of the one that stood after the entry it replaces, and the new lines end as the document's do. In a document that writes TOML 1.0, which has no comments inside an inline table, an inline table's
 value drops it. Sorting, by key name with `sort()` or by your own order with `sortBy` and `sortWith`, moves each key
 and each table header with the comment lines right above it and leaves blank lines in place.
 Making a table dotted, or a header again, keeps the lines above its key and each value's same-line comment and drops

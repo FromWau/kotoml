@@ -357,7 +357,7 @@ public class Item private constructor(
         val version = owner?.let(::outermostTableOf)?.version ?: TomlVersion.V1_1
         val headerComment = if (table.isDotted) "" else table.headerComment
         if (version == TomlVersion.V1_1 && table.holdsComments()) {
-            val lineBreak = table.headerLineEnding ?: "\n"
+            val lineBreak = table.headerLineEnding ?: newLineEnding()
             return Value.InlineTable(table.copy().moveToInlineTableAcrossLines(headerComment, lineBreak))
         }
         val value = copy().moveToValue()
@@ -372,9 +372,12 @@ public class Item private constructor(
      */
     private fun arrayValueOf(array: ArrayOfTables): Value {
         val version = owner?.let(::outermostTableOf)?.version ?: TomlVersion.V1_1
-        val lineBreak = array.firstOrNull()?.headerLineEnding ?: "\n"
+        val lineBreak = array.firstOrNull()?.headerLineEnding ?: newLineEnding()
         return Value.Array(array.copy().moveToTomlArrayKeepingComments(lineBreak, version == TomlVersion.V1_1))
     }
+
+    // The line ending of the document this slot is in, for lines a table built in code has none of its own for.
+    private fun newLineEnding(): String = owner?.let(::lineEndingOf) ?: LINE_BREAK
 
     /** Turns a table or array of tables in this slot into [value], made from it, keeping the lines above. */
     internal fun holdValue(value: Value) {

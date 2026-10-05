@@ -117,6 +117,155 @@ class CommentPlacementTest {
     }
 
     @Test
+    fun `a comment given to an element in a document with CRLF line breaks spreads the array over CRLF lines`() {
+        val doc = parse("a = [1, 2]\r\n")
+        doc["a"].getOrFail().valueOrNull!!.arrayOrNull!!.add(commented(3L)).getOrFail()
+        assertEquals("a = [\r\n  1,\r\n  2,\r\n  3, # c\r\n]\r\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given to an element of an empty array in a document with CRLF line breaks ends its line in CRLF`() {
+        val doc = parse("a = []\r\n")
+        doc["a"].getOrFail().valueOrNull!!.arrayOrNull!!.add(commented(1L)).getOrFail()
+        assertEquals("a = [\r\n  1, # c\r\n]\r\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given to an element of an array in an inline table spreads it over CRLF lines`() {
+        val doc = parse("t = { a = [1] }\r\n")
+        val array = doc["t"].getOrFail().valueOrNull!!.inlineTableOrNull!!["a"]!!.arrayOrNull!!
+        array.add(commented(2L)).getOrFail()
+        assertEquals("t = { a = [\r\n  1,\r\n  2, # c\r\n] }\r\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given to a value in a document with CRLF line breaks spreads the inline table over CRLF lines`() {
+        val doc = parse("t = { a = 1 }\r\n")
+        doc["t"].getOrFail().valueOrNull!!.inlineTableOrNull!!.set("b", commented(2L)).getOrFail()
+        assertEquals("t = {\r\n  a = 1,\r\n  b = 2 # c\r\n}\r\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given to a value set at a key in the middle of a CRLF document ends its line in CRLF`() {
+        val doc = parse("t = { a = 1, b = 2 }\r\n")
+        doc["t"].getOrFail().valueOrNull!!.inlineTableOrNull!!.set("a", commented(5L)).getOrFail()
+        assertEquals("t = {\r\n  a = 5, # c\r\n  b = 2\r\n}\r\n", doc.toString())
+    }
+
+    @Test
+    fun `a table built in code made a value in a document with CRLF line breaks prints across CRLF lines`() {
+        val doc = parse("x = 1\r\n")
+        val table = StandardTable()
+        table.set("k", commented(1L)).getOrFail()
+        doc.set("t", table).getOrFail()
+        doc["t"].getOrFail().makeValue().getOrFail()
+        assertEquals("x = 1\r\nt = {\r\n  k = 1 # c\r\n}\r\n", doc.toString())
+    }
+
+    @Test
+    fun `an array of tables built in code made a value in a document with CRLF line breaks prints across CRLF lines`() {
+        val doc = parse("x = 1\r\n")
+        val first = StandardTable()
+        first.set("k", commented(1L)).getOrFail()
+        doc.set("s", listOf(first, StandardTable()).toArrayOfTables().getOrFail()).getOrFail()
+        doc["s"].getOrFail().makeValue().getOrFail()
+        assertEquals("x = 1\r\ns = [\r\n  {\r\n    k = 1 # c\r\n  },\r\n  {},\r\n]\r\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given to an element added at an index puts a one-line array on lines of its own`() {
+        val doc = parse("a = [1, 2]\n")
+        doc["a"].getOrFail().valueOrNull!!.arrayOrNull!!.add(0, commented(0L)).getOrFail()
+        assertEquals("a = [\n  0, # c\n  1,\n  2,\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given to an element added in the middle of a multi-line array prints after its comma`() {
+        val doc = parse("a = [\n  1,\n  2,\n]\n")
+        doc["a"].getOrFail().valueOrNull!!.arrayOrNull!!.add(1, commented(5L)).getOrFail()
+        assertEquals("a = [\n  1,\n  5, # c\n  2,\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given to an element added at an index in a document with CRLF line breaks ends its line in CRLF`() {
+        val doc = parse("a = [1, 2]\r\n")
+        doc["a"].getOrFail().valueOrNull!!.arrayOrNull!!.add(1, commented(5L)).getOrFail()
+        assertEquals("a = [\r\n  1,\r\n  5, # c\r\n  2,\r\n]\r\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given to a replacing element puts a one-line array on lines of its own`() {
+        val doc = parse("a = [1, 2]\n")
+        doc["a"].getOrFail().valueOrNull!!.arrayOrNull!!.replace(0, commented(9L)).getOrFail()
+        assertEquals("a = [\n  9, # c\n  2,\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given to an element replacing the last one prints after its comma`() {
+        val doc = parse("a = [1, 2]\n")
+        doc["a"].getOrFail().valueOrNull!!.arrayOrNull!!.replace(1, commented(9L)).getOrFail()
+        assertEquals("a = [\n  1,\n  9, # c\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given to an element replacing the last of a multi-line array without a trailing comma ends its line`() {
+        val doc = parse("a = [\n  1,\n  2\n]\n")
+        doc["a"].getOrFail().valueOrNull!!.arrayOrNull!!.replace(1, commented(9L)).getOrFail()
+        assertEquals("a = [\n  1,\n  9, # c\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given to a replacing element that keeps its own decor prints after its comma`() {
+        val doc = parse("a = [1, 2]\n")
+        val array = doc["a"].getOrFail().valueOrNull!!.arrayOrNull!!
+        array.replace(0, commented(9L), keepDecor = false).getOrFail()
+        assertEquals("a = [\n  9, # c\n  2,\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given to a replacing element in a document with CRLF line breaks ends its line in CRLF`() {
+        val doc = parse("a = [1, 2]\r\n")
+        doc["a"].getOrFail().valueOrNull!!.arrayOrNull!!.replace(0, commented(9L)).getOrFail()
+        assertEquals("a = [\r\n  9, # c\r\n  2,\r\n]\r\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given to a replacing element takes the place of the old element's comment`() {
+        val doc = parse("a = [\n  1, # old\n  2,\n]\n")
+        doc["a"].getOrFail().valueOrNull!!.arrayOrNull!!.replace(0, commented(9L)).getOrFail()
+        assertEquals("a = [\n  9, # c\n  2,\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given to an element replacing the last one takes the place of its comment`() {
+        val doc = parse("a = [\n  1,\n  2 # old\n]\n")
+        doc["a"].getOrFail().valueOrNull!!.arrayOrNull!!.replace(1, commented(9L)).getOrFail()
+        assertEquals("a = [\n  1,\n  9, # c\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given to a value set at a key takes the place of the old value's comment`() {
+        val doc = parse("t = {\n  a = 1, # old\n  b = 2\n}\n")
+        doc["t"].getOrFail().valueOrNull!!.inlineTableOrNull!!.set("a", commented(5L)).getOrFail()
+        assertEquals("t = {\n  a = 5, # c\n  b = 2\n}\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given to a value set at the last key takes the place of the old value's comment`() {
+        val doc = parse("t = {\n  a = 1,\n  b = 2 # old\n}\n")
+        doc["t"].getOrFail().valueOrNull!!.inlineTableOrNull!!.set("b", commented(5L)).getOrFail()
+        assertEquals("t = {\n  a = 1,\n  b = 5 # c\n}\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given to a value added at an index of an inline table's array spreads it in CRLF`() {
+        val doc = parse("t = { a = [1, 2] }\r\n")
+        val array = doc["t"].getOrFail().valueOrNull!!.inlineTableOrNull!!["a"]!!.arrayOrNull!!
+        array.add(0, commented(0L)).getOrFail()
+        assertEquals("t = { a = [\r\n  0, # c\r\n  1,\r\n  2,\r\n] }\r\n", doc.toString())
+    }
+
+    @Test
     fun `an inline table made a standard table keeps its comments`() {
         val doc = parse("srv = {\n  host = \"h\", # host c\n  # above port\n  port = 1,\n}\n")
         doc.set("srv", doc["srv"].getOrFail().valueOrNull!!.inlineTableOrNull!!.toStandardTable()).getOrFail()
@@ -161,4 +310,6 @@ class CommentPlacementTest {
         doc["x"] = 1L
         assertEquals("# c\nx = 1\n", doc.toString())
     }
+
+    private fun commented(value: Long): Value = Value.Integer(value).also { it.decor = Decor(suffix = " # c") }
 }
