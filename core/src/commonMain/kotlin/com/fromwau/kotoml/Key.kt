@@ -43,6 +43,13 @@ public class Key(
     public val spelling: String?
         get() = written?.raw?.textOrNull
 
+    /**
+     * Where the key was written in the text its document was parsed from: the 1-based line, and the 1-based column
+     * of its first character. Null for a key made in code, a copy, or a key read on its own by [parse].
+     */
+    public var position: TextPosition? = null
+        private set
+
     /** The text the key prints as: its [spelling], or the default one, bare when it can be. */
     public val displaySpelling: String
         get() = spelling ?: defaultSpelling()
@@ -74,6 +81,7 @@ public class Key(
         get() = written?.span
 
     internal fun resolveSpans(input: SourceText) {
+        written?.span?.let { span -> input.positionOf(span.start)?.let { position = it } }
         rawLeafDecor.resolveSpans(input)
         rawDottedDecor.resolveSpans(input)
         written = written?.resolveSpans(input)

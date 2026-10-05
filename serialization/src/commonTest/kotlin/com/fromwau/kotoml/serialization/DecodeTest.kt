@@ -1,10 +1,10 @@
 package com.fromwau.kotoml.serialization
 
+import com.fromwau.kotoml.TextPosition
 import com.fromwau.kotoml.TomlDocument
 import com.fromwau.kotoml.TomlType
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -48,7 +48,7 @@ class DecodeTest {
     fun `a missing required key names its full path`() {
         val text = "title = \"t\"\n[database]\n[database.pool]\nsize = 2\n"
         assertEquals(
-            TomlDecodeError.MissingKey("database.url"),
+            TomlDecodeError.MissingKey("database.url", position = TextPosition(2, 2)),
             Toml.decodeFromString<App>(text).errorOrFail(),
         )
     }
@@ -57,7 +57,7 @@ class DecodeTest {
     fun `an unknown key is refused with its path`() {
         val text = "name = \"f\"\n[[servers]]\nhost = \"a\"\n[[servers]]\nhost = \"b\"\nextra = 1\n"
         assertEquals(
-            TomlDecodeError.UnknownKey("servers[1].extra"),
+            TomlDecodeError.UnknownKey("servers[1].extra", position = TextPosition(6, 1)),
             Toml.decodeFromString<Fleet>(text).errorOrFail(),
         )
     }
@@ -74,7 +74,7 @@ class DecodeTest {
     @Test
     fun `an unknown key with a quoted name is spelled as TOML quotes it`() {
         assertEquals(
-            TomlDecodeError.UnknownKey("\"a.b\""),
+            TomlDecodeError.UnknownKey("\"a.b\"", position = TextPosition(2, 1)),
             Toml.decodeFromString<Server>("host = \"h\"\n\"a.b\" = 1\n").errorOrFail(),
         )
     }
@@ -89,7 +89,7 @@ class DecodeTest {
     fun `an enum name is case sensitive and the error lists the names`() {
         val text = "hostname = \"h\"\nport = 1\nmode = \"tcp\"\n"
         assertEquals(
-            TomlDecodeError.UnknownEnumValue("mode", "tcp", listOf("TCP", "udp"), "TCP"),
+            TomlDecodeError.UnknownEnumValue("mode", "tcp", listOf("TCP", "udp"), "TCP", position = TextPosition(3, 1)),
             Toml.decodeFromString<Config>(text).errorOrFail(),
         )
     }
@@ -115,7 +115,13 @@ class DecodeTest {
     @Test
     fun `an unknown subtype is a typed error listing the subtypes`() {
         assertEquals(
-            TomlDecodeError.UnknownSubtype("shape", "triangle", listOf("circle", "point", "square"), null),
+            TomlDecodeError.UnknownSubtype(
+                "shape",
+                "triangle",
+                listOf("circle", "point", "square"),
+                null,
+                position = TextPosition(1, 2),
+            ),
             Toml.decodeFromString<Holder>("[shape]\ntype = \"triangle\"\n").errorOrFail(),
         )
     }
@@ -123,7 +129,7 @@ class DecodeTest {
     @Test
     fun `a missing discriminator is a missing key`() {
         assertEquals(
-            TomlDecodeError.MissingKey("shape.type"),
+            TomlDecodeError.MissingKey("shape.type", position = TextPosition(1, 2)),
             Toml.decodeFromString<Holder>("[shape]\nradius = 1.0\n").errorOrFail(),
         )
     }
@@ -147,7 +153,7 @@ class DecodeTest {
     @Test
     fun `an unreadable duration is unparsable`() {
         assertEquals(
-            TomlDecodeError.Unparsable("timeout", "soon", "kotlin.time.Duration"),
+            TomlDecodeError.Unparsable("timeout", "soon", "kotlin.time.Duration", position = TextPosition(1, 1)),
             Toml.decodeFromString<Timeout>("timeout = \"soon\"\n").errorOrFail(),
         )
     }
@@ -215,7 +221,13 @@ class DecodeTest {
     @Test
     fun `a map with an unknown enum key names the key`() {
         assertEquals(
-            TomlDecodeError.UnknownEnumValue("ports.sctp", "sctp", listOf("TCP", "udp"), "TCP"),
+            TomlDecodeError.UnknownEnumValue(
+                "ports.sctp",
+                "sctp",
+                listOf("TCP", "udp"),
+                "TCP",
+                position = TextPosition(1, 11),
+            ),
             Toml.decodeFromString<ModePorts>("ports = { sctp = 1 }\n").errorOrFail(),
         )
     }
@@ -223,7 +235,7 @@ class DecodeTest {
     @Test
     fun `a map with non-string keys is refused`() {
         assertEquals(
-            TomlDecodeError.NonStringMapKey("ports"),
+            TomlDecodeError.NonStringMapKey("ports", position = TextPosition(1, 1)),
             Toml.decodeFromString<NumberedPorts>("ports = { 1 = \"a\" }\n").errorOrFail(),
         )
     }
@@ -249,12 +261,25 @@ class DecodeTest {
         assertIs<TomlDecodeError.NoSerializer>(Toml.decodeFromString<Any>("a = 1\n").errorOrFail())
     }
 
-    @Ignore
     @Test
     fun `a contextual field with no serializer registered is NoSerializer named by its type`() {
         val error = Toml.decodeFromString<Themed>("accent = \"#000000\"\n").errorOrFail()
         assertIs<TomlDecodeError.NoSerializer>(error)
         assertEquals("Color", error.type)
+        assertEquals("accent", error.path)
+    }
+
+    @Test
+    fun `a contextual field with no serializer registered is NoSerializer when written`() {
+        assertEquals(
+            TomlEncodeError.NoSerializer("Color", "accent"),
+            Toml.encodeToString(Themed(Color("#000000"))).errorOrFail(),
+        )
+    }
+
+    @Test
+    fun `a type without a serializer is named without its package`() {
+        assertEquals(TomlDecodeError.NoSerializer("Color"), Toml.decodeFromString<Color>("a = 1\n").errorOrFail())
     }
 
     @Test
@@ -265,7 +290,13 @@ class DecodeTest {
     @Test
     fun `a value of the wrong type names both types`() {
         assertEquals(
-            TomlDecodeError.TypeMismatch("port", TomlType.Integer, TomlType.String),
+            TomlDecodeError.TypeMismatch(
+                "port",
+                TomlType.Integer,
+                TomlType.String,
+                value = "\"80\"",
+                position = TextPosition(2, 1),
+            ),
             Toml.decodeFromString<Server>("host = \"h\"\nport = \"80\"\n").errorOrFail(),
         )
     }
@@ -273,7 +304,7 @@ class DecodeTest {
     @Test
     fun `a table where a list is expected is a type mismatch`() {
         assertEquals(
-            TomlDecodeError.TypeMismatch("servers", TomlType.Array, TomlType.Table),
+            TomlDecodeError.TypeMismatch("servers", TomlType.Array, TomlType.Table, position = TextPosition(2, 2)),
             Toml.decodeFromString<Fleet>("name = \"f\"\n[servers]\nhost = \"a\"\n").errorOrFail(),
         )
     }
@@ -289,7 +320,8 @@ class DecodeTest {
     @Test
     fun `a quoted date that does not exist is unparsable`() {
         val error = Toml.decodeFromString<Times>("date = \"2024-02-30\"\n").errorOrFail()
-        assertEquals(TomlDecodeError.Unparsable("date", "2024-02-30", "kotlinx.datetime.LocalDate"), error)
+        val date = "kotlinx.datetime.LocalDate"
+        assertEquals(TomlDecodeError.Unparsable("date", "2024-02-30", date, TextPosition(1, 1)), error)
     }
 
     @Test

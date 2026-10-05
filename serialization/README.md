@@ -52,7 +52,7 @@ when (val decoded = Toml.decodeFromString<Config>(text)) {
     is Result.Error -> when (val error = decoded.error) {
         is TomlDecodeError.Parse -> println(error.error.render(text))
         is TomlDecodeError.MissingKey -> println("${error.path} is required")
-        else -> println(error)
+        else -> println(error.message)
     }
 }
 ```
@@ -60,8 +60,10 @@ when (val decoded = Toml.decodeFromString<Config>(text)) {
 A missing key takes its field's default. Every other problem is a `TomlDecodeError`: text that is not TOML, a
 required key that is missing, a key no field names, a value of the wrong type or out of range, an unknown enum name
 or subclass, a [nullable type](#nullable-types) in the class. Each one that concerns a place in the document names
-it as a `path` such as `servers[1].port`. `Toml.decodeFromDocument` reads a `TomlDocument` you
-already parsed, without changing it.
+it as a `path` such as `servers[1].port`, and its `position`, the line and column of that key in the text. Every
+error has a `message` for a person, such as `database.pool.size: expected an integer, found the string "ten"` or
+`unknown key nmae, did you mean name?`. `Toml.decodeFromDocument` reads a `TomlDocument` you already parsed,
+without changing it.
 
 ## Write a value as TOML
 
@@ -259,5 +261,24 @@ Json.encodeToString(TomlDecodeError.serializer(), Toml.decodeFromString<Config>(
 ```
 
 A `path` is the dotted key path with array indexes, keys spelled as TOML quotes them: `servers[1].port`,
-`ports."a.b"`. The top of the document is the empty path. A custom serializer that throws becomes
-`TomlDecodeError.Serializer` or `TomlEncodeError.Serializer`, carrying its message as `detail`; no call throws.
+`ports."a.b"`. The top of the document is the empty path. A decode error's `position` is the line and column, from
+1, of the key its path names. Where that key has no place in the text, as a missing key or an array element, it is
+the nearest key above it: `[database]` for a missing `database.url`, `rows` for `rows[1]`. It is null for a document
+built in code, and for a `NullableType` found from the types before anything is read. JSON leaves out a null
+`position`.
+
+`message` words any error for a person, led by its path:
+
+| error                       | `message`                                                         |
+|-----------------------------|-------------------------------------------------------------------|
+| `TypeMismatch`              | `database.pool.size: expected an integer, found the string "ten"` |
+| `UnknownKey`                | `unknown key nmae, did you mean name?`                            |
+| `MissingKey`                | `missing key database.url`                                        |
+| `UnknownEnumValue`          | `mode: unknown value "tcp", did you mean TCP?`                    |
+| `Parse`                     | ``line 2, column 1: duplicate key `a` ``                          |
+
+`TypeMismatch` carries the value it found as written, `"ten"`, when it is a string, number, boolean or date-time.
+`UnknownKey` carries the field name closest to the key as `suggestion`. A type with no serializer, such as a class
+that is not `@Serializable` or a `@Contextual` type `serializersModule` has none for, is `NoSerializer` with the
+type's simple name, `Color`, and its `path`. A custom serializer that throws becomes `TomlDecodeError.Serializer`
+or `TomlEncodeError.Serializer`, carrying its message as `detail`; no call throws.

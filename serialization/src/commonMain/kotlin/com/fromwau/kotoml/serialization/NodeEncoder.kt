@@ -106,6 +106,9 @@ internal class NodeEncoder(
         } catch (failure: EncodeFailure) {
             throw failure
         } catch (failure: Exception) {
+            serializer.descriptor.missingContextualType(serializersModule)?.let { type ->
+                throw EncodeFailure(TomlEncodeError.NoSerializer(type, "$path"))
+            }
             throw EncodeFailure(TomlEncodeError.Serializer("$path", failure.message))
         }
     }

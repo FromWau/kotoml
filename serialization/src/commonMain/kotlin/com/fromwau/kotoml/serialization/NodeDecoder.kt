@@ -1,7 +1,7 @@
 package com.fromwau.kotoml.serialization
 
 import com.fromwau.kern.fuzzy.didYouMean
-import com.fromwau.kotoml.Item
+import com.fromwau.kotoml.Decor
 import com.fromwau.kotoml.TomlType
 import com.fromwau.kotoml.Value
 import kotlinx.serialization.DeserializationStrategy
@@ -39,7 +39,7 @@ internal class NodeDecoder(
     // TOML holds no null, so a serializer asking whether one is here is always told no.
     override fun decodeNotNullMark(): Boolean = true
 
-    override fun decodeNull(): Nothing? = throw DecodeFailure(TomlDecodeError.NullValue("$path"))
+    override fun decodeNull(): Nothing? = throw DecodeFailure(TomlDecodeError.NullValue("$path", path.position))
 
     override fun decodeBoolean(): Boolean = scalar()?.booleanOrNull ?: mismatch(TomlType.Boolean)
 
@@ -59,12 +59,13 @@ internal class NodeDecoder(
     override fun decodeFloat(): Float {
         val double = decodeDouble()
         return double.asFloatOrNull()
-            ?: throw DecodeFailure(TomlDecodeError.OutOfRange("$path", "$double", "kotlin.Float"))
+            ?: throw DecodeFailure(TomlDecodeError.OutOfRange("$path", "$double", "kotlin.Float", path.position))
     }
 
     override fun decodeChar(): Char {
         val text = decodeString()
-        return text.singleOrNull() ?: throw DecodeFailure(TomlDecodeError.Unparsable("$path", text, "kotlin.Char"))
+        return text.singleOrNull()
+            ?: throw DecodeFailure(TomlDecodeError.Unparsable("$path", text, "kotlin.Char", path.position))
     }
 
     // A native date-time read as a string gives its TOML text, so a serializer that parses dates itself works.
@@ -78,7 +79,8 @@ internal class NodeDecoder(
         val index = enumDescriptor.getElementIndex(name)
         if (index == CompositeDecoder.UNKNOWN_NAME) {
             val names = enumDescriptor.elementNames.toList()
-            throw DecodeFailure(TomlDecodeError.UnknownEnumValue("$path", name, names, didYouMean(name, names)))
+            val suggestion = didYouMean(name, names)
+            throw DecodeFailure(TomlDecodeError.UnknownEnumValue("$path", name, names, suggestion, path.position))
         }
         return index
     }
@@ -94,9 +96,9 @@ internal class NodeDecoder(
         StructureKind.MAP -> {
             val table = input as? TomlInput.Table ?: mismatch(TomlType.Table)
             if (!descriptor.getElementDescriptor(0).isStringLike(serializersModule)) {
-                throw DecodeFailure(TomlDecodeError.NonStringMapKey("$path"))
+                throw DecodeFailure(TomlDecodeError.NonStringMapKey("$path", path.position))
             }
-            MapDecoder(toml, table.entries, path)
+            MapDecoder(toml, table, path)
         }
         is PolymorphicKind -> {
             val table = input as? TomlInput.Table ?: mismatch(TomlType.Table)
@@ -104,25 +106,29 @@ internal class NodeDecoder(
         }
         else -> {
             val table = input as? TomlInput.Table ?: mismatch(TomlType.Table)
-            ClassDecoder(toml, table.entries, descriptor, path, skippedKey)
+            ClassDecoder(toml, table, descriptor, path, skippedKey)
         }
     }
 
     override fun <T : Any> decodeNullableSerializableValue(deserializer: DeserializationStrategy<T?>): T? =
-        throw DecodeFailure(TomlDecodeError.NullableType("$path"))
+        throw DecodeFailure(TomlDecodeError.NullableType("$path", path.position))
 
     override fun <T> decodeSerializableValue(deserializer: DeserializationStrategy<T>): T {
-        if (deserializer.descriptor.isNullable) throw DecodeFailure(TomlDecodeError.NullableType("$path"))
+        val descriptor = deserializer.descriptor
+        if (descriptor.isNullable) throw DecodeFailure(TomlDecodeError.NullableType("$path", path.position))
         try {
             val known = input?.let {
-                knownValueOrNull(deserializer.descriptor.serialName, it, path, nativeDatetime = !isMapKey)
+                knownValueOrNull(descriptor.serialName, it, path, nativeDatetime = !isMapKey)
             }
             @Suppress("UNCHECKED_CAST")
             return if (known != null) known as T else deserializer.deserialize(this)
         } catch (failure: DecodeFailure) {
             throw failure
         } catch (failure: Exception) {
-            throw DecodeFailure(TomlDecodeError.Serializer("$path", failure.message))
+            descriptor.missingContextualType(serializersModule)?.let { type ->
+                throw DecodeFailure(TomlDecodeError.NoSerializer(type, "$path", path.position))
+            }
+            throw DecodeFailure(TomlDecodeError.Serializer("$path", failure.message, path.position))
         }
     }
 }
@@ -228,11 +234,12 @@ internal abstract class NodeCompositeDecoder(
 
 private class ClassDecoder(
     toml: Toml,
-    private val entries: Map<String, Item>,
+    private val table: TomlInput.Table,
     descriptor: SerialDescriptor,
     path: TomlPath,
     skippedKey: String?,
 ) : NodeCompositeDecoder(toml, path) {
+    private val entries = table.entries
     private var next = 0
 
     init {
@@ -240,7 +247,11 @@ private class ClassDecoder(
             val unknown = entries.keys.firstOrNull {
                 it != skippedKey && descriptor.getElementIndex(it) == CompositeDecoder.UNKNOWN_NAME
             }
-            if (unknown != null) throw DecodeFailure(TomlDecodeError.UnknownKey("${path.key(unknown)}"))
+            if (unknown != null) {
+                val keyPath = path.key(unknown, table.positionOf(unknown))
+                val suggestion = didYouMean(unknown, descriptor.elementNames.toList())
+                throw DecodeFailure(TomlDecodeError.UnknownKey("$keyPath", suggestion, keyPath.position))
+            }
         }
     }
 
@@ -252,7 +263,7 @@ private class ClassDecoder(
             when {
                 name in entries -> return index
                 descriptor.isElementOptional(index) -> continue
-                else -> throw DecodeFailure(TomlDecodeError.MissingKey("${path.key(name)}"))
+                else -> throw DecodeFailure(TomlDecodeError.MissingKey("${path.key(name)}", path.position))
             }
         }
         return CompositeDecoder.DECODE_DONE
@@ -263,7 +274,7 @@ private class ClassDecoder(
         index: Int,
     ): NodeDecoder {
         val name = descriptor.getElementName(index)
-        return NodeDecoder(toml, entries[name]?.toInput(), path.key(name))
+        return NodeDecoder(toml, entries[name]?.toInput(), path.key(name, table.positionOf(name)))
     }
 }
 
@@ -288,11 +299,11 @@ private class ListDecoder(
 /** A map's elements alternate: a key at each even index, its value at the odd index after it. */
 private class MapDecoder(
     toml: Toml,
-    entries: Map<String, Item>,
+    private val table: TomlInput.Table,
     path: TomlPath,
 ) : NodeCompositeDecoder(toml, path) {
-    private val keys = entries.keys.toList()
-    private val items = entries.values.toList()
+    private val keys = table.entries.keys.toList()
+    private val items = table.entries.values.toList()
     private var next = 0
 
     override fun decodeCollectionSize(descriptor: SerialDescriptor): Int = keys.size
@@ -305,10 +316,11 @@ private class MapDecoder(
         index: Int,
     ): NodeDecoder {
         val key = keys[index / 2]
+        val keyPath = path.key(key, table.positionOf(key))
         return if (index % 2 == 0) {
-            NodeDecoder(toml, TomlInput.Scalar(Value.String(key)), path.key(key), isMapKey = true)
+            NodeDecoder(toml, TomlInput.Scalar(Value.String(key)), keyPath, isMapKey = true)
         } else {
-            NodeDecoder(toml, items[index / 2].toInput(), path.key(key))
+            NodeDecoder(toml, items[index / 2].toInput(), keyPath)
         }
     }
 }
@@ -328,10 +340,9 @@ private class PolymorphicDecoder(
     private var next = 0
 
     init {
-        val keyPath = path.key(key)
-        val item = table.entries[key] ?: throw DecodeFailure(TomlDecodeError.MissingKey("$keyPath"))
-        name = item.stringOrNull
-            ?: throw DecodeFailure(TomlDecodeError.TypeMismatch("$keyPath", TomlType.String, item.type))
+        val keyPath = path.key(key, table.positionOf(key))
+        val item = table.entries[key] ?: throw DecodeFailure(TomlDecodeError.MissingKey("$keyPath", path.position))
+        name = item.stringOrNull ?: throw DecodeFailure(mismatchAt(keyPath, TomlType.String, item.toInput()))
         checkSubtype(descriptor)
     }
 
@@ -348,7 +359,8 @@ private class PolymorphicDecoder(
                 emptyList()
             }
         }
-        throw DecodeFailure(TomlDecodeError.UnknownSubtype("$path", name, known, didYouMean(name, known)))
+        val suggestion = didYouMean(name, known)
+        throw DecodeFailure(TomlDecodeError.UnknownSubtype("$path", name, known, suggestion, path.position))
     }
 
     override fun decodeElementIndex(descriptor: SerialDescriptor): Int =
@@ -367,7 +379,7 @@ private class PolymorphicDecoder(
         previousValue: T?,
     ): T {
         if (deserializer.descriptor.hasField(key)) {
-            throw DecodeFailure(TomlDecodeError.DiscriminatorConflict("$path", key))
+            throw DecodeFailure(TomlDecodeError.DiscriminatorConflict("$path", key, path.position))
         }
         return super.decodeSerializableElement(descriptor, index, deserializer, previousValue)
     }
@@ -396,7 +408,20 @@ internal fun mismatchAt(
     expected: TomlType,
     input: TomlInput?,
 ): TomlDecodeError = if (input == null) {
-    TomlDecodeError.MissingKey("$path")
+    TomlDecodeError.MissingKey("$path", path.position)
 } else {
-    TomlDecodeError.TypeMismatch("$path", expected, input.type)
+    TomlDecodeError.TypeMismatch("$path", expected, input.type, input.spelling(), path.position)
+}
+
+/** A scalar as it is written, without the text around it; null for a table or an array. */
+private fun TomlInput.spelling(): String? = (this as? TomlInput.Scalar)
+    ?.value
+    ?.copy()
+    ?.also { it.decor = Decor() }
+    ?.toString()
+
+/** The simple name of the contextual type this describes, when the module has no serializer for it. */
+internal fun SerialDescriptor.missingContextualType(module: SerializersModule): String? {
+    if (kind != SerialKind.CONTEXTUAL || module.contextualDescriptorOrNull(this) != null) return null
+    return capturedKClass?.simpleName ?: serialName
 }

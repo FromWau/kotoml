@@ -1,5 +1,6 @@
 package com.fromwau.kotoml.serialization
 
+import com.fromwau.kotoml.TextPosition
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.SerialDescriptor
@@ -47,7 +48,7 @@ class MissingValueTest {
     @Test
     fun `a missing key inside a list element is reported at its full path`() {
         assertEquals(
-            TomlDecodeError.MissingKey("servers[1].port"),
+            TomlDecodeError.MissingKey("servers[1].port", position = TextPosition(1, 3)),
             Toml.decodeFromString<Servers>(
                 "[[servers]]\nhost = \"a\"\nport = 1\n[[servers]]\nhost = \"b\"\n",
             ).errorOrFail(),

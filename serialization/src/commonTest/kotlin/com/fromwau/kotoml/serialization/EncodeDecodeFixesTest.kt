@@ -1,5 +1,6 @@
 package com.fromwau.kotoml.serialization
 
+import com.fromwau.kotoml.TextPosition
 import com.fromwau.kotoml.TomlDocument
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.KSerializer
@@ -89,7 +90,7 @@ class EncodeDecodeFixesTest {
     @Test
     fun `a negative integer is out of range for a UIntArray`() {
         assertEquals(
-            TomlDecodeError.OutOfRange("a[0]", "-1", "kotlin.UInt"),
+            TomlDecodeError.OutOfRange("a[0]", "-1", "kotlin.UInt", position = TextPosition(1, 1)),
             Toml.decodeFromString(uints, "a = [-1]\n").errorOrFail(),
         )
     }
@@ -118,7 +119,7 @@ class EncodeDecodeFixesTest {
     @Test
     fun `an integer past UByte is out of range for a UByteArray`() {
         assertEquals(
-            TomlDecodeError.OutOfRange("a[0]", "256", "kotlin.UByte"),
+            TomlDecodeError.OutOfRange("a[0]", "256", "kotlin.UByte", position = TextPosition(1, 1)),
             Toml.decodeFromString(ubytes, "a = [256]\n").errorOrFail(),
         )
     }
@@ -143,7 +144,7 @@ class EncodeDecodeFixesTest {
     @Test
     fun `a map whose contextual key has no serializer in the module is refused when read`() {
         assertEquals(
-            TomlDecodeError.NonStringMapKey("counts"),
+            TomlDecodeError.NonStringMapKey("counts", position = TextPosition(1, 2)),
             Toml.decodeFromString<Tagged>("[counts]\na = 1\n").errorOrFail(),
         )
     }
