@@ -20,6 +20,8 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
   **Ruling 2026-10-05:** expected: printing a built document is linear.
 - [ ] **43. CLI: `--color` does nothing.** Listed on every help page; no escapes with `always`, nor on a terminal.
   **Ruling 2026-10-05:** A: implement colour (`error:` and the caret line coloured, `auto` on a terminal).
+  **Ruling 2026-10-05 (2):** no colour. Decline klap's built-in with `builtins { color = false }`, so `--color`
+  is no longer offered.
 
 ### Layout no person would write
 
@@ -39,16 +41,22 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
   key; a key built from the old key's decor duplicates the comment.
   **Ruling 2026-10-05:** `rename(old, new)` keeps position, comments and value; a header table renames its sub-tables;
   `NotFound` / key-taken errors.
+  **Ruling 2026-10-05 (2):** renaming an array of tables renames every `[[x]]` header to `[[y]]`. Renaming onto a key
+  already taken is an error (assumed, not yet confirmed).
 - [ ] **65. `resetFormatting` is shallow and differs per kind.** A table keeps its values' spellings and key quoting,
   an array resets its layout but not its elements, and on the root it deletes comments. No document-wide reset.
   **Ruling 2026-10-05:** rename to `format(): Unit` on `Item`, `Value`, the tables and the document; deep; keeps
   comments. It cannot fail: writing is `writeTo`'s.
+  **Ruling 2026-10-05 (2):** `format()` fixes key quoting (`'q'` becomes `q`), blank lines between tables and
+  spacing; it leaves the layout as it is (dotted stays dotted, inline stays inline).
 - [ ] **66. Containers answer in different shapes.** `InlineTable[k]` and `TomlArray[i]` are nullable,
   `StandardTable[k]` a `Result`; no `InlineTable.getOrNull`; `TomlArray.add(String)` is `Unit` and `add(Value)` a
   `Result`; store calls refuse `Int`; payloads are `.value`, `.array` and `.table`; `putItem` turns a table into an
   inline table where `Item.set` refuses it.
   **Ruling 2026-10-05:** yes, breaking changes are fine before the first release: `Result` indexing and `getOrNull` on
   every container, `Int` overloads, one payload name, `putItem` of a table into an inline table is `NotAValue`.
+  **Ruling 2026-10-05 (2):** scalar `add`s stay `Unit`: a call that cannot fail returns no `Result`. The payloads
+  `Value.Array.array` and `Value.InlineTable.table` are renamed to `.value`, like the scalars.
 - [ ] **70. CLI has no set, delete or in-place edit.** The only path, `decode | jq | encode`, drops every comment
   and writes all tables inline. `encode` reads only tagged JSON, not what `get --json` prints.
   **Ruling 2026-10-05:** `-i` writes back into the file. Low priority: do when nothing else is open. Plain JSON to
@@ -68,6 +76,8 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
 - [ ] **76. A lost write on standard error reads as standard output.** kern reports stdout's failure before
   stderr's, and a failure on stderr alone also counts, so a run whose stdout landed but whose stderr hit a full disk
   exits 1 with `cannot write to standard output`. Saying which stream failed needs kern to report it (kern, klap).
+  **Ruling 2026-10-05:** B: each stream answers for itself. kern's `WriteError` says which stream failed, and
+  klap reports a standard error failure under its own name (a kern and a klap release).
 
 ### Owner calls on wave 1 (2026-10-05)
 
@@ -80,6 +90,8 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
 - [ ] **78. A 1.0 document writes `\e` and `\x` in their 1.0 spelling.** `\e[0m \x41` prints `"\u001B[0m A"`.
   **Ruling 2026-10-05:** B: `writeTo` refuses them under 1.0 with `TomlWriteError.NotInToml10`, as it refuses a
   trailing comma. `07:32` keeps printing as `07:32:00`.
+  **Ruling 2026-10-05 (2):** `toString()` of such a document prints the 1.0 spelling (`\u001B`), so it reads back
+  under 1.0; only `writeTo` refuses.
 - [ ] **79. Lines a caller's comment adds use `\n` in a CRLF file.** `a = [1, 2]\r\n` plus `3` with `# c` prints
   `a = [\n  1,\n  2,\n  3, # c\n]\r\n`. **Ruling 2026-10-05:** A: the new lines take the file's line ending;
   `makeValue` too.
@@ -89,8 +101,13 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
 - [ ] **81. A stray word starting with `i` or `n` is told it is a misspelt float.** `a = [I don't belong]` says
   "invalid float, expected `inf`". **Ruling 2026-10-05:** A: only a word that looks like `inf` or `nan` gets that;
   any other word is "string values must be quoted".
-- [ ] **82. Rename `makeValue()` to `inline()`.** **Ruling 2026-10-05:** rename; look at its opposite,
-  `InlineTable.toStandardTable()`, in the same pass. Goes with 66 (wave 2, API).
+- [ ] **82. Rename `makeValue()` to `inline()`.** **Ruling 2026-10-05:** rename to `Item.inline()`, and add
+  its mirror `Item.expand()`, which turns `t = { … }` into `[t]` in place; `InlineTable.toStandardTable()` stays
+  for building a table without touching the document. Goes with 66 (wave 2, API).
+
+- [ ] **83. A table's or value's own `toString()` prints the 1.1 forms in a 1.0 document.** Only a whole document
+  prints in its version. **Ruling 2026-10-05:** it follows its document's version; TOML 1.1 is the default and 1.0
+  is opt-in.
 
 Settled the same day, no change: a copied table prints where its key stands (item 38 over 29's "after the tables
 already there"); a moved table gets the default blank line (spacing is not kept across operations); a bare value's
