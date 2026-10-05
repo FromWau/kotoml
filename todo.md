@@ -80,6 +80,20 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
 Settled with no change (wave 2): a caller's comment on a replaced value replaces the comment on that line; a
 removed table keeps the comment lines above its header in place; a copy of a document's root keeps its version.
 
+### Owner calls on wave 3 (2026-10-06)
+
+- [ ] **90. A keyword typo in the first letter is told to quote.** `rue` and `yrue` say "string values must be
+  quoted"; `nf` is compared only to `nan`. Only words starting with t, f, i or n are compared to the keywords.
+  **Ruling 2026-10-06:** B: compare every unquoted word to `true`, `false`, `inf` and `nan`; the nearest keyword
+  wins, and a tie goes to the first in that order.
+- [ ] **91. `+inf` followed by a control character is told to quote.** `a = +inf` and a vertical tab reports
+  "string values must be quoted" over the whole word. **Ruling 2026-10-06:** B: a keyword followed by a control
+  character reports the control character itself, under it.
+
+Settled with no change (wave 3): a longer word starting with a keyword (`info`, `nann`) must be quoted, even when it
+is one edit away; a swap of two neighbouring letters counts as one edit (`ture`, `fasle`); a copied value brings
+its same-line comment into an array as into a table (C5 stands).
+
 Settled the same day, no change: a copied table prints where its key stands (item 38 over 29's "after the tables
 already there"); a moved table gets the default blank line (spacing is not kept across operations); a bare value's
 same-line comment travels with it; `makeValue` on a 1.0 array of tables keeps header comments and comment lines
