@@ -173,7 +173,7 @@ internal fun ParseErrorReason.describe(): String = when (this) {
 
 internal fun Reason.describe(): String = when (this) {
     is Reason.Syntax -> reason.describe()
-    is Reason.DuplicateKey -> "duplicate key `${keyPath.joinToString(".") { Key(it).toString() }}`"
+    is Reason.DuplicateKey -> "duplicate key `${keyPathText(keyPath)}`"
     is Reason.DottedKeyExtendsValue -> "cannot extend value of type ${valueType.describe()} with a dotted key"
     is Reason.InvalidDatetime -> error.describe()
     is Reason.MissingDigits -> when (radix) {
@@ -185,16 +185,53 @@ internal fun Reason.describe(): String = when (this) {
     Reason.IntegerOverflow -> "integer number overflowed"
     Reason.FloatOverflow -> "floating-point number overflowed"
     Reason.KeyTooDeep -> "recursion limit"
-    Reason.NotUnicode -> "half of a surrogate pair, which is not Unicode text"
+    Reason.NotUnicode -> NOT_UNICODE
     is Reason.InvalidUtf8 -> "bytes that are not UTF-8"
-    is Reason.NotInToml10 -> when (feature) {
-        Toml11Feature.MultilineInlineTable -> "inline tables cannot span lines in TOML 1.0"
-        Toml11Feature.InlineTableTrailingComma -> "inline tables cannot end with a comma in TOML 1.0"
-        Toml11Feature.TimeWithoutSeconds -> "times need seconds in TOML 1.0"
-        Toml11Feature.HexEscape -> "TOML 1.0 has no `\\x` escape"
-        Toml11Feature.EscapeEscape -> "TOML 1.0 has no `\\e` escape"
-    }
+    is Reason.NotInToml10 -> feature.describe()
 }
+
+private const val NOT_UNICODE = "half of a surrogate pair, which is not Unicode text"
+
+private fun Toml11Feature.describe(): String = when (this) {
+    Toml11Feature.MultilineInlineTable -> "inline tables cannot span lines in TOML 1.0"
+    Toml11Feature.InlineTableTrailingComma -> "inline tables cannot end with a comma in TOML 1.0"
+    Toml11Feature.TimeWithoutSeconds -> "times need seconds in TOML 1.0"
+    Toml11Feature.HexEscape -> "TOML 1.0 has no `\\x` escape"
+    Toml11Feature.EscapeEscape -> "TOML 1.0 has no `\\e` escape"
+}
+
+internal fun TomlEditError.describe(): String = when (this) {
+    is TomlEditError.NotFound -> "no key ${Key(key)}"
+    is TomlEditError.TypeMismatch ->
+        "${Key(key)}: expected ${expected.describe().withArticle()}, found ${found.describe().withArticle()}"
+    is TomlEditError.IndexOutOfBounds -> "index $index is out of bounds for a length of $length"
+    is TomlEditError.NotATable -> "${itemType.describe().withArticle()} has no key ${Key(key)}"
+    is TomlEditError.NotAnArray -> "${itemType.describe().withArticle()} has no index $index"
+    is TomlEditError.NotAValue -> "an inline table or array holds only values, not ${itemType.describe().withArticle()}"
+    is TomlEditError.NotATableElement ->
+        "an array of tables holds only tables, not ${itemType.describe().withArticle()}"
+    is TomlEditError.TooDeep -> at(keyPath, TOO_DEEP)
+}
+
+internal fun TomlWriteError.describe(): String = when (this) {
+    is TomlWriteError.NotUnicode -> at(keyPath.orEmpty(), NOT_UNICODE)
+    is TomlWriteError.TooDeep -> at(keyPath, TOO_DEEP)
+    is TomlWriteError.NotInToml10 -> at(keyPath, feature.describe())
+    is TomlIoError -> "reading or writing failed" + detail?.let { ": $it" }.orEmpty()
+}
+
+private const val TOO_DEEP = "nests deeper than ${TomlDocument.NESTING_LIMIT} levels, so it would not parse back"
+
+/** [sentence] led by [keyPath], or alone when the path is empty. */
+private fun at(
+    keyPath: List<String>,
+    sentence: String,
+): String = if (keyPath.isEmpty()) sentence else "${keyPathText(keyPath)}: $sentence"
+
+/** [keyPath] as TOML spells it, `a."b c".d`. */
+private fun keyPathText(keyPath: List<String>): String = keyPath.joinToString(".") { Key(it).toString() }
+
+private fun String.withArticle(): String = if (first() in "aeiou") "an $this" else "a $this"
 
 internal fun TomlType.describe(): String = when (this) {
     TomlType.String -> "string"

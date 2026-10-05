@@ -270,7 +270,11 @@ public sealed interface Offset : Comparable<Offset> {
 public data class DatetimeParseError(
     val part: DatetimePart?,
     val expected: DatetimeExpected?,
-) : IError
+) : IError {
+    /** The error as a person reads it, such as `invalid date, expected day between 01 and 28`. */
+    public val message: String
+        get() = describe()
+}
 
 /** The part of a date-time being read when it was refused. */
 public enum class DatetimePart {

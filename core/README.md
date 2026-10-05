@@ -205,6 +205,11 @@ with the offending line and a caret under each character of the offending text. 
 the error, about 80 characters with `…` where it is cut, and a control character as an escape such as `\x0D`; the
 error itself keeps the full span. A duplicate key names its whole path from the document's root, `a.b.c`.
 
+A `TomlEditError`, a `TomlWriteError` and a `DatetimeParseError` have a `message` that words them for a person, led
+by the key path when the error has one: `server: expected a table, found an integer`,
+`point: inline tables cannot end with a comma in TOML 1.0`, and for `Date.of(2021, 2, 29)`
+`invalid date, expected day between 01 and 28`.
+
 ## TOML versions
 
 Parsing follows TOML 1.1 by default. Pass `TomlVersion.V1_0` to `parse` to refuse what 1.1 added: newlines,

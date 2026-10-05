@@ -7,6 +7,13 @@ import kotlinx.serialization.Serializable
 /** Why an index, an edit or a builder block could not do what it was asked; upstream panics on most of these. */
 @Serializable
 public sealed interface TomlEditError : IError {
+    /**
+     * The error as a person reads it, led by the key when it has one, such as
+     * `server: expected a table, found an integer`.
+     */
+    public val message: String
+        get() = describe()
+
     /** Indexing by [key] into a table or inline table that holds no item there. */
     @Serializable
     @SerialName("NotFound")

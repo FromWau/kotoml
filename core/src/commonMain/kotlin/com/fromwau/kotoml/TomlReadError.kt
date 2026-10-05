@@ -24,6 +24,13 @@ public sealed interface TomlReadError : IError {
 @Serializable
 public sealed interface TomlWriteError : IError {
     /**
+     * The error as a person reads it, led by the key path when it has one, such as
+     * `server.ports: inline tables cannot end with a comma in TOML 1.0`.
+     */
+    public val message: String
+        get() = describe()
+
+    /**
      * The document's text holds half of a surrogate pair without the other half, which UTF-8 has no bytes for. It
      * stays in the document, and `toString()` prints it as is. [keyPath] names the first key or string holding one:
      * the keys leading to it, the key holding it last, array indices left out. It is null when only comments or
