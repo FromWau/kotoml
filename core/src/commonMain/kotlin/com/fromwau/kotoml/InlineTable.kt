@@ -84,7 +84,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
      * comments of a table written across lines are kept: the comment after `{` on its header line, each value's
      * comment after it, and the comment lines inside above the key below them.
      */
-    public fun toStandardTable(): StandardTable = copy().moveToStandardTable()
+    public fun toStandardTable(): StandardTable = deepCopy().moveToStandardTable()
 
     /** Moves the entries into a new standard table, formatted anew but keeping comments, leaving this table empty. */
     internal fun moveToStandardTable(): StandardTable {
@@ -631,8 +631,18 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         return Ok(Unit)
     }
 
-    /** A deep copy of this table. */
-    public fun copy(): InlineTable {
+    /**
+     * A deep copy of this table, stored nowhere: exactly what storing this table would store. A copy of a table read
+     * from a document leaves the comment after it on its line behind and takes the comments inside it. Comments a
+     * caller set through [decor] stay. A copy of a table stored nowhere, built in code or returned by `remove`, keeps
+     * all its comments.
+     */
+    public fun copy(): InlineTable = deepCopy().also { copy ->
+        if (isStored(this)) copy.rawDecor.dropReadComments(isHeader = false)
+    }
+
+    /** A deep copy that keeps every comment. */
+    internal fun deepCopy(): InlineTable {
         val copy = InlineTable(items.deepCopy())
         copy.rawTrailing = rawTrailing
         copy.trailingComma = trailingComma

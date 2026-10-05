@@ -140,7 +140,10 @@ An item handed out by indexing, and the comments that go with it, follow five ru
    is stored without its same-line comment, its header comment and the comment lines above its header; the comments
    inside it go along. Editing the original afterwards does not change the copy.
 3. **`copy()` is exactly what a store would store.** `dst.set("db", src["db"].getOrFail().copy())` prints the same as
-   `dst.set("db", src["db"].getOrFail())`, in another document or the same one.
+   `dst.set("db", src["db"].getOrFail())`, in another document or the same one. The same holds for the `copy()` of
+   what an item holds: `src["db"].getOrFail().standardTableOrNull!!.copy()` stores as `src["db"].getOrFail().copy()`
+   does, and so do the copies of an `InlineTable`, a `TomlArray`, an `ArrayOfTables` and a `Value`. A
+   `TomlDocument.copy()` is a whole document and keeps every comment and its version.
 4. **Removing is a move.** An item returned by `remove` or `removeAt` keeps its own comments, its same-line and header
    comment included, and stores with them. The comment lines above it stay in the document it left, so storing it
    there again prints them once. A comment a caller set through `decor` is the item's own too, so it travels with

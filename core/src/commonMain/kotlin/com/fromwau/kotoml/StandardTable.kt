@@ -198,7 +198,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
      *
      * @return [TomlEditError.TooDeep] when its tables, nested as inline tables, would be deeper than the parser reads.
      */
-    public fun toInlineTable(): Result<InlineTable, TomlEditError> = copy().moveToInlineTable().refusedWhenTooDeep()
+    public fun toInlineTable(): Result<InlineTable, TomlEditError> = deepCopy().moveToInlineTable().refusedWhenTooDeep()
 
     /** Moves the entries into a new inline table, formatted anew, leaving this table empty. */
     /**
@@ -753,8 +753,19 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         return Ok(Unit)
     }
 
-    /** A deep copy of this table. */
-    public fun copy(): StandardTable {
+    /**
+     * A deep copy of this table, stored nowhere: exactly what storing this table would store. A copy of a table read
+     * from a document leaves its header comment and the comment lines above its header behind and takes the comments
+     * inside it, so `dst.set("db", src["db"].getOrFail().standardTableOrNull!!.copy())` prints the same as
+     * `dst.set("db", src["db"].getOrFail().copy())`. Comments a caller set through [decor] stay. A copy of a table
+     * stored nowhere, built in code, returned by `remove` or a document's [TomlDocument.root], keeps all its comments.
+     */
+    public fun copy(): StandardTable = deepCopy().also { copy ->
+        if (isStored(this)) copy.rawDecor.dropReadComments(isHeader = true)
+    }
+
+    /** A deep copy that keeps every comment. */
+    internal fun deepCopy(): StandardTable {
         val copy = StandardTable(items.deepCopy())
         copy.rawDecor.assign(rawDecor)
         copy.isImplicit = isImplicit

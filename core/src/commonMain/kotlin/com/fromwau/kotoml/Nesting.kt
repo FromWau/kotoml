@@ -49,12 +49,18 @@ internal fun copiesWithinDocument(
     item: Item,
     receiver: Any,
 ): Boolean {
-    val sourceRoot = outermostTableOfSource(item) ?: item.copiedWithin ?: return false
+    val sourceRoot = outermostTableOfSource(item)
+        ?: item.copiedWithin
+        ?: item.arrayOfTablesOrNull?.copiedWithin
+        ?: return false
     return sourceRoot === outermostTableOf(receiver)
 }
 
 /** The outermost table of the document [item] is read from, or null when it is stored nowhere. */
 internal fun outermostTableOfSource(item: Item): StandardTable? = sourceOf(item)?.let(::outermostTableOf)
+
+/** Whether [container] is stored in a table or array, so a copy of it leaves the comments of that place behind. */
+internal fun isStored(container: Any): Boolean = parentOf(container) != null
 
 private fun sourceOf(item: Item): Any? = item.owner ?: item.container?.let(::parentOf)
 

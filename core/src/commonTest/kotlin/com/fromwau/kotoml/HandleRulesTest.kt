@@ -76,6 +76,103 @@ class HandleRulesTest {
     }
 
     @Test
+    fun `a copy of a standard table from another document stores as the item's copy does`() {
+        val viaItem = parse("[app]\nname = 1\n")
+        viaItem.set("db", parse(banneredSource)["db"].getOrFail().copy()).getOrFail()
+        val viaTable = parse("[app]\nname = 1\n")
+        viaTable.set("db", parse(banneredSource)["db"].getOrFail().standardTableOrNull!!.copy()).getOrFail()
+        assertEquals("[app]\nname = 1\n\n[db]\nurl = 1 # url c\n", viaTable.toString())
+        assertEquals(viaItem.toString(), viaTable.toString())
+    }
+
+    @Test
+    fun `a copy of a standard table from the same document stores as the item's copy does`() {
+        val text = "# banner\n[a] # a hdr\nk = 1 # k c\n\n[z]\n"
+        val viaItem = parse(text)
+        viaItem.set("b", viaItem["a"].getOrFail().copy()).getOrFail()
+        val viaTable = parse(text)
+        viaTable.set("b", viaTable["a"].getOrFail().standardTableOrNull!!.copy()).getOrFail()
+        assertEquals(viaItem.toString(), viaTable.toString())
+    }
+
+    @Test
+    fun `a copy of an inline table from another document stores as the item's copy does`() {
+        val source = "t = { x = 1 } # t c\n"
+        val viaItem = parse("y = 1\n")
+        viaItem.set("t", parse(source)["t"].getOrFail().copy()).getOrFail()
+        val viaTable = parse("y = 1\n")
+        viaTable.set("t", Value.InlineTable(parse(source)["t"].getOrFail().inlineTableOrNull!!.copy())).getOrFail()
+        assertEquals("y = 1\nt = { x = 1 }\n", viaTable.toString())
+        assertEquals(viaItem.toString(), viaTable.toString())
+    }
+
+    @Test
+    fun `a copy of an array from another document stores as the item's copy does`() {
+        val source = "a = [\n  1, # one\n] # a c\n"
+        val viaItem = parse("y = 1\n")
+        viaItem.set("a", parse(source)["a"].getOrFail().copy()).getOrFail()
+        val viaArray = parse("y = 1\n")
+        viaArray.set("a", Value.Array(parse(source)["a"].getOrFail().arrayOrNull!!.copy())).getOrFail()
+        assertEquals("y = 1\na = [\n  1, # one\n]\n", viaArray.toString())
+        assertEquals(viaItem.toString(), viaArray.toString())
+    }
+
+    @Test
+    fun `a copy of an array value from another document stores as the item's copy does`() {
+        val source = "a = [1, 2] # a c\n"
+        val viaItem = parse("y = 1\n")
+        viaItem.set("a", parse(source)["a"].getOrFail().copy()).getOrFail()
+        val viaValue = parse("y = 1\n")
+        viaValue.set("a", parse(source)["a"].getOrFail().valueOrNull!!.copy()).getOrFail()
+        assertEquals("y = 1\na = [1, 2]\n", viaValue.toString())
+        assertEquals(viaItem.toString(), viaValue.toString())
+    }
+
+    @Test
+    fun `a copy of an array of tables from another document stores as the item's copy does`() {
+        val source = "# about arr\n[[arr]] # first\nx = 1\n\n[[arr]] # second\nx = 2\n"
+        val viaItem = parse("[app]\n")
+        viaItem.set("arr", parse(source)["arr"].getOrFail().copy()).getOrFail()
+        val viaArray = parse("[app]\n")
+        viaArray.set("arr", parse(source)["arr"].getOrFail().arrayOfTablesOrNull!!.copy()).getOrFail()
+        assertEquals("[app]\n\n[[arr]]\nx = 1\n\n[[arr]] # second\nx = 2\n", viaArray.toString())
+        assertEquals(viaItem.toString(), viaArray.toString())
+    }
+
+    @Test
+    fun `a copy of an array of tables from the same document stores as the item's copy does`() {
+        val text = "# about arr\n[[arr]] # first\nx = 1\n\n[[arr]]\nx = 2\n\n[z]\n"
+        val viaItem = parse(text)
+        viaItem["z"].getOrFail().set("arr", viaItem["arr"].getOrFail().copy()).getOrFail()
+        val viaArray = parse(text)
+        viaArray["z"].getOrFail().set("arr", viaArray["arr"].getOrFail().arrayOfTablesOrNull!!.copy()).getOrFail()
+        assertEquals(viaItem.toString(), viaArray.toString())
+    }
+
+    @Test
+    fun `a copy of a removed table keeps its header comment`() {
+        val table = parse(banneredSource).remove("db")!!.standardTableOrNull!!.copy()
+        val doc = parse("[app]\nname = 1\n")
+        doc.set("db", table).getOrFail()
+        assertEquals("[app]\nname = 1\n\n[db] # db hdr\nurl = 1 # url c\n", doc.toString())
+    }
+
+    @Test
+    fun `a copy of a document keeps every comment`() {
+        val text = "# Generated, do not edit\n\n[db] # db hdr\nurl = 1 # url c\n"
+        assertEquals(text, parse(text).copy().toString())
+    }
+
+    @Test
+    fun `a copy of a document's root keeps every comment and the version`() {
+        val text = "# Generated, do not edit\n\n[db] # db hdr\nurl = 1 # url c\n"
+        val source = TomlDocument.parse(text, TomlVersion.V1_0).getOrFail()
+        val copied = TomlDocument(source.root.copy())
+        assertEquals(text, copied.toString())
+        assertEquals(TomlVersion.V1_0, copied.version)
+    }
+
+    @Test
     fun `a table removed from a document keeps its header comment when stored in another`() {
         val source = parse(banneredSource)
         val table = source.remove("db")!!
