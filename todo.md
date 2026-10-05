@@ -77,6 +77,8 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
   klap's.
   **Pinned:** `ExitCodeTest` checks a failed write exits non-zero, which holds through klap; the gap is kern's
   native terminal.
+  **Progress 2026-10-05:** kern 0.4.1 reports the failed write; the native CLI now exits 141 on `/dev/full` and a
+  closed stdout. Left: klap's message, `error: cannot write to standard output`.
 - [ ] **41. CLI: a value from a CRLF file prints with `\r\n`.** ✓ `kotoml get -r .t.x` on a CRLF file gives `y\r`
   in `$(…)`. In a mixed file the first line ending is used for every line printed. Goals 2, 15.
   **Ruling 2026-10-05:** expected: a single value ends in `\n`; a table keeps each line's own ending.

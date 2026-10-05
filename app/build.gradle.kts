@@ -56,6 +56,8 @@ kotlin {
         commonMain.dependencies {
             implementation(project(":core"))
             implementation(libs.klap)
+            // Declared to lift klap's own kern: 0.4.1's native terminal reports a failed write.
+            implementation(libs.kern.terminal)
             implementation(libs.kotlinx.io.core)
         }
     }
