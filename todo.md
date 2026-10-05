@@ -69,6 +69,34 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
   stderr's, and a failure on stderr alone also counts, so a run whose stdout landed but whose stderr hit a full disk
   exits 1 with `cannot write to standard output`. Saying which stream failed needs kern to report it (kern, klap).
 
+### Owner calls on wave 1 (2026-10-05)
+
+- [ ] **77. A `.copy()` of an item read from a document keeps that document's comments.** `src["db"].copy()` stored in
+  another document brings `# Generated…` and `[db] # db hdr`, glued to the line before; `dst.set("db", src["db"])`
+  leaves them. **Ruling 2026-10-05:** handles stay live, with five rules: reading gives a live view; storing stores
+  a copy that leaves its source's comments, whatever the source; `.copy()` is exactly what a store would store, so
+  `src["db"].copy()` and `src["db"]` land the same; `remove()` hands the item over with its own comments (a move); a
+  replaced or removed item is detached. Document the five rules in `core/README.md`.
+- [ ] **78. A 1.0 document writes `\e` and `\x` in their 1.0 spelling.** `\e[0m \x41` prints `"\u001B[0m A"`.
+  **Ruling 2026-10-05:** B: `writeTo` refuses them under 1.0 with `TomlWriteError.NotInToml10`, as it refuses a
+  trailing comma. `07:32` keeps printing as `07:32:00`.
+- [ ] **79. Lines a caller's comment adds use `\n` in a CRLF file.** `a = [1, 2]\r\n` plus `3` with `# c` prints
+  `a = [\n  1,\n  2,\n  3, # c\n]\r\n`. **Ruling 2026-10-05:** A: the new lines take the file's line ending;
+  `makeValue` too.
+- [ ] **80. A caller's comment on an element added at an index, or a replaced one, is dropped.** `add(0, 0 # c)` on
+  `[1, 2]` prints `[0, 1, 2]`. **Ruling 2026-10-05:** yes, the item 37 rule: `add(index, …)` and `replace` spread a
+  one-line array (or inline table) over lines and keep the comment.
+- [ ] **81. A stray word starting with `i` or `n` is told it is a misspelt float.** `a = [I don't belong]` says
+  "invalid float, expected `inf`". **Ruling 2026-10-05:** A: only a word that looks like `inf` or `nan` gets that;
+  any other word is "string values must be quoted".
+- [ ] **82. Rename `makeValue()` to `inline()`.** **Ruling 2026-10-05:** rename; look at its opposite,
+  `InlineTable.toStandardTable()`, in the same pass. Goes with 66 (wave 2, API).
+
+Settled the same day, no change: a copied table prints where its key stands (item 38 over 29's "after the tables
+already there"); a moved table gets the default blank line (spacing is not kept across operations); a bare value's
+same-line comment travels with it; `makeValue` on a 1.0 array of tables keeps header comments and comment lines
+between elements; `sort()` stays on inline tables; the wave 1 wire changes stay (kotoml is unreleased).
+
 Reported as friction but documented by design, not filed: `doc["typo"]["k"] = v` is a silent no-op; nullable types
 are refused; `Map<Int, V>` is refused.
 
