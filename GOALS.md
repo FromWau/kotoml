@@ -34,8 +34,12 @@ official toml-test runner for TOML 1.0 and 1.1.
    - a comment inside a structure whose key is removed or replaced goes with it, the comments between the lines of a
      removed dotted-key table included; a value replaced by a table takes the comment above it to its header;
    - a removed key's same-line comment goes with it, while a replaced value keeps its spacing and same-line comment;
-   - making a table or an inline table dotted, or dotted back into a header or braces, replaces its layout: its
-     comments may go, but for the lines above its key;
+   - making a table or an inline table dotted, or dotted back into a header or braces, replaces its layout: the
+     lines above its key stay and each value keeps its same-line comment, while its header comment, the comment after
+     its braces and the comment lines inside it go;
+   - `makeValue` keeps a table whose values have comments across lines in TOML 1.1, its header comment after `{`;
+     otherwise, or in a document read as TOML 1.0, it writes one line and only the header comment stays, after `}`;
+   - a table replaced by a table keeps its header comment;
    - in an array of tables, removing elements drops the comments between them and keeps the one above the first
      and the one after the last; one left empty prints `key = []` under the comment that was above its first header;
    - dotted keys turned into a header put the comment above their first line above the header;

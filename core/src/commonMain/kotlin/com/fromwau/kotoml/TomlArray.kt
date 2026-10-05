@@ -141,7 +141,13 @@ public class TomlArray() : Iterable<Value> {
             next.rawDecor.prefix = null
             return
         }
-        if ('#' !in start.substring(0, firstBreak)) return
+        if ('#' !in start.substring(0, firstBreak)) {
+            // In an array of one element per line, the new element takes a line of its own.
+            val inLines = printedValues().firstOrNull()?.decor?.prefix?.contains('\n') == true
+            val lineBreak = if ("\r\n" in start) "\r\n" else "\n"
+            if (inLines) value.rawDecor.prefix = KeptText.from(lineBreak + start.substringAfterLast('\n'))
+            return
+        }
         val lineEnd = if (firstBreak > 0 && start[firstBreak - 1] == '\r') firstBreak - 1 else firstBreak
         value.rawDecor.prefix = KeptText.from(start.substring(0, firstBreak + 1) + start.substringAfterLast('\n'))
         next.rawDecor.prefix = KeptText.from(start.substring(lineEnd))
@@ -152,13 +158,19 @@ public class TomlArray() : Iterable<Value> {
         val lineBreak = trailing.lastIndexOf('\n')
         if (lineBreak < 0) return
         val closingLine = if (lineBreak > 0 && trailing[lineBreak - 1] == '\r') lineBreak - 1 else lineBreak
+        // Indented like the last element, or in an array holding only comments, like the last of them.
         val indent = values.lastOrNull()
             ?.valueOrNull
             ?.decor
             ?.prefix
             ?.takeIf { '\n' in it }
             ?.substringAfterLast('\n')
-            .orEmpty()
+            ?: trailing
+                .substring(0, lineBreak)
+                .lines()
+                .lastOrNull { it.isNotBlank() }
+                ?.takeWhile { it == ' ' || it == '\t' }
+            ?: ""
         value.decor = value.decor.copy(prefix = trailing.substring(0, lineBreak + 1) + indent)
         trailing = trailing.substring(closingLine)
     }
@@ -291,7 +303,12 @@ public class TomlArray() : Iterable<Value> {
                 next = next?.rawDecor?.prefix?.textOrNull ?: trailing,
                 nextIsElement = next != null,
             )
-            val isFirst = values.subList(0, index).none { it.valueOrNull != null }
+            val previous = values.subList(0, index).lastOrNull { it.valueOrNull != null }?.valueOrNull
+            val isFirst = previous == null
+            val removed = values[index].valueOrNull
+            if (replacement == null && next == null && previous != null && removed != null && !trailingComma) {
+                passClosingSpace(removed, previous)
+            }
             if (replacement != null && next != null) {
                 next.rawDecor.prefix = KeptText.from(replacement)
             } else if (replacement == null && next != null && isFirst && '\n' !in next.decor.prefix.orEmpty()) {

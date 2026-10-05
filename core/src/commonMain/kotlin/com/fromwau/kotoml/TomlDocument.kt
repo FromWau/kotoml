@@ -37,7 +37,7 @@ public class TomlDocument internal constructor(
 
     init {
         // The root prints its values as the document's first lines, never as the parts of a dotted key.
-        root.isDotted = false
+        root.setDotted(false)
     }
 
     // The parser skips a byte order mark at the start of the text, so the document prints it back itself.

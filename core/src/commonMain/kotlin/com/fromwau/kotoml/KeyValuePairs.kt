@@ -47,10 +47,18 @@ internal class KeyValue(var key: Key, item: Item) {
     fun replace(next: Item): Item {
         val lines = takeLinesAbove(next)
         val oldDecor = item.valueOrNull?.rawDecor
+        val oldHeader = item.standardTableOrNull?.takeUnless { it.isDotted }?.rawDecor
         val old = item.takeContentOf(next)
         keepValueDecor(oldDecor)
+        keepHeaderComment(oldHeader)
         keepLinesAbove(lines)
         return old
+    }
+
+    /** Gives a table now in the slot the comment on the header of the table [old] it replaced, unless it has one. */
+    fun keepHeaderComment(old: RawDecor?) {
+        val table = item.standardTableOrNull?.takeUnless { it.isDotted } ?: return
+        if (old != null && table.rawDecor.suffix?.textOrNull.isNullOrEmpty()) table.rawDecor.suffix = old.suffix
     }
 
     /**

@@ -68,6 +68,33 @@ internal fun textAfterRemovedElement(
     return prefix.substring(0, lastBreak + 1) + rest
 }
 
+/**
+ * Gives [survivor], now the last element on one line, the space before the closing bracket that the removed last
+ * element [removed] held, unless [survivor] has its own.
+ */
+internal fun passClosingSpace(
+    removed: Value,
+    survivor: Value,
+) {
+    val space = removed.rawDecor.suffix ?: return
+    val text = space.textOrNull ?: return
+    if ('\n' in text || '#' in text || !survivor.rawDecor.suffix?.textOrNull.isNullOrEmpty()) return
+    survivor.rawDecor.suffix = space
+}
+
+/**
+ * This text between elements without its comment lines: the comment ending the line before stays when
+ * [keepFirstLineComment], then the line break and the indentation of the line after.
+ */
+internal fun String.withoutCommentLines(keepFirstLineComment: Boolean): String {
+    val firstBreak = indexOf('\n')
+    if (firstBreak < 0) return if (keepFirstLineComment || '#' !in this) this else ""
+    val lineEnd = if (firstBreak > 0 && this[firstBreak - 1] == '\r') firstBreak - 1 else firstBreak
+    val head = substring(0, lineEnd).let { if (keepFirstLineComment || '#' !in it) it else "" }
+    val lineBreak = substring(lineEnd, firstBreak + 1)
+    return head + lineBreak + substringAfterLast('\n')
+}
+
 /** Puts [text] in front of the prefix, which printed [default] while it had none of its own. */
 internal fun RawDecor.prependToPrefix(
     text: String,

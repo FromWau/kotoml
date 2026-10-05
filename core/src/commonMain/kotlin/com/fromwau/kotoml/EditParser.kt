@@ -83,7 +83,7 @@ internal fun parseDocumentModel(source: TomlSource, errors: TomlSink, version: T
     val events = collectEvents(source, errors, ::parseDocumentEvents)
     val context = ParseContext(source, errors, version)
     val lineEnding = events.firstOrNull { it.kind == EventKind.Newline }?.let { context.text(it.span) } ?: "\n"
-    return DocumentBuilder(EventStream(events), context).document(lineEnding)
+    return DocumentBuilder(EventStream(events), context).document(lineEnding).also { it.root.readAs = version }
 }
 
 internal fun parseSimpleKeyItem(source: TomlSource, errors: TomlSink, version: TomlVersion): Key {
@@ -370,7 +370,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
         currentPosition += 1
         currentTable.rawDecor.assign(decor)
         currentTable.isImplicit = false
-        currentTable.isDotted = false
+        currentTable.setDotted(false)
         currentTable.position = currentPosition
         currentTable.span = header.span
         currentHeader = header
@@ -401,7 +401,7 @@ private fun descendPath(
             val newTable = StandardTable()
             newTable.span = key.span
             newTable.isImplicit = true
-            newTable.isDotted = dotted
+            newTable.setDotted(dotted)
             val held = key.copy()
             table.items.put(held, Item(newTable))
             shared += held
@@ -418,7 +418,7 @@ private fun descendPath(
             child != null -> {
                 if (dotted && child.isImplicit) {
                     // A dotted key extends an implicit table, so it becomes part of the dotted key.
-                    child.isDotted = true
+                    child.setDotted(true)
                 }
                 // Tables cannot be defined more than once, and dotted keys cannot extend a table defined
                 // with a header.
@@ -914,7 +914,7 @@ private fun descendInlinePath(
             val newTable = InlineTable()
             newTable.span = key.span
             newTable.isImplicit = true
-            newTable.isDotted = dotted
+            newTable.setDotted(dotted)
             val held = key.copy()
             table.items.put(held, Item.inInlineTable(Value.InlineTable(newTable)))
             shared += held

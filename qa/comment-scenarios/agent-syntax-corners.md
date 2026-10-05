@@ -592,7 +592,8 @@ a = [
 ```
 
 ### C-035: appending when a comment sits before `]`
-rule: 6   version: 1.0   open: does the new element go above the comment before `]` (below the last element) or below it?
+rule: 6   version: 1.0
+settled: owner ruling 2026-10-05 (Q8): a new element goes below the comment lines before `]`, indented like the elements.
 ```toml input
 a = [
   1,
@@ -605,8 +606,8 @@ doc["a"].getOrFail().arrayOrNull!!.add(Value.Integer(2L))
 ```toml expected
 a = [
   1,
-  2,
   # end of list
+  2,
 ]
 ```
 
@@ -680,7 +681,8 @@ a = [ # c
 ```
 
 ### C-040: appending to an empty array that only holds a comment
-rule: 6   version: 1.0   open: element before or after the comment, comma or not
+rule: 6   version: 1.0
+settled: owner ruling 2026-10-05 (Q8): a new element goes below the comment lines before `]`, indented like the elements.
 ```toml input
 a = [
   # nothing yet
@@ -691,8 +693,8 @@ doc["a"].getOrFail().arrayOrNull!!.add(Value.Integer(1L))
 ```
 ```toml expected
 a = [
-  1,
   # nothing yet
+  1
 ]
 ```
 
@@ -1075,7 +1077,8 @@ deps = [
 ## Inline tables made dotted and back
 
 ### C-063: an inline table made dotted keeps the comment above its key
-rule: 8   version: 1.0   open: does the same-line comment `# c` survive as the comment of the last dotted line?
+rule: 8   version: 1.0
+settled: owner ruling 2026-10-05 (Q5): a table or inline table made dotted, or a header again, keeps the lines above its key and each value's same-line comment; its header comment, the comment after its braces and the comment lines inside go.
 ```toml input
 x = 0
 # above
@@ -1092,7 +1095,8 @@ t.b = 2
 ```
 
 ### C-064: a multi-line 1.1 inline table made dotted keeps the line above, drops inner comments
-rule: 8   version: 1.1   open: inner same-line comments could legally follow each dotted line; are they kept?
+rule: 8   version: 1.1
+settled: owner ruling 2026-10-05 (Q5): a table or inline table made dotted, or a header again, keeps the lines above its key and each value's same-line comment; its header comment, the comment after its braces and the comment lines inside go.
 ```toml input
 # above
 t = {
@@ -1106,8 +1110,8 @@ doc["t"].getOrFail().inlineTableOrNull!!.isDotted = true
 ```
 ```toml expected
 # above
-t.a = 1
-t.b = 2
+t.a = 1 # one
+t.b = 2 # two
 y = 3
 ```
 
@@ -1200,7 +1204,8 @@ b = 2 # bee
 ```
 
 ### C-070: a dotted table made a standard table keeps the lines above its first key
-rule: 8   version: 1.0   open: where the new `[t]` section lands (after root keys, blank line before it or not), and whether `# one` survives
+rule: 8   version: 1.0
+settled: owner ruling 2026-10-05 (Q2): a new header gets its blank line above the comment that introduces it.
 ```toml input
 x = 0
 # above
@@ -1211,13 +1216,15 @@ doc["t"].getOrFail().standardTableOrNull!!.isDotted = false
 ```
 ```toml expected
 x = 0
+
 # above
 [t]
 a = 1 # one
 ```
 
 ### C-071: a standard table made dotted keeps the lines above its header and drops the header comment
-rule: 8   version: 1.0   open: does the value's own `# one` stay?
+rule: 8   version: 1.0
+settled: owner ruling 2026-10-05 (Q5): a table or inline table made dotted, or a header again, keeps the lines above its key and each value's same-line comment; its header comment, the comment after its braces and the comment lines inside go.
 ```toml input
 x = 0
 # above
@@ -1400,7 +1407,8 @@ a = 2 # c
 ```
 
 ### C-083: a final comment without a newline stays last when a key is added
-rule: 9, 1   version: 1.0   input has no final newline   open: does the new key go above the trailing comment block?
+rule: 9, 1   version: 1.0   input has no final newline
+settled: settled like C-084: a file read without a final newline keeps none after an edit.
 ```toml input
 a = 1
 # end
@@ -1411,8 +1419,7 @@ doc["b"] = 2L
 ```toml expected
 a = 1
 b = 2
-# end
-```
+# end```
 
 ### C-084: a final comment without a newline stays when the key above it is removed
 rule: 9, 2   version: 1.0   input has no final newline
@@ -1866,7 +1873,8 @@ t = 5
 ```
 
 ### C-109: a table turned into an inline value keeps the line above its header
-rule: 4   version: 1.0   open: is makeValue a structure change under rule 4 that drops `# hdr`, `# inner`, `# one`?
+rule: 4   version: 1.0
+settled: owner ruling 2026-10-05 (Q6): makeValue on one line keeps the header comment after `}`.
 ```toml input
 # above t
 [t] # hdr
@@ -1878,7 +1886,7 @@ doc["t"].getOrFail().makeValue()
 ```
 ```toml expected
 # above t
-t = { a = 1 }
+t = { a = 1 } # hdr
 ```
 
 ### C-110: an array of tables replaced by a scalar keeps the lines above the first header

@@ -32,7 +32,31 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     internal var span: Span? = null
 
     /** Whether this table stands for the parts of a dotted key rather than for `{ ... }`. */
-    override var isDotted: Boolean = false
+    override var isDotted: Boolean
+        get() = dotted
+        set(value) {
+            if (value != dotted) dropCommentsForNewLayout()
+            dotted = value
+        }
+
+    private var dotted: Boolean = false
+
+    /** Sets [isDotted] as reading or copying a table does, which gives it no new layout. */
+    internal fun setDotted(value: Boolean) {
+        dotted = value
+    }
+
+    // A new layout keeps each value's comment on its line, held at the start of the next entry's prefix or of the
+    // text before `}`, and drops the table's other comments: after `{`, on lines of their own, and after `}`.
+    private fun dropCommentsForNewLayout() {
+        if ('#' in rawDecor.suffix?.textOrNull.orEmpty()) rawDecor.suffix = null
+        for ((index, entry) in items.entries.withIndex()) {
+            val decor = entry.key.rawLeafDecor
+            val prefix = decor.prefix?.textOrNull ?: continue
+            decor.prefix = KeptText.from(prefix.withoutCommentLines(keepFirstLineComment = index > 0))
+        }
+        rawTrailing = KeptText.from(trailing.withoutCommentLines(keepFirstLineComment = true))
+    }
 
     internal var items: KeyValuePairs = KeyValuePairs()
         set(value) {
@@ -462,7 +486,11 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
                     suffix = line.value.rawDecor.suffix?.textOrNull.orEmpty(),
                     next = textBefore(next),
                     nextIsElement = next is VisualValue,
-                ) ?: continue
+                ) ?: run {
+                    val before = lines.subList(0, index).lastOrNull { it is VisualValue && it !in removed }
+                    if (next == null && before is VisualValue) passClosingSpace(line.value, before.value)
+                    continue
+                }
             }
             when (next) {
                 is VisualValue -> next.entry.key.rawLeafDecor.prefix = KeptText.from(replacement)
@@ -503,7 +531,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         copy.isImplicit = isImplicit
         copy.rawDecor.assign(rawDecor)
         copy.span = span
-        copy.isDotted = isDotted
+        copy.setDotted(isDotted)
         return copy
     }
 

@@ -41,11 +41,53 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
      * Whether this table stands for the parts of a dotted key rather than for a header. A document's root and an
      * element of an array of tables are never dotted: storing a table as either clears this.
      */
-    override var isDotted: Boolean = false
+    override var isDotted: Boolean
+        get() = dotted
         set(value) {
-            if (field && !value) takeFirstLineCommentsAboveHeader()
-            field = value
+            if (value == dotted) return
+            // A new layout: the lines above the key stay, and each value keeps the comment on its line.
+            if (value) {
+                if ('#' in rawDecor.suffix?.textOrNull.orEmpty()) rawDecor.suffix = null
+                dropCommentLines(fromLine = 0)
+            } else {
+                takeFirstLineCommentsAboveHeader()
+                dropCommentLinesWithinRuns()
+            }
+            dotted = value
         }
+
+    private var dotted: Boolean = false
+
+    /** For a document's root, the TOML version the document was read as; null for one built in code. */
+    internal var readAs: TomlVersion? = null
+
+    /** Sets [isDotted] as reading or copying a table does, which gives it no new layout. */
+    internal fun setDotted(value: Boolean) {
+        dotted = value
+    }
+
+    // The comment lines above this table's lines from [fromLine] on go; those kept from removed keys stay.
+    private fun dropCommentLines(fromLine: Int) {
+        for (line in visualValues().drop(fromLine)) line.dropCommentLines()
+    }
+
+    // Of this dotted table's lines, those right after another of them lose the comment lines between; one after
+    // other content keeps the lines above it, as removing the table would.
+    private fun dropCommentLinesWithinRuns() {
+        val own = visualValues().mapTo(HashSet()) { it.entry }
+        val printed = headerTableOf(this)?.bodyLines() ?: visualValues()
+        for ((before, line) in printed.zipWithNext()) {
+            if (before is VisualValue && line is VisualValue && before.entry in own && line.entry in own) {
+                line.dropCommentLines()
+            }
+        }
+    }
+
+    private fun VisualValue.dropCommentLines() {
+        val decor = path.last().rawLeafDecor
+        val prefix = decor.prefix?.textOrNull ?: return
+        if ('#' in prefix) decor.prefix = KeptText.from(prefix.substringAfterLast('\n'))
+    }
 
     // The comment lines introducing dotted lines introduce the header that replaces them, unless it has its own.
     private fun takeFirstLineCommentsAboveHeader() {
@@ -105,6 +147,53 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     public fun toInlineTable(): Result<InlineTable, TomlEditError> = copy().moveToInlineTable().refusedWhenTooDeep()
 
     /** Moves the entries into a new inline table, formatted anew, leaving this table empty. */
+    /**
+     * Whether this table's lines carry a comment: above a key inside it, after a value, or kept from a removed key.
+     * The lines above a dotted table's first line are above its key, outside it.
+     */
+    internal fun holdsComments(): Boolean {
+        if (items.keptLines.any { '#' in it.text }) return true
+        return visualValues().withIndex().any { (index, line) ->
+            val above = if (isDotted && index == 0) "" else linesAbove(line.path.last().rawLeafDecor.prefix)
+            '#' in above || '#' in line.value.rawDecor.suffix?.textOrNull.orEmpty()
+        }
+    }
+
+    /**
+     * Moves the entries into a new inline table across lines that keeps their comments, which only TOML 1.1 reads:
+     * [headerComment] after `{`, each value's comment after its comma, and the comment lines above a key above it.
+     * Tables under this one become inline tables on one line.
+     */
+    internal fun moveToInlineTableAcrossLines(
+        headerComment: String,
+        lineBreak: String,
+    ): InlineTable {
+        for (entry in items.entries) {
+            if (entry.item.valueOrNull == null) entry.item.holdValue(entry.item.copy().moveToValue())
+        }
+        val indent = "  "
+        fun indented(lines: String): String = lines
+            .lines()
+            .filter { it.isNotBlank() }
+            .joinToString("") { indent + it.trim() + lineBreak }
+        var carried = headerComment
+        for ((index, entry) in items.entries.withIndex()) {
+            val decor = entry.key.rawLeafDecor
+            val above = if (isDotted && index == 0) "" else linesAbove(decor.prefix)
+            decor.prefix = KeptText.from(carried + lineBreak + indented(above) + indent)
+            decor.suffix = null
+            val value = entry.item.valueOrNull ?: continue
+            carried = value.commentAfter()
+            value.rawDecor.suffix = KeptText.from("")
+        }
+        val kept = items.keptLines.joinToString("") { indented(it.text) }
+        items.keptLines.clear()
+        val table = InlineTable(items.takeAll())
+        table.trailingComma = false
+        table.rawTrailing = KeptText.from(carried + lineBreak + kept)
+        return table
+    }
+
     internal fun moveToInlineTable(): InlineTable {
         for (entry in items.entries) entry.item.holdValue(entry.item.copy().moveToValue())
         val table = InlineTable(items.takeAll())
@@ -524,7 +613,8 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         val copy = StandardTable(items.deepCopy())
         copy.rawDecor.assign(rawDecor)
         copy.isImplicit = isImplicit
-        copy.isDotted = isDotted
+        copy.setDotted(isDotted)
+        copy.readAs = readAs
         copy.position = position
         copy.span = span
         copy.headerLineEnding = headerLineEnding
@@ -551,7 +641,8 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         items = other.items
         rawDecor.assign(other.rawDecor)
         isImplicit = other.isImplicit
-        isDotted = other.isDotted
+        dotted = other.dotted
+        readAs = other.readAs
         position = other.position
         span = other.span
         keptHeaderLines.clear()
@@ -622,6 +713,16 @@ private fun MutableList<BodyLine>.takeOutOfBraces(
             aboves[position] += linesAboveOnTableLines(KeptText.from(prefix))
         }
     }
+    // The comment after the last value of a dotted table inside this one, held before its `}`, ends that line.
+    val lastOfNested = HashMap<InlineTable, Int>()
+    for ((position, index) in lines.withIndex()) {
+        val owner = (this[index] as VisualValue).entry.pairs?.owner as? InlineTable ?: continue
+        if (owner !== inline.table && owner.isDotted) lastOfNested[owner] = position
+    }
+    for ((nested, position) in lastOfNested) {
+        val text = nested.rawTrailing.textOrNull.orEmpty()
+        endLine(position, text.commentBeforeBreak(), text.lineBreak())
+    }
     val last = lines.lastIndex
     val trailing = inline.table.rawTrailing.textOrNull.orEmpty()
     val lineBreak = trailing.lineBreak()
@@ -648,7 +749,7 @@ private fun List<BodyLine>.indexOfFirstValue(from: Int): Int =
     (from until size).firstOrNull { this[it] is VisualValue } ?: -1
 
 /** The comment after this value, with the spacing before it, or "" when there is none. */
-private fun Value.commentAfter(): String = rawDecor.suffix?.textOrNull?.takeIf { '#' in it }.orEmpty()
+internal fun Value.commentAfter(): String = rawDecor.suffix?.textOrNull?.takeIf { '#' in it }.orEmpty()
 
 /** Whether this item prints under a header of its own; an array of no tables prints as `key = []` instead. */
 internal val Item.printsOwnHeader: Boolean

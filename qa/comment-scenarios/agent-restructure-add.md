@@ -579,7 +579,8 @@ a = [
 ```
 
 ### S-030: an element added to a multi-line array that ends in a comment line
-rule: 1, 9   version: 1.0   open: the comment before `]` is not the last element's comment; does the new element go above it (as here) or below it?
+rule: 1, 9   version: 1.0
+settled: owner ruling 2026-10-05 (Q8): a new element goes below the comment lines before `]`, indented like the elements.
 ```toml input
 a = [
   1,
@@ -592,8 +593,8 @@ doc["a"].getOrFail().arrayOrNull!!.add(Value.Integer(2L))
 ```toml expected
 a = [
   1,
-  2,
   # more later
+  2,
 ]
 ```
 
@@ -610,7 +611,8 @@ a = [0, 1, 2] # nums
 ```
 
 ### S-032: an element inserted at index 0 of a multi-line array whose first element has a comment above
-rule: 1, 9   version: 1.0   open: does `# first` stay with element `1` (as here) or stay at the top above the new first element?
+rule: 1, 9   version: 1.0
+settled: fixed 2026-10-05: the spacing before the closing bracket and an element inserted into an array of one element per line.
 ```toml input
 a = [
   # first
@@ -672,7 +674,8 @@ a = [
 ```
 
 ### S-035: an element added to an empty multi-line array that holds only a comment
-rule: 1, 9, 10   version: 1.0   open: which indentation, trailing comma, and which side of the comment does the first element take?
+rule: 1, 9, 10   version: 1.0
+settled: owner ruling 2026-10-05 (Q8): a new element goes below the comment lines before `]`, indented like the elements.
 ```toml input
 a = [
   # none yet
@@ -683,8 +686,8 @@ doc["a"].getOrFail().arrayOrNull!!.add(Value.Integer(1L))
 ```
 ```toml expected
 a = [
-  1,
   # none yet
+  1
 ]
 ```
 
@@ -1185,7 +1188,8 @@ a = 1 # one
 ## Table to inline table
 
 ### S-059: makeValue keeps the comment above the header and moves the header comment to the line
-rule: 4, 8   version: 1.0   open: is the header comment kept at the end of the new line (as rule 8 does for dotted), or dropped?
+rule: 4, 8   version: 1.0
+settled: owner ruling 2026-10-05 (Q6): makeValue keeps a table with value comments across lines in TOML 1.1, the header comment after `{`; otherwise, or in a document read as 1.0, one line with only the header comment after `}`.
 ```toml input
 # about t
 [t] # t header
@@ -1277,7 +1281,8 @@ t = { a = 1, b = 2 }
 ```
 
 ### S-064: makeValue on a dotted-key table with a comment on its first line
-rule: 4, 8, 10   version: 1.0   open: the first line's comment can be kept at the end of the new line (as here); is that wanted, given it was `a`'s comment?
+rule: 4, 8, 10   version: 1.0
+settled: owner ruling 2026-10-05 (Q6): makeValue keeps a table with value comments across lines in TOML 1.1, the header comment after `{`; otherwise, or in a document read as 1.0, one line with only the header comment after `}`.
 ```toml input
 t.a = 1 # a
 t.b = 2
@@ -1286,11 +1291,12 @@ t.b = 2
 doc["t"].getOrFail().makeValue()
 ```
 ```toml expected
-t = { a = 1, b = 2 } # a
+t = { a = 1, b = 2 }
 ```
 
 ### S-065: makeValue in TOML 1.1 still writes a one-line inline table
-rule: 4, 8, 9   version: 1.1   open: 1.1 allows comments inside inline tables; should makeValue keep `# one` in a multi-line inline table instead?
+rule: 4, 8, 9   version: 1.1
+settled: owner ruling 2026-10-05 (Q6): makeValue keeps a table with value comments across lines in TOML 1.1, the header comment after `{`; otherwise, or in a document read as 1.0, one line with only the header comment after `}`.
 ```toml input
 [t] # t
 a = 1 # one
@@ -1299,13 +1305,16 @@ a = 1 # one
 doc["t"].getOrFail().makeValue()
 ```
 ```toml expected
-t = { a = 1 } # t
+t = { # t
+  a = 1 # one
+}
 ```
 
 ## Dotted and back
 
 ### S-066: a table made dotted takes its header comment onto its first line (owner example)
 rule: 8   version: 1.0
+settled: owner ruling 2026-10-05 (Q5): a table or inline table made dotted, or a header again, keeps the lines above its key and each value's same-line comment; its header comment, the comment after its braces and the comment lines inside go.
 ```toml input
 # about x
 [x] # x header
@@ -1316,11 +1325,12 @@ doc["x"].getOrFail().standardTableOrNull!!.isDotted = true
 ```
 ```toml expected
 # about x
-x.a = 1 # x header
+x.a = 1
 ```
 
 ### S-067: a table made dotted after a root key keeps the blank line and comment above
 rule: 8   version: 1.0
+settled: owner ruling 2026-10-05 (Q5): a table or inline table made dotted, or a header again, keeps the lines above its key and each value's same-line comment; its header comment, the comment after its braces and the comment lines inside go.
 ```toml input
 title = "t"
 
@@ -1336,7 +1346,7 @@ doc["x"].getOrFail().standardTableOrNull!!.isDotted = true
 title = "t"
 
 # about x
-x.a = 1 # x header
+x.a = 1
 x.b = 2
 ```
 
@@ -1356,7 +1366,8 @@ x.b = 2 # two
 ```
 
 ### S-069: a table made dotted where both the header and the first key have a comment
-rule: 8   version: 1.0   open: only one comment fits on `x.a`'s line; header comment wins (as here), the key's own comment wins, or the header comment moves to its own line above?
+rule: 8   version: 1.0
+settled: owner ruling 2026-10-05 (Q5): a table or inline table made dotted, or a header again, keeps the lines above its key and each value's same-line comment; its header comment, the comment after its braces and the comment lines inside go.
 ```toml input
 [x] # hx
 a = 1 # one
@@ -1365,11 +1376,12 @@ a = 1 # one
 doc["x"].getOrFail().standardTableOrNull!!.isDotted = true
 ```
 ```toml expected
-x.a = 1 # hx
+x.a = 1 # one
 ```
 
 ### S-070: a table made dotted keeps the comment above its first key
 rule: 8   version: 1.0
+settled: owner ruling 2026-10-05 (Q5): a table or inline table made dotted, or a header again, keeps the lines above its key and each value's same-line comment; its header comment, the comment after its braces and the comment lines inside go.
 ```toml input
 [x]
 # about a
@@ -1379,12 +1391,12 @@ a = 1
 doc["x"].getOrFail().standardTableOrNull!!.isDotted = true
 ```
 ```toml expected
-# about a
 x.a = 1
 ```
 
 ### S-071: a table made dotted leaves the next table and its blank line alone
 rule: 8   version: 1.0
+settled: owner ruling 2026-10-05 (Q5): a table or inline table made dotted, or a header again, keeps the lines above its key and each value's same-line comment; its header comment, the comment after its braces and the comment lines inside go.
 ```toml input
 [x] # hx
 a = 1
@@ -1396,7 +1408,7 @@ b = 2
 doc["x"].getOrFail().standardTableOrNull!!.isDotted = true
 ```
 ```toml expected
-x.a = 1 # hx
+x.a = 1
 
 [y]
 b = 2
@@ -1439,7 +1451,8 @@ a = 1
 ```
 
 ### S-074: an inline table made dotted keeps its same-line comment on the first line
-rule: 8   version: 1.0   open: rule 8 says "where kotoml can keep comments it does"; is the line comment kept on the first dotted line?
+rule: 8   version: 1.0
+settled: owner ruling 2026-10-05 (Q5): a table or inline table made dotted, or a header again, keeps the lines above its key and each value's same-line comment; its header comment, the comment after its braces and the comment lines inside go.
 ```toml input
 t = { a = 1, b = 2 } # tt
 ```
@@ -1447,12 +1460,13 @@ t = { a = 1, b = 2 } # tt
 doc["t"].getOrFail().inlineTableOrNull!!.isDotted = true
 ```
 ```toml expected
-t.a = 1 # tt
+t.a = 1
 t.b = 2
 ```
 
 ### S-075: nested multi-line inline tables made dotted twice (owner example)
 rule: 8   version: 1.1
+settled: owner ruling 2026-10-05 (Q5): a table or inline table made dotted, or a header again, keeps the lines above its key and each value's same-line comment; its header comment, the comment after its braces and the comment lines inside go.
 ```toml input
 t = { u = { # open u
 k = 1, # one
@@ -1464,12 +1478,12 @@ doc["t"].getOrFail().inlineTableOrNull!!.isDotted = true
 doc["t"]["u"].getOrFail().inlineTableOrNull!!.isDotted = true
 ```
 ```toml expected
-# open u
-t.u.k = 1
+t.u.k = 1 # one
 ```
 
 ### S-076: a table made dotted and back keeps the header comment on the first key
-rule: 8   version: 1.0   open: after the round trip the header comment sits on `a`'s line, not on `[x]`; is that the expected new layout?
+rule: 8   version: 1.0
+settled: owner ruling 2026-10-05 (Q5): a table or inline table made dotted, or a header again, keeps the lines above its key and each value's same-line comment; its header comment, the comment after its braces and the comment lines inside go.
 ```toml input
 # about x
 [x] # x header
@@ -1483,11 +1497,12 @@ x.isDotted = false
 ```toml expected
 # about x
 [x]
-a = 1 # x header
+a = 1
 ```
 
 ### S-077: a sub-table made dotted moves into its parent's body with its comments
-rule: 8   version: 1.0   open: does the blank line and comment above `[a.b]` stay above the new `b.y` line (as here)?
+rule: 8   version: 1.0
+settled: owner ruling 2026-10-05 (Q5): a table made dotted drops its header comment.
 ```toml input
 [a] # a
 x = 1
@@ -1504,11 +1519,12 @@ doc["a"]["b"].getOrFail().standardTableOrNull!!.isDotted = true
 x = 1
 
 # about b
-b.y = 2 # b
+b.y = 2
 ```
 
 ### S-078: an inline table inside a table made dotted keeps the next key's comment
 rule: 8   version: 1.0
+settled: owner ruling 2026-10-05 (Q5): a table or inline table made dotted, or a header again, keeps the lines above its key and each value's same-line comment; its header comment, the comment after its braces and the comment lines inside go.
 ```toml input
 [s]
 t = { a = 1 } # tt
@@ -1520,7 +1536,7 @@ doc["s"]["t"].getOrFail().inlineTableOrNull!!.isDotted = true
 ```
 ```toml expected
 [s]
-t.a = 1 # tt
+t.a = 1
 # about z
 z = 0
 ```
@@ -2033,7 +2049,8 @@ xs = [5] # end
 ```
 
 ### S-105: a table replaced by another table
-rule: 1, 4   version: 1.0   open: is a table replacing a table "a different structure" (header comment may go) or a like-for-like replacement that keeps the header comment (as here)?
+rule: 1, 4   version: 1.0
+settled: owner ruling 2026-10-05 (Q7): a table replaced by a table keeps its header comment.
 ```toml input
 # about t
 [t] # t header

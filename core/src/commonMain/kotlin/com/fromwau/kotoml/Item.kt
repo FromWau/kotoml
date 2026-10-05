@@ -74,7 +74,7 @@ public class Item private constructor(
 
         // An element of an array of tables prints its values under its own header, so it never stands for a dotted key.
         fun placedIn(holds: Holds): Content {
-            if (holds == Holds.Table && this is TableContent) table.isDotted = false
+            if (holds == Holds.Table && this is TableContent) table.setDotted(false)
             return this
         }
 
@@ -171,8 +171,10 @@ public class Item private constructor(
         entry.prepareFor(item)
         val linesAbove = entry.takeLinesAbove(item)
         val oldDecor = valueOrNull?.rawDecor
+        val oldHeader = standardTableOrNull?.takeUnless { it.isDotted }?.rawDecor
         content = next
         entry.keepValueDecor(oldDecor)
+        entry.keepHeaderComment(oldHeader)
         entry.keepLinesAbove(linesAbove)
         return Ok(Unit)
     }
@@ -331,10 +333,27 @@ public class Item private constructor(
      */
     public fun makeValue(): EmptyResult<TomlEditError> {
         if (holds == Holds.Table) return Err(TomlEditError.NotATableElement(TomlType.InlineTable))
-        val value = copy().moveToValue()
+        val value = standardTableOrNull?.let(::inlineValueOf) ?: copy().moveToValue()
         tooDeepToHold(Item(value))?.let { return Err(it) }
         holdValue(value)
         return Ok(Unit)
+    }
+
+    /**
+     * [table] as an inline table value. Its values' comments need one across lines, which only TOML 1.1 reads, so a
+     * table with them becomes that in a document read as 1.1 or built in code; otherwise it goes on one line and
+     * only the comment on its header survives, after `}`.
+     */
+    private fun inlineValueOf(table: StandardTable): Value {
+        val version = owner?.let(::outermostTableOf)?.readAs ?: TomlVersion.V1_1
+        val headerComment = if (table.isDotted) "" else table.headerComment
+        if (version == TomlVersion.V1_1 && table.holdsComments()) {
+            val lineBreak = table.headerLineEnding ?: "\n"
+            return Value.InlineTable(table.copy().moveToInlineTableAcrossLines(headerComment, lineBreak))
+        }
+        val value = copy().moveToValue()
+        if (headerComment.isNotEmpty()) value.rawDecor.suffix = KeptText.from(headerComment)
+        return value
     }
 
     /** Turns a table or array of tables in this slot into [value], made from it, keeping the lines above. */
