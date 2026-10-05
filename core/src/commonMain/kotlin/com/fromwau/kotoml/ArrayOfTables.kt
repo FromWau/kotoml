@@ -24,6 +24,9 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     /** The slot holding this array, when it is stored somewhere; see [Nesting]. */
     internal var holder: Item? = null
 
+    /** For a [copy], the outermost table of the document it was read from; see [copiesWithinDocument]. */
+    internal var copiedWithin: StandardTable? = null
+
     // Slots that refuse anything but a table; held as items so indexing an item hands out the same slots.
     internal val values: MutableList<Item> = mutableListOf()
 
@@ -35,7 +38,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
      *
      * @return [TomlEditError.TooDeep] when its tables, nested as inline tables, would be deeper than the parser reads.
      */
-    public fun toTomlArray(): Result<TomlArray, TomlEditError> = copy().moveToTomlArray().refusedWhenTooDeep()
+    public fun toTomlArray(): Result<TomlArray, TomlEditError> = deepCopy().moveToTomlArray().refusedWhenTooDeep()
 
     /** Moves the tables into a new inline array of inline tables, formatted anew, leaving this empty. */
     internal fun moveToTomlArray(): TomlArray {
@@ -132,7 +135,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     }
 
     // A copy from another place, in this document or another, leaves the comments of the header it was read under.
-    private fun copyToStore(table: StandardTable): StandardTable = table.copy().also { copy ->
+    private fun copyToStore(table: StandardTable): StandardTable = table.deepCopy().also { copy ->
         if (copiesFromElsewhere(table, this)) {
             copy.rawDecor.dropReadComments(isHeader = true)
             // It prints after the element before it, not where its source printed.
@@ -256,21 +259,37 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     public fun addAll(tables: Iterable<StandardTable>): EmptyResult<TomlEditError> {
         val added = tables.toList()
         for (table in added) tooDeepError(this, null, Item(table))?.let { return Err(it) }
-        for (table in added) append(table.copy())
+        for (table in added) append(table.deepCopy())
         return Ok(Unit)
     }
 
-    /** A deep copy. */
-    public fun copy(): ArrayOfTables {
+    /**
+     * A deep copy, stored nowhere: exactly what storing this array of tables would store. A copy of an array of
+     * tables read from a document leaves the comment after its first header and the comment lines above that header
+     * behind and takes the comments inside it, those of the later headers included. Comments a caller set through
+     * an element's `decor` stay. A copy of an array of tables stored nowhere, built in code or returned by `remove`,
+     * keeps all its comments.
+     */
+    public fun copy(): ArrayOfTables = deepCopy().also { copy ->
+        if (isStored(this)) {
+            copy.copiedWithin = outermostTableOf(this)
+            copy.firstOrNull()?.rawDecor?.dropReadComments(isHeader = true)
+        } else {
+            copy.copiedWithin = copiedWithin
+        }
+    }
+
+    /** A deep copy that keeps every comment. */
+    internal fun deepCopy(): ArrayOfTables {
         val copy = ArrayOfTables()
         copy.span = span
-        for (table in this) copy.values.add(Item.inArrayOfTables(table.copy(), copy))
+        for (table in this) copy.values.add(Item.inArrayOfTables(table.deepCopy(), copy))
         keptHeaderLines.mapTo(copy.keptHeaderLines) { it.copy() }
         return copy
     }
 
     /** The tables as an inline array; without a header there is no better way to print them. */
-    override fun toString(): String = copy().moveToTomlArray().toString()
+    override fun toString(): String = deepCopy().moveToTomlArray().toString()
 }
 
 /** An array of copies of [tables], in order; see [toArrayOfTables]. */

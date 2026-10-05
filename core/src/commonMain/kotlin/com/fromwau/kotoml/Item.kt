@@ -118,9 +118,9 @@ public class Item private constructor(
         }
 
         fun deepCopy(): Content = when (this) {
-            is ValueContent -> ValueContent(value.copy())
-            is TableContent -> TableContent(table.copy())
-            is ArrayOfTablesContent -> ArrayOfTablesContent(array.copy())
+            is ValueContent -> ValueContent(value.deepCopy())
+            is TableContent -> TableContent(table.deepCopy())
+            is ArrayOfTablesContent -> ArrayOfTablesContent(array.deepCopy())
         }
     }
 
@@ -361,7 +361,7 @@ public class Item private constructor(
         val headerComment = if (table.isDotted) "" else table.headerComment
         if (version == TomlVersion.V1_1 && table.holdsComments()) {
             val lineBreak = table.headerLineEnding ?: newLineEnding()
-            return Value.InlineTable(table.copy().moveToInlineTableAcrossLines(headerComment, lineBreak))
+            return Value.InlineTable(table.deepCopy().moveToInlineTableAcrossLines(headerComment, lineBreak))
         }
         val value = copyWithComments().moveToValue()
         if (headerComment.isNotEmpty()) value.rawDecor.suffix = KeptText.from(headerComment)
@@ -376,7 +376,7 @@ public class Item private constructor(
     private fun arrayValueOf(array: ArrayOfTables): Value {
         val version = owner?.let(::documentVersionOf) ?: TomlVersion.V1_1
         val lineBreak = array.firstOrNull()?.headerLineEnding ?: newLineEnding()
-        return Value.Array(array.copy().moveToTomlArrayKeepingComments(lineBreak, version == TomlVersion.V1_1))
+        return Value.Array(array.deepCopy().moveToTomlArrayKeepingComments(lineBreak, version == TomlVersion.V1_1))
     }
 
     // The line ending of the document this slot is in, for lines a table built in code has none of its own for.

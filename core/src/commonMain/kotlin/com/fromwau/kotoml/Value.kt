@@ -297,15 +297,16 @@ public sealed interface Value {
         }
     }
 
-    /** A deep copy of this value, with its spelling and decor. */
+    /**
+     * A deep copy of this value, with its spelling, stored nowhere: exactly what storing this value would store. A
+     * copy of an array or inline table read from a document leaves the comment after it on its line behind, as
+     * [TomlArray.copy] and [com.fromwau.kotoml.InlineTable.copy] say; any other value keeps its decor, comment
+     * included.
+     */
     public fun copy(): Value = when (this) {
-        is String -> String(formatted.copy())
-        is Integer -> Integer(formatted.copy())
-        is Float -> Float(formatted.copy())
-        is Boolean -> Boolean(formatted.copy())
-        is Datetime -> Datetime(formatted.copy())
         is Array -> Array(array.copy())
         is InlineTable -> InlineTable(table.copy())
+        else -> deepCopy()
     }
 
     public companion object {
@@ -394,8 +395,19 @@ internal val DEFAULT_TRAILING_VALUE_DECOR: kotlin.Pair<String, String> = " " to 
 // `[value1, value2]`
 internal val DEFAULT_LEADING_VALUE_DECOR: kotlin.Pair<String, String> = "" to ""
 
+/** A deep copy that keeps every comment. */
+internal fun Value.deepCopy(): Value = when (this) {
+    is Value.String -> Value.String(formatted.copy())
+    is Value.Integer -> Value.Integer(formatted.copy())
+    is Value.Float -> Value.Float(formatted.copy())
+    is Value.Boolean -> Value.Boolean(formatted.copy())
+    is Value.Datetime -> Value.Datetime(formatted.copy())
+    is Value.Array -> Value.Array(array.deepCopy())
+    is Value.InlineTable -> Value.InlineTable(table.deepCopy())
+}
+
 /** A copy of this value whose decor fits [place]; see [RawDecor.fitFor]. */
-internal fun Value.copyFor(place: ValuePlace): Value = copy().fitFor(place)
+internal fun Value.copyFor(place: ValuePlace): Value = deepCopy().fitFor(place)
 
 /** This value, its decor fitted to [place]. */
 internal fun Value.fitFor(place: ValuePlace): Value = also { rawDecor.fitFor(place) }

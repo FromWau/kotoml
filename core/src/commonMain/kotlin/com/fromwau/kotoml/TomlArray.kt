@@ -460,14 +460,24 @@ public class TomlArray() : Iterable<Value> {
         return Ok(Unit)
     }
 
-    /** A deep copy of this array. */
-    public fun copy(): TomlArray {
+    /**
+     * A deep copy of this array, stored nowhere: exactly what storing this array would store. A copy of an array read
+     * from a document leaves the comment after it on its line behind and takes the comments inside it, those of its
+     * elements included. Comments a caller set through [decor] stay. A copy of an array stored nowhere, built in code
+     * or returned by `remove`, keeps all its comments.
+     */
+    public fun copy(): TomlArray = deepCopy().also { copy ->
+        if (isStored(this)) copy.rawDecor.dropReadComments(isHeader = false)
+    }
+
+    /** A deep copy that keeps every comment. */
+    internal fun deepCopy(): TomlArray {
         val copy = TomlArray()
         copy.rawTrailing = rawTrailing
         copy.trailingComma = trailingComma
         copy.rawDecor.assign(rawDecor)
         copy.span = span
-        for (value in this) copy.values.add(Item.inArray(value.copy(), copy))
+        for (value in this) copy.values.add(Item.inArray(value.deepCopy(), copy))
         return copy
     }
 

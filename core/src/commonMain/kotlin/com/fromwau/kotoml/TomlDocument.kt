@@ -209,9 +209,9 @@ public class TomlDocument internal constructor(
             root.decor = value
         }
 
-    /** A deep copy. */
+    /** A deep copy of the whole document, which keeps every comment, its version and its line ending. */
     public fun copy(): TomlDocument {
-        val copy = TomlDocument(root.copy(), rawTrailing, lineEnding, null)
+        val copy = TomlDocument(root.deepCopy(), rawTrailing, lineEnding, null)
         copy.byteOrderMark = byteOrderMark
         copy.withoutFinalNewline = withoutFinalNewline
         copy.readStartingBlank = readStartingBlank
