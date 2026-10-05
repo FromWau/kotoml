@@ -31,9 +31,16 @@ import com.fromwau.kern.result.Result
  * `item[key] = x` form the failure is discarded, so call [set] to see it.
  */
 public class Item private constructor(
-    private var content: Content,
+    content: Content,
     private var holds: Holds,
 ) {
+
+    // Content entering a slot learns the slot, so a table or array can tell where it stands; see [Nesting].
+    private var content: Content = content
+        set(value) {
+            field = value
+            value.adoptedBy(this)
+        }
 
     /** An item holding [value], as is. */
     public constructor(value: Value) : this(Content.ValueContent(value), Holds.Anything)
@@ -71,6 +78,23 @@ public class Item private constructor(
             return this
         }
 
+        fun adoptedBy(slot: Item) {
+            when (this) {
+                is ValueContent -> {
+                    value.arrayOrNull?.holder = slot
+                    value.inlineTableOrNull?.holder = slot
+                }
+                is TableContent -> table.holder = slot
+                is ArrayOfTablesContent -> array.holder = slot
+            }
+        }
+
+        fun holds(container: Any): Boolean = when (this) {
+            is ValueContent -> value.arrayOrNull === container || value.inlineTableOrNull === container
+            is TableContent -> table === container
+            is ArrayOfTablesContent -> array === container
+        }
+
         fun deepCopy(): Content = when (this) {
             is ValueContent -> ValueContent(value.copy())
             is TableContent -> TableContent(table.copy())
@@ -86,6 +110,21 @@ public class Item private constructor(
 
     /** The table entry this slot is stored in, if any; its key's spacing depends on what the slot holds. */
     internal var entry: KeyValue? = null
+
+    /** The array or array of tables this slot is an element of, while it is one. */
+    internal var arrayOwner: Any? = null
+
+    /** The table or array this slot is stored in, or null when it is stored nowhere. */
+    internal val owner: Any?
+        get() = entry?.takeIf { it.isStored }?.pairs?.owner ?: arrayOwner
+
+    /** Makes the table or array this slot holds know it as its slot; a wrapper made by a caller never does. */
+    internal fun adoptContent() {
+        content.adoptedBy(this)
+    }
+
+    /** Whether this slot holds [container] itself. */
+    internal fun holdsContainer(container: Any): Boolean = content.holds(container)
 
     /** A deep copy that stays the same kind of slot. */
     internal fun copySlot(): Item = Item(content.deepCopy(), holds)
@@ -341,14 +380,25 @@ public class Item private constructor(
     }
 
     internal companion object {
-        /** A slot of a [TomlArray], which only ever holds a value. */
-        fun inArray(value: Value): Item = Item(Content.ValueContent(value), Holds.Value)
+        /** A slot of [array], which only ever holds a value. */
+        fun inArray(
+            value: Value,
+            array: TomlArray,
+        ): Item = Item(Content.ValueContent(value), Holds.Value).ownedBy(array)
 
         /** A slot of an [InlineTable], which only ever holds a value. */
         fun inInlineTable(value: Value): Item = Item(Content.ValueContent(value), Holds.Value)
 
-        /** A slot of an [ArrayOfTables], which only ever holds a table. */
-        fun inArrayOfTables(table: StandardTable): Item =
-            Item(Content.TableContent(table).placedIn(Holds.Table), Holds.Table)
+        /** A slot of [array], which only ever holds a table. */
+        fun inArrayOfTables(
+            table: StandardTable,
+            array: ArrayOfTables,
+        ): Item = Item(Content.TableContent(table).placedIn(Holds.Table), Holds.Table).ownedBy(array)
+
+        private fun Item.ownedBy(array: Any): Item {
+            arrayOwner = array
+            adoptContent()
+            return this
+        }
     }
 }

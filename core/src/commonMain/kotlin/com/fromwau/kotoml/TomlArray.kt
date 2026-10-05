@@ -30,6 +30,9 @@ public class TomlArray() : Iterable<Value> {
     internal val rawDecor: RawDecor = RawDecor()
     internal var span: Span? = null
 
+    /** The slot holding this array, when it is stored somewhere; see [Nesting]. */
+    internal var holder: Item? = null
+
     // Slots that refuse anything but a value; held as items so indexing an item hands out the same slots.
     internal val values: MutableList<Item> = mutableListOf()
 
@@ -100,7 +103,7 @@ public class TomlArray() : Iterable<Value> {
 
     /** Appends [value] itself, for a caller that built it and holds no other reference to it. */
     internal fun append(value: Value) {
-        values.add(Item.inArray(value))
+        values.add(Item.inArray(value, this))
     }
 
     // In a multi-line array the text after the last element, its comment included, ends at the closing line.
@@ -154,7 +157,7 @@ public class TomlArray() : Iterable<Value> {
         value: Value,
     ): EmptyResult<TomlEditError> {
         if (index < 0 || index > values.size) return Err(TomlEditError.IndexOutOfBounds(index, values.size))
-        values.add(index, Item.inArray(value.copy()))
+        values.add(index, Item.inArray(value.copy(), this))
         return Ok(Unit)
     }
 
@@ -185,7 +188,7 @@ public class TomlArray() : Iterable<Value> {
         val old = get(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         val stored = value.copy()
         if (keepDecor) stored.rawDecor.assign(old.rawDecor)
-        values[index] = Item.inArray(stored)
+        values.set(index, Item.inArray(stored, this)).arrayOwner = null
         return Ok(old)
     }
 
@@ -248,7 +251,7 @@ public class TomlArray() : Iterable<Value> {
                 if (values.subList(0, index).any { it.valueOrNull != null }) trailingComma = true
             }
         }
-        values.removeAt(index)
+        values.removeAt(index).arrayOwner = null
     }
 
     /** Sorts the values with [comparator]. The sort is stable. */
@@ -313,7 +316,7 @@ public class TomlArray() : Iterable<Value> {
         copy.trailingComma = trailingComma
         copy.rawDecor.assign(rawDecor)
         copy.span = span
-        for (value in this) copy.values.add(Item.inArray(value.copy()))
+        for (value in this) copy.values.add(Item.inArray(value.copy(), copy))
         return copy
     }
 

@@ -327,59 +327,6 @@ internal fun String.loneSurrogateIndex(): Int {
  * The keys leading to the first key or string under this table, in the order the tables hold them, that holds half
  * of a surrogate pair, the key holding it last; or null when there is none. Array indices are left out.
  */
-/**
- * The keys leading to the first place this table's text nests deeper than the parser reads, or null. It follows the
- * parser's rule: a header's path may have as many parts as [TomlDocument.NESTING_LIMIT], while a line's dotted key and
- * the brackets of its value count toward the limit together, and a key inside an inline table stays below it.
- */
-private fun StandardTable.tooDeepPath(): List<String>? {
-    val limit = TomlDocument.NESTING_LIMIT
-    val tables = ArrayDeque<Pair<StandardTable, List<String>>>()
-    tables.addLast(this to emptyList())
-    while (tables.isNotEmpty()) {
-        val (table, path) = tables.removeLast()
-        // A dotted table prints no header, and its lines are its header table's.
-        if (path.isEmpty() || !table.isDotted) {
-            if (path.size > limit) return path
-            for (line in table.visualValues()) {
-                val linePath = path + line.path.map { it.name }
-                val dots = line.path.size - 1
-                if (dots >= limit) return linePath
-                line.value.tooDeepPath(dots)?.let { return linePath + it }
-            }
-        }
-        for (entry in table.items.entries) {
-            val childPath = path + entry.key.name
-            entry.item.standardTableOrNull?.let { tables.addLast(it to childPath) }
-            entry.item.arrayOfTablesOrNull?.forEach { tables.addLast(it to childPath) }
-        }
-    }
-    return null
-}
-
-/** The keys inside this value, standing [nesting] levels deep, that lead to where it nests too deep, or null. */
-private fun Value.tooDeepPath(nesting: Int): List<String>? {
-    val limit = TomlDocument.NESTING_LIMIT
-    val values = ArrayDeque<Triple<Value, Int, List<String>>>()
-    values.addLast(Triple(this, nesting, emptyList()))
-    while (values.isNotEmpty()) {
-        val (value, outer, path) = values.removeLast()
-        val array = value.arrayOrNull
-        val table = value.inlineTableOrNull
-        if (array == null && table == null) continue
-        val inner = outer + 1
-        if (inner > limit) return path
-        array?.forEach { values.addLast(Triple(it, inner, path)) }
-        for (line in table?.visualValues().orEmpty()) {
-            val linePath = path + line.path.map { it.name }
-            val dots = line.path.size - 1
-            if (inner + dots >= limit) return linePath
-            values.addLast(Triple(line.value, inner + dots, linePath))
-        }
-    }
-    return null
-}
-
 private fun Table.loneSurrogatePath(): List<String>? {
     for ((key, item) in entries) {
         val inside = if (key.hasLoneSurrogate()) emptyList() else item.loneSurrogatePath()

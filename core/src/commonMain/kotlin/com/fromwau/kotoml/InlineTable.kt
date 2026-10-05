@@ -29,6 +29,17 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     override var isDotted: Boolean = false
 
     internal var items: KeyValuePairs = KeyValuePairs()
+        set(value) {
+            field = value
+            value.owner = this
+        }
+
+    /** The slot holding this table, when it is stored somewhere; see [Nesting]. */
+    internal var holder: Item? = null
+
+    init {
+        items.owner = this
+    }
 
     internal constructor(items: KeyValuePairs) : this() {
         for (entry in items.entries) entry.item = entry.item.movedTo(Item.Holds.Value)

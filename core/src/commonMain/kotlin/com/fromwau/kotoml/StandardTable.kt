@@ -51,6 +51,17 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
 
     internal var span: Span? = null
     internal var items: KeyValuePairs = KeyValuePairs()
+        set(value) {
+            field = value
+            value.owner = this
+        }
+
+    /** The slot holding this table, when it is stored somewhere; see [Nesting]. */
+    internal var holder: Item? = null
+
+    init {
+        items.owner = this
+    }
 
     // Lines above the headers of tables removed from this one, printed among the tables by their position.
     internal val keptHeaderLines: MutableList<KeptLines> = mutableListOf()

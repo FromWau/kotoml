@@ -17,6 +17,9 @@ import com.fromwau.kern.result.Result
 public class ArrayOfTables() : Iterable<StandardTable> {
     internal var span: Span? = null
 
+    /** The slot holding this array, when it is stored somewhere; see [Nesting]. */
+    internal var holder: Item? = null
+
     // Slots that refuse anything but a table; held as items so indexing an item hands out the same slots.
     internal val values: MutableList<Item> = mutableListOf()
 
@@ -29,7 +32,10 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     /** Moves the tables into a new inline array of inline tables, formatted anew, leaving this empty. */
     internal fun moveToTomlArray(): TomlArray {
         val array = TomlArray()
-        for (slot in values) array.append(slot.moveToValue())
+        for (slot in values) {
+            array.append(slot.moveToValue())
+            slot.arrayOwner = null
+        }
         values.clear()
         array.resetFormatting()
         return array
@@ -67,7 +73,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
 
     /** Appends [table] itself, for a caller that built it and holds no other reference to it. */
     internal fun append(table: StandardTable) {
-        values.add(Item.inArrayOfTables(table))
+        values.add(Item.inArrayOfTables(table, this))
     }
 
     /**
@@ -81,7 +87,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         table: StandardTable,
     ): EmptyResult<TomlEditError> {
         if (index < 0 || index > values.size) return Err(TomlEditError.IndexOutOfBounds(index, values.size))
-        values.add(index, Item.inArrayOfTables(table.copy()))
+        values.add(index, Item.inArrayOfTables(table.copy(), this))
         return Ok(Unit)
     }
 
@@ -118,7 +124,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
             stored.rawDecor.assign(old.rawDecor)
             stored.position = old.position
         }
-        values[index] = Item.inArrayOfTables(stored)
+        values.set(index, Item.inArrayOfTables(stored, this)).arrayOwner = null
         return Ok(old)
     }
 
@@ -132,7 +138,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     public fun removeAt(index: Int): Result<StandardTable, TomlEditError> {
         val removed = get(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         keepHeaderLinesOf(removed, isArrayOfTables = true, keptHeaderLines)
-        values.removeAt(index)
+        values.removeAt(index).arrayOwner = null
         return Ok(removed)
     }
 
@@ -159,6 +165,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         for (item in removed) {
             item.standardTableOrNull?.let { keepHeaderLinesOf(it, isArrayOfTables = true, keptHeaderLines) }
         }
+        for (item in removed) item.arrayOwner = null
         val removedSlots = removed.toHashSet()
         values.removeAll { it in removedSlots }
         return removed.isNotEmpty()
@@ -173,7 +180,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     public fun copy(): ArrayOfTables {
         val copy = ArrayOfTables()
         copy.span = span
-        for (table in this) copy.values.add(Item.inArrayOfTables(table.copy()))
+        for (table in this) copy.values.add(Item.inArrayOfTables(table.copy(), copy))
         keptHeaderLines.mapTo(copy.keptHeaderLines) { it.copy() }
         return copy
     }

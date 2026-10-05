@@ -12,6 +12,7 @@ internal class KeyValue(var key: Key, item: Item) {
         set(value) {
             field = value
             value.entry = this
+            value.adoptContent()
         }
 
     var lineEnding: String? = null
@@ -21,8 +22,13 @@ internal class KeyValue(var key: Key, item: Item) {
     /** The pairs holding this entry, whose table keeps the lines a replacement leaves where they print. */
     var pairs: KeyValuePairs? = null
 
+    /** Whether this entry is still in its [pairs], rather than removed from them. */
+    val isStored: Boolean
+        get() = pairs?.getEntry(key.name) === this
+
     init {
         item.entry = this
+        item.adoptContent()
     }
 
     /**
@@ -191,6 +197,9 @@ internal class PathSpelling private constructor(
  */
 internal class KeyValuePairs {
     private val byName = LinkedHashMap<String, KeyValue>()
+
+    /** The table these are the entries of. */
+    var owner: Table? = null
 
     /** Lines kept from removed entries, printed among the entries' lines; see [KeptLines]. */
     val keptLines: MutableList<KeptLines> = mutableListOf()
