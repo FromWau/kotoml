@@ -9,13 +9,16 @@ import kotlinx.io.files.SystemTemporaryDirectory
 import kotlinx.io.writeString
 import kotlin.random.Random
 import kotlin.test.AfterTest
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
+import kotlin.test.assertTrue
 
 /** The README's exit codes and `--json` output, from whole `kotoml` invocations. */
 class ExitCodeTest {
 
-    private class Recorded : Terminal {
+    private open class Recorded : Terminal {
         val out = StringBuilder()
         val err = StringBuilder()
 
@@ -45,6 +48,10 @@ class ExitCodeTest {
     private fun kotoml(vararg args: String): Pair<Int, Recorded> {
         val terminal = Recorded()
         return kotomlCli().run(args.toList(), terminal) to terminal
+    }
+
+    private class FailingWrites : Recorded() {
+        override fun writeErrored(): Boolean = true
     }
 
     @Test
@@ -99,5 +106,68 @@ class ExitCodeTest {
         val (code, terminal) = kotoml("get", ".a", file("a = 1\n"))
         assertEquals(0, code)
         assertEquals("1", terminal.out.toString().trim())
+    }
+
+    @Test
+    fun `a failed write to standard output exits non-zero`() {
+        assertNotEquals(0, kotomlCli().run(listOf("get", ".a", file("a = 1\n")), FailingWrites()))
+    }
+
+    @Ignore
+    @Test
+    fun `a filter that finds nothing exits 3 and says so on standard error`() {
+        val (code, terminal) = kotoml("get", ".b", file("a = 1\n"))
+        assertEquals(3, code)
+        assertEquals("", terminal.out.toString())
+        assertTrue("no key" in terminal.err.toString())
+    }
+
+    @Ignore
+    @Test
+    fun `a value from a CRLF file prints with a bare newline`() {
+        val (_, terminal) = kotoml("get", "-r", ".t.x", file("a = 1\r\n[t]\r\nx = \"y\"\r\n"))
+        assertEquals("y\n", terminal.out.toString())
+    }
+
+    @Ignore
+    @Test
+    fun `a document prints with each line's own ending`() {
+        val text = "a = 1\r\nb = 2\n"
+        val (_, terminal) = kotoml("get", ".", file(text))
+        assertEquals(text, terminal.out.toString())
+    }
+
+    @Ignore
+    @Test
+    fun `times print as JSON with their seconds`() {
+        val (_, terminal) = kotoml("get", "--json", ".", file("lt = 07:32\nodt = 1979-05-27T07:32Z\n"))
+        assertEquals("{\"lt\":\"07:32:00\",\"odt\":\"1979-05-27T07:32:00Z\"}", terminal.out.toString().trim())
+    }
+
+    @Ignore
+    @Test
+    fun `an error names the file it is in`() {
+        val bad = file("a = 1\na = 2\n")
+        val (_, terminal) = kotoml("check", bad)
+        assertTrue(terminal.err.toString().startsWith("error: $bad: "), terminal.err.toString())
+    }
+
+    @Ignore
+    @Test
+    fun `check takes several files and names each`() {
+        val good = file("a = 1\n")
+        val bad = file("a = 1\na = 2\n")
+        val (code, terminal) = kotoml("check", good, bad)
+        assertEquals(1, code)
+        assertTrue("$good: OK" in terminal.out.toString(), terminal.out.toString())
+        assertTrue("error: $bad: " in terminal.err.toString(), terminal.err.toString())
+    }
+
+    @Ignore
+    @Test
+    fun `encode reads a file and ends its text with one newline`() {
+        val (code, terminal) = kotoml("encode", file("{\"a\":{\"type\":\"integer\",\"value\":\"1\"}}"))
+        assertEquals(0, code)
+        assertEquals("a = 1\n", terminal.out.toString())
     }
 }

@@ -2,6 +2,9 @@ package com.fromwau.kotoml.serialization
 
 import com.fromwau.kotoml.TomlDocument
 import com.fromwau.kotoml.TomlType
+import kotlinx.serialization.Contextual
+import kotlinx.serialization.Serializable
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -246,6 +249,14 @@ class DecodeTest {
         assertIs<TomlDecodeError.NoSerializer>(Toml.decodeFromString<Any>("a = 1\n").errorOrFail())
     }
 
+    @Ignore
+    @Test
+    fun `a contextual field with no serializer registered is NoSerializer named by its type`() {
+        val error = Toml.decodeFromString<Themed>("accent = \"#000000\"\n").errorOrFail()
+        assertIs<TomlDecodeError.NoSerializer>(error)
+        assertEquals("Color", error.type)
+    }
+
     @Test
     fun `text that is not TOML is a parse error`() {
         assertIs<TomlDecodeError.Parse>(Toml.decodeFromString<Server>("host = \n").errorOrFail())
@@ -289,3 +300,8 @@ class DecodeTest {
         assertTrue(failure.detail.orEmpty().contains("refused"))
     }
 }
+
+private class Color(val rgb: String)
+
+@Serializable
+private data class Themed(@Contextual val accent: Color)
