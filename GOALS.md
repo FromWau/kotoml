@@ -27,8 +27,9 @@ official toml-test runner for TOML 1.0 and 1.1.
 3. **Never invalid TOML.** No sequence of public calls produces text that does not parse back. Text that UTF-8 cannot
    write, such as half of a surrogate pair, is a typed error when written, never broken output. Raw formatting text
    a caller writes itself (`Decor`, `trailing`, a key's decor) is the caller's to keep valid.
-   Check: `RemovalPropertyTest` (removal only), `PrintingFixesTest` (`NotUnicode`). Gap: no property test over other
-   edits.
+   Check: `EditPropertyTest` applies random sequences of public edits to every valid toml-test file and to
+   hand-written documents, and reads each step's output back as the data the document holds; `EditOutputTest` pins
+   what it found. `RemovalPropertyTest` checks removal byte for byte, `PrintingFixesTest` covers `NotUnicode`.
 4. **An edit touches only what it changes.** Comments and formatting are kept, except:
    - a comment inside a structure whose key is removed or replaced goes with it;
    - a removed key's same-line comment goes with it, while a replaced value keeps its spacing and same-line comment;

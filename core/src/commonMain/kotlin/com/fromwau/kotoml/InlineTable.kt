@@ -271,7 +271,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         default: () -> Value,
     ): Result<Value, TomlEditError> {
         get(key.name)?.let { return Ok(it) }
-        val value = default().copy()
+        val value = default().copyFor(ValuePlace.InlineTable)
         tooDeepError(this, key.name, Item(value))?.let { return Err(it) }
         putEntry(key.copy(), value)
         return Ok(value)
@@ -287,7 +287,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     public fun put(
         key: String,
         value: Value,
-    ): Result<Value?, TomlEditError> = checkedStore(key, value.copy())
+    ): Result<Value?, TomlEditError> = checkedStore(key, value.copyFor(ValuePlace.InlineTable))
 
     /**
      * Sets [key], with its spelling and decor, to a copy of [value]. A key already there keeps its position but
@@ -301,13 +301,16 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     ): Result<Value?, TomlEditError> {
         tooDeepError(this, key.name, Item(value))?.let { return Err(it) }
         items.getEntry(key.name)?.key = key.copy()
-        return Ok(putEntry(key.copy(), value.copy()))
+        return Ok(putEntry(key.copy(), value.copyFor(ValuePlace.InlineTable)))
     }
 
     override fun putItem(
         key: String,
         item: Item,
-    ): Result<Item?, TomlEditError> = checkedStore(key, item.copy().moveToValue()).map { old -> old?.let { Item(it) } }
+    ): Result<Item?, TomlEditError> {
+        val value = item.copy().moveToValue().fitFor(ValuePlace.InlineTable)
+        return checkedStore(key, value).map { old -> old?.let { Item(it) } }
+    }
 
     // Stores the value itself, so only for one nothing else holds.
     private fun checkedStore(
@@ -391,14 +394,31 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
             leaveTextAfterRemoved(bodyLines(), RemovedLines(removed))
             return
         }
+        val onTableLines = printsOnTableLines()
         keepLinesAbove(
             lines = bodyLines(),
             removed = RemovedLines(removed),
             isDotted = true,
-            linesAbove = { linesAboveElement(it.entry.key.rawLeafDecor.prefix) },
-            keyDefault = DEFAULT_INLINE_KEY_DECOR.first,
+            linesAbove = { line ->
+                val prefix = line.entry.key.rawLeafDecor.prefix
+                if (onTableLines) linesAbove(prefix) else linesAboveElement(prefix)
+            },
+            keyDefault = if (onTableLines) DEFAULT_KEY_DECOR.first else DEFAULT_INLINE_KEY_DECOR.first,
             keep = { items.keptLines += it },
         )
+    }
+
+    /** Whether this dotted table's keys print on lines of a standard table, rather than inside braces. */
+    internal fun printsOnTableLines(): Boolean {
+        var table = this
+        while (table.isDotted) {
+            when (val owner = table.holder?.takeIf { it.holdsContainer(table) }?.owner) {
+                is StandardTable -> return true
+                is InlineTable -> table = owner
+                else -> return false
+            }
+        }
+        return false
     }
 
     // Walks back from the end, so the text after a removed entry already holds what removing later ones left.

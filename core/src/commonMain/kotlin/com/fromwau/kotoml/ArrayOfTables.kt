@@ -11,6 +11,9 @@ import com.fromwau.kern.result.map
  *
  * A table added here is stored as a copy, so changing the original afterwards leaves the array as it is.
  *
+ * TOML has no header for an array holding no tables, so one left empty prints as `key = []` and reads back as an empty
+ * array; it prints its `[[header]]`s again once it holds a table.
+ *
  * A [StandardTable] has no content equality, so `contains(table)` and `indexOf(table)` find only that same table
  * object. Compare what the tables hold instead, as in
  * `tables.indexOfFirst { it.getOrNull("name")?.stringOrNull == "a" }`.

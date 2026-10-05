@@ -100,7 +100,7 @@ public class TomlArray() : Iterable<Value> {
      */
     public fun add(value: Value): EmptyResult<TomlEditError> {
         tooDeepError(this, null, Item(value))?.let { return Err(it) }
-        val stored = value.copy()
+        val stored = value.copyFor(ValuePlace.Array)
         if (stored.decor.prefix == null) startOwnLine(stored)
         append(stored)
         return Ok(Unit)
@@ -163,7 +163,7 @@ public class TomlArray() : Iterable<Value> {
     ): EmptyResult<TomlEditError> {
         if (index < 0 || index > values.size) return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         tooDeepError(this, null, Item(value))?.let { return Err(it) }
-        values.add(index, Item.inArray(value.copy(), this))
+        values.add(index, Item.inArray(value.copyFor(ValuePlace.Array), this))
         return Ok(Unit)
     }
 
@@ -193,7 +193,7 @@ public class TomlArray() : Iterable<Value> {
     ): Result<Value, TomlEditError> {
         val old = get(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         tooDeepError(this, null, Item(value))?.let { return Err(it) }
-        val stored = value.copy()
+        val stored = value.copyFor(ValuePlace.Array)
         if (keepDecor) stored.rawDecor.assign(old.rawDecor)
         values.set(index, Item.inArray(stored, this)).arrayOwner = null
         return Ok(old)

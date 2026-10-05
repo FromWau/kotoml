@@ -374,3 +374,9 @@ internal val DEFAULT_TRAILING_VALUE_DECOR: kotlin.Pair<String, String> = " " to 
 
 // `[value1, value2]`
 internal val DEFAULT_LEADING_VALUE_DECOR: kotlin.Pair<String, String> = "" to ""
+
+/** A copy of this value whose decor fits [place]; see [RawDecor.fitFor]. */
+internal fun Value.copyFor(place: ValuePlace): Value = copy().fitFor(place)
+
+/** This value, its decor fitted to [place]. */
+internal fun Value.fitFor(place: ValuePlace): Value = also { rawDecor.fitFor(place) }

@@ -37,7 +37,7 @@ internal class KeyValue(var key: Key, item: Item) {
      * [keepLinesAbove] brings along those above a header.
      */
     fun prepareFor(next: Item) {
-        if (item.printsHeader == next.printsHeader) return
+        if (item.isHeaderKind == next.isHeaderKind) return
         val decor = key.rawLeafDecor
         if (decor.prefix?.textOrNull.isNullOrBlank()) decor.prefix = null
         if (decor.suffix?.textOrNull.isNullOrBlank()) decor.suffix = null
@@ -71,7 +71,8 @@ internal class KeyValue(var key: Key, item: Item) {
         val dottedTable = item.standardTableOrNull?.takeIf { it.isDotted }
         val dottedInline = item.inlineTableOrNull?.takeIf { it.isDotted }
         val lines = dottedTable?.bodyLines() ?: dottedInline?.bodyLines() ?: return ""
-        val above: (KeptText?) -> String = if (dottedInline != null) ::linesAboveElement else ::linesAbove
+        val inBraces = dottedInline != null && !dottedInline.printsOnTableLines()
+        val above: (KeptText?) -> String = if (inBraces) ::linesAboveElement else ::linesAbove
         // A value replacing dotted-key lines prints where the first of them did.
         if (order == null) order = lines.firstOrNull()?.order
         var carried = ""
@@ -89,7 +90,7 @@ internal class KeyValue(var key: Key, item: Item) {
             }
         }
         // The key's own prefix prints below a header's default spacing, as a replaced value's comment does.
-        if (!next.printsHeader) return carried
+        if (!next.isHeaderKind) return carried
         if (carried.isNotEmpty()) key.rawLeafDecor.prependToPrefix(carried, DEFAULT_KEY_DECOR.first)
         return ""
     }
@@ -124,7 +125,8 @@ internal class KeyValue(var key: Key, item: Item) {
     }
 }
 
-private val Item.printsHeader: Boolean
+/** Whether this item prints under headers once it holds anything: a table that is not dotted, or an array of tables. */
+private val Item.isHeaderKind: Boolean
     get() = standardTableOrNull?.let { !it.isDotted } ?: (arrayOfTablesOrNull != null)
 
 /** The table whose header prints first for this item: its table, or the first of its array of tables. */

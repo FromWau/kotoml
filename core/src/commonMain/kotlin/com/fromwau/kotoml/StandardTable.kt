@@ -110,7 +110,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
      * print their own headers; one left holding nothing prints its header, so its key stays in the text.
      */
     internal fun printsHeader(isArrayOfTables: Boolean): Boolean = isArrayOfTables ||
-        !(isImplicit && visualValues().isEmpty() && items.entries.any { it.item.printsOwnHeader() })
+        !(isImplicit && visualValues().isEmpty() && items.entries.any { it.item.printsOwnHeader })
 
     private fun appendValues(path: MutableList<Key>, values: MutableList<BodyLine>) {
         for (entry in items.entries) {
@@ -126,6 +126,11 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
                     value.table.appendDottedValues(path, values, entry)
                 }
                 value != null -> values.add(VisualValue(path.toList(), value, entry))
+                entry.item.arrayOfTablesOrNull?.isEmpty() == true -> {
+                    // The key's spacing is its header's, which does not fit a `key = value` line.
+                    val key = entry.key.copy().also { it.rawLeafDecor.clear() }
+                    values.add(VisualValue(path.dropLast(1) + key, Value.Array(TomlArray()), entry))
+                }
             }
             path.removeAt(path.size - 1)
         }
@@ -199,12 +204,12 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     private fun sortEntriesWith(comparator: Comparator<Pair<Key, Item>>) {
         val pairs = items.snapshot()
         val sortedLines = pairs
-            .filter { !it.item.printsOwnHeader() }
+            .filter { !it.item.printsOwnHeader }
             .sortedWith { left, right -> comparator.compare(left.key to left.item, right.key to right.item) }
             .iterator()
         // A table under its own header keeps its place among the entries, so hand-made tables keep their order too.
         val slots = pairs
-            .map { if (it.item.printsOwnHeader()) it else sortedLines.next() }
+            .map { if (it.item.printsOwnHeader) it else sortedLines.next() }
             .withIndex()
             .associate { (index, entry) -> entry to index }
         items.sortBy(compareBy { slots.getValue(it) })
@@ -321,7 +326,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     ): Result<Item?, TomlEditError> {
         tooDeepError(this, key, item)?.let { return Err(it) }
         items.getEntry(key)?.prepareFor(item)
-        return Ok(items.put(Key(key), item.copy()))
+        return Ok(items.put(Key(key), item.copyFor(ValuePlace.Line)))
     }
 
     /**
@@ -336,7 +341,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     ): Result<Item?, TomlEditError> {
         tooDeepError(this, key.name, item)?.let { return Err(it) }
         items.getEntry(key.name)?.key = key.copy()
-        return Ok(items.put(key.copy(), item.copy()))
+        return Ok(items.put(key.copy(), item.copyFor(ValuePlace.Line)))
     }
 
     override fun putItem(
@@ -362,7 +367,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         default: () -> Item,
     ): Result<Item, TomlEditError> {
         getOrNull(key.name)?.let { return Ok(it) }
-        val stored = default().copy()
+        val stored = default().copyFor(ValuePlace.Line)
         tooDeepError(this, key.name, stored)?.let { return Err(it) }
         items.put(key.copy(), stored)
         return Ok(stored)
@@ -507,7 +512,9 @@ public fun Iterable<Pair<String, Item>>.toStandardTable(): Result<StandardTable,
     return table.putAll(this).map { table }
 }
 
-private fun Item.printsOwnHeader(): Boolean = standardTableOrNull?.let { !it.isDotted } ?: (arrayOfTablesOrNull != null)
+/** Whether this item prints under a header of its own; an array of no tables prints as `key = []` instead. */
+internal val Item.printsOwnHeader: Boolean
+    get() = standardTableOrNull?.let { !it.isDotted } ?: (arrayOfTablesOrNull?.isNotEmpty() == true)
 
 /** A value as it prints under a header: the key path that reaches it, and the entry that holds it. */
 internal class VisualValue(

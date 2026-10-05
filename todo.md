@@ -8,7 +8,11 @@ Every defect, ruling and docs item from that pass is closed; see **Done**.
 
 ## Candidate work
 
-None open.
+- [ ] **26. Making nested inline tables dotted drops the comment above them.** `x = 1\n# about b\nt = { c = { c = 3 } }`,
+  then `isDotted = true` on `t` and on `c`: the next edit to them prints `x = 1\n t.c.c = 3` (the comment line gone,
+  a stray space before `t`), and a new key prints with a space before its line ending. Found while cutting down
+  `EditPropertyTest` findings; it still reads back, so that test, which checks data, cannot see it. A comment-keeping
+  property (goal 4) would. Goal 4.
 
 ## Not in scope (owner, 2026-10-05)
 

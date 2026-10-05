@@ -110,6 +110,13 @@ public data class Decor(
     val suffix: String? = null,
 )
 
+/** Where a value prints: after `key =` on a line of a table, in an inline table, or as an element of an array. */
+internal enum class ValuePlace {
+    Line,
+    InlineTable,
+    Array,
+}
+
 /** The stored form of a [Decor], whose sides may still be spans into a parse's input. */
 internal class RawDecor(
     var prefix: KeptText? = null,
@@ -144,6 +151,22 @@ internal class RawDecor(
     fun fillDefaultsFrom(other: RawDecor) {
         if (prefix == null) prefix = other.prefix
         if (suffix == null) suffix = other.suffix
+    }
+
+    /**
+     * Drops the sides of a value's decor that cannot stand where a copy of it is stored: a line break before a value
+     * after `=`, or a comment after a value inside brackets or braces, which would run over what closes them.
+     */
+    fun fitFor(place: ValuePlace) {
+        val before = prefix?.textOrNull.orEmpty()
+        val after = suffix?.textOrNull.orEmpty()
+        if (place != ValuePlace.Array && '\n' in before) prefix = null
+        val unfit = when (place) {
+            ValuePlace.Line -> '\n' in after
+            ValuePlace.InlineTable -> '\n' in after || '#' in after
+            ValuePlace.Array -> '#' in after
+        }
+        if (unfit) suffix = null
     }
 
     fun prefixEncode(buf: StringBuilder, default: String) {

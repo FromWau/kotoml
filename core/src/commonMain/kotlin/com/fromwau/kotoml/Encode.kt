@@ -163,11 +163,18 @@ private sealed class DocumentPart(
     // Where the part stands among the document's tables, or null for one made by hand.
     var slot: Long?,
 ) {
-    // The table a part made by hand prints next to, before it when walked before it and after it otherwise.
+    // The part a part made by hand prints next to, before it when walked before it and after it otherwise.
     var anchor: DocumentPart? = null
 
+    // Anchors point to parts walked earlier or to slotted parts, so following them ends.
     val position: Long
-        get() = slot ?: anchor?.slot ?: 0L
+        get() {
+            var part = this
+            while (true) {
+                part.slot?.let { return it }
+                part = part.anchor ?: return 0L
+            }
+        }
 }
 
 private class TableToVisit(
@@ -206,9 +213,9 @@ internal fun encodeDocument(buf: StringBuilder, document: TomlDocument) {
 }
 
 /**
- * The parts of a document in the order its tables nest. A table made by hand follows the last table walked that has
- * a slot, or the lines kept from its parent's removed tables when they stand later, and the elements of an array of
- * tables print in array order.
+ * The parts of a document in the order its tables nest. A table made by hand follows the last table walked, or the
+ * lines kept from its parent's removed tables when they stand later, and the elements of an array of tables print in
+ * array order.
  */
 private class DocumentParts {
     val parts = mutableListOf<DocumentPart>()
@@ -226,7 +233,7 @@ private class DocumentParts {
         if (path.isEmpty() || isArrayOfTables || !table.isDotted) {
             val part = TableToVisit(table.position, table, path.toList(), isArrayOfTables)
             add(part)
-            if (part.slot != null) lastTable = part
+            lastTable = part
         }
         val kept = table.keptHeaderLines.map { KeptHeaderLines(it.order, it.text) }
         kept.forEach(::add)
@@ -258,7 +265,7 @@ private class DocumentParts {
 
     private fun add(part: DocumentPart) {
         if (part.slot == null) {
-            val candidates = listOfNotNull(lastTable) + keptOfParents.lastOrNull().orEmpty().filter { it.slot != null }
+            val candidates = listOfNotNull(lastTable) + keptOfParents.lastOrNull().orEmpty()
             part.anchor = candidates.maxByOrNull { it.position }
         }
         parts += part
@@ -266,12 +273,21 @@ private class DocumentParts {
 }
 
 /**
- * Hands the slots the [blocks] of one array of tables hold out again in array order, each element keeping the parts
- * under it right after it in their order. Parts made by hand ahead of every slotted one print just before the first
- * element that has a slot, so a new first element prints first.
+ * Hands the slots the [blocks] of one array of tables hold out again in array order, each element's header first and
+ * the parts under it right after it in their order, whatever slots a copied table brought along. Parts made by hand
+ * ahead of every slotted one print just before the first element that has a slot, so a new first element prints
+ * first. An element made by hand prints just before the earliest slotted part under it, or after the elements
+ * before it when nothing under it has a slot.
  */
 private fun placeInArrayOrder(blocks: List<List<DocumentPart>>) {
-    val slotted = blocks.flatMap { block -> block.filter { it.slot != null }.sortedBy { it.slot } }
+    val slotted = blocks.flatMap { block ->
+        val header = block.first()
+        val under = block
+            .drop(1)
+            .filter { it.slot != null }
+            .sortedBy { it.slot }
+        listOfNotNull(header.takeIf { it.slot != null }) + under
+    }
     val first = slotted.firstOrNull() ?: return
     val slots = slotted
         .mapNotNull { it.slot }
@@ -279,6 +295,14 @@ private fun placeInArrayOrder(blocks: List<List<DocumentPart>>) {
         .iterator()
     for (part in slotted) part.slot = slots.next()
     for (part in blocks.flatten().takeWhile { it.slot == null }) part.anchor = first
+    var latest: DocumentPart? = null
+    for (block in blocks) {
+        val header = block.first()
+        val earliestUnder = block.filter { it.slot != null }.minByOrNull { it.position }
+        if (header.slot == null) (earliestUnder ?: latest)?.let { header.anchor = it }
+        // The last of equal parts, since an outer array's pass keeps their walk order when it hands slots out again.
+        for (part in block) if (part.position >= (latest?.position ?: Long.MIN_VALUE)) latest = part
+    }
 }
 
 /**

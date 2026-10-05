@@ -152,6 +152,7 @@ public class Item private constructor(
         val next = item.content.deepCopy().placedIn(holds)
         refusal(next)?.let { return Err(it) }
         tooDeepToHold(item)?.let { return Err(it) }
+        valuePlace?.let { place -> (next as? Content.ValueContent)?.value?.fitFor(place) }
         val entry = entry
         if (entry == null) {
             content = next
@@ -165,6 +166,18 @@ public class Item private constructor(
         entry.keepLinesAbove(linesAbove)
         return Ok(Unit)
     }
+
+    /** Where a value in this slot prints, or null for a slot stored nowhere. */
+    private val valuePlace: ValuePlace?
+        get() = when (owner) {
+            null -> null
+            is InlineTable -> ValuePlace.InlineTable
+            is StandardTable -> ValuePlace.Line
+            else -> ValuePlace.Array
+        }
+
+    /** A copy of what this item holds, its value's decor fitted to [place]. */
+    internal fun copyFor(place: ValuePlace): Item = copy().also { it.valueOrNull?.fitFor(place) }
 
     /** Why this slot cannot hold [item] for nesting too deep, or null when it can. */
     private fun tooDeepToHold(item: Item): TomlEditError.TooDeep? {
