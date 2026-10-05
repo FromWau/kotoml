@@ -69,6 +69,9 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     /** For a document's root, the TOML version the document writes; see [TomlDocument.version]. */
     internal var version: TomlVersion = TomlVersion.V1_1
 
+    /** For a document's root, the line ending the document's lines end in; see [lineEndingOf]. */
+    internal var lineEnding: String = LINE_BREAK
+
     /** Whether this dotted table prints under a header, because a line of its own would nest too deep. */
     internal var headerForDepth: Boolean = false
 
