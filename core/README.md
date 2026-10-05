@@ -48,6 +48,8 @@ on writing a key into a string, the call returns a `TomlEditError` instead. Ever
 refuses to nest deeper than `TomlDocument.NESTING_LIMIT` lets the parser read: it returns `TomlEditError.TooDeep`
 and stores nothing, as do the `…Of` builders and the conversions to inline content. The `item["key"] = value` form
 drops these errors; call `item.set("key", value)` to see them. Writing never deletes a key; `remove` does.
+An item taken before its key is removed, or replaced by `set` or `put`, keeps what it held but no longer belongs
+to the document: writing through it changes nothing there, so index again.
 
 ## Make and read values
 
@@ -186,6 +188,21 @@ with the offending line and a caret under it.
 
 Parsing follows TOML 1.1 by default. Pass `TomlVersion.V1_0` to `parse` to refuse what 1.1 added: newlines,
 comments and a trailing comma in inline tables, the `\x` and `\e` escapes, and times without seconds.
+
+A document is printed and written as the version it was parsed as, `doc.version`, and a new document as TOML 1.1.
+So a document parsed as 1.1 lets edits write 1.1-only syntax, such as a time without seconds or an inline table
+with a trailing comma, even when the file held none. Set `doc.version` to change what it writes:
+
+```kotlin
+val doc = TomlDocument.parse("t = 07:32\n").getOrElse { error(it) }
+doc.version = TomlVersion.V1_0
+doc.toString() // "t = 07:32:00\n"
+```
+
+Under TOML 1.0 a time prints with its seconds and a string or key spelled with `\e` or `\x` prints in its default
+spelling. What has no 1.0 form, an inline table across lines, with a comment or with a trailing comma, stays in
+the document and prints in `toString()`, but `writeTo` refuses it with `TomlWriteError.NotInToml10`, naming the key
+and the feature.
 
 ## Differences from `toml_edit`
 

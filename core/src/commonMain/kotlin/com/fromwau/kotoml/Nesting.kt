@@ -93,7 +93,7 @@ private fun parentOf(container: Any): Any? {
 /** Where [child], stored in a container standing here, stands. */
 private fun Nesting.inside(child: Any): Nesting = when (this) {
     is Nesting.InTable -> when (child) {
-        is StandardTable -> Nesting.InTable(parts + 1, if (child.isDotted) dots + 1 else 0)
+        is StandardTable -> Nesting.InTable(parts + 1, if (child.printsDotted) dots + 1 else 0)
         is ArrayOfTables -> Nesting.InTables(parts + 1)
         else -> Nesting.InLine(dots + 1)
     }
@@ -125,6 +125,42 @@ internal fun tooDeepPathAtTop(container: Any): List<String>? =
 /** This new table or array, or [TomlEditError.TooDeep] when its content nests too deep standing at the top. */
 internal fun <T : Any> T.refusedWhenTooDeep(): Result<T, TomlEditError> =
     tooDeepPathAtTop(this)?.let { Err(TomlEditError.TooDeep(it)) } ?: Ok(this)
+
+/**
+ * Decides which dotted tables under [top] print under a header of their own: those whose lines, printed as dotted
+ * keys, would nest deeper than the parser reads. A header resets the count of dots, so the text reads back.
+ */
+internal fun settleHeadersForDepth(top: StandardTable) {
+    val tables = ArrayDeque<Pair<StandardTable, Nesting.InTable>>()
+    tables.addLast(top to Nesting.InTable(parts = 0, dots = 0))
+    while (true) {
+        val (table, at) = tables.removeLastOrNull() ?: break
+        for (entry in table.items.entries) {
+            entry.item.arrayOfTablesOrNull?.forEach { tables.addLast(it to Nesting.InTable(at.parts + 1, dots = 0)) }
+            val child = entry.item.standardTableOrNull ?: continue
+            val dotted = Nesting.InTable(at.parts + 1, at.dots + 1)
+            child.headerForDepth = child.isDotted && !child.fitsDotted(at, dotted)
+            tables.addLast(child to if (child.printsDotted) dotted else Nesting.InTable(at.parts + 1, dots = 0))
+        }
+    }
+}
+
+// Whether this table's own lines fit as dotted keys: its values, `key = []` for no tables, and `key = {}` when empty.
+private fun StandardTable.fitsDotted(
+    parent: Nesting.InTable,
+    dotted: Nesting.InTable,
+): Boolean {
+    val limit = TomlDocument.NESTING_LIMIT
+    if (items.size == 0) return parent.dots < limit
+    return items.entries.all { entry ->
+        val tables = entry.item.arrayOfTablesOrNull
+        when {
+            entry.item.standardTableOrNull != null -> true
+            tables != null -> tables.isNotEmpty() || dotted.dots < limit
+            else -> DepthWalk().apply { place(dotted, entry.key.name, entry.item, emptyList()) }.run() == null
+        }
+    }
+}
 
 // Iterative, so that measuring content of any depth takes no more stack than measuring a flat table.
 private class DepthWalk {

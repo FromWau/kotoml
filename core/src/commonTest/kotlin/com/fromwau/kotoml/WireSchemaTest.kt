@@ -105,6 +105,7 @@ class WireSchemaTest {
             """.trimIndent(),
             TomlWriteError.serializer().descriptor to """
                 Io(detail)
+                NotInToml10(keyPath, feature)
                 NotUnicode(keyPath)
                 TooDeep(keyPath)
             """.trimIndent(),

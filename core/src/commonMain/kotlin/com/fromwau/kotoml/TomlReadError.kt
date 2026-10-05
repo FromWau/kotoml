@@ -41,6 +41,18 @@ public sealed interface TomlWriteError : IError {
     @Serializable
     @SerialName("TooDeep")
     public data class TooDeep(val keyPath: List<String>) : TomlWriteError
+
+    /**
+     * The document's [TomlDocument.version] is TOML 1.0, and it holds [feature], which only TOML 1.1 reads and which
+     * has no TOML 1.0 form, such as an inline table with a trailing comma. It stays in the document, and `toString()`
+     * prints it as is. [keyPath] names the key whose value holds it, array indices left out.
+     */
+    @Serializable
+    @SerialName("NotInToml10")
+    public data class NotInToml10(
+        val keyPath: List<String>,
+        val feature: Toml11Feature,
+    ) : TomlWriteError
 }
 
 /**

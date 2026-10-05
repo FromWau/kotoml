@@ -41,7 +41,8 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
      * Whether this table stands for the parts of a dotted key rather than for a header. A document's root and an
      * element of an array of tables are never dotted: storing a table as either clears this. Changing it changes
      * which comments stay, as [Table.isDotted] says; dotted keys made a header put the comment above their first line
-     * above the header.
+     * above the header. A dotted table whose lines, as dotted keys, would nest deeper than
+     * [TomlDocument.NESTING_LIMIT] prints under a header instead, so its text reads back.
      */
     override var isDotted: Boolean
         get() = dotted
@@ -63,8 +64,15 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     /** Whether this table's header was the first header of the file it was read from, with no key/value line above. */
     internal var opensFile: Boolean = false
 
-    /** For a document's root, the TOML version the document was read as; null for one built in code. */
-    internal var readAs: TomlVersion? = null
+    /** For a document's root, the TOML version the document writes; see [TomlDocument.version]. */
+    internal var version: TomlVersion = TomlVersion.V1_1
+
+    /** Whether this dotted table prints under a header, because a line of its own would nest too deep. */
+    internal var headerForDepth: Boolean = false
+
+    /** Whether this table prints as the parts of dotted keys: it is dotted and not too deep to print so. */
+    internal val printsDotted: Boolean
+        get() = dotted && !headerForDepth
 
     /** Sets [isDotted] as reading or copying a table does, which gives it no new layout. */
     internal fun setDotted(value: Boolean) {
@@ -230,7 +238,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
      * Whether this dotted table has header comments to print but no line of its own to print them on: it holds only
      * tables under headers of their own. An empty one prints `key = {}`, which carries them.
      */
-    internal fun keepsHeaderCommentsAmongTables(key: Key): Boolean = isDotted &&
+    internal fun keepsHeaderCommentsAmongTables(key: Key): Boolean = printsDotted &&
         items.size > 0 &&
         (headerLinesAbove(key).isNotEmpty() || headerComment.isNotEmpty()) &&
         visualValues().isEmpty()
@@ -253,7 +261,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
             val value = entry.item.valueOrNull
             val emptyTables = entry.item.arrayOfTablesOrNull?.takeIf { it.isEmpty() }
             when {
-                table != null && table.isDotted -> {
+                table != null && table.printsDotted -> {
                     val start = values.size
                     table.appendValues(path, values)
                     if (table.items.size == 0) values.add(emptyTableLine(path, entry, table.items.keptLines))
@@ -490,8 +498,8 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
      * line and a `[header]` or `[[header]]`, where it takes the default spacing. Pass a [Key] to replace all of
      * its formatting.
      *
-     * @return the item [key] held before, or null when it held none; or [TomlEditError.TooDeep], storing nothing,
-     *   when [item] would nest deeper than the parser reads.
+     * @return the item [key] held before, which no longer belongs to the table, or null when it held none; or
+     *   [TomlEditError.TooDeep], storing nothing, when [item] would nest deeper than the parser reads.
      */
     public fun put(
         key: String,
@@ -636,7 +644,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         copy.rawDecor.assign(rawDecor)
         copy.isImplicit = isImplicit
         copy.setDotted(isDotted)
-        copy.readAs = readAs
+        copy.version = version
         copy.opensFile = opensFile
         copy.position = position
         copy.span = span
@@ -665,7 +673,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         rawDecor.assign(other.rawDecor)
         isImplicit = other.isImplicit
         dotted = other.dotted
-        readAs = other.readAs
+        version = other.version
         position = other.position
         span = other.span
         keptHeaderLines.clear()
@@ -794,7 +802,7 @@ internal fun Value.commentAfter(): String = rawDecor.suffix?.textOrNull?.takeIf 
 
 /** Whether this item prints under a header of its own; an array of no tables prints as `key = []` instead. */
 internal val Item.printsOwnHeader: Boolean
-    get() = standardTableOrNull?.let { !it.isDotted } ?: (arrayOfTablesOrNull?.isNotEmpty() == true)
+    get() = standardTableOrNull?.let { !it.printsDotted } ?: (arrayOfTablesOrNull?.isNotEmpty() == true)
 
 /** A value as it prints under a header: the key path that reaches it, and the entry that holds it. */
 internal class VisualValue(

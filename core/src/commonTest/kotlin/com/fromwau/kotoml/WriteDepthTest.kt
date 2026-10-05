@@ -2,7 +2,6 @@ package com.fromwau.kotoml
 
 import kotlinx.io.Buffer
 import kotlinx.io.readString
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -46,19 +45,6 @@ class WriteDepthTest {
         TomlDocument.parse(text).getOrFail()
     }
 
-    @Test
-    fun `tables made dotted past the limit are TooDeep at the key that gets too deep`() {
-        val doc = nestedTables(limit)
-        var table = doc.root
-        repeat(limit) {
-            table = table.getOrNull("t")!!.standardTableOrNull!!
-            table.isDotted = true
-        }
-        val error = doc.writeTo(Buffer()).errorOrFail()
-        assertEquals(TomlWriteError.TooDeep(List(limit) { "t" } + "x"), error)
-    }
-
-    @Ignore
     @Test
     fun `tables made dotted past the limit print as headers where a dotted line would be too deep`() {
         val doc = nestedTables(limit)

@@ -9,7 +9,9 @@ import com.fromwau.kern.result.Result
  * A slot in a table or array holding a [Value], a [StandardTable] or an [ArrayOfTables].
  *
  * An item is a place, not just a value: the tables and arrays store items, and indexing hands out the item
- * stored there, so writing through it changes the document.
+ * stored there, so writing through it changes the document. Once its key is removed, or replaced by `set` or `put`
+ * on the table, the item keeps what it held and no longer belongs to the document. Replacing what the item
+ * itself holds, with [assign], keeps it in the document.
  *
  * ```kotlin
  * val doc = TomlDocument.parse("[server]\nport = 8080\n").getOrElse { error(it) }
@@ -145,13 +147,6 @@ public class Item private constructor(
     internal fun movedTo(holds: Holds): Item {
         this.holds = holds
         return this
-    }
-
-    /** Takes [next]'s content, not copied, and returns an item holding what this slot held before. */
-    internal fun takeContentOf(next: Item): Item {
-        val old = Item(content, Holds.Anything)
-        content = next.content
-        return old
     }
 
     /**
@@ -330,10 +325,10 @@ public class Item private constructor(
     /**
      * Turns a table in this slot into an inline table and an array of tables into an array of inline tables; a value
      * stays as it is. The comment lines above the header move above the key. A table whose values carry comments
-     * becomes an inline table across lines that keeps them, its header comment after `{`, in a document read as
-     * TOML 1.1 or built in code, since only TOML 1.1 reads that; otherwise it goes on one line, formatted anew, and
-     * only the header comment stays, after `}`. A table taken from this slot earlier keeps its content and no longer
-     * belongs to the document.
+     * becomes an inline table across lines that keeps them, its header comment after `{`, in a document whose
+     * [TomlDocument.version] is TOML 1.1, since only TOML 1.1 reads that; otherwise it goes on one line, formatted
+     * anew, and only the header comment stays, after `}`. A table taken from this slot earlier keeps its content and
+     * no longer belongs to the document.
      *
      * @return [TomlEditError.NotATableElement], changing nothing, when this is a table in an array of tables, or
      *   [TomlEditError.TooDeep] when the value would nest deeper than the parser reads.
@@ -348,11 +343,11 @@ public class Item private constructor(
 
     /**
      * [table] as an inline table value. Its values' comments need one across lines, which only TOML 1.1 reads, so a
-     * table with them becomes that in a document read as 1.1 or built in code; otherwise it goes on one line and
+     * table with them becomes that in a document that writes 1.1 or in no document; otherwise it goes on one line and
      * only the comment on its header survives, after `}`.
      */
     private fun inlineValueOf(table: StandardTable): Value {
-        val version = owner?.let(::outermostTableOf)?.readAs ?: TomlVersion.V1_1
+        val version = owner?.let(::outermostTableOf)?.version ?: TomlVersion.V1_1
         val headerComment = if (table.isDotted) "" else table.headerComment
         if (version == TomlVersion.V1_1 && table.holdsComments()) {
             val lineBreak = table.headerLineEnding ?: "\n"

@@ -43,12 +43,17 @@ internal class KeyValue(var key: Key, item: Item) {
         if (decor.suffix?.textOrNull.isNullOrBlank()) decor.suffix = null
     }
 
-    /** Puts [next]'s content, not copied, in this entry's slot, keeping the lines above; returns the old content. */
+    /**
+     * Puts [next], not copied, in place of this entry's slot, keeping the lines above; returns the old slot, which
+     * keeps its content and no longer belongs to the table, as a removed one.
+     */
     fun replace(next: Item): Item {
         val lines = takeLinesAbove(next)
-        val oldDecor = item.valueOrNull?.rawDecor
-        val oldHeader = item.standardTableOrNull?.takeUnless { it.isDotted }?.rawDecor
-        val old = item.takeContentOf(next)
+        val old = item
+        val oldDecor = old.valueOrNull?.rawDecor
+        val oldHeader = old.standardTableOrNull?.takeUnless { it.isDotted }?.rawDecor
+        item = next
+        old.entry = null
         keepValueDecor(oldDecor)
         keepHeaderComment(oldHeader)
         keepLinesAbove(lines)
@@ -226,8 +231,8 @@ internal class KeyValuePairs {
     fun containsKey(key: String): Boolean = byName.containsKey(key)
 
     /**
-     * Inserts or replaces the item under [key]'s text. A replaced entry keeps its own key, its position and its slot,
-     * which takes [item]'s content as [KeyValue.replace] puts it, so a slot handed out for the key stays its place.
+     * Inserts or replaces the item under [key]'s text. A replaced entry keeps its own key and its position, and takes
+     * [item] as its slot as [KeyValue.replace] puts it, so a slot handed out for the key before is detached.
      *
      * @return the item the key held before, or null when there was no entry.
      */

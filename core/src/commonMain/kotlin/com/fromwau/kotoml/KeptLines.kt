@@ -223,7 +223,7 @@ private fun collectHeaderParts(
     isArrayOfTables: Boolean,
     parts: MutableList<HeaderPart>,
 ) {
-    if (!table.isDotted && table.printsHeader(isArrayOfTables)) {
+    if (!table.printsDotted && table.printsHeader(isArrayOfTables)) {
         parts += HeaderPart(table.position, linesAbove(table.rawDecor.prefix), isHeader = true)
     }
     table.keptHeaderLines.mapTo(parts) { HeaderPart(it.order, it.text, isHeader = false) }

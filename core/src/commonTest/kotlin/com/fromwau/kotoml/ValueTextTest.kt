@@ -47,7 +47,6 @@ class ValueTextTest {
         assertEquals("x", Value.parse("\"x\"\n").getOrFail().stringOrNull)
     }
 
-    @Ignore
     @Test
     fun `a time stored in a TOML 1_0 document prints its seconds`() {
         val doc = TomlDocument.parse("a = 1\n", TomlVersion.V1_0).getOrFail()
@@ -55,7 +54,6 @@ class ValueTextTest {
         assertEquals("a = 1\nt = 07:32:00\n", doc.toString())
     }
 
-    @Ignore
     @Test
     fun `a trailing comma in a TOML 1_0 document is refused when writing`() {
         val doc = TomlDocument.parse("t = { x = 1 }\n", TomlVersion.V1_0).getOrFail()
@@ -63,7 +61,6 @@ class ValueTextTest {
         doc.writeTo(Buffer()).errorOrFail()
     }
 
-    @Ignore
     @Test
     fun `a handle to a replaced table keeps the old table and no longer reaches the document`() {
         val doc = TomlDocument.parse("[a]\nx = 1\n").getOrFail()

@@ -83,7 +83,7 @@ internal fun parseDocumentModel(source: TomlSource, errors: TomlSink, version: T
     val events = collectEvents(source, errors, ::parseDocumentEvents)
     val context = ParseContext(source, errors, version)
     val lineEnding = events.firstOrNull { it.kind == EventKind.Newline }?.let { context.text(it.span) } ?: "\n"
-    return DocumentBuilder(EventStream(events), context).document(lineEnding).also { it.root.readAs = version }
+    return DocumentBuilder(EventStream(events), context).document(lineEnding).also { it.root.version = version }
 }
 
 internal fun parseSimpleKeyItem(source: TomlSource, errors: TomlSink, version: TomlVersion): Key {

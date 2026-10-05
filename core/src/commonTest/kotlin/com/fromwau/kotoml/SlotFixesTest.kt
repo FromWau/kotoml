@@ -2,11 +2,10 @@ package com.fromwau.kotoml
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertSame
 
 /**
- * Replacing a key keeps the lines above it and the slot handed out for it, a slot holds what the place it is
- * written in takes, an inline table stores copies, and an array sort keeps the text before `]` in place.
+ * Replacing a key keeps the lines above it and detaches the slot handed out for it, a slot holds what the place it
+ * is written in takes, an inline table stores copies, and an array sort keeps the text before `]` in place.
  */
 class SlotFixesTest {
 
@@ -109,14 +108,13 @@ class SlotFixesTest {
     }
 
     @Test
-    fun `a slot handed out for a key writes the key after put replaces its value`() {
+    fun `a slot handed out for a key keeps the old value and leaves the key after put replaces it`() {
         val doc = parse("'k'   =   1\n")
         val slot = doc["k"].getOrFail()
         doc["k"] = 2L
-        assertEquals(2L, slot.longOrNull)
+        assertEquals(1L, slot.longOrNull)
         slot.assign(Item(Value.Integer(3L))).getOrFail()
-        assertEquals("'k'   =   3\n", doc.toString())
-        assertSame(slot, doc["k"].getOrFail())
+        assertEquals("'k'   =   2\n", doc.toString())
     }
 
     @Test
