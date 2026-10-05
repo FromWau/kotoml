@@ -24,6 +24,10 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode = RepositoriesMode.FAIL_ON_PROJECT_REPOS
     repositories {
+        // Unreleased kern and klap builds; removed before kotoml ships (todo 84).
+        mavenLocal {
+            mavenContent { includeGroupAndSubgroups("com.fromwau") }
+        }
         google {
             mavenContent {
                 includeGroupAndSubgroups("androidx")

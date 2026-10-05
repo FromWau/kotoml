@@ -2,8 +2,8 @@
 # One version across every kotoml module, released together, so a consumer pins a single number.
 kotomlVersion = "0.1.0"
 
-kern = "0.4.2"
-klap = "0.5.1"
+kern = "0.4.3"
+klap = "0.5.2"
 
 agp = "9.4.1"
 android-compileSdk = "37"

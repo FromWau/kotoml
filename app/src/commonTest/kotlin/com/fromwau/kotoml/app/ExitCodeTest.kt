@@ -3,6 +3,7 @@ package com.fromwau.kotoml.app
 import com.fromwau.kern.result.EmptyResult
 import com.fromwau.kern.result.Err
 import com.fromwau.kern.terminal.Terminal
+import com.fromwau.kern.terminal.Stream
 import com.fromwau.kern.terminal.WriteError
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
@@ -107,14 +108,21 @@ class ExitCodeTest {
 
     @Test
     fun `output the system refused exits 1 and says so`() {
-        val terminal = FailingWrites(WriteError.Refused("No space left on device"))
+        val terminal = FailingWrites(WriteError.Refused(Stream.Out, "No space left on device"))
         assertEquals(1, runKotoml(listOf("get", ".a", file("a = 1\n")), terminal))
         assertEquals("error: cannot write to standard output: No space left on device\n", terminal.err.toString())
     }
 
     @Test
+    fun `a write standard error refused is named as standard error`() {
+        val terminal = FailingWrites(WriteError.Refused(Stream.Err, "No space left on device"))
+        assertEquals(1, runKotoml(listOf("get", ".a", file("a = 1\n")), terminal))
+        assertEquals("error: cannot write to standard error: No space left on device\n", terminal.err.toString())
+    }
+
+    @Test
     fun `a reader that closes the pipe ends the run with 141 and no message`() {
-        val terminal = FailingWrites(WriteError.BrokenPipe)
+        val terminal = FailingWrites(WriteError.BrokenPipe(Stream.Out))
         assertEquals(141, runKotoml(listOf("get", ".a", file("a = 1\n")), terminal))
         assertEquals("", terminal.err.toString())
     }

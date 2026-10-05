@@ -73,11 +73,6 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
   `:app:linkReleaseExecutableMingwX64` with `ld.lld: cannot open output file .../mingwX64/releaseExecutable/kotoml.exe:
   No such file or directory`; a plain `build` right after linked it. Likely `clean` racing the parallel link; not
   yet reproduced.
-- [ ] **76. A lost write on standard error reads as standard output.** kern reports stdout's failure before
-  stderr's, and a failure on stderr alone also counts, so a run whose stdout landed but whose stderr hit a full disk
-  exits 1 with `cannot write to standard output`. Saying which stream failed needs kern to report it (kern, klap).
-  **Ruling 2026-10-05:** B: each stream answers for itself. kern's `WriteError` says which stream failed, and
-  klap reports a standard error failure under its own name (a kern and a klap release).
 
 ### Owner calls on wave 1 (2026-10-05)
 
@@ -109,6 +104,9 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
   prints in its version. **Ruling 2026-10-05:** it follows its document's version; TOML 1.1 is the default and 1.0
   is opt-in.
 
+- [ ] **84. Remove `mavenLocal()` from `settings.gradle.kts`.** Added so kotoml builds against kern 0.4.3 and klap
+  0.5.2 before they are published; take it out once they are, before kotoml ships.
+
 Settled the same day, no change: a copied table prints where its key stands (item 38 over 29's "after the tables
 already there"); a moved table gets the default blank line (spacing is not kept across operations); a bare value's
 same-line comment travels with it; `makeValue` on a 1.0 array of tables keeps header comments and comment lines
@@ -125,6 +123,15 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **76. A lost write on standard error reads as standard output.** kern reports stdout's failure before
+  stderr's, and a failure on stderr alone also counts, so a run whose stdout landed but whose stderr hit a full disk
+  exits 1 with `cannot write to standard output`. Saying which stream failed needs kern to report it (kern, klap).
+  **Ruling 2026-10-05:** B: each stream answers for itself. kern's `WriteError` says which stream failed, and
+  klap reports a standard error failure under its own name (a kern and a klap release).
+  **Verdict 2026-10-05:** fixed upstream: kern 0.4.3's `WriteError` names its `stream`, klap 0.5.2 reports a refused
+  write as `cannot write to standard output` or `standard error`, and `"stream"` in the `--json` envelope. A test
+  in `ExitCodeTest`; native CLI: `> /dev/full` names standard output, `| head` exits 141 silently; build green.
 
 - [x] **74. Document the CLI's JSON mapping.** Datetimes as strings, `nan`/`inf` as strings, fractions cut to 9
   digits, `--json` span offsets in UTF-16 units.
