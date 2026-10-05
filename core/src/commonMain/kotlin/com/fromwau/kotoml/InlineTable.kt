@@ -31,7 +31,10 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     internal val rawDecor: RawDecor = RawDecor()
     internal var span: Span? = null
 
-    /** Whether this table stands for the parts of a dotted key rather than for `{ ... }`. */
+    /**
+     * Whether this table stands for the parts of a dotted key rather than for `{ ... }`. Changing it changes which
+     * comments stay, as [Table.isDotted] says.
+     */
     override var isDotted: Boolean
         get() = dotted
         set(value) {

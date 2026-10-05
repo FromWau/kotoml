@@ -88,10 +88,13 @@ doc["client"] = standardTableOf("retries" to Item(Value.Integer(3L))).getOrElse 
 `keys`, `put`, `getOrPut`, `remove`, `add`, `removeAt`, `retainAll`, `removeAll` and iteration. Removing keeps the
 comment and blank lines above what it removes, and takes what belongs to it: the comment on its line, every comment
 inside its value, and for a table everything after its first header, the comments above its sub-tables' headers
-included. Replacing a value keeps its spacing and the comment after it. An `Item` is a slot that holds a value, a
-table or an array of tables; `valueOrNull`, `standardTableOrNull` and their siblings read what it holds, and
-`tableOrNull` reads a table of either kind. Storing an item stores a copy, so editing the original afterwards does
-not change the document.
+included. Replacing a value keeps its spacing and the comment after it. An array of tables left with no tables
+prints `key = []`. Sorting moves each key with the comment lines right above it and leaves blank lines in place.
+Making a table dotted, or a header again, keeps the lines above its key and each value's same-line comment and drops
+its other comments. An `Item` is a slot that holds a value, a table or an array of tables; `valueOrNull`,
+`standardTableOrNull` and their siblings read what it holds, and `tableOrNull` reads a table of either kind. Storing
+an item stores a copy, so editing the original afterwards does not change the document; a copy from elsewhere in the
+same document takes only the comments inside it. The full set of rules is goal 4 in [GOALS.md](../GOALS.md).
 
 A document's top-level keys live in its `root` table. The document itself offers the map calls (`get`, `set`,
 `getOrNull`, `contains`, `keys`, `put`, `putAll`, `getOrPut`, `remove`, `retainAll`, `removeAll`, `clear`,

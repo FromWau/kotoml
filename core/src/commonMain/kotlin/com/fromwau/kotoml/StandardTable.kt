@@ -39,7 +39,9 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
 
     /**
      * Whether this table stands for the parts of a dotted key rather than for a header. A document's root and an
-     * element of an array of tables are never dotted: storing a table as either clears this.
+     * element of an array of tables are never dotted: storing a table as either clears this. Changing it changes
+     * which comments stay, as [Table.isDotted] says; dotted keys made a header put the comment above their first line
+     * above the header.
      */
     override var isDotted: Boolean
         get() = dotted
@@ -353,9 +355,10 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     /**
      * Sorts the key/value lines under this header with [comparator], given each pair of key and item.
      *
-     * Only the key/value lines move, each with its comments. Sub-tables and arrays of tables stay where their headers
-     * print, those made by hand included. The parts of a dotted key are sorted the same way, and their
-     * order replaces the one they were read in. The sort is stable.
+     * Only the key/value lines move, each with the comment lines right above it. Blank lines, and the comment block
+     * heading the file, stay in place. Sub-tables and arrays of tables stay where their headers print, those made by
+     * hand included. The parts of a dotted key are sorted the same way, and their order replaces the one they were
+     * read in. The sort is stable.
      */
     public fun sortWith(comparator: Comparator<Pair<Key, Item>>) {
         forgetOrder()

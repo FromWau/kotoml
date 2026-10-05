@@ -62,7 +62,11 @@ public sealed interface Table {
     /** Drops the formatting of the keys and values in this table. */
     public fun resetFormatting()
 
-    /** Whether this table stands for the parts of a dotted key. */
+    /**
+     * Whether this table stands for the parts of a dotted key. Changing it gives the table a new layout: the lines
+     * above its key stay and each value keeps the comment on its line, while its header comment, the comment after
+     * its braces and the comment lines inside it go.
+     */
     public var isDotted: Boolean
 
     /** The key [name] as stored, whose formatting can be changed in place; null when there is none. */

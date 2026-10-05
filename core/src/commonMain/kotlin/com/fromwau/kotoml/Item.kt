@@ -19,7 +19,10 @@ import com.fromwau.kern.result.Result
  * ```
  *
  * Storing an item stores a copy of what it holds, so two places never share one slot or one table or value:
- * after `doc["b"] = doc["a"].getOrElse { error(it) }`, editing `doc["a"]` leaves `doc["b"]` as it was.
+ * after `doc["b"] = doc["a"].getOrElse { error(it) }`, editing `doc["a"]` leaves `doc["b"]` as it was. A copy
+ * taken from elsewhere in the same document leaves its source's own comments behind (its same-line comment, its
+ * header comment and the comment lines above its header) and takes the comments inside it; a copied table prints
+ * after the tables already there.
  *
  * A slot inside an array or an inline table holds only a value, and one inside an array of tables only a table;
  * writing anything else there fails with [TomlEditError.NotAValue] or [TomlEditError.NotATableElement].
@@ -325,9 +328,12 @@ public class Item private constructor(
     }
 
     /**
-     * Turns a table in this slot into an inline table and an array of tables into an array of inline tables,
-     * formatted anew; a value stays as it is. The comment lines above the header move above the key. A table taken
-     * from this slot earlier keeps its content and no longer belongs to the document.
+     * Turns a table in this slot into an inline table and an array of tables into an array of inline tables; a value
+     * stays as it is. The comment lines above the header move above the key. A table whose values carry comments
+     * becomes an inline table across lines that keeps them, its header comment after `{`, in a document read as
+     * TOML 1.1 or built in code, since only TOML 1.1 reads that; otherwise it goes on one line, formatted anew, and
+     * only the header comment stays, after `}`. A table taken from this slot earlier keeps its content and no longer
+     * belongs to the document.
      *
      * @return [TomlEditError.NotATableElement], changing nothing, when this is a table in an array of tables, or
      *   [TomlEditError.TooDeep] when the value would nest deeper than the parser reads.
