@@ -8,12 +8,12 @@ Every defect, ruling and docs item from that pass is closed; see **Done**.
 
 ## Candidate work
 
-- [ ] **28. Repeated `isDotted` changes still lose comments in rarer shapes.** `CommentPropertyTest` is clean at its
-  default size; at 25 steps and 2000 seeds it finds about 135 losses, all after an inline or standard table was made
-  dotted, often several times, combined with copies and empty tables. Seen: a dotted inline table inside another one
-  loses its own braces' comments (`takeOutOfBraces` converts only the outermost); a header comment applied at two
-  levels merges into one comment token; a comment on an empty dotted table's line is lost once the table gains a key.
-  Reproduce by raising the seeds and steps in `CommentPropertyTest`. Goal 4.
+- [ ] **28. An inline table put back into braces loses the comments on its first key's line.** Owner ruling
+  2026-10-05: an `isDotted` change gives a table a new layout, so its comments may go, but for the lines above its
+  key. One heavy-run case still breaks that (`CommentPropertyTest` at 25 steps and 2000 seeds, hand-written 0 seed
+  1660): an inline table printed on dotted lines, `"new key"."é"…`, holds the comments printed above that line on
+  its first entry's key; made an inline table again, it prints `"new key" = { … }` and those comments, visually
+  above its key, are gone. Moving them onto the holding key when it goes back into braces would keep them. Goal 4.
 
 ## Not in scope (owner, 2026-10-05)
 

@@ -148,12 +148,15 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
                         val line = values[first] as VisualValue
                         val above = table.headerLinesAbove(entry.key)
                         val comment = table.headerComment
+                        // An empty table's line is under its own key, whose lines above are already in [above].
+                        val own = line.path.last() !== entry.key
                         // A line with a comment of its own takes the header's on a line above it.
-                        values[first] = if (line.value.commentAfter().isEmpty()) {
-                            line.withLines(above, comment)
+                        values[first] = if (line.value.commentAfter().isEmpty() && '#' !in line.lineEnd) {
+                            line.withLines(above, comment, own)
                         } else {
                             val ownLine = comment.trimStart().takeIf { it.isNotEmpty() }
-                            line.withLines(above + ownLine?.let { it + (table.headerLineEnding ?: "\n") }.orEmpty(), "")
+                            val lineBreak = table.headerLineEnding ?: "\n"
+                            line.withLines(above + ownLine?.let { it + lineBreak }.orEmpty(), "", own)
                         }
                     }
                 }
@@ -571,15 +574,22 @@ private fun MutableList<BodyLine>.takeOutOfBraces(
         val hasComment = value.commentAfter().isNotEmpty() || '#' in ends[position]
         ends[position] += if (ownLine || hasComment) lineBreak + comment.trimStart() else comment
     }
+    // Each key under [entry]'s prints its lines above over the first line under it, nested dotted tables' keys too.
+    val seen = HashSet<Key>()
+    val aboves = MutableList(lines.size) { "" }
     for ((position, index) in lines.withIndex()) {
-        val key = (this[index] as VisualValue).path.last()
-        if (key === entry.key) continue
-        val prefix = key.rawLeafDecor.prefix?.textOrNull.orEmpty()
-        val carried = prefix.commentBeforeBreak()
-        when {
-            carried.isEmpty() -> {}
-            position == 0 -> firstAbove += carried.trimStart() + prefix.lineBreak()
-            else -> endLine(position - 1, carried, prefix.lineBreak())
+        val path = (this[index] as VisualValue).path
+        val keys = path.subList(path.indexOfFirst { it === entry.key } + 1, path.size)
+        for (key in keys) {
+            if (!seen.add(key)) continue
+            val prefix = key.rawLeafDecor.prefix?.textOrNull.orEmpty()
+            val carried = prefix.commentBeforeBreak()
+            when {
+                carried.isEmpty() -> {}
+                position == 0 -> firstAbove += carried.trimStart() + prefix.lineBreak()
+                else -> endLine(position - 1, carried, prefix.lineBreak())
+            }
+            aboves[position] += linesAboveOnTableLines(KeptText.from(prefix))
         }
     }
     val last = lines.lastIndex
@@ -591,9 +601,8 @@ private fun MutableList<BodyLine>.takeOutOfBraces(
     endLine(last, inline.commentAfter(), lineBreak, ownLine = '\n' in trailing)
     for ((position, index) in lines.withIndex()) {
         val line = this[index] as VisualValue
-        val above = if (position == 0) firstAbove else ""
-        // An empty table's line is under the holding key itself, whose lines above are those of [entry].
-        this[index] = line.outOfBraces(above, ends[position], ownLinesAbove = line.path.last() !== entry.key)
+        val above = (if (position == 0) firstAbove else "") + aboves[position]
+        this[index] = line.outOfBraces(above, ends[position])
     }
 }
 
@@ -627,25 +636,41 @@ internal class VisualValue(
     val spacedForBraces: Boolean = false,
     // Comment text ending the line, after the value's own.
     val lineEnd: String = "",
+    // Whether the key takes the default spacing before `=`, its own being a header's.
+    val defaultKeySpacing: Boolean = false,
 ) : BodyLine {
     override val order: Long?
         get() = placedAt ?: entry.order
 
-    /** This line printed on a table's lines though spaced for braces, with [above] over it and [end] ending it. */
+    /** This line printed on a table's lines though spaced for braces, starting with [above] and ending with [end]. */
     fun outOfBraces(
+        above: String,
+        end: String,
+    ): VisualValue {
+        val start = KeptText.from(above)
+        return VisualValue(path, value, entry, placedAt, start, spacedForBraces = true, lineEnd = end)
+    }
+
+    /** This line with [above] over its lines above, or in their place when not [ownLinesAbove], and [end] ending it. */
+    fun withLines(
         above: String,
         end: String,
         ownLinesAbove: Boolean,
     ): VisualValue {
-        val own = if (ownLinesAbove) linesAboveOnTableLines(path.last().rawLeafDecor.prefix) else ""
+        val own = if (ownLinesAbove) (lineStart ?: path.last().rawLeafDecor.prefix)?.textOrNull.orEmpty() else ""
         val start = above + own
-        return VisualValue(path, value, entry, placedAt, KeptText.from(start), spacedForBraces = true, lineEnd = end)
-    }
-
-    /** This line with [above] over the lines above it and [end] ending it. */
-    fun withLines(above: String, end: String): VisualValue {
-        val start = above + (lineStart ?: path.last().rawLeafDecor.prefix)?.textOrNull.orEmpty()
-        return VisualValue(path, value, entry, placedAt, KeptText.from(start), spacedForBraces, lineEnd + end)
+        // A line under the table's own key, made empty, has that key's header spacing.
+        val defaultKey = !ownLinesAbove || defaultKeySpacing
+        return VisualValue(
+            path,
+            value,
+            entry,
+            placedAt,
+            KeptText.from(start),
+            spacedForBraces,
+            lineEnd + end,
+            defaultKey,
+        )
     }
 
     /** The path's keys as spelled on this value's own line. */

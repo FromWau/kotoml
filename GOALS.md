@@ -33,13 +33,15 @@ official toml-test runner for TOML 1.0 and 1.1.
 4. **An edit touches only what it changes.** Comments and formatting are kept, except:
    - a comment inside a structure whose key is removed or replaced goes with it;
    - a removed key's same-line comment goes with it, while a replaced value keeps its spacing and same-line comment;
+   - making a table or an inline table dotted, or dotted back into a header or braces, replaces its layout: its
+     comments may go, but for the lines above its key;
    - in an array of tables, removing elements drops the comments between them and keeps the one above the first
      and the one after the last.
 
    Check: `CommentPropertyTest` applies random comment-keeping edits (adding, replacing a value with a value, removing a
-   value, sorting, `isDotted` and `isImplicit`) and checks that every comment but a removed value's own survives;
-   `RemovalCommentScopeTest`, `RemovalKeepsCommentsTest`, `ReplacementCommentScopeTest`, `HeaderCommentsTest`,
-   `RemovalPropertyTest`. Gap: heavier runs still find losses after repeated `isDotted` changes (todo 28).
+   value, sorting, `isDotted` and `isImplicit`) and checks that every comment survives but those the rules above let
+   go; `RemovalCommentScopeTest`, `RemovalKeepsCommentsTest`, `ReplacementCommentScopeTest`, `HeaderCommentsTest`,
+   `RemovalPropertyTest`. Gap: one case in heavy runs, an inline table put back into braces (todo 28).
 
 ### Robustness
 

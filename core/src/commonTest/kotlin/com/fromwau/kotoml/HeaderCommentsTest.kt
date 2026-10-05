@@ -58,4 +58,26 @@ class HeaderCommentsTest {
         table.remove("c")
         assertEquals("# about t\n# open\n  # about c\nt.d = 4 # four\n  # end\n# close\n", doc.toString())
     }
+
+    @Test
+    fun `the comment above a removed key prints once above the emptied dotted table after it`() {
+        val doc = parse("# about b\nb = 2\n\n# about t\n[t] # t\nc = 3\n")
+        val table = doc.table("t")
+        table.isDotted = true
+        table.remove("c")
+        doc.remove("b")
+        assertEquals("# about b\n\n# about t\nt = {} # t\n", doc.toString())
+        table.isDotted = false
+        assertEquals("# about b\n\n# about t\n[t] # t\n", doc.toString())
+    }
+
+    @Test
+    fun `an inline table made dotted inside a dotted one keeps the lines above its key`() {
+        val text = "t = {\n  # about e\n  e = { h = 1 },\n  x = 2,\n}\n"
+        val doc = TomlDocument.parse(text, TomlVersion.V1_1).getOrFail()
+        val outer = doc["t"].getOrFail().inlineTableOrNull!!
+        outer.isDotted = true
+        outer["e"]!!.inlineTableOrNull!!.isDotted = true
+        assertEquals("  # about e\nt.e.h = 1\nt.x = 2\n", doc.toString())
+    }
 }

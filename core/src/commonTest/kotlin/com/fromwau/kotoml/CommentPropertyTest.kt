@@ -13,7 +13,8 @@ import kotlin.test.assertEquals
 
 /**
  * Edits keep every comment they do not own. Adding, replacing a value with a value, sorting and changing how a table
- * prints keep them all; removing a value takes only the comment on its own line. Removing or replacing whole tables
+ * prints keep them all; removing a value takes only the comment on its own line, and giving a table a new layout with
+ * `isDotted` may take its comments, all but the lines above its key. Removing or replacing whole tables
  * is covered by `RemovalPropertyTest` and the comment scope tests, which state what those take.
  */
 class CommentPropertyTest {
@@ -62,13 +63,14 @@ class CommentPropertyTest {
         val log = mutableListOf<String>()
         repeat(steps) {
             val before = doc.toString()
-            val edit = commentKeepingEdit(Edits(doc, random), random)
+            val edit = commentKeepingEdit(doc, Edits(doc, random), random)
             log += edit.name
             val owned = edit.apply()
             val after = doc.toString()
             val lost = (comments(before) - owned).minusAll(comments(after))
             if (lost.isNotEmpty()) {
-                return "$name seed $seed after ${log.joinToString(" ; ")}: lost $lost\n--- before:\n$before--- after:\n$after"
+                val where = "$name seed $seed after ${log.joinToString(" ; ")}"
+                return "$where: lost $lost\n--- before:\n$before--- after:\n$after"
             }
         }
         return null
@@ -78,6 +80,7 @@ class CommentPropertyTest {
     private class Edit(val name: String, val apply: () -> List<String>)
 
     private fun commentKeepingEdit(
+        doc: TomlDocument,
         edits: Edits,
         random: Random,
     ): Edit {
@@ -95,7 +98,12 @@ class CommentPropertyTest {
             }
             add(Edit("table sort") { table.sortWith(compareBy { it.first.name }).let { emptyList() } })
             if (table !== edits.tables.first()) {
-                add(Edit("table isDotted") { (!table.isDotted).also { table.isDotted = it }.let { emptyList() } })
+                add(Edit("table isDotted") {
+                    // A new layout for the table: its comments may go, but for the lines above its key.
+                    val owned = commentsOf(doc, table)
+                    table.isDotted = !table.isDotted
+                    owned
+                })
                 add(Edit("table isImplicit") { (!table.isImplicit).also { table.isImplicit = it }.let { emptyList() } })
             }
             edits.arrays.randomOrNull(random)?.let { array ->
@@ -111,7 +119,12 @@ class CommentPropertyTest {
                 }
             }
             edits.inlines.randomOrNull(random)?.let { inline ->
-                add(Edit("inline isDotted") { (!inline.isDotted).also { inline.isDotted = it }.let { emptyList() } })
+                add(Edit("inline isDotted") {
+                    // A new layout for the table: its comments may go, but for those above it.
+                    val inside = comments(inline.toString()).minusAll(comments(inline.decor.prefix.orEmpty()))
+                    inline.isDotted = !inline.isDotted
+                    inside
+                })
             }
             edits.tableArrays.randomOrNull(random)?.let { tables ->
                 add(Edit("tables add") { tables.add(edits.table()).let { emptyList() } })
@@ -120,9 +133,51 @@ class CommentPropertyTest {
         return options.random(random)
     }
 
-    private fun Item.isScalar(): Boolean = valueOrNull?.let { it.arrayOrNull == null && it.inlineTableOrNull == null } ?: false
+    private fun Item.isScalar(): Boolean = valueOrNull?.isScalar() ?: false
 
     private fun Value.isScalar(): Boolean = arrayOrNull == null && inlineTableOrNull == null
+
+    /** The comments [table] carries, but for the lines above its key: those removing it from [doc] takes. */
+    private fun commentsOf(
+        doc: TomlDocument,
+        table: StandardTable,
+    ): List<String> {
+        val path = pathTo(doc.root, table) ?: return emptyList()
+        val copy = doc.copy()
+        var parent: Any = copy.root
+        for (step in path.dropLast(1)) {
+            parent = when (step) {
+                is String -> {
+                    val item = (parent as StandardTable).getOrNull(step)!!
+                    item.standardTableOrNull ?: item.arrayOfTablesOrNull!!
+                }
+                else -> (parent as ArrayOfTables)[step as Int]!!
+            }
+        }
+        when (val last = path.last()) {
+            is String -> (parent as StandardTable).remove(last)
+            else -> (parent as ArrayOfTables).removeAt(last as Int)
+        }
+        return comments(doc.toString()).minusAll(comments(copy.toString()))
+    }
+
+    /** The keys and array indices leading from [from] to [target], or null when it is not under [from]. */
+    private fun pathTo(
+        from: StandardTable,
+        target: StandardTable,
+    ): List<Any>? {
+        for ((key, item) in from) {
+            item.standardTableOrNull?.let { child ->
+                if (child === target) return listOf(key)
+                pathTo(child, target)?.let { return listOf<Any>(key) + it }
+            }
+            item.arrayOfTablesOrNull?.forEachIndexed { index, element ->
+                if (element === target) return listOf(key, index)
+                pathTo(element, target)?.let { return listOf<Any>(key, index) + it }
+            }
+        }
+        return null
+    }
 
     /** Removes the value at [key], returning the comment on its line, which goes with it. */
     private fun removedValue(

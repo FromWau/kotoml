@@ -156,7 +156,9 @@ private fun encodeKeyValueLine(writer: LineWriter, visual: VisualValue) {
     val value = visual.value
     var leafDecor = keyPath.last().rawLeafDecor
     var valueDecor = value.rawDecor
-    visual.lineStart?.let { start -> leafDecor = RawDecor(start, leafDecor.suffix) }
+    visual.lineStart?.let { start ->
+        leafDecor = RawDecor(start, leafDecor.suffix.takeUnless { visual.defaultKeySpacing })
+    }
     if (visual.spacedForBraces) {
         // After a value in braces only a comment carries over; the space before `}` does not.
         val comment = valueDecor.suffix?.textOrNull?.takeIf { '#' in it }?.substringBefore('\n')?.trimEnd('\r')
