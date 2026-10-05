@@ -14,155 +14,24 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
 
 ### Bugs against a goal
 
-- [ ] **30. Storing a removed table again prints the comment above its header twice.** ✓
-  `x = 1\n\n# about t\n[t]\nk = 1\n`, `val t = doc.remove("t")!!; doc.set("t", t)`: `# about t` prints twice,
-  once more per round. Removal keeps the lines above in place and the removed item still carries them. Hits every
-  rename, move and split. Goal 4.
-  **Ruling 2026-10-05:** expected: `# about t` once, above `[t]`, however many rounds.
-  **Pinned:** `CommentPlacementTest`, ignored until fixed.
-- [ ] **31. An edit adds a final newline to a file without one.** ✓ `a = 1\nb = 2` with `doc["a"] = 5L` prints
-  `a = 5\nb = 2\n` (CRLF files gain `\r\n`); any edit when the last line is a key/value line. Goals 2, 4.
-  **Ruling 2026-10-05:** expected: the missing final newline stays, also when a key is added (`a = 1\nb = 2\nc = 3`,
-  no newline).
-  **Pinned:** `EditLayoutTest`, ignored until fixed.
-- [ ] **32. A document read as TOML 1.0 writes TOML 1.1.** ✓ `parse("a = 1\n", V1_0)`, set a `LocalTime` of 7:32:
-  `t = 07:32`, which a 1.0 parse refuses; `writeTo` succeeds. Same for `trailingComma = true` (`{ x = 1 ,}`).
-  The document remembers its version already (`makeValue`). Goal 3.
-  **Ruling 2026-10-05:** a 1.0 document prints a time as `07:32:00`; what has no 1.0 form (`trailingComma`) makes
-  `writeTo` refuse with a typed error.
-  **Pinned:** `ValueTextTest`, ignored until fixed.
-- [ ] **33. `toString()` prints text `writeTo` refuses.** ✓ 80 nested tables, each made dotted: `writeTo` is
-  `TooDeep`, `toString()` returns `t80.t79….t1.leaf = 1`, which does not parse. Goal 3.
-  **Ruling 2026-10-05:** B: the flip applies and `toString()` prints headers where a dotted line would be too deep.
-  **Pinned:** `WriteDepthTest`, ignored until fixed. The fix replaces the test that expects `TooDeep`.
-- [ ] **34. A copy from another document takes the comments above its header and its header comment.** ✓
-  Source `# Generated, do not edit\n\n[db] # db hdr\nurl = 1\n`, `dst.set("db", src["db"])`: the banner and
-  `# db hdr` arrive, glued to the line before. Replacing `[app] # ah` with another document's `[app] # bh` prints
-  `# bh` (a table replaced by a table keeps its header comment). `GOALS.md` states the copy rule for any copy,
-  `core/README.md` for the same document only. Goal 4.
-  **Ruling 2026-10-05:** expected: the copy prints `[db]\nurl = 1` after a blank line, without the banner
-  or `# db hdr`; a replaced `[app] # ah` keeps `# ah`. The rule covers copies from any document.
-  **Pinned:** `CommentPlacementTest`, ignored until fixed.
-- [ ] **35. An inline array of tables made `[[bin]]` repeats its key's comment above every element.** ✓
-  `# bins\nbin = [{ name = "a" }, { name = "b" }]`, set to the same tables as an `ArrayOfTables`: `# bins` above
-  each `[[bin]]`. Goal 4.
-  **Ruling 2026-10-05:** expected: `# bins` once, above the first `[[bin]]`.
-  **Pinned:** `CommentPlacementTest`, ignored until fixed.
-- [ ] **36. A new key prints above a comment-only head.** ✓ `# banner\n\n[db]\nurl = 1\n`, remove `db`, set `x`:
-  `x = 1\n# banner\n\n`. Goal 4 ("new content goes below them").
-  **Ruling 2026-10-05:** expected: `# banner\n\nx = 1\n`.
-  **Pinned:** `CommentPlacementTest`, ignored until fixed.
-- [ ] **37. A caller's comment after an array element is dropped.** ✓ `[1, 2]` plus `Value.Integer(3)` with
-  `Decor(suffix = " # c")` prints `[1, 2, 3]`; the same for an inline table's value. Goal 4 ("a decor a caller
-  gives a value is kept").
-  **Ruling 2026-10-05:** A: a comment given to an element or an inline table's value makes the structure multi-line,
-  one entry per line; in TOML 1.0 an inline table cannot hold it.
-  **Pinned:** `CommentPlacementTest`, ignored until fixed.
-- [ ] **38. Moved and copied tables print away from their parent.** ✓ Remove `[a]` and store it under `[b]`:
-  `[b.a]` prints above `[b]`. A copy stored in a new table prints under its source and the new parent last as an
-  empty header; a copy stored into an existing table goes to the end of the file while a fresh table stays with its
-  parent; replacing a table with a copy from the same document moves it to the end and leaves a blank first line.
-  Goal 4 (readability).
-  **Ruling 2026-10-05:** expected: a moved or copied table prints right after its parent's body; a copy replacing a
-  table prints where the replaced one did, with no blank first line.
-  **Pinned:** `EditLayoutTest`, ignored until fixed.
 - [ ] **39. Printing a document built in code is quadratic.** ✓ The DSL, n tables each with two sub-tables:
   2500 print in 378 ms, 5000 in 1.46 s; the same text parsed prints in 31 ms. Built tables have no position.
   `encodeInto` of 8000 reversed `[[servers]]` takes 5.6 s (todo 23 left wholly changed lists quadratic). Should 5.
   **Ruling 2026-10-05:** expected: printing a built document is linear.
-- [ ] **41. CLI: a value from a CRLF file prints with `\r\n`.** ✓ `kotoml get -r .t.x` on a CRLF file gives `y\r`
-  in `$(…)`. In a mixed file the first line ending is used for every line printed. Goals 2, 15.
-  **Ruling 2026-10-05:** expected: a single value ends in `\n`; a table keeps each line's own ending.
-  **Pinned:** `ExitCodeTest`, ignored until fixed.
-- [ ] **42. CLI: `encode` ends with a blank line.** ✓ `{"a":{"type":"integer","value":"1"}}` gives `a = 1\n\n`.
-  **Ruling 2026-10-05:** expected: `a = 1\n`.
-  **Pinned:** `ExitCodeTest`, ignored until fixed.
 - [ ] **43. CLI: `--color` does nothing.** Listed on every help page; no escapes with `always`, nor on a terminal.
   **Ruling 2026-10-05:** A: implement colour (`error:` and the caret line coloured, `auto` on a terminal).
-- [ ] **44. CLI: `get --json` keeps times without seconds.** `07:32` prints `"07:32"`, `1979-05-27T07:32Z` as
-  written, not RFC 3339; `decode` adds `:00`, and `get --json` normalises other spellings.
-  **Ruling 2026-10-05:** expected: `"07:32:00"`, `"1979-05-27T07:32:00Z"`.
-  **Pinned:** `ExitCodeTest`, ignored until fixed.
 
 ### Layout no person would write
 
-- [ ] **45. Removing a table between blank lines leaves two.** ✓ `[a]…\n\n[b]…\n\n[c]…` minus `b` leaves
-  `\n\n\n[c]`; removing the first or last table leaves a blank line at the start or end. Follows the README rule
-  (the blank lines above are kept); collapse to one when nothing else is kept between them.
-  **Ruling 2026-10-05:** expected: one blank line where two meet with nothing kept between them; none at the start or
-  end of the file. A kept comment between keeps both.
-  **Pinned:** `EditLayoutTest`, ignored until fixed.
-- [ ] **46. Appending to a one-line array ignores its spacing.** ✓ `[ 1, 2 ]` plus 3 prints `[ 1, 2 , 3]`; `[1,2]`
-  prints `[1,2, 3]`; `{a=1}` gets `b = 2`; `[\n  1,\n  2]` gets `2, 3]`.
-  **Ruling 2026-10-05:** expected: `[ 1, 2, 3 ]`, `[1,2,3]`, `{a=1, b=2}`, `[\n  1,\n  2,\n  3]`.
-  **Pinned:** `EditLayoutTest`, ignored until fixed.
-- [ ] **47. A new key in an indented table starts at column 0.** Keys indented by two spaces; a new key is not.
-  Multi-line arrays copy their indentation.
-  **Ruling 2026-10-05:** expected: the new key takes the indentation of the keys above it.
-  **Pinned:** `EditLayoutTest`, ignored until fixed.
-- [ ] **48. Empty parent headers outside the DSL.** `standardTableOf("ruff" to …)` under `tool` and serialization
-  of a map of classes print `[tool]\n\n[tool.ruff]`; the DSL omits the empty parent. `encodeInto` adds one to a
-  user's file.
-  **Ruling 2026-10-05:** a hand-made table holding only tables prints no header of its own (as the DSL); a parsed
-  header stays.
-  **Pinned:** `EditLayoutTest`, ignored until fixed.
-- [ ] **49. Extreme floats print without an exponent.** `1e300` prints 301 digits, `Double.MIN_VALUE` 324,
-  `1e21` as `1000000000000000000000.0`. Core and serialization.
-  **Ruling 2026-10-05:** exponent form at 1e16 and above or below 1e-5, with the shortest digits that read back
-  (`1e300`, `5e-324`); valid in 1.0 and 1.1.
-  **Pinned:** `ValueTextTest`, ignored until fixed.
 
 ### Error messages
 
-- [ ] **50. A line break inside a string is reported on the next line.** ✓ `desc = "hello\nworld"` reports line 2,
-  "key with no value" or "string values must be quoted". Should 1.
-  **Ruling 2026-10-05:** expected: line 1, `InvalidString(Basic)`, as an unclosed string.
-  **Pinned:** `ParseMessageTest`, ignored until fixed.
-- [ ] **51. Numbers apart by a space are told to be quoted.** ✓ `port = 80 80`, `[1, 2 3]`, `[1 2]`, `x = ` say
-  "string values must be quoted"; `MissingArrayComma` exists for `["x" "y"]`. Should 1.
-  **Ruling 2026-10-05:** expected: `port = 80 80` and `a = true false` give `UnexpectedKeyOrValue` at the second
-  token; `[1 2]` `MissingArrayComma`; `x = ` `MissingValue`.
-  **Pinned:** `ParseMessageTest`, ignored until fixed.
-- [ ] **52. `\x` and `\e` under TOML 1.0 are a syntax error, not `NotInToml10`.** `Toml11Feature` has no escape
-  entries though `core/README.md` lists the escapes among what 1.0 refuses.
-  **Ruling 2026-10-05:** expected: `NotInToml10` with new `Toml11Feature` entries for `\x` and `\e`.
-  **Pinned:** `ParseMessageTest`, ignored until fixed.
-- [ ] **53. A surrogate or out-of-range `\u` says "expected unicode hexadecimal value".** `"\uD800"`,
-  `"\U00110000"`: the digits are hex, the code point is the problem; the caret sits on the `u`.
-  **Ruling 2026-10-05:** expected: a new reason for a code point that is not a Unicode scalar value, the caret under
-  the whole escape.
-  **Pinned:** `ParseMessageTest`, ignored until fixed.
-- [ ] **54. `render()` echoes the whole line.** A 5 MB line gives 10 MB of message; a lone CR or NUL is printed raw
-  by the library (the CLI escapes it); the caret width counts UTF-8 bytes and misaligns after tabs.
-  **Ruling 2026-10-05:** show about 80 characters around the column, `…` at cut ends; control characters as `\x0D`;
-  one caret per character. Only the message is cut, never the data.
-  **Pinned:** `ParseMessageTest`, ignored until fixed.
-- [ ] **55. CLI errors never name the file, and `check` takes one file.** `kotoml check bad.toml` prints
-  `TOML parse error at line 3, column 5`; a loop over files cannot tell which failed. Should 1.
-  **Ruling 2026-10-05:** errors start `error: <file>: …`; `check` takes several files and prints `<file>: OK` for each
-  when given more than one, exit 1 if any fails; `--json` errors gain `path`.
-  **Pinned:** `ExitCodeTest`, ignored until fixed.
-- [ ] **56. Decode errors carry a key path only.** `TypeMismatch(path=database.pool, …)` has no line or column, and
-  no public call maps a path to a place. Should 1.
-  **Ruling 2026-10-05:** every located decode error gains an optional position, filled when decoding from text or a
-  document.
 - [ ] **57. No readable message for decode, edit, write and datetime errors.** Only `TomlParseError` renders; the
   rest print as data classes. `TypeMismatch` omits the bad value; `UnknownKey` suggests no field name.
   **Ruling 2026-10-05:** every error type gets a readable message
   (`database.pool: expected an integer, found the string "ten"`, `unknown key nmae, did you mean name?`).
-- [ ] **58. `TooDeep.keyPath` means something else per call.** DSL tables give the failing key only, arrays and
-  `tomlArrayOf` give `[]`, `inlineTableOf` the path inside the value, `writeTo` the path from the root.
-  `DuplicateKey` names only the last segment (`[a.b]` twice gives `key=b`).
-  **Ruling 2026-10-05:** `TooDeep.keyPath` is the path from the document root, or from the value's own top when not
-  stored; `DuplicateKey` carries the full key path (wire change).
-- [ ] **59. `07:32.5` and `07:32:00Z` give `DatetimeParseError(part=null, expected=null)`.** Every other datetime
-  error names the part.
-  **Ruling 2026-10-05:** expected: part `Time` and what was expected.
-  **Pinned:** `ParseMessageTest`, ignored until fixed.
-- [ ] **60. A missing contextual serializer is `Serializer`, not `NoSerializer`.** And `NoSerializer.type` reads
-  `Color (Kotlin reflection is not available)` on the JVM; `NoSerializer` is not in the serialization README.
-  **Ruling 2026-10-05:** expected: `NoSerializer(type="Color", path="accent")`, the type's bare name.
-  **Pinned:** `DecodeTest`, ignored until fixed.
+  **Progress 2026-10-05:** decode and encode errors have `message` (`TypeMismatch` gains `value`, `UnknownKey`
+  `suggestion`). Left: edit, write and datetime errors in core.
 
 ### API gaps and ergonomics
 
@@ -170,20 +39,6 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
   key; a key built from the old key's decor duplicates the comment.
   **Ruling 2026-10-05:** `rename(old, new)` keeps position, comments and value; a header table renames its sub-tables;
   `NotFound` / key-taken errors.
-- [ ] **62. Sorting does not reorder header tables.** `root.sortBy { it.first.name }` keeps `[b]` before `[a]`;
-  the public `StandardTable.position` reorders only the tables set and is undocumented.
-  **Ruling 2026-10-05:** `sort()` orders by key name in plain string order, `sortBy { }` by a custom key; both move
-  header tables with the lines above them. Document `position`.
-  **Pinned:** `EditLayoutTest`, ignored until fixed.
-- [ ] **63. A handle taken before `set` replaces its key follows the replacement.** `val old = doc["a"]`, then
-  `doc.set("a", newTable)`: `old` reads and edits the new table. After `remove` or `edit {}` it is detached.
-  **Ruling 2026-10-05:** A: the old handle is detached, as after `remove`.
-  **Pinned:** `ValueTextTest`, ignored until fixed.
-- [ ] **64. `toStandardTable` drops every comment.** A multi-line inline table made a standard table loses all its
-  comments, while `makeValue` and `isDotted` keep them; `makeValue` on an array of tables drops all comments in 1.1.
-  **Ruling 2026-10-05:** expected: comments kept, as `makeValue` and `isDotted` keep them; in 1.0 the comments inside
-  are dropped.
-  **Pinned:** `CommentPlacementTest`, ignored until fixed.
 - [ ] **65. `resetFormatting` is shallow and differs per kind.** A table keeps its values' spellings and key quoting,
   an array resets its layout but not its elements, and on the root it deletes comments. No document-wide reset.
   **Ruling 2026-10-05:** rename to `format(): Unit` on `Item`, `Value`, the tables and the document; deep; keeps
@@ -194,34 +49,25 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
   inline table where `Item.set` refuses it.
   **Ruling 2026-10-05:** yes, breaking changes are fine before the first release: `Result` indexing and `getOrNull` on
   every container, `Int` overloads, one payload name, `putItem` of a table into an inline table is `NotAValue`.
-- [ ] **67. No target version for writing.** A document cannot be written as TOML 1.0 (see 32).
-  **Ruling 2026-10-05:** `doc.version` settable, starting as the parse version, 1.1 for a new document; `writeTo`
-  prints that version's forms.
-- [ ] **68. A value's `toString()` includes its decor.** `put`'s old value prints ` "1"`; `removeAt` returns
-  `\n    "macros"`.
-  **Ruling 2026-10-05:** `toString()` is the spelling only; `decor` stays as the one place for comments and spacing.
-  **Pinned:** `ValueTextTest`, ignored until fixed.
-- [ ] **69. `Value.parse` refuses surrounding whitespace.** `Value.parse("  1  ")` and `Value.parse("\"x\"\n")`.
-  **Ruling 2026-10-05:** expected: surrounding whitespace is trimmed.
-  **Pinned:** `ValueTextTest`, ignored until fixed.
 - [ ] **70. CLI has no set, delete or in-place edit.** The only path, `decode | jq | encode`, drops every comment
   and writes all tables inline. `encode` reads only tagged JSON, not what `get --json` prints.
   **Ruling 2026-10-05:** `-i` writes back into the file. Low priority: do when nothing else is open. Plain JSON to
   TOML not in scope yet.
-- [ ] **71. CLI exit codes and argument shapes.** Exit 1 for a missing key, an unreadable file and invalid TOML
-  alike, with no `.a?` or default; `decode` and `encode` take no file; a bare `kotoml` exits 0.
-  **Ruling 2026-10-05:** distinct typed errors and exit codes: 3 when nothing is at the path, with `error: no key …`
-  on standard error.
-  **Pinned:** `ExitCodeTest`, ignored until fixed. The fix replaces the test that expects exit 1.
 
 ### Docs
 
-- [ ] **72. Say that a 1.1 parse lets edits write 1.1-only syntax.** `core/README.md`'s versions section only says
-  `V1_0` parses stricter.
 - [ ] **73. Document `isImplicit`, `position`, `leafDecor` and `Value.parse` for spellings.** And correct the sorting
   sentence, which suggests tables move.
-- [ ] **74. Document the CLI's JSON mapping.** Datetimes as strings, `nan`/`inf` as strings, fractions cut to 9
-  digits, `--json` span offsets in UTF-16 units.
+
+### Found while fixing
+
+- [ ] **75. `clean build` fails now and then linking the Windows binary.** `./gradlew clean build` once stopped at
+  `:app:linkReleaseExecutableMingwX64` with `ld.lld: cannot open output file .../mingwX64/releaseExecutable/kotoml.exe:
+  No such file or directory`; a plain `build` right after linked it. Likely `clean` racing the parallel link; not
+  yet reproduced.
+- [ ] **76. A lost write on standard error reads as standard output.** kern reports stdout's failure before
+  stderr's, and a failure on stderr alone also counts, so a run whose stdout landed but whose stderr hit a full disk
+  exits 1 with `cannot write to standard output`. Saying which stream failed needs kern to report it (kern, klap).
 
 Reported as friction but documented by design, not filed: `doc["typo"]["k"] = v` is a silent no-op; nullable types
 are refused; `Map<Int, V>` is refused.
@@ -234,6 +80,277 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **74. Document the CLI's JSON mapping.** Datetimes as strings, `nan`/`inf` as strings, fractions cut to 9
+  digits, `--json` span offsets in UTF-16 units.
+  **Verdict 2026-10-05:** fixed: app/README.md documents the JSON mapping: big integers, nan/inf as strings, RFC 3339
+  times, UTF-16 spans.
+
+- [x] **72. Say that a 1.1 parse lets edits write 1.1-only syntax.** `core/README.md`'s versions section only says
+  `V1_0` parses stricter.
+  **Verdict 2026-10-05:** fixed: core/README.md's versions section documents `doc.version`, that a 1.1 parse lets
+  edits write 1.1-only syntax, and `NotInToml10`.
+
+- [x] **71. CLI exit codes and argument shapes.** Exit 1 for a missing key, an unreadable file and invalid TOML
+  alike, with no `.a?` or default; `decode` and `encode` take no file; a bare `kotoml` exits 0.
+  **Ruling 2026-10-05:** distinct typed errors and exit codes: 3 when nothing is at the path, with `error: no key …`
+  on standard error.
+  **Pinned:** `ExitCodeTest`, ignored until fixed. The fix replaces the test that expects exit 1.
+  **Verdict 2026-10-05:** fixed: a missing key or index exits 3 with `error: no key …`; bare `kotoml` prints help on
+  stderr and exits 2; `decode` and `encode` take a file. ExitCodeTest.
+
+- [x] **69. `Value.parse` refuses surrounding whitespace.** `Value.parse("  1  ")` and `Value.parse("\"x\"\n")`.
+  **Ruling 2026-10-05:** expected: surrounding whitespace is trimmed.
+  **Pinned:** `ValueTextTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: `Value.parse` ignores whitespace and line breaks around the value. ValueTextTest.
+
+- [x] **68. A value's `toString()` includes its decor.** `put`'s old value prints ` "1"`; `removeAt` returns
+  `\n    "macros"`.
+  **Ruling 2026-10-05:** `toString()` is the spelling only; `decor` stays as the one place for comments and spacing.
+  **Pinned:** `ValueTextTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: `toString` of a value, array or inline table is its text without its own decor.
+  ValueTextTest.
+
+- [x] **67. No target version for writing.** A document cannot be written as TOML 1.0 (see 32).
+  **Ruling 2026-10-05:** `doc.version` settable, starting as the parse version, 1.1 for a new document; `writeTo`
+  prints that version's forms.
+  **Verdict 2026-10-05:** fixed: `doc.version` is settable, starting as the parse version and V1_1 for a new document;
+  `toString` and `writeTo` print that version's forms. WriteVersionTest.
+
+- [x] **64. `toStandardTable` drops every comment.** A multi-line inline table made a standard table loses all its
+  comments, while `makeValue` and `isDotted` keep them; `makeValue` on an array of tables drops all comments in 1.1.
+  **Ruling 2026-10-05:** expected: comments kept, as `makeValue` and `isDotted` keep them; in 1.0 the comments inside
+  are dropped.
+  **Pinned:** `CommentPlacementTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: `toStandardTable` and `makeValue` on an array of tables keep comments; in 1.0 the
+  comments inside tables go. CommentPlacementTest.
+
+- [x] **63. A handle taken before `set` replaces its key follows the replacement.** `val old = doc["a"]`, then
+  `doc.set("a", newTable)`: `old` reads and edits the new table. After `remove` or `edit {}` it is detached.
+  **Ruling 2026-10-05:** A: the old handle is detached, as after `remove`.
+  **Pinned:** `ValueTextTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: `set`/`put` on a key detach an item taken for it earlier, as `remove` does.
+  ValueTextTest; SlotFixesTest moved to the rule.
+
+- [x] **62. Sorting does not reorder header tables.** `root.sortBy { it.first.name }` keeps `[b]` before `[a]`;
+  the public `StandardTable.position` reorders only the tables set and is undocumented.
+  **Ruling 2026-10-05:** `sort()` orders by key name in plain string order, `sortBy { }` by a custom key; both move
+  header tables with the lines above them. Document `position`.
+  **Pinned:** `EditLayoutTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: `sort()` orders by key name (`String.compareTo`), `sortBy`/`sortWith` move header
+  tables with the lines above them; `position` documented. EditLayoutTest, TableSortTest.
+
+- [x] **60. A missing contextual serializer is `Serializer`, not `NoSerializer`.** And `NoSerializer.type` reads
+  `Color (Kotlin reflection is not available)` on the JVM; `NoSerializer` is not in the serialization README.
+  **Ruling 2026-10-05:** expected: `NoSerializer(type="Color", path="accent")`, the type's bare name.
+  **Pinned:** `DecodeTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: a missing contextual serializer is `NoSerializer(type = bare name, path, position)`.
+  DecodeTest.
+
+- [x] **59. `07:32.5` and `07:32:00Z` give `DatetimeParseError(part=null, expected=null)`.** Every other datetime
+  error names the part.
+  **Ruling 2026-10-05:** expected: part `Time` and what was expected.
+  **Pinned:** `ParseMessageTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: `07:32.5` and `07:32:00Z` name part Time and what was expected. ParseMessageTest,
+  DatetimeParseTest.
+
+- [x] **58. `TooDeep.keyPath` means something else per call.** DSL tables give the failing key only, arrays and
+  `tomlArrayOf` give `[]`, `inlineTableOf` the path inside the value, `writeTo` the path from the root.
+  `DuplicateKey` names only the last segment (`[a.b]` twice gives `key=b`).
+  **Ruling 2026-10-05:** `TooDeep.keyPath` is the path from the document root, or from the value's own top when not
+  stored; `DuplicateKey` carries the full key path (wire change).
+  **Verdict 2026-10-05:** fixed: `TooDeep.keyPath` leads from the root, or from the value's own top when stored
+  nowhere; `DuplicateKey` carries `keyPath` (wire change). ParseMessageTest, StoreDepthTest, ErrorJsonTest.
+
+- [x] **56. Decode errors carry a key path only.** `TypeMismatch(path=database.pool, …)` has no line or column, and
+  no public call maps a path to a place. Should 1.
+  **Ruling 2026-10-05:** every located decode error gains an optional position, filled when decoding from text or a
+  document.
+  **Verdict 2026-10-05:** fixed: located decode errors carry the key's position through the new public `Key.position`.
+  ErrorMessageTest.
+
+- [x] **55. CLI errors never name the file, and `check` takes one file.** `kotoml check bad.toml` prints
+  `TOML parse error at line 3, column 5`; a loop over files cannot tell which failed. Should 1.
+  **Ruling 2026-10-05:** errors start `error: <file>: …`; `check` takes several files and prints `<file>: OK` for each
+  when given more than one, exit 1 if any fails; `--json` errors gain `path`.
+  **Pinned:** `ExitCodeTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: errors name the file (`error: <file>: …`), `check` takes several files and prints
+  `<file>: OK` for each, `--json` errors carry `path`. ExitCodeTest.
+
+- [x] **54. `render()` echoes the whole line.** A 5 MB line gives 10 MB of message; a lone CR or NUL is printed raw
+  by the library (the CLI escapes it); the caret width counts UTF-8 bytes and misaligns after tabs.
+  **Ruling 2026-10-05:** show about 80 characters around the column, `…` at cut ends; control characters as `\x0D`;
+  one caret per character. Only the message is cut, never the data.
+  **Pinned:** `ParseMessageTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: `render()` shows about 80 characters around the error with `…`, control characters as
+  `\x0D`, one caret per character; the span is unchanged. ParseMessageTest; 102 upstream snapshots regenerated.
+
+- [x] **53. A surrogate or out-of-range `\u` says "expected unicode hexadecimal value".** `"\uD800"`,
+  `"\U00110000"`: the digits are hex, the code point is the problem; the caret sits on the `u`.
+  **Ruling 2026-10-05:** expected: a new reason for a code point that is not a Unicode scalar value, the caret under
+  the whole escape.
+  **Pinned:** `ParseMessageTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: a surrogate or out-of-range escape is `InvalidCodePoint` with the caret under the
+  whole escape. ParseMessageTest.
+
+- [x] **52. `\x` and `\e` under TOML 1.0 are a syntax error, not `NotInToml10`.** `Toml11Feature` has no escape
+  entries though `core/README.md` lists the escapes among what 1.0 refuses.
+  **Ruling 2026-10-05:** expected: `NotInToml10` with new `Toml11Feature` entries for `\x` and `\e`.
+  **Pinned:** `ParseMessageTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: `\x` and `\e` under 1.0 are `NotInToml10(HexEscape/EscapeEscape)` over the escape.
+  ParseMessageTest.
+
+- [x] **51. Numbers apart by a space are told to be quoted.** ✓ `port = 80 80`, `[1, 2 3]`, `[1 2]`, `x = ` say
+  "string values must be quoted"; `MissingArrayComma` exists for `["x" "y"]`. Should 1.
+  **Ruling 2026-10-05:** expected: `port = 80 80` and `a = true false` give `UnexpectedKeyOrValue` at the second
+  token; `[1 2]` `MissingArrayComma`; `x = ` `MissingValue`.
+  **Pinned:** `ParseMessageTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: `80 80` and `true false` give `UnexpectedKeyOrValue` at the second token, `[1 2]`
+  `MissingArrayComma`, `x = ` `MissingValue`. ParseMessageTest.
+
+- [x] **50. A line break inside a string is reported on the next line.** ✓ `desc = "hello\nworld"` reports line 2,
+  "key with no value" or "string values must be quoted". Should 1.
+  **Ruling 2026-10-05:** expected: line 1, `InvalidString(Basic)`, as an unclosed string.
+  **Pinned:** `ParseMessageTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: a line break in a basic or literal string is `InvalidString` at the end of its line.
+  ParseMessageTest.
+
+- [x] **49. Extreme floats print without an exponent.** `1e300` prints 301 digits, `Double.MIN_VALUE` 324,
+  `1e21` as `1000000000000000000000.0`. Core and serialization.
+  **Ruling 2026-10-05:** exponent form at 1e16 and above or below 1e-5, with the shortest digits that read back
+  (`1e300`, `5e-324`); valid in 1.0 and 1.1.
+  **Pinned:** `ValueTextTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: floats print the shortest digits that read back, in exponent form at 1e16 and above
+  or below 1e-5, in core and serialization. ValueTextTest, ScalarTest.
+
+- [x] **48. Empty parent headers outside the DSL.** `standardTableOf("ruff" to …)` under `tool` and serialization
+  of a map of classes print `[tool]\n\n[tool.ruff]`; the DSL omits the empty parent. `encodeInto` adds one to a
+  user's file.
+  **Ruling 2026-10-05:** a hand-made table holding only tables prints no header of its own (as the DSL); a parsed
+  header stays.
+  **Pinned:** `EditLayoutTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: a table made in code holding only tables prints no header (core, encode, encodeInto);
+  a parsed header stays. EditLayoutTest, serialization EncodeTest.
+
+- [x] **47. A new key in an indented table starts at column 0.** Keys indented by two spaces; a new key is not.
+  Multi-line arrays copy their indentation.
+  **Ruling 2026-10-05:** expected: the new key takes the indentation of the keys above it.
+  **Pinned:** `EditLayoutTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: a key added by hand takes the indentation of the line above it. EditLayoutTest.
+
+- [x] **46. Appending to a one-line array ignores its spacing.** ✓ `[ 1, 2 ]` plus 3 prints `[ 1, 2 , 3]`; `[1,2]`
+  prints `[1,2, 3]`; `{a=1}` gets `b = 2`; `[\n  1,\n  2]` gets `2, 3]`.
+  **Ruling 2026-10-05:** expected: `[ 1, 2, 3 ]`, `[1,2,3]`, `{a=1, b=2}`, `[\n  1,\n  2,\n  3]`.
+  **Pinned:** `EditLayoutTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: an added element or key takes the spacing the array or inline table already has.
+  EditLayoutTest.
+
+- [x] **45. Removing a table between blank lines leaves two.** ✓ `[a]…\n\n[b]…\n\n[c]…` minus `b` leaves
+  `\n\n\n[c]`; removing the first or last table leaves a blank line at the start or end. Follows the README rule
+  (the blank lines above are kept); collapse to one when nothing else is kept between them.
+  **Ruling 2026-10-05:** expected: one blank line where two meet with nothing kept between them; none at the start or
+  end of the file. A kept comment between keeps both.
+  **Pinned:** `EditLayoutTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: removing a table leaves one blank line where two meet and none at the start or end of
+  the file; a kept comment keeps both. EditLayoutTest, RemovalPropertyTest model.
+
+- [x] **44. CLI: `get --json` keeps times without seconds.** `07:32` prints `"07:32"`, `1979-05-27T07:32Z` as
+  written, not RFC 3339; `decode` adds `:00`, and `get --json` normalises other spellings.
+  **Ruling 2026-10-05:** expected: `"07:32:00"`, `"1979-05-27T07:32:00Z"`.
+  **Pinned:** `ExitCodeTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: `get --json` prints RFC 3339 times with seconds. ExitCodeTest.
+
+- [x] **42. CLI: `encode` ends with a blank line.** ✓ `{"a":{"type":"integer","value":"1"}}` gives `a = 1\n\n`.
+  **Ruling 2026-10-05:** expected: `a = 1\n`.
+  **Pinned:** `ExitCodeTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: `encode` prints `a = 1\n` and reads a file argument. ExitCodeTest.
+
+- [x] **41. CLI: a value from a CRLF file prints with `\r\n`.** ✓ `kotoml get -r .t.x` on a CRLF file gives `y\r`
+  in `$(…)`. In a mixed file the first line ending is used for every line printed. Goals 2, 15.
+  **Ruling 2026-10-05:** expected: a single value ends in `\n`; a table keeps each line's own ending.
+  **Pinned:** `ExitCodeTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: a value ends in `\n`, a table keeps each line's own ending. ExitCodeTest, GetTest.
+
+- [x] **38. Moved and copied tables print away from their parent.** ✓ Remove `[a]` and store it under `[b]`:
+  `[b.a]` prints above `[b]`. A copy stored in a new table prints under its source and the new parent last as an
+  empty header; a copy stored into an existing table goes to the end of the file while a fresh table stays with its
+  parent; replacing a table with a copy from the same document moves it to the end and leaves a blank first line.
+  Goal 4 (readability).
+  **Ruling 2026-10-05:** expected: a moved or copied table prints right after its parent's body; a copy replacing a
+  table prints where the replaced one did, with no blank first line.
+  **Pinned:** `EditLayoutTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: a moved or copied table prints after its parent's lines and the tables before its
+  key; a copy replacing a table takes its position and spacing. EditLayoutTest. Supersedes todo 29's "a copy prints
+  after the tables already there" for standard tables (QA S-056).
+
+- [x] **37. A caller's comment after an array element is dropped.** ✓ `[1, 2]` plus `Value.Integer(3)` with
+  `Decor(suffix = " # c")` prints `[1, 2, 3]`; the same for an inline table's value. Goal 4 ("a decor a caller
+  gives a value is kept").
+  **Ruling 2026-10-05:** A: a comment given to an element or an inline table's value makes the structure multi-line,
+  one entry per line; in TOML 1.0 an inline table cannot hold it.
+  **Pinned:** `CommentPlacementTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: a comment given in an element's or inline value's decor puts a one-line array or
+  inline table on lines of its own, after its comma; a 1.0 inline table drops it. CommentPlacementTest.
+
+- [x] **36. A new key prints above a comment-only head.** ✓ `# banner\n\n[db]\nurl = 1\n`, remove `db`, set `x`:
+  `x = 1\n# banner\n\n`. Goal 4 ("new content goes below them").
+  **Ruling 2026-10-05:** expected: `# banner\n\nx = 1\n`.
+  **Pinned:** `CommentPlacementTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: a document emptied to comments keeps them as its head; new content goes below.
+  CommentPlacementTest.
+
+- [x] **35. An inline array of tables made `[[bin]]` repeats its key's comment above every element.** ✓
+  `# bins\nbin = [{ name = "a" }, { name = "b" }]`, set to the same tables as an `ArrayOfTables`: `# bins` above
+  each `[[bin]]`. Goal 4.
+  **Ruling 2026-10-05:** expected: `# bins` once, above the first `[[bin]]`.
+  **Pinned:** `CommentPlacementTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: the key's comment prints once, above the first `[[bin]]`. CommentPlacementTest.
+
+- [x] **34. A copy from another document takes the comments above its header and its header comment.** ✓
+  Source `# Generated, do not edit\n\n[db] # db hdr\nurl = 1\n`, `dst.set("db", src["db"])`: the banner and
+  `# db hdr` arrive, glued to the line before. Replacing `[app] # ah` with another document's `[app] # bh` prints
+  `# bh` (a table replaced by a table keeps its header comment). `GOALS.md` states the copy rule for any copy,
+  `core/README.md` for the same document only. Goal 4.
+  **Ruling 2026-10-05:** expected: the copy prints `[db]\nurl = 1` after a blank line, without the banner
+  or `# db hdr`; a replaced `[app] # ah` keeps `# ah`. The rule covers copies from any document.
+  **Pinned:** `CommentPlacementTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: the copy rule holds for copies from any document: a copy leaves its source's banner,
+  header comment and same-line comment; a replaced table keeps its own header comment. CommentPlacementTest.
+
+- [x] **33. `toString()` prints text `writeTo` refuses.** ✓ 80 nested tables, each made dotted: `writeTo` is
+  `TooDeep`, `toString()` returns `t80.t79….t1.leaf = 1`, which does not parse. Goal 3.
+  **Ruling 2026-10-05:** B: the flip applies and `toString()` prints headers where a dotted line would be too deep.
+  **Pinned:** `WriteDepthTest`, ignored until fixed. The fix replaces the test that expects `TooDeep`.
+  **Verdict 2026-10-05:** fixed: dotted tables whose lines would nest past the limit print under a header, so
+  `toString` equals `writeTo` and reads back. WriteDepthTest.
+
+- [x] **32. A document read as TOML 1.0 writes TOML 1.1.** ✓ `parse("a = 1\n", V1_0)`, set a `LocalTime` of 7:32:
+  `t = 07:32`, which a 1.0 parse refuses; `writeTo` succeeds. Same for `trailingComma = true` (`{ x = 1 ,}`).
+  The document remembers its version already (`makeValue`). Goal 3.
+  **Ruling 2026-10-05:** a 1.0 document prints a time as `07:32:00`; what has no 1.0 form (`trailingComma`) makes
+  `writeTo` refuse with a typed error.
+  **Pinned:** `ValueTextTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: a 1.0 document prints a time as `07:32:00` and a 1.1 escape in its default spelling;
+  a trailing comma, newline or comment in an inline table makes `writeTo` return
+  `TomlWriteError.NotInToml10(keyPath, feature)`. ValueTextTest, WriteVersionTest.
+
+- [x] **31. An edit adds a final newline to a file without one.** ✓ `a = 1\nb = 2` with `doc["a"] = 5L` prints
+  `a = 5\nb = 2\n` (CRLF files gain `\r\n`); any edit when the last line is a key/value line. Goals 2, 4.
+  **Ruling 2026-10-05:** expected: the missing final newline stays, also when a key is added (`a = 1\nb = 2\nc = 3`,
+  no newline).
+  **Pinned:** `EditLayoutTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: a document read without a final newline prints none after any edit; setting
+  `trailing` to text ending in a newline gives it one. EditLayoutTest; about 24 EditTest snapshots and four QA
+  scenarios moved to the rule.
+
+- [x] **30. Storing a removed table again prints the comment above its header twice.** ✓
+  `x = 1\n\n# about t\n[t]\nk = 1\n`, `val t = doc.remove("t")!!; doc.set("t", t)`: `# about t` prints twice,
+  once more per round. Removal keeps the lines above in place and the removed item still carries them. Hits every
+  rename, move and split. Goal 4.
+  **Ruling 2026-10-05:** expected: `# about t` once, above `[t]`, however many rounds.
+  **Pinned:** `CommentPlacementTest`, ignored until fixed.
+  **Verdict 2026-10-05:** fixed: a removed item no longer carries the lines kept above it, so stored again they print
+  once (also CRLF). CommentPlacementTest.
 
 - [x] **40. CLI: a failed write to standard output exits 0.** ✓ `kotoml get . f.toml > /dev/full` exits 0 with
   nothing on standard error; jq exits 2. Goal 15.
@@ -279,7 +396,8 @@ a block (it propagates and the document is left as it was); an array added into 
   above each key but drops `# three`, `# four` (held at the start of the next key's prefix, before its first break)
   and `# end` (the table's trailing text); after `remove("c")` the kept `# about c` prints above `# about t`. Each
   needs comments moved to the end of the line before or after the group. Goal 4.
-  **Verdict 2026-10-05:** fixed with goal 4's property test. On a table's lines a dotted inline table now ends the line
+  **Verdict 2026-10-05:** fixed with goal 4's property test. On a table's lines a dotted inline table now ends the
+  line
   before with a comment that followed a comma, puts one after its opening brace on a line of its own, and ends its last
   line with the comments before and after its closing brace; a comment joining a line that already ends in one goes
   on its own line. Removing a key from it edits the text in its braces' shape, so the key's same-line comment goes and
@@ -391,7 +509,8 @@ a block (it propagates and the document is left as it was); an array added into 
 - [x] **13. `parse(String)` refuses a lone surrogate.** Today it becomes `?` on the JVM and U+FFFD on Kotlin/Native,
   so the value changes silently and differs by platform; `PARITY.md:727` and `TomlSource.kt:14` claim U+FFFD.
   Return a typed parse error. Goals 2, 13.
-  **Verdict 2026-10-05:** fixed. `TomlDocument.parse`, `Value.parse`, `Key.parse` and `Key.parsePath` refuse a `String`
+  **Verdict 2026-10-05:** fixed. `TomlDocument.parse`, `Value.parse`, `Key.parse` and `Key.parsePath` refuse a
+  `String`
   holding an unpaired surrogate with `TomlParseError.Reason.NotUnicode` at its line and column. PARITY and the
   `TomlSource` KDoc corrected; four tests in `ParseFixesTest`; core, serialization and app JVM green.
 
