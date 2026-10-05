@@ -58,6 +58,9 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
 
     private var dotted: Boolean = false
 
+    /** Whether this table's header was the first text of the file it was read from. */
+    internal var opensFile: Boolean = false
+
     /** For a document's root, the TOML version the document was read as; null for one built in code. */
     internal var readAs: TomlVersion? = null
 
@@ -360,6 +363,10 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     }
 
     private fun sortEntriesWith(comparator: Comparator<Pair<Key, Item>>) {
+        // Blank lines, and above the first line the comment block they set apart such as a file's head, stay in place.
+        val lineEntries = items.entries.filter { !it.item.printsOwnHeader && it.item.valueOrNull != null }
+        val places = lineEntries.mapIndexed { index, entry -> entry.splitLinesAbove(first = index == 0) }
+        val own = lineEntries.zip(places).associate { (entry, split) -> entry to split.second }
         val pairs = items.snapshot()
         val sortedLines = pairs
             .filter { !it.item.printsOwnHeader }
@@ -371,6 +378,11 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
             .withIndex()
             .associate { (index, entry) -> entry to index }
         items.sortBy(compareBy { slots.getValue(it) })
+        val linesNow = items.entries.filter { !it.item.printsOwnHeader && it.item.valueOrNull != null }
+        for ((index, entry) in linesNow.withIndex()) {
+            val text = places[index].first + own.getValue(entry)
+            if (text != entry.key.rawLeafDecor.prefix?.textOrNull) entry.key.rawLeafDecor.prefix = KeptText.from(text)
+        }
         for (entry in items.entries) {
             val table = entry.item.standardTableOrNull
             if (table != null && table.isDotted) table.sortEntriesWith(comparator)
@@ -615,6 +627,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         copy.isImplicit = isImplicit
         copy.setDotted(isDotted)
         copy.readAs = readAs
+        copy.opensFile = opensFile
         copy.position = position
         copy.span = span
         copy.headerLineEnding = headerLineEnding
@@ -747,6 +760,24 @@ private fun String.lineBreak(): String = if ("\r\n" in this) "\r\n" else "\n"
 
 private fun List<BodyLine>.indexOfFirstValue(from: Int): Int =
     (from until size).firstOrNull { this[it] is VisualValue } ?: -1
+
+/**
+ * The text above this entry's line split into what belongs to its place and what belongs to it: the blank lines
+ * above it, and when it is the [first] line also a comment block those set apart from it, stay in place; the comment
+ * lines right above it and its indentation go with it.
+ */
+private fun KeyValue.splitLinesAbove(first: Boolean): Pair<String, String> {
+    val text = key.rawLeafDecor.prefix?.textOrNull.orEmpty()
+    val lineStarts = listOf(0) + text.indices.filter { text[it] == '\n' }.map { it + 1 }
+    val fullLines = lineStarts.zipWithNext()
+    val blank = fullLines.filter { (start, end) -> text.substring(start, end).isBlank() }
+    val placeEnd = if (first) {
+        blank.lastOrNull()?.second ?: 0
+    } else {
+        fullLines.takeWhile { it in blank }.lastOrNull()?.second ?: 0
+    }
+    return text.substring(0, placeEnd) to text.substring(placeEnd)
+}
 
 /** The comment after this value, with the spacing before it, or "" when there is none. */
 internal fun Value.commentAfter(): String = rawDecor.suffix?.textOrNull?.takeIf { '#' in it }.orEmpty()

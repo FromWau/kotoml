@@ -375,12 +375,14 @@ doc["x"].getOrFail().arrayOfTablesOrNull!!.removeAt(0)
 
 # top
 x = []
+
 [t]
 b = 2
 ```
 
 ### C-024: an emptied array of tables after root keys
-rule: 7, 2   version: 1.0   open: whether `x = []` sits below `# top` (where the header stood) or directly after `a = 1`
+rule: 7, 2   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 a = 1
 
@@ -541,7 +543,8 @@ a = [
 ```
 
 ### C-032: removing the last element that has no trailing comma but a comment
-rule: 6, 10   version: 1.0   open: does the previous element's comma stay (it is not the removed element's own comma)?
+rule: 6, 10   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 a = [
   1,
@@ -558,7 +561,8 @@ a = [
 ```
 
 ### C-033: appending after a last element with a comment and no trailing comma inserts the comma before the comment
-rule: 6, 10   version: 1.0   open: should the new last element get a trailing comma when the array had none?
+rule: 6, 10   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 a = [
   1,
@@ -616,7 +620,8 @@ a = [
 ```
 
 ### C-036: inserting at index 0 below a comment after `[`
-rule: 6   version: 1.0   open: the new first element's layout (own line, same indentation, comma)
+rule: 6   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 a = [ # list
   1,
@@ -669,7 +674,8 @@ a = [
 ```
 
 ### C-039: clearing an array keeps the comment after `[` and drops the elements' own comments
-rule: 6   version: 1.0   open: comments above elements (not on their lines) stay; is `# c` after `[` one of those?
+rule: 6   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 a = [ # c
   1, # one
@@ -787,7 +793,8 @@ a = [
 ```
 
 ### C-046: tab indentation in a multi-line array is reused for an appended element
-rule: 6   version: 1.0   open: is the new element's indentation copied from the line above?
+rule: 6   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 a = [
 	1,	# one
@@ -804,7 +811,8 @@ a = [
 ```
 
 ### C-047: several elements on one line, the line's comment belongs to the last one
-rule: 6   version: 1.0   open: for elements sharing a line, does removing the last on the line take the comment?
+rule: 6   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 a = [
   1, 2, # pair
@@ -852,7 +860,8 @@ t = { x = 0, k = 1 }
 ```
 
 ### C-050: a multi-line array copied to another key keeps working when placed as the last value
-rule: 10, 1   version: 1.0   open: does a copied multi-line array keep its inner comments?
+rule: 10, 1   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 a = [
   1, # one
@@ -928,7 +937,8 @@ t = {
 ```
 
 ### C-054: adding a key to a multi-line inline table puts it on its own line
-rule: 1, 6   version: 1.1   open: rule 6 is about arrays; does the same layout apply to multi-line inline tables?
+rule: 1, 6   version: 1.1
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 t = {
   a = 1, # one
@@ -947,7 +957,8 @@ t = {
 ```
 
 ### C-055: removing the last key before `}` without a trailing comma keeps the comma rule valid
-rule: 2, 10   version: 1.1   open: does the previous key's comma stay as a trailing comma?
+rule: 2, 10   version: 1.1
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 t = {
   a = 1, # one
@@ -1172,7 +1183,8 @@ a.c = 2 # ac
 ```
 
 ### C-068: adding to a dotted table goes after its last dotted line
-rule: 1   version: 1.0   open: placement of a new dotted key when other keys sit between the dotted lines
+rule: 1   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 a.b = 1 # ab
 # between
@@ -1385,7 +1397,8 @@ c = 3
 ```
 
 ### C-081: CRLF without a final newline gains a CRLF once changed
-rule: 9, 3   version: 1.0   line endings: CRLF   input has no final newline   open: does the gained final newline copy the CRLF of the line before?
+rule: 9, 3   version: 1.0   line endings: CRLF   input has no final newline
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 # top
 a = 1 # c
@@ -1584,7 +1597,8 @@ k = 1
 ```
 
 ### C-093: a key added to an empty table with a header comment goes right after the header
-rule: 1   version: 1.0   open: does the comment block below an empty table's header belong to it (key after the block) or to the next header (key before it)?
+rule: 1   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 [t] # empty
 # nothing here
@@ -1627,7 +1641,8 @@ x = 1
 ```
 
 ### C-095: removing a table keeps the comment directly above the next table's header
-rule: 2   version: 1.0   open: rule 2 says "everything after its first header goes"; does that include the comment glued to the next (unrelated) header?
+rule: 2   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 # about t
 [t]
@@ -1647,7 +1662,8 @@ b = 2
 ```
 
 ### C-096: removing a table takes the comments above its sub-tables' headers
-rule: 2   version: 1.0   open: same question as C-095 for `# about c`
+rule: 2   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 # keep
 [a] # a
@@ -1670,7 +1686,8 @@ z = 3
 ```
 
 ### C-097: adding a key to a table whose last line is followed by comments before the next header
-rule: 1   version: 1.0   open: the new key goes after `b = 2`, above the comment that introduces `[u]`?
+rule: 1   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 [t]
 b = 2
@@ -1712,7 +1729,8 @@ c = 3
 ## Implicit tables
 
 ### C-099: a header hidden as implicit leaves its comments where it stood
-rule: 8   version: 1.0   open: does the header's same-line comment `# a hdr` stay too, and on its own line?
+rule: 8   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 # above a
 [a] # a hdr
@@ -1803,7 +1821,8 @@ b = 1 # bee
 ```
 
 ### C-104: sorting where the last key had no final newline
-rule: 1, 9   version: 1.0   input has no final newline   open: does the moved line `a = 2 # ay` gain a newline and `b` stay without one until the end?
+rule: 1, 9   version: 1.0   input has no final newline
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 [t]
 b = 1 # bee
@@ -1847,7 +1866,8 @@ a = { k = 1 } # c
 ```
 
 ### C-107: a scalar replaced by a table keeps the line above, may drop the same-line comment
-rule: 4   version: 1.0   open: is the same-line comment dropped, and does `[a]` sit right under `# above`?
+rule: 4   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 # above
 a = 1 # c
@@ -1862,7 +1882,8 @@ k = 1
 ```
 
 ### C-108: a table replaced by a scalar keeps the lines above its header
-rule: 4   version: 1.0   open: the scalar must print before any header; do the header's lines above come along with the key?
+rule: 4   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 x = 1
 # above t

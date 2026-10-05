@@ -64,7 +64,8 @@ x = 1
 ```
 
 ### S-004: a key appended to a table whose trailing comment is followed by a blank line
-rule: 1, 9   version: 1.0   open: a comment after the last key, separated from the next header by a blank line, reads as the end of `[t]`; does the new key still go above it (it belongs to `[u]`'s lines), or below it?
+rule: 1, 9   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 [t]
 k = 1
@@ -88,7 +89,8 @@ x = 1
 ```
 
 ### S-005: a root key appended to a file that ends in a comment block goes above the comment
-rule: 1, 9   version: 1.0   open: should new content go above or below the comment lines at the end of the file?
+rule: 1, 9   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 a = 1
 
@@ -105,7 +107,8 @@ b = 2
 ```
 
 ### S-006: a key appended to the last table goes above a comment directly under its last key
-rule: 1, 9   version: 1.0   open: is a comment right under the last key of the file the end of the file (new key above it) or a note on that key (new key below it)?
+rule: 1, 9   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 [t]
 k = 1
@@ -143,7 +146,8 @@ x = 1
 ```
 
 ### S-008: the first key of a table whose body is only a comment
-rule: 1, 9   version: 1.0   open: the comment lines under `[t]` read as `[t]`'s body but parse as the lines above `[u]`; does the new key go above them (as here) or below them?
+rule: 1, 9   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 [t]
 # nothing yet
@@ -263,7 +267,8 @@ port = 8080 # default
 ```
 
 ### S-014: a root key added above a header that was the first line of the file
-rule: 1, 9   version: 1.0   open: the header had no blank line above it because it was first; once a root key prints above it, does it keep its (empty) spacing as here, or get the blank line a new table would get?
+rule: 1, 9   version: 1.0
+settled: owner ruling 2026-10-05: the header that opened the file gets a blank line once key/value lines print above it.
 ```toml input
 [t] # t
 a = 1
@@ -273,6 +278,7 @@ doc["v"] = 1L
 ```
 ```toml expected
 v = 1
+
 [t] # t
 a = 1
 ```
@@ -336,7 +342,8 @@ k = 1
 ```
 
 ### S-018: a new table in a file that ends in a comment block goes above the comment
-rule: 1, 9   version: 1.0   open: same question as S-005, for a table
+rule: 1, 9   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 [s]
 x = 1
@@ -447,7 +454,8 @@ k = 1
 ```
 
 ### S-023: a value written into an implicit table makes its header print above the sub-table's comment
-rule: 1, 9   version: 1.0   open: is the header of a formerly implicit table new content (blank line before it if not first) and does it go above the comment of its first sub-table, as here?
+rule: 1, 9   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 # about b
 [a.b]
@@ -654,7 +662,8 @@ a = [
 ```
 
 ### S-034: replacing an array element keeps the comment above it and the one after it
-rule: 1, 3   version: 1.0   open: rule 3 is written for keys; does it hold for array elements?
+rule: 1, 3   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 a = [
   1, # one
@@ -732,7 +741,8 @@ m = [
 ## Array of tables
 
 ### S-038: a new element of an array of tables prints right after the last one
-rule: 1, 5, 9   version: 1.0   open: the comment after the last element's keys sits above `[y]`; does the new `[[x]]` go above it (as here) or below it?
+rule: 1, 5, 9   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 [[x]] # first
 a = 1
@@ -758,7 +768,8 @@ b = 2
 ```
 
 ### S-039: a new element of an array of tables at the end of a file that ends in a comment
-rule: 1, 5, 9   version: 1.0   open: same as S-006
+rule: 1, 5, 9   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 [[x]]
 a = 1
@@ -778,7 +789,8 @@ a = 2
 ```
 
 ### S-040: an element inserted at index 0 of an array of tables with a comment above the first header
-rule: 1, 5, 9   version: 1.0   open: `# the xs` reads as a comment on the whole array; does it stay with the old first element (as here) or stay above the new first header?
+rule: 1, 5, 9   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 title = "t"
 
@@ -920,7 +932,8 @@ z = 1 # z
 ```
 
 ### S-046: sorting moves a key's blank line together with its comment
-rule: 1   version: 1.0   open: the blank line travels with `a`, leaving a blank first line; should blank lines stay where they print instead?
+rule: 1   version: 1.0
+settled: owner ruling 2026-10-05: sorting keeps blank lines, and the comment block heading a file, in place.
 ```toml input
 # zeta
 z = 1 # z
@@ -932,9 +945,9 @@ a = 2 # a
 doc.root.sortWith(compareBy { it.first.name })
 ```
 ```toml expected
-
 # alpha
 a = 2 # a
+
 # zeta
 z = 1 # z
 ```
@@ -1008,7 +1021,8 @@ k = 1
 ```
 
 ### S-050: sorting moves the file-head comment with the key it sits on
-rule: 1   version: 1.0   open: the file-head comment is separated from `b` by a blank line; does it stay at the top of the file or move with `b` (as here)?
+rule: 1   version: 1.0
+settled: owner ruling 2026-10-05: sorting keeps blank lines, and the comment block heading a file, in place.
 ```toml input
 # config file
 
@@ -1020,9 +1034,9 @@ a = 2
 doc.root.sortWith(compareBy { it.first.name })
 ```
 ```toml expected
-a = 2
 # config file
 
+a = 2
 # b key
 b = 1
 ```
@@ -1355,7 +1369,8 @@ x.b = 2
 ```
 
 ### S-068: a table made dotted keeps its keys' own comments
-rule: 8   version: 1.0   open: rule 8 lets them go; is keeping them required where nothing collides?
+rule: 8   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 [x]
 a = 1 # one
@@ -1548,7 +1563,8 @@ z = 0
 ## Implicit tables
 
 ### S-079: a table made implicit leaves its header comments where the header stood
-rule: 8   version: 1.0   open: the header's same-line comment prints as its own line (as here)?
+rule: 8   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 # about a
 [a] # a header
@@ -1592,7 +1608,8 @@ x = 1
 ```
 
 ### S-081: isImplicit on an empty table with no sub-tables keeps its header
-rule: 1, 8, 10   version: 1.0   open: hiding the header would silently delete the key `a`; should the header stay (as here)?
+rule: 1, 8, 10   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 x = 1
 
@@ -1648,7 +1665,8 @@ b.d = 2
 ```
 
 ### S-084: a key added to a dotted-key table whose lines are interleaved with other keys
-rule: 1, 9   version: 1.0   open: the new `a.w` goes after the last `a.` line (as here), or after the first?
+rule: 1, 9   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 a.x = 1 # ax
 z = 0 # z
@@ -1881,7 +1899,8 @@ t = { a = 1, b = 2 } # tt
 ```
 
 ### S-095: a key added to a multi-line inline table gets its own line
-rule: 1, 9   version: 1.1   open: rule 9 names multi-line arrays only; is a multi-line inline table handled the same way?
+rule: 1, 9   version: 1.1
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 t = {
   a = 1, # one
@@ -1981,7 +2000,8 @@ x = 0
 ```
 
 ### S-101: a table replaced by a value after a root key
-rule: 4   version: 1.0   open: the new `x = 0` prints among the root values; do the lines above the old header stay above `x` (as here), or where the header printed, after `x`?
+rule: 4   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 a = 0
 
@@ -2000,7 +2020,8 @@ x = 0
 ```
 
 ### S-102: an array of tables replaced by an array value drops the comments between elements
-rule: 4, 5   version: 1.0   open: same placement question as S-101
+rule: 4, 5   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 name = "n"
 
@@ -2089,7 +2110,8 @@ a = 3
 ```
 
 ### S-107: a table removed and added again goes below the comment that stayed
-rule: 2, 9   version: 1.0   open: after the removal the comment is the end of the file; does the new table go below it (as here) or above it, as S-018 would put it?
+rule: 2, 9   version: 1.0
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 x = 1
 
@@ -2113,7 +2135,8 @@ k = 2
 ## CRLF
 
 ### S-108: a key added to a CRLF file uses CRLF
-rule: 1, 9   version: 1.0   line endings: CRLF   open: which line ending does new content take in a CRLF file?
+rule: 1, 9   version: 1.0   line endings: CRLF
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 # about a
 a = 1 # one
@@ -2128,7 +2151,8 @@ b = 2
 ```
 
 ### S-109: a table added to a CRLF file uses CRLF for its blank line and lines
-rule: 1, 9   version: 1.0   line endings: CRLF   open: as S-108
+rule: 1, 9   version: 1.0   line endings: CRLF
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 a = 1 # one
 ```
@@ -2143,7 +2167,8 @@ k = 1
 ```
 
 ### S-110: an element added to a CRLF multi-line array
-rule: 1, 9   version: 1.0   line endings: CRLF   open: as S-108
+rule: 1, 9   version: 1.0   line endings: CRLF
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 a = [
   1, # one

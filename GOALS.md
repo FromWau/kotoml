@@ -46,7 +46,9 @@ official toml-test runner for TOML 1.0 and 1.1.
    - a copy stored elsewhere takes only the comments inside it, not its source's same-line comment, header comment
      or the comment lines above its header; a decor a caller gives a value is kept;
    - in a document that is only comments, new content goes below them; a new header gets its blank line above the
-     comment that introduces it.
+     comment that introduces it, and the header that opened the file gets one once key/value lines print above it;
+   - sorting moves each key with the comment lines right above it, while blank lines, and the comment block heading
+     the file, stay in place.
 
    Check: `CommentPropertyTest` applies random comment-keeping edits (adding, replacing a value with a value, removing a
    value, sorting, `isDotted` and `isImplicit`) and checks that every comment survives but those the rules above let

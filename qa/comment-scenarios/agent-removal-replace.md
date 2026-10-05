@@ -252,7 +252,7 @@ c = 3
 
 ### R-015: removing the last key of a file without a final newline
 rule: 2   version: 1.0   (input has no final newline after `# bee`; expected ends with `a = 1` and a newline)
-open: does the newline that ended `a = 1` stay, or does the output end without a newline like the input did?
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 a = 1
 b = 2 # bee
@@ -297,7 +297,7 @@ a.c = 2 # cee
 
 ### R-018: removing a dotted table removes all its dotted lines but keeps the comment above the first
 rule: 2   version: 1.0
-open: `# about c` sits between two lines of the removed key `a`; is it "inside" the structure (dropped, as expected here) or above a line of it (kept)?
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 x = 0
 # about a
@@ -449,7 +449,7 @@ z = 3
 
 ### R-025: removing the last table keeps a comment written after its body at end of file
 rule: 1, 2, 5   version: 1.0
-open: is a comment after a table's last key at end of file "inside" the table (dropped) or after it (kept, as for an array of tables per rule 5)?
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 a = 1
 
@@ -468,7 +468,7 @@ a = 1
 
 ### R-026: removing a table whose header is implicit keeps the comment above its first printed header
 rule: 2   version: 1.0
-open: `a` has no header of its own; is `[a.b]` its "first header", so `# about a.b` stays?
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 x = 1
 
@@ -493,7 +493,7 @@ x = 1
 
 ### R-027: removing a table whose sub-table header comes first in the file
 rule: 2   version: 1.0
-open: the table's headers are out of order; "first header" is taken as the first one printed (`[a.b]`), so the comment above it stays and `# about a` above the later `[a]` goes.
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 # about a.b
 [a.b]
@@ -616,7 +616,7 @@ k = 1
 
 ### R-032: removing the first element keeps the comment above the first header and the second element's comment
 rule: 5   version: 1.0
-open: does the comment above the second (kept) element stay with it, and does the comment above the removed first element stay too?
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 # fruits
 [[fruit]] # first
@@ -639,7 +639,7 @@ name = "banana"
 
 ### R-033: removing the last element keeps the comment above it, like a removed key
 rule: 2, 5   version: 1.0
-open: rule 5 talks about comments "between removed ones"; for a single removed element, does the comment above it stay (as here, by analogy with rule 2)?
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 [[fruit]]
 name = "apple"
@@ -660,7 +660,7 @@ name = "apple"
 
 ### R-034: removing a middle element keeps the comments above it and above the next one
 rule: 2, 5   version: 1.0
-open: same as R-033
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 [[p]]
 n = 1
@@ -689,7 +689,7 @@ n = 3
 
 ### R-035: removing two adjacent elements at once drops the comment between them
 rule: 5   version: 1.0
-open: the `ArrayOfTables` filter call is assumed to be `removeAll { table -> ... }`
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 [[p]]
 n = 1
@@ -773,6 +773,7 @@ doc["bin"].getOrFail().arrayOfTablesOrNull!!.clear()
 
 # bins
 bin = []
+
 [a]
 x = 1
 ```
@@ -844,7 +845,7 @@ a = [1, 3] # nums
 
 ### R-042: removing the first element of a single-line array
 rule: 6   version: 1.0
-open: the space before `2` was its own prefix; is it kept (`[ 2, 3]`) or does the new first element print without it (`[2, 3]`, expected here)?
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 a = [1, 2, 3] # nums
 ```
@@ -927,7 +928,7 @@ a = [
 
 ### R-047: removing the last element without a trailing comma takes the comment on its line
 rule: 6, 9   version: 1.0
-open: the comma after `1` was not part of the removed element; it stays as a trailing comma (expected) or goes?
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 a = [
   1,
@@ -999,7 +1000,7 @@ a = [
 
 ### R-051: removing the first of two elements sharing a line keeps the second on that line
 rule: 6   version: 1.0
-open: expected the line keeps its indentation and the second element moves to the start of it
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 a = [
   1, 2, # pair
@@ -1062,7 +1063,7 @@ a = [] # c
 
 ### R-055: removing several elements with a filter keeps every comment above them
 rule: 6   version: 1.0
-open: the filter call on `TomlArray` is assumed to be `removeAll { value -> ... }`
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 a = [
   # one
@@ -1467,7 +1468,7 @@ b = 1
 
 ### R-079: replacing a scalar with an inline table is value-to-value and keeps the comment
 rule: 3   version: 1.0
-open: an inline table is a value (rule 3) but also a structure (rule 4); expected the comment is kept
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 x = 1 # one
 ```
@@ -1581,7 +1582,7 @@ a = [1, 9, 3] # c
 
 ### R-087: replacing an element on its own line keeps its comment
 rule: 3, 6   version: 1.0
-open: rule 3 is stated for keys; expected the same for array elements
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 a = [
   # first
@@ -1655,7 +1656,7 @@ x = 0
 
 ### R-091: an array of tables replaced by a value keeps the lines above its first header
 rule: 4   version: 1.0
-open: expected the comment above `[[x]]` stays directly above the new `x = 0`
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 a = 1
 # about x
@@ -1692,13 +1693,14 @@ doc["fruit"] = 0L
 
 # fruits
 fruit = 0
+
 [a]
 x = 1
 ```
 
 ### R-093: a table replaced by a value drops its header comment and body comments
 rule: 4   version: 1.0
-open: the comment above `[t]` is expected to stay above the new `t = 5`
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 a = 1
 # about t
@@ -1799,7 +1801,7 @@ k = 1
 
 ### R-098: an inline table replaced by a standard table drops its comments
 rule: 4   version: 1.0
-open: blank line before the new header?
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 z = 0
 t = { a = 1 } # tee
@@ -1816,7 +1818,7 @@ a = 1
 
 ### R-099: a table replaced by an inline table value keeps the lines above its header
 rule: 4   version: 1.0
-open: expected the comment above `[t]` lands directly above `t = { m = 2 }`
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 x = 1
 
@@ -1917,7 +1919,7 @@ n = 1
 
 ### R-104: an array value replaced by an array of tables drops the comments inside the array
 rule: 4   version: 1.0
-open: as R-103
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 a = 1
 x = [
@@ -1999,7 +2001,7 @@ t.b = 2
 
 ### R-108: hiding an implicit table's header leaves its comments where the header stood
 rule: 8   version: 1.0
-open: where does the header's same-line comment `# hdr` go? expected on a line of its own where the header stood
+settled: owner confirmed 2026-10-05: as kotoml prints it.
 ```toml input
 # about a
 [a] # hdr

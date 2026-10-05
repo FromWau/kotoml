@@ -231,9 +231,15 @@ internal fun encodeDocument(buf: StringBuilder, document: TomlDocument) {
     )
     // A document's head is content the first table is set apart from, like keys.
     var firstTable = decor.prefix?.textOrNull.isNullOrEmpty()
+    var headerPrinted = false
+    val rootPrintsLines = root.visualValues().isNotEmpty()
     for (part in ordered) {
         when (part) {
-            is TableToVisit -> firstTable = visitTable(writer, part.table, part.path, part.isArray, firstTable)
+            is TableToVisit -> {
+                val firstHeader = !headerPrinted && part.path.isNotEmpty() && rootPrintsLines
+                firstTable = visitTable(writer, part.table, part.path, part.isArray, firstTable, firstHeader)
+                if (part.path.isNotEmpty()) headerPrinted = true
+            }
             is KeptHeaderLines -> buf.append(part.text)
         }
     }
@@ -364,6 +370,8 @@ private fun visitTable(
     path: List<Key>,
     isArrayOfTables: Boolean,
     firstTable: Boolean,
+    // Whether this is the first header printed, below the root's own key/value lines.
+    firstHeader: Boolean,
 ): Boolean {
     val buf = writer.buf
     var first = firstTable
@@ -387,6 +395,9 @@ private fun visitTable(
             if (keyLines.substringBefore('\n').isNotBlank()) buf.append(defaultDecor.first)
             beforeBracket?.prefixEncode(buf, DEFAULT_KEY_PATH_DECOR.first)
         } else {
+            // The header that opened the file is set apart once key/value lines print above it.
+            val opened = firstHeader && table.opensFile && table.rawDecor.prefix?.textOrNull == ""
+            if (opened) buf.append(writer.ending)
             beforeBracket?.prefixEncode(buf, DEFAULT_KEY_PATH_DECOR.first)
             table.rawDecor.prefixEncode(buf, defaultDecor.first)
         }
