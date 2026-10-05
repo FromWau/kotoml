@@ -18,22 +18,12 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
   2500 print in 378 ms, 5000 in 1.46 s; the same text parsed prints in 31 ms. Built tables have no position.
   `encodeInto` of 8000 reversed `[[servers]]` takes 5.6 s (todo 23 left wholly changed lists quadratic). Should 5.
   **Ruling 2026-10-05:** expected: printing a built document is linear.
-- [ ] **43. CLI: `--color` does nothing.** Listed on every help page; no escapes with `always`, nor on a terminal.
-  **Ruling 2026-10-05:** A: implement colour (`error:` and the caret line coloured, `auto` on a terminal).
-  **Ruling 2026-10-05 (2):** no colour. Decline klap's built-in with `builtins { color = false }`, so `--color`
-  is no longer offered.
 
 ### Layout no person would write
 
 
 ### Error messages
 
-- [ ] **57. No readable message for decode, edit, write and datetime errors.** Only `TomlParseError` renders; the
-  rest print as data classes. `TypeMismatch` omits the bad value; `UnknownKey` suggests no field name.
-  **Ruling 2026-10-05:** every error type gets a readable message
-  (`database.pool: expected an integer, found the string "ten"`, `unknown key nmae, did you mean name?`).
-  **Progress 2026-10-05:** decode and encode errors have `message` (`TypeMismatch` gains `value`, `UnknownKey`
-  `suggestion`). Left: edit, write and datetime errors in core.
 
 ### API gaps and ergonomics
 
@@ -76,36 +66,34 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
 
 ### Owner calls on wave 1 (2026-10-05)
 
-- [ ] **77. A `.copy()` of an item read from a document keeps that document's comments.** `src["db"].copy()` stored in
-  another document brings `# Generated…` and `[db] # db hdr`, glued to the line before; `dst.set("db", src["db"])`
-  leaves them. **Ruling 2026-10-05:** handles stay live, with five rules: reading gives a live view; storing stores
-  a copy that leaves its source's comments, whatever the source; `.copy()` is exactly what a store would store, so
-  `src["db"].copy()` and `src["db"]` land the same; `remove()` hands the item over with its own comments (a move); a
-  replaced or removed item is detached. Document the five rules in `core/README.md`.
-- [ ] **78. A 1.0 document writes `\e` and `\x` in their 1.0 spelling.** `\e[0m \x41` prints `"\u001B[0m A"`.
-  **Ruling 2026-10-05:** B: `writeTo` refuses them under 1.0 with `TomlWriteError.NotInToml10`, as it refuses a
-  trailing comma. `07:32` keeps printing as `07:32:00`.
-  **Ruling 2026-10-05 (2):** `toString()` of such a document prints the 1.0 spelling (`\u001B`), so it reads back
-  under 1.0; only `writeTo` refuses.
-- [ ] **79. Lines a caller's comment adds use `\n` in a CRLF file.** `a = [1, 2]\r\n` plus `3` with `# c` prints
-  `a = [\n  1,\n  2,\n  3, # c\n]\r\n`. **Ruling 2026-10-05:** A: the new lines take the file's line ending;
-  `makeValue` too.
-- [ ] **80. A caller's comment on an element added at an index, or a replaced one, is dropped.** `add(0, 0 # c)` on
-  `[1, 2]` prints `[0, 1, 2]`. **Ruling 2026-10-05:** yes, the item 37 rule: `add(index, …)` and `replace` spread a
-  one-line array (or inline table) over lines and keep the comment.
-- [ ] **81. A stray word starting with `i` or `n` is told it is a misspelt float.** `a = [I don't belong]` says
-  "invalid float, expected `inf`". **Ruling 2026-10-05:** A: only a word that looks like `inf` or `nan` gets that;
-  any other word is "string values must be quoted".
 - [ ] **82. Rename `makeValue()` to `inline()`.** **Ruling 2026-10-05:** rename to `Item.inline()`, and add
   its mirror `Item.expand()`, which turns `t = { … }` into `[t]` in place; `InlineTable.toStandardTable()` stays
   for building a table without touching the document. Goes with 66 (wave 2, API).
 
-- [ ] **83. A table's or value's own `toString()` prints the 1.1 forms in a 1.0 document.** Only a whole document
-  prints in its version. **Ruling 2026-10-05:** it follows its document's version; TOML 1.1 is the default and 1.0
-  is opt-in.
 
 - [ ] **84. Remove `mavenLocal()` from `settings.gradle.kts`.** Added so kotoml builds against kern 0.4.3 and klap
   0.5.2 before they are published; take it out once they are, before kotoml ships.
+
+### Owner calls on wave 2 (2026-10-05)
+
+- [ ] **85. Core says "datetime", serialization "date-time".** **Ruling 2026-10-05:** "date-time" everywhere, the
+  TOML spec's word; core's messages and type names change.
+- [ ] **86. A date error does not name the bad value.** `Date.of(2021, 2, 29)` says
+  `expected day between 01 and 28`, without the 29. **Ruling 2026-10-05:** `DatetimeParseError` gains the value (wire
+  change), filled by `of` and by the parser, so the message reads `invalid date: day 29 is out of range 01 to 28`.
+- [ ] **87. `info` and `inn` are told they are a misspelt float.** Item 81's rule takes any word starting with
+  `inf`/`nan`. **Ruling 2026-10-05:** B: only a case variant of `inf`/`nan` (signed or not) or a word one edit
+  away from one; a longer word starting with them (`info`, `infinity`) is a string missing its quotes.
+- [ ] **88. Any word starting with `t` or `f` is told it is a misspelt boolean.** `fruit = tomato` says
+  `invalid boolean, expected true`. **Ruling 2026-10-05:** the item 87 rule for booleans: only a case variant of
+  `true`/`false` or a word one edit away (`ture`, `fals`) gets the boolean message.
+- [ ] **89. A container's `copy()` keeps every comment.** `src["db"].getOrFail().standardTableOrNull!!.copy()`
+  stored elsewhere brings `# Generated` and `# db hdr`; `src["db"].getOrFail().copy()` does not. **Ruling
+  2026-10-05:** rule 3 for every public `copy()` (table, inline table, array, array of tables, value): it leaves
+  the comments read from its source, as a store does; internal code uses a private deep copy.
+
+Settled with no change (wave 2): a caller's comment on a replaced value replaces the comment on that line; a
+removed table keeps the comment lines above its header in place; a copy of a document's root keeps its version.
 
 Settled the same day, no change: a copied table prints where its key stands (item 38 over 29's "after the tables
 already there"); a moved table gets the default blank line (spacing is not kept across operations); a bare value's
@@ -123,6 +111,68 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **83. A table's or value's own `toString()` prints the 1.1 forms in a 1.0 document.** Only a whole document
+  prints in its version. **Ruling 2026-10-05:** it follows its document's version; TOML 1.1 is the default and 1.0
+  is opt-in.
+  **Verdict 2026-10-05:** fixed: a table's, array's, inline table's or value's own `toString()` prints in its
+  document's version; one stored nowhere prints 1.1. WriteVersionTest.
+
+- [x] **81. A stray word starting with `i` or `n` is told it is a misspelt float.** `a = [I don't belong]` says
+  "invalid float, expected `inf`". **Ruling 2026-10-05:** A: only a word that looks like `inf` or `nan` gets that;
+  any other word is "string values must be quoted".
+  **Verdict 2026-10-05:** fixed: a word gets the float message only when, ignoring case and sign, it starts with
+  `inf`/`nan` or is one edit away; any other word is "string values must be quoted". ParseMessageTest; two upstream
+  snapshots changed.
+
+- [x] **80. A caller's comment on an element added at an index, or a replaced one, is dropped.** `add(0, 0 # c)` on
+  `[1, 2]` prints `[0, 1, 2]`. **Ruling 2026-10-05:** yes, the item 37 rule: `add(index, …)` and `replace` spread a
+  one-line array (or inline table) over lines and keep the comment.
+  **Verdict 2026-10-05:** fixed: `add(index, value)` and `replace` keep a caller's comment as `add(value)` does; a
+  caller's comment on a replacement replaces the comment on that line. CommentPlacementTest.
+
+- [x] **79. Lines a caller's comment adds use `\n` in a CRLF file.** `a = [1, 2]\r\n` plus `3` with `# c` prints
+  `a = [\n  1,\n  2,\n  3, # c\n]\r\n`. **Ruling 2026-10-05:** A: the new lines take the file's line ending;
+  `makeValue` too.
+  **Verdict 2026-10-05:** fixed: the lines a caller's comment spreads an array or inline table over, and those
+  `makeValue` writes for a table built in code, end in the document's line ending. CommentPlacementTest.
+
+- [x] **78. A 1.0 document writes `\e` and `\x` in their 1.0 spelling.** `\e[0m \x41` prints `"\u001B[0m A"`.
+  **Ruling 2026-10-05:** B: `writeTo` refuses them under 1.0 with `TomlWriteError.NotInToml10`, as it refuses a
+  trailing comma. `07:32` keeps printing as `07:32:00`.
+  **Ruling 2026-10-05 (2):** `toString()` of such a document prints the 1.0 spelling (`\u001B`), so it reads back
+  under 1.0; only `writeTo` refuses.
+  **Verdict 2026-10-05:** fixed: under 1.0 `writeTo` refuses a `\e`/`\x` key or string with
+  `NotInToml10(keyPath, EscapeEscape/HexEscape)`; `toString()` prints the 1.0 spelling; `07:32` still writes
+  `07:32:00`. WriteVersionTest.
+
+- [x] **77. A `.copy()` of an item read from a document keeps that document's comments.** `src["db"].copy()` stored in
+  another document brings `# Generated…` and `[db] # db hdr`, glued to the line before; `dst.set("db", src["db"])`
+  leaves them. **Ruling 2026-10-05:** handles stay live, with five rules: reading gives a live view; storing stores
+  a copy that leaves its source's comments, whatever the source; `.copy()` is exactly what a store would store, so
+  `src["db"].copy()` and `src["db"]` land the same; `remove()` hands the item over with its own comments (a move); a
+  replaced or removed item is detached. Document the five rules in `core/README.md`.
+  **Verdict 2026-10-05:** fixed: `Item.copy()` of an item read from a document leaves that place's same-line comment,
+  header comment and comment lines above, and in its own document prints where a direct store would; removed items and
+  caller `decor` keep their comments; the five rules are in core/README.md ("Items and their comments") and the
+  `Item.copy()` KDoc. HandleRulesTest.
+
+- [x] **57. No readable message for decode, edit, write and datetime errors.** Only `TomlParseError` renders; the
+  rest print as data classes. `TypeMismatch` omits the bad value; `UnknownKey` suggests no field name.
+  **Ruling 2026-10-05:** every error type gets a readable message
+  (`database.pool: expected an integer, found the string "ten"`, `unknown key nmae, did you mean name?`).
+  **Progress 2026-10-05:** decode and encode errors have `message` (`TypeMismatch` gains `value`, `UnknownKey`
+  `suggestion`). Left: edit, write and datetime errors in core.
+  **Verdict 2026-10-05:** fixed: core's edit, write and date-time errors have `message` too, led by the key path,
+  reusing the parser's wording for date-time parts and TOML 1.1 features. ErrorMessageTest; serialization's decode and
+  encode errors had theirs in wave 1.
+
+- [x] **43. CLI: `--color` does nothing.** Listed on every help page; no escapes with `always`, nor on a terminal.
+  **Ruling 2026-10-05:** A: implement colour (`error:` and the caret line coloured, `auto` on a terminal).
+  **Ruling 2026-10-05 (2):** no colour. Decline klap's built-in with `builtins { color = false }`, so `--color`
+  is no longer offered.
+  **Verdict 2026-10-05:** fixed: kotoml declines klap's built-in (`builtins { color = false }`), so `--color` is no
+  longer offered and is a usage error. ExitCodeTest.
 
 - [x] **76. A lost write on standard error reads as standard output.** kern reports stdout's failure before
   stderr's, and a failure on stderr alone also counts, so a run whose stdout landed but whose stderr hit a full disk
