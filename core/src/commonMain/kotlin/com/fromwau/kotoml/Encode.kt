@@ -427,6 +427,9 @@ private fun leafDecorBeforeBracket(path: List<Key>): Pair<RawDecor?, RawDecor> {
     return if (needsExtraction) leafDecor to RawDecor.EMPTY else null to leafDecor
 }
 
+private fun StandardTable.isFirstElement(): Boolean =
+    (holder?.arrayOwner as? ArrayOfTables)?.firstOrNull()?.let { it === this } ?: true
+
 /** Writes one table's header and body; returns whether no table has been written yet. */
 private fun visitTable(
     writer: LineWriter,
@@ -452,7 +455,9 @@ private fun visitTable(
             writer.ending to DEFAULT_TABLE_DECOR.second
         }
         val spelledPath = table.headerSpelling?.resolve(path) ?: path
-        val (beforeBracket, keyDecor) = leafDecorBeforeBracket(spelledPath)
+        val (keyLinesDecor, keyDecor) = leafDecorBeforeBracket(spelledPath)
+        // The lines above a key print once, above the first element of the array of tables it names.
+        val beforeBracket = keyLinesDecor.takeUnless { isArrayOfTables && !table.isFirstElement() }
         val keyLines = beforeBracket?.prefix?.textOrNull.orEmpty()
         if (table.rawDecor.prefix == null && '#' in keyLines) {
             // The default spacer goes above the key's comments, so they stay right above the header.

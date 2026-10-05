@@ -177,8 +177,9 @@ internal fun keepLinesAbove(
 }
 
 /**
- * Keeps the lines above the first header that removing [item] takes out of the document, in [kept]. The lines
- * above its later headers, those of the tables under it and of later array elements, belong to it and go too.
+ * Keeps the lines above the first header that removing [item] takes out of the document, in [kept], and takes them
+ * from [item], so storing it again does not print them twice. The lines above its later headers, those of the tables
+ * under it and of later array elements, belong to it and go too.
  */
 internal fun keepHeaderLinesOf(
     item: Item,
@@ -200,11 +201,15 @@ internal fun keepHeaderLinesOf(
     keepAboveFirstHeader(parts, kept)
 }
 
-/** A header a removal takes out of the document with the lines above it, or lines kept from an earlier removal. */
+/**
+ * A header a removal takes out of the document with the lines above it, or lines kept from an earlier removal;
+ * [leave] takes those lines from the removed item once the document keeps them.
+ */
 private class HeaderPart(
     val position: Long?,
     val linesAbove: String,
     val isHeader: Boolean,
+    val leave: () -> Unit,
 )
 
 private fun collectHeaderParts(
@@ -214,7 +219,7 @@ private fun collectHeaderParts(
     item.standardTableOrNull?.let { collectHeaderParts(it, isArrayOfTables = false, parts) }
     item.arrayOfTablesOrNull?.let { array ->
         for (table in array) collectHeaderParts(table, isArrayOfTables = true, parts)
-        array.keptHeaderLines.mapTo(parts) { HeaderPart(it.order, it.text, isHeader = false) }
+        collectKeptParts(array.keptHeaderLines, parts)
     }
 }
 
@@ -224,10 +229,23 @@ private fun collectHeaderParts(
     parts: MutableList<HeaderPart>,
 ) {
     if (!table.printsDotted && table.printsHeader(isArrayOfTables)) {
-        parts += HeaderPart(table.position, linesAbove(table.rawDecor.prefix), isHeader = true)
+        val decor = table.rawDecor
+        val above = linesAbove(decor.prefix)
+        parts += HeaderPart(table.position, above, isHeader = true) {
+            decor.prefix = KeptText.from(decor.prefix?.textOrNull.orEmpty().removePrefix(above))
+        }
     }
-    table.keptHeaderLines.mapTo(parts) { HeaderPart(it.order, it.text, isHeader = false) }
+    collectKeptParts(table.keptHeaderLines, parts)
     for (entry in table.items.entries) collectHeaderParts(entry.item, parts)
+}
+
+private fun collectKeptParts(
+    keptHeaderLines: MutableList<KeptLines>,
+    parts: MutableList<HeaderPart>,
+) {
+    for (lines in keptHeaderLines) {
+        parts += HeaderPart(lines.order, lines.text, isHeader = false) { keptHeaderLines.remove(lines) }
+    }
 }
 
 // Parts made by hand have no position and print right after the part before them, as the document prints them.
@@ -243,6 +261,8 @@ private fun keepAboveFirstHeader(
     val firstHeader = printed.indexOfFirst { it.isHeader }
     val above = if (firstHeader < 0) printed else printed.subList(0, firstHeader + 1)
     for (part in above) {
-        if (part.linesAbove.isNotEmpty()) kept += KeptLines(part.linesAbove, part.position)
+        if (part.linesAbove.isEmpty()) continue
+        kept += KeptLines(part.linesAbove, part.position)
+        part.leave()
     }
 }

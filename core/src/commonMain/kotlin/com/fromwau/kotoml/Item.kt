@@ -22,9 +22,11 @@ import com.fromwau.kern.result.Result
  *
  * Storing an item stores a copy of what it holds, so two places never share one slot or one table or value:
  * after `doc["b"] = doc["a"].getOrElse { error(it) }`, editing `doc["a"]` leaves `doc["b"]` as it was. A copy
- * taken from elsewhere in the same document leaves its source's own comments behind (its same-line comment, its
- * header comment and the comment lines above its header) and takes the comments inside it; a copied table prints
- * after the tables already there.
+ * taken from a place in a document, this one or another, leaves its source's own comments behind (its same-line
+ * comment, its header comment and the comment lines above its header) and takes the comments inside it; a table
+ * copied within one document prints after the tables already there. An item stored nowhere, built in code or
+ * returned by `remove`, keeps what it holds; `remove` leaves the lines above in the document, so storing the item
+ * again prints them once.
  *
  * A slot inside an array or an inline table holds only a value, and one inside an array of tables only a table;
  * writing anything else there fails with [TomlEditError.NotAValue] or [TomlEditError.NotATableElement].
@@ -157,7 +159,7 @@ public class Item private constructor(
      */
     public fun assign(item: Item): EmptyResult<TomlEditError> {
         val within = owner?.let { copiesWithinDocument(item, it) } ?: false
-        val next = item.content.deepCopy().placedIn(holds).also { if (within) it.leaveSource() }
+        val next = item.content.deepCopy().placedIn(holds).also { if (copiesFromDocument(item)) it.leaveSource() }
         if (within) owner?.let(::outermostTableOf)?.let { placeAfterAll(it, Item(next, Holds.Anything)) }
         refusal(next)?.let { return Err(it) }
         tooDeepToHold(item)?.let { return Err(it) }
@@ -188,14 +190,11 @@ public class Item private constructor(
         }
 
     /**
-     * A copy of what this item holds for storing at [place], leaving its source's comments when [leaveSource]; see
-     * [Content.leaveSource] and [Value.fitFor].
+     * A copy of what this item holds for storing at [place], leaving its source's comments when it is read from a
+     * document; see [copiesFromDocument], [Content.leaveSource] and [Value.fitFor].
      */
-    internal fun copyFor(
-        place: ValuePlace,
-        leaveSource: Boolean,
-    ): Item = copy().also { copy ->
-        if (leaveSource) copy.content.leaveSource()
+    internal fun copyFor(place: ValuePlace): Item = copy().also { copy ->
+        if (copiesFromDocument(this)) copy.content.leaveSource()
         copy.valueOrNull?.fitFor(place)
     }
 
@@ -327,15 +326,19 @@ public class Item private constructor(
      * stays as it is. The comment lines above the header move above the key. A table whose values carry comments
      * becomes an inline table across lines that keeps them, its header comment after `{`, in a document whose
      * [TomlDocument.version] is TOML 1.1, since only TOML 1.1 reads that; otherwise it goes on one line, formatted
-     * anew, and only the header comment stays, after `}`. A table taken from this slot earlier keeps its content and
-     * no longer belongs to the document.
+     * anew, and only the header comment stays, after `}`. An array of tables with comments on or between its headers
+     * becomes an array across lines, a table a line, each header comment after its table's comma and the comment
+     * lines above a later header above its table; its tables keep the comments inside them as a single table does.
+     * A table taken from this slot earlier keeps its content and no longer belongs to the document.
      *
      * @return [TomlEditError.NotATableElement], changing nothing, when this is a table in an array of tables, or
      *   [TomlEditError.TooDeep] when the value would nest deeper than the parser reads.
      */
     public fun makeValue(): EmptyResult<TomlEditError> {
         if (holds == Holds.Table) return Err(TomlEditError.NotATableElement(TomlType.InlineTable))
-        val value = standardTableOrNull?.let(::inlineValueOf) ?: copy().moveToValue()
+        val value = standardTableOrNull?.let(::inlineValueOf)
+            ?: arrayOfTablesOrNull?.let(::arrayValueOf)
+            ?: copy().moveToValue()
         tooDeepToHold(Item(value))?.let { return Err(it) }
         holdValue(value)
         return Ok(Unit)
@@ -356,6 +359,17 @@ public class Item private constructor(
         val value = copy().moveToValue()
         if (headerComment.isNotEmpty()) value.rawDecor.suffix = KeptText.from(headerComment)
         return value
+    }
+
+    /**
+     * [array] as an array of inline tables. The comments on and between its headers put it across lines, a table a
+     * line; in a document whose [TomlDocument.version] is TOML 1.1 a table whose values carry comments goes across
+     * lines too, keeping them as [inlineValueOf] does. Otherwise its comments inside go.
+     */
+    private fun arrayValueOf(array: ArrayOfTables): Value {
+        val version = owner?.let(::outermostTableOf)?.version ?: TomlVersion.V1_1
+        val lineBreak = array.firstOrNull()?.headerLineEnding ?: "\n"
+        return Value.Array(array.copy().moveToTomlArrayKeepingComments(lineBreak, version == TomlVersion.V1_1))
     }
 
     /** Turns a table or array of tables in this slot into [value], made from it, keeping the lines above. */

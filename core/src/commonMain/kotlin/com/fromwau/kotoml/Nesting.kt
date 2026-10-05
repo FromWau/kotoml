@@ -35,25 +35,33 @@ internal fun nestingOf(container: Any): Nesting {
 }
 
 /**
+ * Whether storing [item] copies it from a place in a document, this one or another: then the copy leaves the
+ * comments of its source's own lines behind. Storing a table or array that is stored nowhere, removed or built in
+ * code, or a bare value, keeps them.
+ */
+internal fun copiesFromDocument(item: Item): Boolean = sourceOf(item) != null
+
+/**
  * Whether storing [item] in [receiver] copies it to another place of the document it is read from: then the copy
- * leaves the comments of its source's own lines behind. Copying into another document keeps them, as does storing a
- * table or array that is stored nowhere, or a bare value.
+ * prints after the tables already there.
  */
 internal fun copiesWithinDocument(
     item: Item,
     receiver: Any,
 ): Boolean {
-    val source = item.owner ?: item.container?.let(::parentOf) ?: return false
+    val source = sourceOf(item) ?: return false
     return outermostTableOf(source) === outermostTableOf(receiver)
 }
 
-/** Whether storing [table] in [array] copies it from another place of their document, not reorders [array]. */
-internal fun copiesWithinDocument(
+private fun sourceOf(item: Item): Any? = item.owner ?: item.container?.let(::parentOf)
+
+/** Whether storing [table] in [array] copies it from another place, in any document, not reorders [array]. */
+internal fun copiesFromElsewhere(
     table: StandardTable,
     array: ArrayOfTables,
 ): Boolean {
     val source = parentOf(table) ?: return false
-    return source !== array && outermostTableOf(source) === outermostTableOf(array)
+    return source !== array
 }
 
 /** The table whose body prints [table]'s lines while it is dotted: the nearest one above it with a header. */

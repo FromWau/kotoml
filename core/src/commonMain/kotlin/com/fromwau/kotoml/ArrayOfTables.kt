@@ -49,6 +49,49 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         return array
     }
 
+    /**
+     * Moves the tables into a new array of inline tables that keeps their comments, leaving this empty. Comments on
+     * or between the headers put it across lines, a table a line: the comment lines above a later header go above
+     * its table, and a header comment after its comma. When [tablesAcrossLines], which only TOML 1.1 reads, a table
+     * whose values carry comments goes across lines keeping them, its header comment after `{`; otherwise its
+     * comments inside go. With no comment to keep it goes on one line, formatted anew.
+     */
+    internal fun moveToTomlArrayKeepingComments(
+        lineBreak: String,
+        tablesAcrossLines: Boolean,
+    ): TomlArray {
+        val tables = toList()
+        val keepsComments = tables.withIndex().any { (index, table) ->
+            table.headerComment.isNotEmpty() ||
+                (index > 0 && '#' in linesAbove(table.rawDecor.prefix)) ||
+                (tablesAcrossLines && table.holdsComments())
+        }
+        if (!keepsComments) return moveToTomlArray()
+        val indent = "  "
+        val array = TomlArray()
+        var carried = ""
+        for ((index, slot) in values.withIndex()) {
+            val table = tables[index]
+            val above = if (index == 0) "" else linesAbove(table.rawDecor.prefix)
+            val acrossLines = tablesAcrossLines && table.holdsComments()
+            val value = if (acrossLines) {
+                Value.InlineTable(table.moveToInlineTableAcrossLines(table.headerComment, lineBreak, indent))
+            } else {
+                slot.moveToValue()
+            }
+            val lines = indentedCommentLines(above, indent, lineBreak)
+            value.rawDecor.prefix = KeptText.from(carried + lineBreak + lines + indent)
+            value.rawDecor.suffix = KeptText.from("")
+            carried = if (acrossLines) "" else table.headerComment
+            array.append(value)
+            slot.arrayOwner = null
+        }
+        values.clear()
+        array.trailingComma = true
+        array.trailing = carried + lineBreak
+        return array
+    }
+
     internal fun resolveSpans(input: SourceText) {
         span = null
         for (value in values) value.resolveSpans(input)
@@ -88,9 +131,9 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         return Ok(Unit)
     }
 
-    // A copy from elsewhere in the document leaves the comments of the header it was read under behind.
+    // A copy from another place, in this document or another, leaves the comments of the header it was read under.
     private fun copyToStore(table: StandardTable): StandardTable = table.copy().also { copy ->
-        if (copiesWithinDocument(table, this)) {
+        if (copiesFromElsewhere(table, this)) {
             copy.rawDecor.dropReadComments(isHeader = true)
             // It prints after the element before it, not where its source printed.
             forgetPlacement(Item(copy))

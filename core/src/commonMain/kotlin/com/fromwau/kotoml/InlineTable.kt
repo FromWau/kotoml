@@ -79,14 +79,34 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         this.items = items
     }
 
-    /** A standard table holding copies of this table's entries, formatted anew; this table stays as it is. */
+    /**
+     * A standard table holding copies of this table's entries, formatted anew; this table stays as it is. The
+     * comments of a table written across lines are kept: the comment after `{` on its header line, each value's
+     * comment after it, and the comment lines inside above the key below them.
+     */
     public fun toStandardTable(): StandardTable = copy().moveToStandardTable()
 
-    /** Moves the entries into a new standard table, formatted anew, leaving this table empty. */
+    /** Moves the entries into a new standard table, formatted anew but keeping comments, leaving this table empty. */
     internal fun moveToStandardTable(): StandardTable {
+        val comments = if (isDotted) null else commentsOnTableLines()
         val table = StandardTable(items.takeAll())
         table.resetFormatting()
+        comments?.applyTo(table)
         return table
+    }
+
+    // In braces a value's comment ends its line after the comma, so it starts the text before the next key or `}`.
+    private fun commentsOnTableLines(): TableLineComments {
+        val lines = visualValues()
+        val texts = lines.flatMap { listOf(it.path.last().rawLeafDecor.prefix, it.value.rawDecor.suffix) } + rawTrailing
+        val lineBreak = if (texts.any { "\r\n" in it?.textOrNull.orEmpty() }) "\r\n" else "\n"
+        val comments = TableLineComments(lines.map { it.path.last() to it.value }, lineBreak)
+        for ((index, line) in lines.withIndex()) {
+            comments.read(line.path.last().rawLeafDecor.prefix, before = index - 1, linesFor = index)
+            comments.read(line.value.rawDecor.suffix, before = index, linesFor = index + 1, sameLine = true)
+        }
+        comments.read(rawTrailing, before = lines.lastIndex, linesFor = lines.size)
+        return comments
     }
 
     /** The values visually under this table with the key path that reaches each, dotted keys followed. */
@@ -565,3 +585,50 @@ public fun Iterable<Pair<String, Value>>.toInlineTable(): Result<InlineTable, To
 
 // `{ key1 = value1, ... }`
 internal val DEFAULT_INLINE_KEY_DECOR: Pair<String, String> = " " to " "
+
+/**
+ * The comments of an inline table across lines, gathered for the lines of a standard table: [headerComment] for its
+ * header, and for each of [lines] the comment after its value and the comment lines above its key. Comment lines
+ * after the last value stay at the end of its lines.
+ */
+private class TableLineComments(
+    private val lines: List<Pair<Key, Value>>,
+    private val lineBreak: String,
+) {
+    private var headerComment = ""
+    private val after = Array(lines.size) { "" }
+    private val above = Array(lines.size + 1) { "" }
+
+    /**
+     * Reads [text] standing after the line [before] (-1 for `{`): the comment ending that line, then the comment lines
+     * above the line [linesFor]. Text [sameLine] with a value ends that line only when it holds a line break.
+     */
+    fun read(
+        text: KeptText?,
+        before: Int,
+        linesFor: Int,
+        sameLine: Boolean = false,
+    ) {
+        val raw = text?.textOrNull ?: return
+        if ('\n' !in raw) {
+            if (sameLine && '#' in raw && before >= 0) after[before] = raw
+            return
+        }
+        val first = raw.substringBefore('\n').removeSuffix("\r")
+        if ('#' in first) {
+            if (before < 0) headerComment = first else after[before] = first
+        }
+        val rest = raw.substringAfter('\n')
+        above[linesFor] += indentedCommentLines(rest.substring(0, rest.lastIndexOf('\n') + 1), "", lineBreak)
+    }
+
+    fun applyTo(table: StandardTable) {
+        if (headerComment.isNotEmpty()) table.rawDecor.suffix = KeptText.from(headerComment)
+        for ((index, line) in lines.withIndex()) {
+            val (key, value) = line
+            if (above[index].isNotEmpty()) key.rawLeafDecor.prefix = KeptText.from(above[index])
+            if (after[index].isNotEmpty()) value.rawDecor.suffix = KeptText.from(after[index])
+        }
+        if (above[lines.size].isNotEmpty()) table.items.keptLines += KeptLines(above[lines.size], null)
+    }
+}

@@ -95,8 +95,10 @@ prints `key = []`. Sorting moves each key with the comment lines right above it 
 Making a table dotted, or a header again, keeps the lines above its key and each value's same-line comment and drops
 its other comments. An `Item` is a slot that holds a value, a table or an array of tables; `valueOrNull`,
 `standardTableOrNull` and their siblings read what it holds, and `tableOrNull` reads a table of either kind. Storing
-an item stores a copy, so editing the original afterwards does not change the document; a copy from elsewhere in the
-same document takes only the comments inside it. The full set of rules is goal 4 in [GOALS.md](../GOALS.md).
+an item stores a copy, so editing the original afterwards does not change the document; a copy from a place in a
+document, this one or another, takes only the comments inside it. A removed item does not carry the lines above it,
+which stay in the document, so storing it again prints them once. `toStandardTable` and `makeValue` keep the
+comments of what they convert. The full set of rules is goal 4 in [GOALS.md](../GOALS.md).
 
 A document's top-level keys live in its `root` table. The document itself offers the map calls (`get`, `set`,
 `getOrNull`, `contains`, `keys`, `put`, `putAll`, `getOrPut`, `remove`, `retainAll`, `removeAll`, `clear`,
