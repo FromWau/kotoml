@@ -200,19 +200,20 @@ bytes that are not UTF-8
     @Test
     fun `a date-time part out of range is refused with the field and its range`() {
         assertEquals(
-            DatetimeParseError(DatetimePart.Date, DatetimeExpected.Range(DatetimeField.Day, 1, 28)),
+            DatetimeParseError(DatetimePart.Date, DatetimeExpected.Range(DatetimeField.Day, 1, 28), 29),
             Date.of(2021, 2, 29).errorOrFail(),
         )
         assertEquals(
-            DatetimeParseError(DatetimePart.Time, DatetimeExpected.Range(DatetimeField.Hour, 0, 23)),
+            DatetimeParseError(DatetimePart.Time, DatetimeExpected.Range(DatetimeField.Hour, 0, 23), 24),
             Time.of(24, 0).errorOrFail(),
         )
         assertEquals(
             DatetimeParseError(DatetimePart.Time, DatetimeExpected.SecondBeforeFraction),
+
             Time.of(13, 37, nanosecond = 5).errorOrFail(),
         )
         assertEquals(
-            DatetimeParseError(DatetimePart.Offset, DatetimeExpected.Range(DatetimeField.Minute, -1439, 1439)),
+            DatetimeParseError(DatetimePart.Offset, DatetimeExpected.Range(DatetimeField.Minute, -1439, 1439), 1440),
             Offset.Custom.of(1440).errorOrFail(),
         )
     }
@@ -262,15 +263,15 @@ bytes that are not UTF-8
     @Test
     fun `parsing a day the month does not have gives a typed error`() {
         assertEquals(
-            DatetimeParseError(DatetimePart.Date, DatetimeExpected.Range(DatetimeField.Day, 1, 28)),
+            DatetimeParseError(DatetimePart.Date, DatetimeExpected.Range(DatetimeField.Day, 1, 28), 29),
             Datetime.parse("2021-02-29").errorOrFail(),
         )
         assertEquals(
-            DatetimeParseError(DatetimePart.Date, DatetimeExpected.Range(DatetimeField.Day, 1, 30)),
+            DatetimeParseError(DatetimePart.Date, DatetimeExpected.Range(DatetimeField.Day, 1, 30), 31),
             Datetime.parse("2021-04-31").errorOrFail(),
         )
         assertEquals(
-            DatetimeParseError(DatetimePart.Date, DatetimeExpected.Range(DatetimeField.Month, 1, 12)),
+            DatetimeParseError(DatetimePart.Date, DatetimeExpected.Range(DatetimeField.Month, 1, 12), 0),
             Datetime.parse("2021-00-01").errorOrFail(),
         )
     }
@@ -278,15 +279,15 @@ bytes that are not UTF-8
     @Test
     fun `parsing a time or offset out of range gives a typed error`() {
         assertEquals(
-            DatetimeParseError(DatetimePart.Time, DatetimeExpected.Range(DatetimeField.Hour, 0, 23)),
+            DatetimeParseError(DatetimePart.Time, DatetimeExpected.Range(DatetimeField.Hour, 0, 23), 24),
             Datetime.parse("24:00:00").errorOrFail(),
         )
         assertEquals(
-            DatetimeParseError(DatetimePart.Time, DatetimeExpected.Range(DatetimeField.Second, 0, 60)),
+            DatetimeParseError(DatetimePart.Time, DatetimeExpected.Range(DatetimeField.Second, 0, 60), 61),
             Datetime.parse("23:59:61").errorOrFail(),
         )
         assertEquals(
-            DatetimeParseError(DatetimePart.Offset, DatetimeExpected.Range(DatetimeField.Hour, 0, 23)),
+            DatetimeParseError(DatetimePart.Offset, DatetimeExpected.Range(DatetimeField.Hour, 0, 23), 24),
             Datetime.parse("1979-05-27T07:32:00+24:00").errorOrFail(),
         )
     }

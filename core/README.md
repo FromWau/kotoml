@@ -234,7 +234,7 @@ error itself keeps the full span. A duplicate key names its whole path from the 
 A `TomlEditError`, a `TomlWriteError` and a `DatetimeParseError` have a `message` that words them for a person, led
 by the key path when the error has one: `server: expected a table, found an integer`,
 `point: inline tables cannot end with a comma in TOML 1.0`, and for `Date.of(2021, 2, 29)`
-`invalid date, expected day between 01 and 28`.
+`invalid date: day 29 is out of range 01 to 28`.
 
 ## TOML versions
 

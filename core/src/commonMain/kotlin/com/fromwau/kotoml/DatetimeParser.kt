@@ -9,7 +9,6 @@ import com.fromwau.kotoml.DatetimeExpected.Digits
 import com.fromwau.kotoml.DatetimeExpected.End
 import com.fromwau.kotoml.DatetimeExpected.MinuteSeparator
 import com.fromwau.kotoml.DatetimeExpected.OffsetStart
-import com.fromwau.kotoml.DatetimeExpected.Range
 import com.fromwau.kotoml.DatetimeExpected.SecondBeforeFraction
 import com.fromwau.kotoml.DatetimeExpected.TimeStart
 import com.fromwau.kotoml.DatetimeExpected.Width
@@ -179,8 +178,8 @@ internal class DatetimeParser(private val input: String) {
 
                     val hourValue = digitsValue(hours.raw)
                     val minuteValue = digitsValue(minutes.raw)
-                    if (hourValue > 23) return offsetError(Range(Hour, 0, 23))
-                    if (minuteValue > 59) return offsetError(Range(Minute, 0, 59))
+                    if (hourValue > 23) return outOfRange(DatetimePart.Offset, Hour, hourValue, 0, 23)
+                    if (minuteValue > 59) return outOfRange(DatetimePart.Offset, Minute, minuteValue, 0, 59)
 
                     val minutesEast = sign * (hourValue * 60 + minuteValue)
                     offset = if (minutesEast == 0 && sign < 0) {
@@ -208,7 +207,7 @@ internal class DatetimeParser(private val input: String) {
         )
     }
 
-    // Only called on a run of ASCII digits no longer than a datetime field, so it cannot overflow.
+    // Only called on a run of ASCII digits no longer than a date-time field, so it cannot overflow.
     private fun digitsValue(digits: String): Int = digits.fold(0) { value, digit -> value * 10 + (digit - '0') }
 
     // Digits past the ninth are truncated, as the spec requires of precision an implementation cannot keep.

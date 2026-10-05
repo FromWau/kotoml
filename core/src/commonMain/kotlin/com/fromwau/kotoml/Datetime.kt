@@ -123,10 +123,10 @@ public data class Date private constructor(
             month: Int,
             day: Int,
         ): Result<Date, DatetimeParseError> {
-            if (year !in 0..9999) return outOfRange(DatetimePart.Date, DatetimeField.Year, 0, 9999)
-            if (month !in 1..12) return outOfRange(DatetimePart.Date, DatetimeField.Month, 1, 12)
+            if (year !in 0..9999) return outOfRange(DatetimePart.Date, DatetimeField.Year, year, 0, 9999)
+            if (month !in 1..12) return outOfRange(DatetimePart.Date, DatetimeField.Month, month, 1, 12)
             val days = daysInMonth(year, month)
-            if (day !in 1..days) return outOfRange(DatetimePart.Date, DatetimeField.Day, 1, days)
+            if (day !in 1..days) return outOfRange(DatetimePart.Date, DatetimeField.Day, day, 1, days)
             return Ok(Date(year, month, day))
         }
     }
@@ -191,11 +191,13 @@ public data class Time private constructor(
             second: Int? = null,
             nanosecond: Int? = null,
         ): Result<Time, DatetimeParseError> {
-            if (hour !in 0..23) return outOfRange(DatetimePart.Time, DatetimeField.Hour, 0, 23)
-            if (minute !in 0..59) return outOfRange(DatetimePart.Time, DatetimeField.Minute, 0, 59)
-            if (second != null && second !in 0..60) return outOfRange(DatetimePart.Time, DatetimeField.Second, 0, 60)
+            if (hour !in 0..23) return outOfRange(DatetimePart.Time, DatetimeField.Hour, hour, 0, 23)
+            if (minute !in 0..59) return outOfRange(DatetimePart.Time, DatetimeField.Minute, minute, 0, 59)
+            if (second != null && second !in 0..60) {
+                return outOfRange(DatetimePart.Time, DatetimeField.Second, second, 0, 60)
+            }
             if (nanosecond != null && nanosecond !in 0..999_999_999) {
-                return outOfRange(DatetimePart.Time, DatetimeField.Nanosecond, 0, 999_999_999)
+                return outOfRange(DatetimePart.Time, DatetimeField.Nanosecond, nanosecond, 0, 999_999_999)
             }
             if (nanosecond != null && second == null) {
                 return Err(DatetimeParseError(DatetimePart.Time, DatetimeExpected.SecondBeforeFraction))
@@ -243,7 +245,7 @@ public sealed interface Offset : Comparable<Offset> {
                 if (minutes in -MAX_MINUTES..MAX_MINUTES) {
                     Ok(Custom(minutes))
                 } else {
-                    outOfRange(DatetimePart.Offset, DatetimeField.Minute, -MAX_MINUTES, MAX_MINUTES)
+                    outOfRange(DatetimePart.Offset, DatetimeField.Minute, minutes, -MAX_MINUTES, MAX_MINUTES)
                 }
         }
     }
@@ -264,14 +266,16 @@ public sealed interface Offset : Comparable<Offset> {
 
 /**
  * Why a date-time was refused, by [Datetime.parse] or by [Date.of], [Time.of] or [Offset.Custom.of]: the [part]
- * being read, if any, and what it [expected] there, if known.
+ * being read, if any, what it [expected] there, if known, and the [value] a field held when [expected] is a
+ * [DatetimeExpected.Range] it is outside.
  */
 @Serializable
 public data class DatetimeParseError(
     val part: DatetimePart?,
     val expected: DatetimeExpected?,
+    val value: Int? = null,
 ) : IError {
-    /** The error as a person reads it, such as `invalid date, expected day between 01 and 28`. */
+    /** The error as a person reads it, such as `invalid date: day 29 is out of range 01 to 28`. */
     public val message: String
         get() = describe()
 }
@@ -356,12 +360,13 @@ public sealed interface DatetimeExpected {
     public data object End : DatetimeExpected
 }
 
-private fun outOfRange(
+internal fun outOfRange(
     part: DatetimePart,
     field: DatetimeField,
+    value: Int,
     min: Int,
     max: Int,
-): Result<Nothing, DatetimeParseError> = Err(DatetimeParseError(part, DatetimeExpected.Range(field, min, max)))
+): Err<DatetimeParseError> = Err(DatetimeParseError(part, DatetimeExpected.Range(field, min, max), value))
 
 private fun <T : Comparable<T>> compareNullable(left: T?, right: T?): Int = when {
     left == null && right == null -> 0

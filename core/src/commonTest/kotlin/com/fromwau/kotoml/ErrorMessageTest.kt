@@ -3,6 +3,7 @@ package com.fromwau.kotoml
 import kotlinx.io.Buffer
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 
 /** Every edit, write and date-time error reads as a sentence, led by its key path when it has one. */
 class ErrorMessageTest {
@@ -43,18 +44,31 @@ class ErrorMessageTest {
     }
 
     @Test
-    fun `a date that does not exist names the range of days its month has`() {
-        assertEquals("invalid date, expected day between 01 and 28", Date.of(2021, 2, 29).errorOrFail().message)
+    fun `a date that does not exist names the day and the range of days its month has`() {
+        assertEquals("invalid date: day 29 is out of range 01 to 28", Date.of(2021, 2, 29).errorOrFail().message)
+    }
+
+    @Test
+    fun `a file with a date that does not exist names the day and the range of days its month has`() {
+        val reason = TomlDocument.parse("d = 2021-02-29\n").errorOrFail().reason
+        assertIs<TomlParseError.Reason.InvalidDatetime>(reason)
+        assertEquals("invalid date: day 29 is out of range 01 to 28", reason.error.message)
     }
 
     @Test
     fun `every date-time error reads as the parser words it`() {
         val cases = listOf(
-            Time.of(24, 0).errorOrFail() to "invalid time, expected hour between 00 and 23",
+            Time.of(24, 0).errorOrFail() to "invalid time: hour 24 is out of range 00 to 23",
+            Time.of(7, 32, 0, 1_000_000_000).errorOrFail() to
+                "invalid time: nanosecond 1000000000 is out of range 00 to 999999999",
             Time.of(7, 32, nanosecond = 5).errorOrFail() to "invalid time, expected a second before the fraction",
-            Offset.Custom.of(1440).errorOrFail() to "invalid offset, expected minutes between -1439 and 1439",
+            Offset.Custom.of(1440).errorOrFail() to "invalid offset: minute 1440 is out of range -1439 to 1439",
+            Datetime.parse("1979-05-27T07:32:00+24:00").errorOrFail() to
+                "invalid offset: hour 24 is out of range 00 to 23",
             Datetime.parse("1979-05").errorOrFail() to "invalid date, expected `-` (MM-DD)",
-            DatetimeParseError(null, null) to "invalid datetime",
+            DatetimeParseError(null, null) to "invalid date-time",
+            DatetimeParseError(DatetimePart.Date, DatetimeExpected.Range(DatetimeField.Day, 1, 28)) to
+                "invalid date, expected day between 01 and 28",
         )
         for ((error, message) in cases) assertEquals(message, error.message, "$error")
     }

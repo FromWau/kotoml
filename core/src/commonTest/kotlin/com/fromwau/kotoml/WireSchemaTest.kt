@@ -111,7 +111,7 @@ class WireSchemaTest {
                 TooDeep(keyPath)
             """.trimIndent(),
             TomlIoError.serializer().descriptor to "Io(detail)",
-            DatetimeParseError.serializer().descriptor to "DatetimeParseError(part, expected)",
+            DatetimeParseError.serializer().descriptor to "DatetimeParseError(part, expected, value)",
             DatetimeExpected.serializer().descriptor to """
                 DateOrTimeSeparator()
                 DaySeparator()

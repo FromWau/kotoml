@@ -33,7 +33,7 @@ class ErrorJsonTest {
     fun `an invalid date-time carries its part and expectation`() {
         assertEquals(
             """{"reason":{"type":"InvalidDatetime","error":{"part":"Date","expected":""" +
-                """{"type":"Range","field":"Month","min":1,"max":12}}},"span":{"start":4,"end":14},""" +
+                """{"type":"Range","field":"Month","min":1,"max":12},"value":13}},"span":{"start":4,"end":14},""" +
                 """"position":{"line":1,"column":5}}""",
             json("d = 2021-13-01\n"),
         )

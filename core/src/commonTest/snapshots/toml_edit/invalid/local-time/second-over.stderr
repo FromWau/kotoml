@@ -2,4 +2,4 @@ TOML parse error at line 3, column 5
   |
 3 | d = 00:00:61
   |     ^^^^^^^^
-invalid time, expected second between 00 and 60
+invalid time: second 61 is out of range 00 to 60

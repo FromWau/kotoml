@@ -238,7 +238,7 @@ internal fun TomlType.describe(): String = when (this) {
     TomlType.Integer -> "integer"
     TomlType.Float -> "float"
     TomlType.Boolean -> "boolean"
-    TomlType.Datetime -> "datetime"
+    TomlType.Datetime -> "date-time"
     TomlType.Array -> "array"
     TomlType.InlineTable -> "inline table"
     TomlType.Table -> "table"
@@ -247,11 +247,17 @@ internal fun TomlType.describe(): String = when (this) {
 
 internal fun DatetimeParseError.describe(): String = buildString {
     append("invalid ")
-    append(part?.describe() ?: "datetime")
+    append(part?.describe() ?: "date-time")
     val expected = expected
-    if (expected != null) {
-        append(", expected ")
-        append(expected.describe(part))
+    when {
+        expected is DatetimeExpected.Range && value != null -> {
+            append(": ${expected.field.describe()} ${value.padded()} is out of range ")
+            append("${expected.min.padded()} to ${expected.max.padded()}")
+        }
+        expected != null -> {
+            append(", expected ")
+            append(expected.describe(part))
+        }
     }
 }
 
@@ -279,9 +285,11 @@ internal fun DatetimeExpected.describe(part: DatetimePart?): String = when (this
     is DatetimeExpected.Range -> {
         // An offset's hours and minutes are counts, so toml_datetime names them in the plural.
         val name = if (part == DatetimePart.Offset) "${field.describe()}s" else field.describe()
-        "$name between ${min.toString().padStart(2, '0')} and ${max.toString().padStart(2, '0')}"
+        "$name between ${min.padded()} and ${max.padded()}"
     }
 }
+
+private fun Int.padded(): String = toString().padStart(2, '0')
 
 private fun DatetimeField.describe(): String = name.lowercase()
 

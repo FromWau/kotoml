@@ -185,7 +185,7 @@ private fun TomlType.words(): String = when (this) {
     TomlType.Integer -> "integer"
     TomlType.Float -> "float"
     TomlType.Boolean -> "boolean"
-    TomlType.Datetime -> "datetime"
+    TomlType.Datetime -> "date-time"
     TomlType.Array -> "array"
     TomlType.InlineTable -> "inline table"
     TomlType.Table -> "table"
