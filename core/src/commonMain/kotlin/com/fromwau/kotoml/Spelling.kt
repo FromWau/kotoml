@@ -83,9 +83,37 @@ internal class KeptText private constructor(private val state: State) {
     }
 }
 
-/** The input of a parse, kept as text and as the UTF-8 bytes every span counts. */
-internal class SourceText(val text: String) {
+/**
+ * The input of a parse, kept as text and as the UTF-8 bytes every span counts. [locatesKeys] is set for a whole
+ * document, whose keys remember where they were read.
+ */
+internal class SourceText(
+    val text: String,
+    private val locatesKeys: Boolean = false,
+) {
     val bytes: ByteArray = text.encodeToByteArray()
+
+    private val lineStarts: List<Int> by lazy {
+        val starts = mutableListOf(0)
+        for ((index, byte) in bytes.withIndex()) {
+            if (byte == '\n'.code.toByte()) starts += index + 1
+        }
+        starts
+    }
+
+    /** The line and column of byte [offset], counted as [TextPosition] counts them; null unless [locatesKeys]. */
+    fun positionOf(offset: Int): TextPosition? {
+        if (!locatesKeys) return null
+        val found = lineStarts.binarySearch(offset)
+        val line = if (found >= 0) found else -found - 2
+        // A byte order mark shows nothing, so the first line's columns start after it.
+        val start = if (line == 0 && text.startsWith('\uFEFF')) BYTE_ORDER_MARK_BYTES else lineStarts[line]
+        var column = 1
+        for (index in start until offset) {
+            if ((bytes[index].toInt() and 0xC0) != 0x80) column++
+        }
+        return TextPosition(line + 1, column)
+    }
 
     /** The text under [span], which must lie within this input. */
     fun slice(span: Span): String {
@@ -95,6 +123,8 @@ internal class SourceText(val text: String) {
         return bytes.decodeToString(span.start, span.end)
     }
 }
+
+private const val BYTE_ORDER_MARK_BYTES = 3
 
 /** How a value or key is spelled in TOML, such as `'value'` for the string `value` or `0x10` for 16. */
 internal data class Spelling(val raw: KeptText) {

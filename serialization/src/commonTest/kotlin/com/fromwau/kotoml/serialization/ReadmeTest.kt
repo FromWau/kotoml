@@ -1,5 +1,6 @@
 package com.fromwau.kotoml.serialization
 
+import com.fromwau.kotoml.TextPosition
 import com.fromwau.kern.result.Result
 import com.fromwau.kern.result.errorOrNull
 import com.fromwau.kern.result.getOrElse
@@ -135,7 +136,13 @@ class ReadmeTest {
     @Test
     fun `the README's paths quote keys as TOML does`() {
         assertEquals(
-            TomlDecodeError.TypeMismatch("ports.\"a.b\"", TomlType.Integer, TomlType.String),
+            TomlDecodeError.TypeMismatch(
+                "ports.\"a.b\"",
+                TomlType.Integer,
+                TomlType.String,
+                value = "\"x\"",
+                position = TextPosition(2, 1),
+            ),
             Toml.decodeFromString<Ports>("[ports]\n\"a.b\" = \"x\"\n").errorOrFail(),
         )
     }

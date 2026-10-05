@@ -4,7 +4,6 @@ import com.fromwau.kern.result.EmptyResult
 import com.fromwau.kern.result.Err
 import com.fromwau.kern.terminal.Terminal
 import com.fromwau.kern.terminal.WriteError
-import com.fromwau.klap.run
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
@@ -12,7 +11,6 @@ import kotlinx.io.files.SystemTemporaryDirectory
 import kotlinx.io.writeString
 import kotlin.random.Random
 import kotlin.test.AfterTest
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -49,7 +47,7 @@ class ExitCodeTest {
 
     private fun kotoml(vararg args: String): Pair<Int, Recorded> {
         val terminal = Recorded()
-        return kotomlCli().run(args.toList(), terminal) to terminal
+        return runKotoml(args.toList(), terminal) to terminal
     }
 
     private class FailingWrites(private val error: WriteError) : Recorded() {
@@ -72,11 +70,12 @@ class ExitCodeTest {
 
     @Test
     fun `a file that is not TOML exits 1 and --json prints the error with its code on standard error`() {
-        val (code, terminal) = kotoml("check", "--json", file("a = 1\na = 2\n"))
+        val bad = file("a = 1\na = 2\n")
+        val (code, terminal) = kotoml("check", "--json", bad)
         assertEquals(1, code)
         assertEquals(
-            "{\"error\":{\"type\":\"InvalidToml\",\"error\":" +
-                "{\"reason\":{\"type\":\"DuplicateKey\",\"keyPath\":[\"a\"]}," +
+            "{\"error\":{\"type\":\"InvalidToml\",\"path\":\"$bad\"," +
+                "\"error\":{\"reason\":{\"type\":\"DuplicateKey\",\"keyPath\":[\"a\"]}," +
                 "\"span\":{\"start\":6,\"end\":7},\"position\":{\"line\":2,\"column\":1}," +
                 "\"context\":{\"start\":0,\"end\":1}}},\"code\":1}",
             terminal.err.toString().trim(),
@@ -87,11 +86,6 @@ class ExitCodeTest {
     fun `an input that cannot be read exits 1`() {
         val missing = Path(SystemTemporaryDirectory, "kotoml-missing-${Random.nextLong().toULong()}.toml").toString()
         assertEquals(1, kotoml("check", missing).first)
-    }
-
-    @Test
-    fun `a filter that finds nothing exits 1`() {
-        assertEquals(1, kotoml("get", ".b", file("a = 1\n")).first)
     }
 
     @Test
@@ -114,18 +108,17 @@ class ExitCodeTest {
     @Test
     fun `output the system refused exits 1 and says so`() {
         val terminal = FailingWrites(WriteError.Refused("No space left on device"))
-        assertEquals(1, kotomlCli().run(listOf("get", ".a", file("a = 1\n")), terminal))
+        assertEquals(1, runKotoml(listOf("get", ".a", file("a = 1\n")), terminal))
         assertEquals("error: cannot write to standard output: No space left on device\n", terminal.err.toString())
     }
 
     @Test
     fun `a reader that closes the pipe ends the run with 141 and no message`() {
         val terminal = FailingWrites(WriteError.BrokenPipe)
-        assertEquals(141, kotomlCli().run(listOf("get", ".a", file("a = 1\n")), terminal))
+        assertEquals(141, runKotoml(listOf("get", ".a", file("a = 1\n")), terminal))
         assertEquals("", terminal.err.toString())
     }
 
-    @Ignore
     @Test
     fun `a filter that finds nothing exits 3 and says so on standard error`() {
         val (code, terminal) = kotoml("get", ".b", file("a = 1\n"))
@@ -134,14 +127,12 @@ class ExitCodeTest {
         assertTrue("no key" in terminal.err.toString())
     }
 
-    @Ignore
     @Test
     fun `a value from a CRLF file prints with a bare newline`() {
         val (_, terminal) = kotoml("get", "-r", ".t.x", file("a = 1\r\n[t]\r\nx = \"y\"\r\n"))
         assertEquals("y\n", terminal.out.toString())
     }
 
-    @Ignore
     @Test
     fun `a document prints with each line's own ending`() {
         val text = "a = 1\r\nb = 2\n"
@@ -149,14 +140,12 @@ class ExitCodeTest {
         assertEquals(text, terminal.out.toString())
     }
 
-    @Ignore
     @Test
     fun `times print as JSON with their seconds`() {
         val (_, terminal) = kotoml("get", "--json", ".", file("lt = 07:32\nodt = 1979-05-27T07:32Z\n"))
         assertEquals("{\"lt\":\"07:32:00\",\"odt\":\"1979-05-27T07:32:00Z\"}", terminal.out.toString().trim())
     }
 
-    @Ignore
     @Test
     fun `an error names the file it is in`() {
         val bad = file("a = 1\na = 2\n")
@@ -164,7 +153,6 @@ class ExitCodeTest {
         assertTrue(terminal.err.toString().startsWith("error: $bad: "), terminal.err.toString())
     }
 
-    @Ignore
     @Test
     fun `check takes several files and names each`() {
         val good = file("a = 1\n")
@@ -175,7 +163,72 @@ class ExitCodeTest {
         assertTrue("error: $bad: " in terminal.err.toString(), terminal.err.toString())
     }
 
-    @Ignore
+    @Test
+    fun `an index past the end exits 3`() {
+        val (code, terminal) = kotoml("get", ".a[2]", file("a = [1]\n"))
+        assertEquals(3, code)
+        assertEquals("error: no index 2 at .a[2], it has 1\n", terminal.err.toString())
+    }
+
+    @Test
+    fun `check of one file prints OK and of several names each valid one`() {
+        val good = file("a = 1\n")
+        val other = file("b = 1\n")
+        assertEquals("OK\n", kotoml("check", good).second.out.toString())
+        val (code, terminal) = kotoml("check", good, other)
+        assertEquals(0, code)
+        assertEquals("$good: OK\n$other: OK\n", terminal.out.toString())
+        assertEquals("", terminal.err.toString())
+    }
+
+    @Test
+    fun `check --json of several files prints each with its error`() {
+        val good = file("a = 1\n")
+        val missing = Path(SystemTemporaryDirectory, "kotoml-missing-${Random.nextLong().toULong()}.toml").toString()
+        val (code, terminal) = kotoml("check", "--json", good, missing)
+        assertEquals(1, code)
+        assertEquals(
+            "[{\"path\":\"$good\",\"valid\":true},{\"path\":\"$missing\",\"valid\":false,\"error\":" +
+                "{\"type\":\"ReadFailed\",\"path\":\"$missing\",\"failure\":{\"type\":\"NotFound\"}}}]",
+            terminal.out.toString().trim(),
+        )
+        assertEquals("", terminal.err.toString())
+    }
+
+    @Test
+    fun `a bare kotoml prints its help on standard error and exits 2`() {
+        val (code, terminal) = kotoml()
+        assertEquals(2, code)
+        assertEquals("", terminal.out.toString())
+        assertTrue("usage: kotoml" in terminal.err.toString(), terminal.err.toString())
+    }
+
+    @Test
+    fun `kotoml --help prints its help on standard output`() {
+        val (code, terminal) = kotoml("--help")
+        assertEquals(0, code)
+        assertTrue("usage: kotoml" in terminal.out.toString(), terminal.out.toString())
+    }
+
+    @Test
+    fun `decode reads a file`() {
+        val (code, terminal) = kotoml("decode", file("a = 1\n"))
+        assertEquals(0, code)
+        assertEquals("{\"a\":{\"type\":\"integer\",\"value\":\"1\"}}\n", terminal.out.toString())
+    }
+
+    @Test
+    fun `encode names the file its JSON error is in`() {
+        val bad = file("{\"a\":1}")
+        val (code, terminal) = kotoml("encode", bad)
+        assertEquals(1, code)
+        assertEquals(
+            "error: $bad: not toml-test's tagged JSON at $.a: expected a {\"type\":…,\"value\":…} object, a table " +
+                "or an array\n",
+            terminal.err.toString(),
+        )
+    }
+
     @Test
     fun `encode reads a file and ends its text with one newline`() {
         val (code, terminal) = kotoml("encode", file("{\"a\":{\"type\":\"integer\",\"value\":\"1\"}}"))

@@ -237,7 +237,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
         finishTable()
 
         val text = source.input
-        val input = SourceText(text)
+        val input = SourceText(text, locatesKeys = true)
         // A failed parse is thrown away, and its recovery spans need not fit the text, as other entry points also skip.
         val failed = errors.error != null
         if (!failed) {

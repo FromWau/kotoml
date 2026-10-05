@@ -2,9 +2,11 @@ package com.fromwau.kotoml.app
 
 import com.fromwau.kern.result.EmptyResult
 import com.fromwau.kern.result.Err
+import com.fromwau.kern.result.IError
 import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
 import com.fromwau.kern.result.getOrElse
+import com.fromwau.kern.result.mapError
 import com.fromwau.kotoml.Datetime
 import com.fromwau.kotoml.InlineTable
 import com.fromwau.kotoml.Item
@@ -92,32 +94,59 @@ private fun String.nesting(): Int {
     return deepest
 }
 
-/** This document's text, or the tagged JSON path of the first string or key that UTF-8 cannot write. */
-internal fun TomlDocument.encodedText(): Result<String, AppError> {
+/**
+ * This document's text, or the tagged JSON path of the first string or key that UTF-8 cannot write; [path] names
+ * the JSON it was read from.
+ */
+internal fun TomlDocument.encodedText(path: String = "-"): Result<String, AppError> {
     val buffer = Buffer()
     return when (val written = writeTo(buffer)) {
         is Result.Success -> Ok(buffer.readString())
         is Result.Error -> when (val error = written.error) {
             is TomlWriteError.NotUnicode -> {
-                val path = error.keyPath?.joinToString("") { ".$it" }.orEmpty()
-                notTagged("$$path", TaggedJsonProblem.NotUnicode)
+                val at = error.keyPath?.joinToString("") { ".$it" }.orEmpty()
+                Err(AppError.NotTaggedJson(path, "$$at", TaggedJsonProblem.NotUnicode))
             }
-            is TomlWriteError.TooDeep -> Err(AppError.JsonTooDeep(MAX_JSON_NESTING))
+            is TomlWriteError.TooDeep -> Err(AppError.JsonTooDeep(path, MAX_JSON_NESTING))
             is TomlWriteError.NotInToml10 -> error("a document built from JSON writes TOML 1.1")
             is TomlIoError -> error("a Buffer accepts every write")
         }
     }
 }
 
-/** The document toml-test's tagged JSON [text] describes, which its encoder protocol reads. */
-internal fun parseTaggedJson(text: String): Result<TomlDocument, AppError> {
+/** The document toml-test's tagged JSON [text], read from [path], describes, which its encoder protocol reads. */
+internal fun parseTaggedJson(
+    text: String,
+    path: String = "-",
+): Result<TomlDocument, AppError> = text.toDocument().mapError { it.from(path) }
+
+/** Why JSON text does not describe a document, before it is known which input it came from. */
+private sealed interface JsonProblem : IError {
+    data class Invalid(val position: TextPosition?) : JsonProblem
+
+    data class NotTagged(
+        val at: String,
+        val reason: TaggedJsonProblem,
+    ) : JsonProblem
+
+    data object TooDeep : JsonProblem
+}
+
+private fun JsonProblem.from(path: String): AppError = when (this) {
+    is JsonProblem.Invalid -> AppError.InvalidJson(path, position)
+    is JsonProblem.NotTagged -> AppError.NotTaggedJson(path, at, reason)
+    JsonProblem.TooDeep -> AppError.JsonTooDeep(path, MAX_JSON_NESTING)
+}
+
+private fun String.toDocument(): Result<TomlDocument, JsonProblem> {
+    val text = this
     // kotlinx's JSON reader recurses once per level, which on Kotlin/Native crashes rather than fails. Brackets
     // cannot tell a tagged value's object from a table, so this lets one level more through for it.
-    if (text.nesting() > MAX_JSON_NESTING + 1) return Err(AppError.JsonTooDeep(MAX_JSON_NESTING))
+    if (text.nesting() > MAX_JSON_NESTING + 1) return Err(JsonProblem.TooDeep)
     val json = try {
         Json.parseToJsonElement(text)
     } catch (error: SerializationException) {
-        return Err(AppError.InvalidJson(text.positionOrNull(error.message)))
+        return Err(JsonProblem.Invalid(text.positionOrNull(error.message)))
     }
     if (json !is JsonObject) return notTagged("$", TaggedJsonProblem.RootNotObject)
     val table = StandardTable()
@@ -131,7 +160,7 @@ internal fun parseTaggedJson(text: String): Result<TomlDocument, AppError> {
 }
 
 /** This element as a TOML value. */
-private fun JsonElement.toValue(path: String): Result<Value, AppError> {
+private fun JsonElement.toValue(path: String): Result<Value, JsonProblem> {
     when (this) {
         is JsonArray -> {
             val array = TomlArray()
@@ -161,13 +190,13 @@ private fun JsonElement.toValue(path: String): Result<Value, AppError> {
 }
 
 /** The error to return for a store that nested too deep, or null when it stored. */
-private fun EmptyResult<TomlEditError>.orJsonTooDeep(): Result<Nothing, AppError>? =
-    (this as? Result.Error)?.let { Err(AppError.JsonTooDeep(MAX_JSON_NESTING)) }
+private fun EmptyResult<TomlEditError>.orJsonTooDeep(): Result<Nothing, JsonProblem>? =
+    (this as? Result.Error)?.let { Err(JsonProblem.TooDeep) }
 
 private fun notTagged(
-    path: String,
+    at: String,
     reason: TaggedJsonProblem,
-): Result<Nothing, AppError> = Err(AppError.NotTaggedJson(path, reason))
+): Result<Nothing, JsonProblem> = Err(JsonProblem.NotTagged(at, reason))
 
 private val TOML_TYPES =
     setOf("string", "integer", "float", "bool", "datetime", "datetime-local", "date-local", "time-local")
@@ -176,7 +205,7 @@ private val TOML_TYPES =
 private fun JsonObject.taggedValue(
     type: String,
     path: String,
-): Result<Value, AppError> {
+): Result<Value, JsonProblem> {
     if (type !in TOML_TYPES) return notTagged(path, TaggedJsonProblem.UnknownType(type))
     val value = get("value") ?: return notTagged(path, TaggedJsonProblem.MissingValue)
     if (value !is JsonPrimitive || !value.isString) return notTagged(path, TaggedJsonProblem.ValueNotString)
@@ -213,8 +242,8 @@ private fun Datetime.tag(): String = when (this) {
     is Datetime.LocalTime -> "time-local"
 }
 
-// toml-test reads a time with its seconds, which TOML 1.1 lets a document leave out.
-private fun Datetime.withSeconds(): Datetime = when (this) {
+// toml-test reads a time with its seconds, which TOML 1.1 lets a document leave out, and so does JSON's RFC 3339.
+internal fun Datetime.withSeconds(): Datetime = when (this) {
     is Datetime.OffsetDateTime -> copy(time = time.withSeconds())
     is Datetime.LocalDateTime -> copy(time = time.withSeconds())
     is Datetime.LocalDate -> this

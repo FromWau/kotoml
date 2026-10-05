@@ -92,7 +92,8 @@ internal fun knownValueOrNull(
 ): Any? = when {
     serialName == DURATION -> {
         val text = input.string(path)
-        Duration.parseOrNull(text) ?: throw DecodeFailure(TomlDecodeError.Unparsable("$path", text, serialName))
+        Duration.parseOrNull(text)
+            ?: throw DecodeFailure(TomlDecodeError.Unparsable("$path", text, serialName, path.position))
     }
     serialName == U_BYTE -> input.integerIn(path, serialName, 0L..UByte.MAX_VALUE.toLong()).toUByte()
     serialName == U_SHORT -> input.integerIn(path, serialName, 0L..UShort.MAX_VALUE.toLong()).toUShort()
@@ -176,7 +177,7 @@ internal class UnsignedDecoder(
 }
 
 private fun TomlInput.string(path: TomlPath): String = (this as? TomlInput.Scalar)?.value?.stringOrNull
-    ?: throw DecodeFailure(TomlDecodeError.TypeMismatch("$path", TomlType.String, type))
+    ?: throw DecodeFailure(mismatchAt(path, TomlType.String, this))
 
 /** The integer at [path], refused unless it is in [range] of the type named [serialName]. */
 internal fun TomlInput?.integerIn(
@@ -186,7 +187,9 @@ internal fun TomlInput?.integerIn(
 ): Long {
     val integer = (this as? TomlInput.Scalar)?.value?.longOrNull
         ?: throw DecodeFailure(mismatchAt(path, TomlType.Integer, this))
-    if (integer !in range) throw DecodeFailure(TomlDecodeError.OutOfRange("$path", "$integer", serialName))
+    if (integer !in range) {
+        throw DecodeFailure(TomlDecodeError.OutOfRange("$path", "$integer", serialName, path.position))
+    }
     return integer
 }
 
@@ -207,16 +210,17 @@ private inline fun <reified D : Datetime, T> TomlInput.datetime(
     return when {
         datetime != null -> {
             if (datetime !is D) {
-                throw DecodeFailure(TomlDecodeError.DatetimeKindMismatch("$path", kind, datetime.kind))
+                val error = TomlDecodeError.DatetimeKindMismatch("$path", kind, datetime.kind, path.position)
+                throw DecodeFailure(error)
             }
             convert(datetime)
         }
         text != null -> try {
             parse(text)
         } catch (_: IllegalArgumentException) {
-            throw DecodeFailure(TomlDecodeError.Unparsable("$path", text, serialName))
+            throw DecodeFailure(TomlDecodeError.Unparsable("$path", text, serialName, path.position))
         }
-        else -> throw DecodeFailure(TomlDecodeError.TypeMismatch("$path", TomlType.Datetime, type))
+        else -> throw DecodeFailure(mismatchAt(path, TomlType.Datetime, this))
     }
 }
 
@@ -237,7 +241,7 @@ private val Offset.minutesEast: Int
 private fun Date.toLocalDate(): LocalDate = LocalDate(year, month, day)
 
 private fun Time.toLocalTime(path: TomlPath): LocalTime {
-    if (second == 60) throw DecodeFailure(TomlDecodeError.LeapSecond("$path"))
+    if (second == 60) throw DecodeFailure(TomlDecodeError.LeapSecond("$path", path.position))
     return LocalTime(hour, minute, second ?: 0, nanosecond ?: 0)
 }
 

@@ -1,5 +1,6 @@
 package com.fromwau.kotoml.serialization
 
+import com.fromwau.kotoml.TextPosition
 import com.fromwau.kotoml.TomlType
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
@@ -15,7 +16,7 @@ class ScalarTest {
     @Test
     fun `an integer outside Int is out of range`() {
         assertEquals(
-            TomlDecodeError.OutOfRange("int", "2147483648", "kotlin.Int"),
+            TomlDecodeError.OutOfRange("int", "2147483648", "kotlin.Int", position = TextPosition(1, 1)),
             Toml.decodeFromString<Numbers>("int = 2147483648\n").errorOrFail(),
         )
     }
@@ -23,7 +24,7 @@ class ScalarTest {
     @Test
     fun `an integer outside Short is out of range`() {
         assertEquals(
-            TomlDecodeError.OutOfRange("short", "-32769", "kotlin.Short"),
+            TomlDecodeError.OutOfRange("short", "-32769", "kotlin.Short", position = TextPosition(1, 1)),
             Toml.decodeFromString<Numbers>("short = -32769\n").errorOrFail(),
         )
     }
@@ -31,7 +32,7 @@ class ScalarTest {
     @Test
     fun `an integer outside Byte is out of range`() {
         assertEquals(
-            TomlDecodeError.OutOfRange("byte", "128", "kotlin.Byte"),
+            TomlDecodeError.OutOfRange("byte", "128", "kotlin.Byte", position = TextPosition(1, 1)),
             Toml.decodeFromString<Numbers>("byte = 128\n").errorOrFail(),
         )
     }
@@ -56,7 +57,13 @@ class ScalarTest {
     @Test
     fun `a float does not read into an integer`() {
         assertEquals(
-            TomlDecodeError.TypeMismatch("long", TomlType.Integer, TomlType.Float),
+            TomlDecodeError.TypeMismatch(
+                "long",
+                TomlType.Integer,
+                TomlType.Float,
+                value = "1.0",
+                position = TextPosition(1, 1),
+            ),
             Toml.decodeFromString<Numbers>("long = 1.0\n").errorOrFail(),
         )
     }
@@ -64,7 +71,7 @@ class ScalarTest {
     @Test
     fun `a float too large for Float is out of range`() {
         assertEquals(
-            TomlDecodeError.OutOfRange("float", "1.0E300", "kotlin.Float"),
+            TomlDecodeError.OutOfRange("float", "1.0E300", "kotlin.Float", position = TextPosition(1, 1)),
             Toml.decodeFromString<Numbers>("float = 1e300\n").errorOrFail(),
         )
     }
@@ -72,11 +79,11 @@ class ScalarTest {
     @Test
     fun `a non-zero float too small for Float is out of range`() {
         assertEquals(
-            TomlDecodeError.OutOfRange("float", "1.0E-50", "kotlin.Float"),
+            TomlDecodeError.OutOfRange("float", "1.0E-50", "kotlin.Float", position = TextPosition(1, 1)),
             Toml.decodeFromString<Numbers>("float = 1e-50\n").errorOrFail(),
         )
         assertEquals(
-            TomlDecodeError.OutOfRange("float", "-1.0E-50", "kotlin.Float"),
+            TomlDecodeError.OutOfRange("float", "-1.0E-50", "kotlin.Float", position = TextPosition(1, 1)),
             Toml.decodeFromString<Numbers>("float = -1e-50\n").errorOrFail(),
         )
     }
@@ -118,7 +125,7 @@ class ScalarTest {
         assertEquals("char = \"z\"\n", Toml.encodeToString(Numbers(char = 'z')).getOrFail())
         assertEquals('z', Toml.decodeFromString<Numbers>("char = \"z\"\n").getOrFail().char)
         assertEquals(
-            TomlDecodeError.Unparsable("char", "zz", "kotlin.Char"),
+            TomlDecodeError.Unparsable("char", "zz", "kotlin.Char", position = TextPosition(1, 1)),
             Toml.decodeFromString<Numbers>("char = \"zz\"\n").errorOrFail(),
         )
     }
@@ -134,7 +141,7 @@ class ScalarTest {
     @Test
     fun `a negative integer is out of range for an unsigned field`() {
         assertEquals(
-            TomlDecodeError.OutOfRange("int", "-1", "kotlin.UInt"),
+            TomlDecodeError.OutOfRange("int", "-1", "kotlin.UInt", position = TextPosition(1, 1)),
             Toml.decodeFromString<Unsigned>("int = -1\n").errorOrFail(),
         )
     }
@@ -193,11 +200,11 @@ class ScalarTest {
     @Test
     fun `a leap second is a typed error`() {
         assertEquals(
-            TomlDecodeError.LeapSecond("time"),
+            TomlDecodeError.LeapSecond("time", position = TextPosition(1, 1)),
             Toml.decodeFromString<Times>("time = 23:59:60\n").errorOrFail(),
         )
         assertEquals(
-            TomlDecodeError.LeapSecond("instant"),
+            TomlDecodeError.LeapSecond("instant", position = TextPosition(1, 1)),
             Toml.decodeFromString<Times>("instant = 1990-12-31T23:59:60Z\n").errorOrFail(),
         )
     }
@@ -205,11 +212,21 @@ class ScalarTest {
     @Test
     fun `a date-time of the wrong kind names both kinds`() {
         assertEquals(
-            TomlDecodeError.DatetimeKindMismatch("instant", DatetimeKind.OffsetDateTime, DatetimeKind.LocalDateTime),
+            TomlDecodeError.DatetimeKindMismatch(
+                "instant",
+                DatetimeKind.OffsetDateTime,
+                DatetimeKind.LocalDateTime,
+                position = TextPosition(1, 1),
+            ),
             Toml.decodeFromString<Times>("instant = 1979-05-27T07:32:00\n").errorOrFail(),
         )
         assertEquals(
-            TomlDecodeError.DatetimeKindMismatch("date", DatetimeKind.LocalDate, DatetimeKind.LocalTime),
+            TomlDecodeError.DatetimeKindMismatch(
+                "date",
+                DatetimeKind.LocalDate,
+                DatetimeKind.LocalTime,
+                TextPosition(1, 1),
+            ),
             Toml.decodeFromString<Times>("date = 07:32:00\n").errorOrFail(),
         )
     }
@@ -240,7 +257,13 @@ class ScalarTest {
     @Test
     fun `a number in a date-time field is a type mismatch`() {
         assertEquals(
-            TomlDecodeError.TypeMismatch("date", TomlType.Datetime, TomlType.Integer),
+            TomlDecodeError.TypeMismatch(
+                "date",
+                TomlType.Datetime,
+                TomlType.Integer,
+                value = "19790527",
+                position = TextPosition(1, 1),
+            ),
             Toml.decodeFromString<Times>("date = 19790527\n").errorOrFail(),
         )
     }

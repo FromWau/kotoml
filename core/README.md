@@ -114,7 +114,8 @@ comments of what they convert. The full set of rules is goal 4 in [GOALS.md](../
 A document's top-level keys live in its `root` table. The document itself offers the map calls (`get`, `set`,
 `getOrNull`, `contains`, `keys`, `put`, `putAll`, `getOrPut`, `remove`, `retainAll`, `removeAll`, `clear`,
 `size`) and iterates over the root's pairs; everything else a `StandardTable` does, such as `sortBy { (key, _) -> key }`
-or `keyOrNull(name)`, goes through `doc.root`.
+or `keyOrNull(name)`, goes through `doc.root`. A key read from text knows its `position`, the line and column it
+was written at, so a program checking a parsed document can point at the line it complains about.
 
 ## Build and edit with blocks
 

@@ -1,5 +1,6 @@
 package com.fromwau.kotoml.serialization
 
+import com.fromwau.kotoml.TextPosition
 import com.fromwau.kern.result.Result
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.KSerializer
@@ -104,7 +105,7 @@ class NullableReachTest {
     fun `a nullable field of a subclass only the default deserializer finds is refused when it is read`() {
         val toml = Toml { serializersModule = catsByDefault }
         assertEquals(
-            Result.Error(TomlDecodeError.NullableType("pet.name")),
+            Result.Error(TomlDecodeError.NullableType("pet.name", position = TextPosition(3, 1))),
             toml.decodeFromString<Home>("[pet]\ntype = \"cat\"\nname = \"c\"\n"),
         )
     }
@@ -113,7 +114,7 @@ class NullableReachTest {
     fun `a null a serializer writes or asks for is refused`() {
         assertEquals(Result.Error(TomlEncodeError.NullValue("label")), Toml.encodeToString(Label("l")))
         assertEquals(
-            Result.Error(TomlDecodeError.NullValue("label")),
+            Result.Error(TomlDecodeError.NullValue("label", position = TextPosition(1, 1))),
             Toml.decodeFromString<Label>("label = \"l\"\n"),
         )
     }

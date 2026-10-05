@@ -17,6 +17,8 @@ import kotlinx.serialization.descriptors.StructureKind
 import kotlinx.serialization.modules.EmptySerializersModule
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.serializerOrNull
+import kotlin.reflect.KClass
+import kotlin.reflect.KType
 import kotlin.reflect.typeOf
 
 /**
@@ -270,25 +272,25 @@ private fun SerialDescriptor.isTableKind(): Boolean = when {
  * ```
  */
 public inline fun <reified T> Toml.decodeFromString(text: String): Result<T, TomlDecodeError> {
-    val serializer = serializerOrNull<T>() ?: return Err(TomlDecodeError.NoSerializer("${typeOf<T>()}"))
+    val serializer = serializerOrNull<T>() ?: return Err(TomlDecodeError.NoSerializer(simpleName(typeOf<T>())))
     return decodeFromString(serializer, text)
 }
 
 /** Reads [document] as a [T]; see [Toml.decodeFromDocument]. */
 public inline fun <reified T> Toml.decodeFromDocument(document: TomlDocument): Result<T, TomlDecodeError> {
-    val serializer = serializerOrNull<T>() ?: return Err(TomlDecodeError.NoSerializer("${typeOf<T>()}"))
+    val serializer = serializerOrNull<T>() ?: return Err(TomlDecodeError.NoSerializer(simpleName(typeOf<T>())))
     return decodeFromDocument(serializer, document)
 }
 
 /** Writes [value] as TOML text; see [Toml.encodeToString]. */
 public inline fun <reified T> Toml.encodeToString(value: T): Result<String, TomlEncodeError> {
-    val serializer = serializerOrNull<T>() ?: return Err(TomlEncodeError.NoSerializer("${typeOf<T>()}"))
+    val serializer = serializerOrNull<T>() ?: return Err(TomlEncodeError.NoSerializer(simpleName(typeOf<T>())))
     return encodeToString(serializer, value)
 }
 
 /** Writes [value] into a new document; see [Toml.encodeToDocument]. */
 public inline fun <reified T> Toml.encodeToDocument(value: T): Result<TomlDocument, TomlEncodeError> {
-    val serializer = serializerOrNull<T>() ?: return Err(TomlEncodeError.NoSerializer("${typeOf<T>()}"))
+    val serializer = serializerOrNull<T>() ?: return Err(TomlEncodeError.NoSerializer(simpleName(typeOf<T>())))
     return encodeToDocument(serializer, value)
 }
 
@@ -297,9 +299,13 @@ public inline fun <reified T> Toml.encodeInto(
     document: TomlDocument,
     value: T,
 ): EmptyResult<TomlEncodeError> {
-    val serializer = serializerOrNull<T>() ?: return Err(TomlEncodeError.NoSerializer("${typeOf<T>()}"))
+    val serializer = serializerOrNull<T>() ?: return Err(TomlEncodeError.NoSerializer(simpleName(typeOf<T>())))
     return encodeInto(document, serializer, value)
 }
+
+/** The name of [type]'s class without its package, as the errors for a type with no serializer name it. */
+@PublishedApi
+internal fun simpleName(type: KType): String = (type.classifier as? KClass<*>)?.simpleName ?: "$type"
 
 @PublishedApi
 internal inline fun <reified T> Toml.serializerOrNull(): KSerializer<T>? {

@@ -19,14 +19,7 @@ internal data class Selected(
 
 /** Runs this filter on [document] and collects what it selects. */
 internal fun Filter.select(document: TomlDocument): Result<Selection, AppError> =
-    evaluate(Item(document.root)).map { Selection(it, streams, document, document.lineEnding()) }
-
-// The first line ending in the document; a document with none prints with `\n`.
-private fun TomlDocument.lineEnding(): String {
-    val text = toString()
-    val newline = text.indexOf('\n')
-    return if (newline > 0 && text[newline - 1] == '\r') "\r\n" else "\n"
-}
+    evaluate(Item(document.root)).map { Selection(it, streams, document) }
 
 /** Runs [filter] on [input]; every stage maps each output of the stage before it. */
 internal fun Filter.evaluate(input: Item): Result<List<Selected>, AppError> {

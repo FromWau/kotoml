@@ -15,12 +15,12 @@ class WireSchemaTest {
             AppError.serializer().descriptor to """
                 CannotApply(step, itemType)
                 FilterSyntax(filter, position, expected)
-                InvalidJson(position)
-                InvalidToml(error)
-                JsonTooDeep(limit)
+                InvalidJson(path, position)
+                InvalidToml(path, error)
+                JsonTooDeep(path, limit)
                 NoSuchIndex(path, index, size)
                 NoSuchKey(path, key)
-                NotTaggedJson(path, reason)
+                NotTaggedJson(path, at, reason)
                 ReadFailed(path, failure)
             """.trimIndent(),
             ReadFailure.serializer().descriptor to """
@@ -55,6 +55,7 @@ class WireSchemaTest {
                 PipeOrEnd
             """.trimIndent(),
             Checked.serializer().descriptor to "Checked(valid)",
+            CheckedFile.serializer().descriptor to "CheckedFile(path, valid, error)",
         )
         for ((descriptor, schema) in expected) {
             assertEquals(schema, descriptor.wireSchema(), descriptor.serialName)

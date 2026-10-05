@@ -1,5 +1,6 @@
 package com.fromwau.kotoml.serialization
 
+import com.fromwau.kotoml.TextPosition
 import com.fromwau.kotoml.TomlType
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
@@ -15,7 +16,7 @@ class ErrorJsonTest {
     @Test
     fun `a missing key encodes as its path`() {
         assertEquals(
-            """{"type":"MissingKey","path":"database.url"}""",
+            """{"type":"MissingKey","path":"database.url","position":{"line":2,"column":2}}""",
             json(Toml.decodeFromString<App>("title = \"t\"\n[database]\n").errorOrFail()),
         )
     }
@@ -39,7 +40,8 @@ class ErrorJsonTest {
     @Test
     fun `an unknown enum value lists the names`() {
         assertEquals(
-            """{"type":"UnknownEnumValue","path":"mode","value":"tcp","names":["TCP","udp"],"suggestion":"TCP"}""",
+            """{"type":"UnknownEnumValue","path":"mode","value":"tcp","names":["TCP","udp"],"suggestion":"TCP",""" +
+                """"position":{"line":3,"column":1}}""",
             json(Toml.decodeFromString<Config>("hostname = \"h\"\nport = 1\nmode = \"tcp\"\n").errorOrFail()),
         )
     }
@@ -47,7 +49,8 @@ class ErrorJsonTest {
     @Test
     fun `a datetime kind mismatch names both kinds`() {
         assertEquals(
-            """{"type":"DatetimeKindMismatch","path":"date","expected":"LocalDate","found":"LocalTime"}""",
+            """{"type":"DatetimeKindMismatch","path":"date","expected":"LocalDate","found":"LocalTime",""" +
+                """"position":{"line":1,"column":1}}""",
             json(Toml.decodeFromString<Times>("date = 07:32:00\n").errorOrFail()),
         )
     }
