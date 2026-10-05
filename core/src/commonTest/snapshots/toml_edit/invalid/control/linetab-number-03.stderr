@@ -1,5 +1,5 @@
 TOML parse error at line 1, column 25
   |
-1 | linetab-number-03 = 0xff
+1 | linetab-number-03 = 0xff\x0B
   |                         ^
 invalid hexadecimal number

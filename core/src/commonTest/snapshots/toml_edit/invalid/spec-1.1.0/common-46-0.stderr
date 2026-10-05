@@ -2,4 +2,4 @@ TOML parse error at line 5, column 8
   |
 5 | [fruit.apple]  # INVALID
   |        ^^^^^
-duplicate key `apple`
+duplicate key `fruit.apple`

@@ -81,6 +81,11 @@ public sealed interface ParseErrorReason {
     @SerialName("TooFewUnicodeDigits")
     public data object TooFewUnicodeDigits : ParseErrorReason
 
+    /** A `\u` or `\U` escape for a surrogate or a code point past U+10FFFF, which is not a Unicode scalar value. */
+    @Serializable
+    @SerialName("InvalidCodePoint")
+    public data object InvalidCodePoint : ParseErrorReason
+
     /** A carriage return not followed by a line feed. */
     @Serializable
     @SerialName("LoneCarriageReturn")

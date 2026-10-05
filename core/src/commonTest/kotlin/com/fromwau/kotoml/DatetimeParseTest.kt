@@ -112,8 +112,12 @@ Ok(
             """
 Err(
     DatetimeParseError {
-        what: None,
-        expected: None,
+        what: Some(
+            "time",
+        ),
+        expected: Some(
+            "a second before the fraction",
+        ),
     },
 )
 

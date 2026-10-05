@@ -1,6 +1,5 @@
 TOML parse error at line 1, column 22
   |
-1 | multi-cr   = """null
-"""
-  |                      ^
+1 | multi-cr   = """null\x0D"""
+  |                         ^
 carriage return must be followed by newline, expected newline

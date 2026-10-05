@@ -17,7 +17,7 @@ class WireSchemaTest {
             TextPosition.serializer().descriptor to "TextPosition(line, column)",
             TomlParseError.Reason.serializer().descriptor to """
                 DottedKeyExtendsValue(key, valueType)
-                DuplicateKey(key)
+                DuplicateKey(keyPath)
                 FloatOverflow()
                 IntegerOverflow()
                 InvalidDatetime(error)
@@ -35,6 +35,7 @@ class WireSchemaTest {
                 ExtraAssignment()
                 ExtraEquals()
                 ExtraInlineTableComma()
+                InvalidCodePoint()
                 InvalidCommentCharacter()
                 InvalidFloatPart(part)
                 InvalidInlineTableElement()
@@ -114,6 +115,7 @@ class WireSchemaTest {
                 DateOrTimeSeparator()
                 DaySeparator()
                 Digits(field)
+                End()
                 MinuteSeparator()
                 OffsetStart()
                 Range(field, min, max)
@@ -185,6 +187,8 @@ class WireSchemaTest {
                 MultilineInlineTable
                 InlineTableTrailingComma
                 TimeWithoutSeconds
+                HexEscape
+                EscapeEscape
             """.trimIndent(),
         )
         for ((descriptor, schema) in expected) {

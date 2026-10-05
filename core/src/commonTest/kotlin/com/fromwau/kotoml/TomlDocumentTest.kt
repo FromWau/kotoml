@@ -103,7 +103,7 @@ class TomlDocumentTest {
         val error = TomlDocument.read(Buffer().apply { writeString(text) }).errorOrFail()
 
         assertIs<TomlReadError.Parse>(error)
-        assertEquals(TomlParseError.Reason.DuplicateKey("a"), error.error.reason)
+        assertEquals(TomlParseError.Reason.DuplicateKey(listOf("a")), error.error.reason)
         assertEquals(text, error.text)
     }
 
@@ -157,7 +157,7 @@ class TomlDocumentTest {
             Json.encodeToString(TomlReadError.serializer(), io),
         )
         assertEquals(
-            """{"type":"Parse","error":{"reason":{"type":"DuplicateKey","key":"a"},""" +
+            """{"type":"Parse","error":{"reason":{"type":"DuplicateKey","keyPath":["a"]},""" +
                 """"span":{"start":6,"end":7},"position":{"line":2,"column":1},"context":{"start":0,"end":1}}}""",
             Json.encodeToString(TomlReadError.serializer(), parse),
         )

@@ -33,10 +33,13 @@ public data class TomlParseError(
         @SerialName("Syntax")
         public data class Syntax(val reason: ParseErrorReason) : Reason
 
-        /** [key] is defined twice, or a dotted key reopens a table already defined with a header. */
+        /**
+         * The key at [keyPath] is defined twice, or a dotted key reopens a table already defined with a header.
+         * [keyPath] leads from the document's root; an array of tables adds no part for its element.
+         */
         @Serializable
         @SerialName("DuplicateKey")
-        public data class DuplicateKey(val key: String) : Reason
+        public data class DuplicateKey(val keyPath: List<String>) : Reason
 
         /** A dotted key goes through [key], which holds a [valueType] value rather than a table. */
         @Serializable
@@ -85,7 +88,7 @@ public data class TomlParseError(
     }
 }
 
-/** What TOML 1.1 accepts that 1.0 does not, beyond the escapes. */
+/** What TOML 1.1 accepts that 1.0 does not. */
 public enum class Toml11Feature {
     /** Newlines and comments inside an inline table. */
     MultilineInlineTable,
@@ -95,6 +98,12 @@ public enum class Toml11Feature {
 
     /** A time without seconds, such as `07:32`. */
     TimeWithoutSeconds,
+
+    /** The `\xHH` escape in a basic string, for a code point up to U+00FF, such as `\x41`. */
+    HexEscape,
+
+    /** The `\e` escape in a basic string, for the escape character U+001B. */
+    EscapeEscape,
 }
 
 /** A place in text: the 1-based [line], and the 1-based [column] counted in characters. */

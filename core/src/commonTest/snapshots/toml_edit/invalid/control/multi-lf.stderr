@@ -1,5 +1,5 @@
 TOML parse error at line 1, column 21
   |
-1 | multi-lf   = """null"""
-  |                     ^
+1 | multi-lf   = """null\x10"""
+  |                     ^^^^
 invalid multi-line basic string, expected `\`, characters

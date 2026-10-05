@@ -13,7 +13,7 @@ class ErrorJsonTest {
     @Test
     fun `a duplicate key names the key and both places`() {
         assertEquals(
-            """{"reason":{"type":"DuplicateKey","key":"a"},"span":{"start":6,"end":7},""" +
+            """{"reason":{"type":"DuplicateKey","keyPath":["a"]},"span":{"start":6,"end":7},""" +
                 """"position":{"line":2,"column":1},"context":{"start":0,"end":1}}""",
             json("a = 1\na = 2\n"),
         )

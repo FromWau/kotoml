@@ -19,7 +19,7 @@ class ParseValueTest {
     }
 
     @Test
-    fun `an empty value reports that string values must be quoted`() {
+    fun `an empty value reports a missing value`() {
         assertEvents("", "value_empty")
     }
 

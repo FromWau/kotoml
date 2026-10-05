@@ -38,33 +38,33 @@ internal class ParseContext(val source: TomlSource, val errors: TomlSink, val ve
 
     /**
      * [errors] for decoding strings and keys. The decoder reads TOML 1.1's escapes, so 1.0 swaps in its own list,
-     * and a malformed `\x` escape, which 1.0 does not have, is reported as an unknown escape at its `x`.
+     * and refuses a malformed `\x` escape as a TOML 1.1 feature, as it does a well-formed one.
      */
     val decodeErrors: ErrorSink = if (version == TomlVersion.V1_0) {
         ErrorSink { error ->
-            val reported = when (error.reason) {
-                ParseErrorReason.MissingEscapedValue -> error.copy(expected = EXPECTED_ESCAPES_V1_0)
-                ParseErrorReason.TooFewUnicodeDigits -> unknownHexEscape(error) ?: error
-                else -> error
+            val hexEscape = if (error.reason == ParseErrorReason.TooFewUnicodeDigits) hexEscapeStart(error) else null
+            when {
+                hexEscape != null -> {
+                    val end = error.unexpected?.end ?: hexEscape
+                    errors.report(Reason.NotInToml10(Toml11Feature.HexEscape), unexpected = Span(hexEscape, end))
+                }
+                error.reason == ParseErrorReason.MissingEscapedValue ->
+                    errors.reportError(error.copy(expected = EXPECTED_ESCAPES_V1_0))
+                else -> errors.reportError(error)
             }
-            errors.reportError(reported)
         }
     } else {
         errors
     }
 
-    /** [error], a hex escape with too few digits, as TOML 1.0 sees it when the escape is `\x`; null otherwise. */
-    private fun unknownHexEscape(error: ParseError): ParseError? {
+    /** Where the escape starts when [error], a hex escape with too few digits, is in a `\x` escape; null otherwise. */
+    private fun hexEscapeStart(error: ParseError): Int? {
         val bytes = source.bytes
         // The digits the escape did have lie between its letter and where the error points.
         var letter = (error.unexpected ?: return null).start - 1
         while (letter >= 0 && bytes[letter].toInt().toChar().isAsciiHexDigit()) letter--
         if (letter < 1 || bytes[letter] != 'x'.code.toByte() || bytes[letter - 1] != '\\'.code.toByte()) return null
-        return error.copy(
-            reason = ParseErrorReason.MissingEscapedValue,
-            unexpected = Span(letter, letter),
-            expected = EXPECTED_ESCAPES_V1_0,
-        )
+        return letter - 1
     }
 
     /**
@@ -73,6 +73,9 @@ internal class ParseContext(val source: TomlSource, val errors: TomlSink, val ve
      * tree is as deep as both together, and dotted keys inside nested inline tables would multiply past either bound.
      */
     var nesting = 0
+
+    /** The keys from the document's root to the value being built; an array adds none for its element. */
+    var valuePath: List<String> = emptyList()
 
     fun nextOrder(): Long = nextOrder++
 
@@ -156,6 +159,10 @@ private class DocumentBuilder(private val input: EventStream, private val contex
     private var currentHeader: TableHeader? = null
     private var currentPosition = 0L
 
+    /** The keys from the root to the table whose lines are being read. */
+    private val currentTablePath: List<String>
+        get() = currentHeader?.let { header -> header.path.names() + listOfNotNull(header.key?.name) }.orEmpty()
+
     fun document(lineEnding: String): TomlDocument {
         while (true) {
             val event = input.next() ?: break
@@ -201,6 +208,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
                     } else {
                         null
                     } ?: KeptText()
+                    context.valuePath = currentTablePath + path.names() + key.name
                     val value = context.nest(path.size) { value(input, context) }
                     val (suffixSpan, newline) = wsCommentNewline(input)
                     if (value == null) continue
@@ -283,11 +291,12 @@ private class DocumentBuilder(private val input: EventStream, private val contex
     private fun captureKeyValue(path: List<Key>, key: Key, value: Value): KeyValue? {
         val dotted = path.isNotEmpty()
         val shared = mutableListOf<Key>()
-        val parentTable = descendPath(currentTable, path, dotted, errors, shared) ?: return null
+        val keyPath = currentTablePath + path.names() + key.name
+        val parentTable = descendPath(currentTable, currentTablePath, path, dotted, errors, shared) ?: return null
         // "Likewise, using dotted keys to redefine tables already defined in [table] form is not allowed"
         val mixedTableTypes = dotted && !parentTable.isImplicit
         if (mixedTableTypes) {
-            errors.report(Reason.DuplicateKey(key.name), unexpected = keySpan(key))
+            errors.report(Reason.DuplicateKey(keyPath), unexpected = keySpan(key))
             return null
         }
         val existing = parentTable.items.getEntry(key.name)
@@ -301,7 +310,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
             // "Since tables cannot be defined more than once, redefining such tables using a [table] header is
             // not allowed"
             errors.report(
-                Reason.DuplicateKey(key.name),
+                Reason.DuplicateKey(keyPath),
                 unexpected = keySpan(key),
                 context = existing.key.span,
             )
@@ -321,7 +330,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
         val key = header.key ?: return
         previousTable.span = header.span
 
-        val parentTable = descendPath(root, header.path, false, errors) ?: return
+        val parentTable = descendPath(root, emptyList(), header.path, false, errors) ?: return
         previousTable.headerSpelling = PathSpelling.ofHeader(header.path + key)
         if (header.isArray) {
             val keySpan = keySpan(key)
@@ -330,7 +339,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
             val array = entry.item.arrayOfTablesOrNull
             if (array == null) {
                 errors.report(
-                    Reason.DuplicateKey(key.name),
+                    Reason.DuplicateKey(header.path.names() + key.name),
                     unexpected = keySpan,
                     context = entry.item.span,
                 )
@@ -349,7 +358,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
         if (!header.isArray) {
             // Looking the table up here points a duplicate-key error at the right line, and keeps the child
             // tables an implicit table already has.
-            val parentTable = descendPath(root, header.path, false, errors)
+            val parentTable = descendPath(root, emptyList(), header.path, false, errors)
             val key = header.key
             val old = if (key != null) parentTable?.items?.remove(key.name) else null
             if (old != null && key != null) {
@@ -358,7 +367,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
                     currentTable = oldTable
                 } else {
                     errors.report(
-                        Reason.DuplicateKey(key.name),
+                        Reason.DuplicateKey(header.path.names() + key.name),
                         unexpected = keySpan(key),
                         context = old.key.span,
                     )
@@ -385,18 +394,19 @@ private class DocumentBuilder(private val input: EventStream, private val contex
 }
 
 /**
- * Walks [path] down from [start], making the implicit tables it names, and returns the table it ends at. The keys
- * the walk passes through, as the tables hold them, are added to [shared].
+ * Walks [path] down from [start], which [startPath] leads to from the root, making the implicit tables it names, and
+ * returns the table it ends at. The keys the walk passes through, as the tables hold them, are added to [shared].
  */
 private fun descendPath(
     start: StandardTable,
+    startPath: List<String>,
     path: List<Key>,
     dotted: Boolean,
     errors: TomlSink,
     shared: MutableList<Key> = mutableListOf(),
 ): StandardTable? {
     var table = start
-    for (key in path) {
+    for ((index, key) in path.withIndex()) {
         val existing = table.items.getEntry(key.name)
         if (existing == null) {
             val newTable = StandardTable()
@@ -424,7 +434,8 @@ private fun descendPath(
                 // Tables cannot be defined more than once, and dotted keys cannot extend a table defined
                 // with a header.
                 if (dotted && !child.isImplicit) {
-                    errors.report(Reason.DuplicateKey(key.name), unexpected = keySpan(key))
+                    val keyPath = startPath + path.take(index + 1).names()
+                    errors.report(Reason.DuplicateKey(keyPath), unexpected = keySpan(key))
                     return null
                 }
                 child
@@ -444,6 +455,8 @@ private fun descendPath(
 }
 
 private fun keySpan(key: Key): Span? = key.written?.span
+
+private fun List<Key>.names(): List<String> = map { it.name }
 
 /** The whitespace and comment to the end of the line, and the newline ending it, if the input did not end first. */
 private fun wsCommentNewline(input: EventStream): Pair<Span?, Event?> {
@@ -642,16 +655,17 @@ private fun checkEscapes(event: Event, context: ParseContext) {
             index++
             continue
         }
-        val escape = bytes[index + 1].toInt().toChar()
-        if (escape == 'x' || escape == 'e') {
-            context.errors.reportError(
-                ParseError(
-                    ParseErrorReason.MissingEscapedValue,
-                    context = span,
-                    expected = EXPECTED_ESCAPES_V1_0,
-                    unexpected = Span(index + 1, index + 1),
-                ),
-            )
+        val feature = when (bytes[index + 1].toInt().toChar()) {
+            'x' -> Toml11Feature.HexEscape
+            'e' -> Toml11Feature.EscapeEscape
+            else -> null
+        }
+        if (feature != null) {
+            var end = index + 2
+            if (feature == Toml11Feature.HexEscape) {
+                while (end < index + 4 && end < span.end && bytes[end].toInt().toChar().isAsciiHexDigit()) end++
+            }
+            context.errors.report(Reason.NotInToml10(feature), unexpected = Span(index, end))
             return
         }
         index += 2
@@ -748,6 +762,7 @@ private fun inlineTableBody(openEvent: Event, input: EventStream, context: Parse
     val errors = context.errors
     val result = InlineTable()
     var closeSpan = openEvent.span
+    val tablePath = context.valuePath
 
     var currentPrefix: Span? = null
     var currentKey: Pair<List<Key>, Key>? = null
@@ -774,7 +789,8 @@ private fun inlineTableBody(openEvent: Event, input: EventStream, context: Parse
         val suffix = currentSuffix ?: event.span.before()
         currentSuffix = null
         val shared = mutableListOf<Key>()
-        val table = descendInlinePath(result, path, true, errors, shared) ?: return
+        val table = descendInlinePath(result, tablePath, path, true, errors, shared) ?: return
+        val keyPath = tablePath + path.names() + key.name
 
         val decor = value.rawDecor
         decor.prefix = KeptText.withSpan(prefix)
@@ -784,7 +800,7 @@ private fun inlineTableBody(openEvent: Event, input: EventStream, context: Parse
         val mixedTableTypes = table.isDotted == path.isEmpty()
         val keySpan = key.written?.span ?: event.span
         if (mixedTableTypes) {
-            errors.report(Reason.DuplicateKey(key.name), unexpected = keySpan)
+            errors.report(Reason.DuplicateKey(keyPath), unexpected = keySpan)
         } else {
             val existing = table.items.getEntry(key.name)
             if (existing == null) {
@@ -794,7 +810,7 @@ private fun inlineTableBody(openEvent: Event, input: EventStream, context: Parse
                 if (path.isNotEmpty()) entry?.pathSpelling = PathSpelling.of(path, shared)
             } else {
                 val oldSpan = existing.key.written?.span ?: event.span
-                errors.report(Reason.DuplicateKey(key.name), unexpected = keySpan, context = oldSpan)
+                errors.report(Reason.DuplicateKey(keyPath), unexpected = keySpan, context = oldSpan)
             }
         }
     }
@@ -829,11 +845,13 @@ private fun inlineTableBody(openEvent: Event, input: EventStream, context: Parse
                 }
             }
             EventKind.InlineTableOpen -> {
+                context.valuePath = tablePath + currentKey.keyNames()
                 val value = context.nest(keyDots()) { onInlineTable(event, input, context) }
                 if (currentPrefix == null) currentPrefix = event.span.before()
                 currentValue = value
             }
             EventKind.ArrayOpen -> {
+                context.valuePath = tablePath + currentKey.keyNames()
                 val value = context.nest(keyDots()) { onArray(event, input, context) }
                 if (currentPrefix == null) currentPrefix = event.span.before()
                 currentValue = value
@@ -882,6 +900,8 @@ private fun inlineTableBody(openEvent: Event, input: EventStream, context: Parse
     }
     if (result.span == null) result.span = Span(openEvent.span.start, closeSpan.end)
 
+    // The path was set for each value inside; an array holding this table reads it for its next element.
+    context.valuePath = tablePath
     return Value.InlineTable(result)
 }
 
@@ -901,15 +921,19 @@ private inline fun <T> ParseContext.nestBracket(open: Event, block: () -> T): T 
     block()
 }
 
+private fun Pair<List<Key>, Key>?.keyNames(): List<String> =
+    this?.let { (path, key) -> path.names() + key.name }.orEmpty()
+
 private fun descendInlinePath(
     start: InlineTable,
+    startPath: List<String>,
     path: List<Key>,
     dotted: Boolean,
     errors: TomlSink,
     shared: MutableList<Key>,
 ): InlineTable? {
     var table = start
-    for (key in path) {
+    for ((index, key) in path.withIndex()) {
         val existing = table.items.getEntry(key.name)
         if (existing == null) {
             val newTable = InlineTable()
@@ -929,7 +953,8 @@ private fun descendInlinePath(
             is Value.InlineTable -> {
                 // Tables cannot be defined more than once, and dotted keys cannot extend an inline table.
                 if (dotted && !value.table.isImplicit) {
-                    errors.report(Reason.DuplicateKey(key.name), unexpected = keySpan(key))
+                    val keyPath = startPath + path.take(index + 1).names()
+                    errors.report(Reason.DuplicateKey(keyPath), unexpected = keySpan(key))
                     return null
                 }
                 value.table

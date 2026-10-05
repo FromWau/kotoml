@@ -75,7 +75,8 @@ class ExitCodeTest {
         val (code, terminal) = kotoml("check", "--json", file("a = 1\na = 2\n"))
         assertEquals(1, code)
         assertEquals(
-            "{\"error\":{\"type\":\"InvalidToml\",\"error\":{\"reason\":{\"type\":\"DuplicateKey\",\"key\":\"a\"}," +
+            "{\"error\":{\"type\":\"InvalidToml\",\"error\":" +
+                "{\"reason\":{\"type\":\"DuplicateKey\",\"keyPath\":[\"a\"]}," +
                 "\"span\":{\"start\":6,\"end\":7},\"position\":{\"line\":2,\"column\":1}," +
                 "\"context\":{\"start\":0,\"end\":1}}},\"code\":1}",
             terminal.err.toString().trim(),

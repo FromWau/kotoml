@@ -63,11 +63,11 @@ inline tables cannot end with a comma in TOML 1.0
         refusedIn10(
             "s = \"\\x41\"\n",
             """
-TOML parse error at line 1, column 7
+TOML parse error at line 1, column 6
   |
 1 | s = "\x41"
-  |       ^
-missing escaped value, expected `b`, `f`, `n`, `r`, `t`, `\`, `"`, `u`, `U`
+  |      ^^^^
+TOML 1.0 has no `\x` escape
 
 """,
         )
@@ -78,11 +78,11 @@ missing escaped value, expected `b`, `f`, `n`, `r`, `t`, `\`, `"`, `u`, `U`
         refusedIn10(
             "\"a\\e\" = 1\n",
             """
-TOML parse error at line 1, column 4
+TOML parse error at line 1, column 3
   |
 1 | "a\e" = 1
-  |    ^
-missing escaped value, expected `b`, `f`, `n`, `r`, `t`, `\`, `"`, `u`, `U`
+  |   ^^
+TOML 1.0 has no `\e` escape
 
 """,
         )

@@ -14,47 +14,92 @@ import com.fromwau.kotoml.parser.ParseError
  * duplicate key
  * ```
  *
- * The wording is `toml_edit`'s, in English. When [source] has no line at the error's position, as when it is not
- * the text that was parsed, only the message is given.
+ * The wording is `toml_edit`'s, in English. A long line is shown only around the error, about 80 characters
+ * with `…` where it is cut, and a control character other than a tab as an escape such as `\x0D`. When [source]
+ * has no line at the error's position, as when it is not the text that was parsed, only the message is given.
  */
 public fun TomlParseError.render(source: String): String = buildString {
     val span = span
     val position = position
-    // The column does not count a byte order mark, so the first line is shown without it.
-    val line = position?.let { source.split('\n').getOrNull(it.line - 1) }?.let {
-        if (position.line == 1) it.removePrefix("\uFEFF") else it
-    }
+    val line = position?.let { sourceLine(source, it.line) }
     if (span != null && position != null && line != null) {
         val lineNum = position.line
         val column = position.column - 1
         val gutter = lineNum.toString().length
-        // Platforms decode bytes that are not UTF-8 differently, so the line shows only what comes before them.
-        val content = if (reason is TomlParseError.Reason.InvalidUtf8) line.take(column) else line
-        // The caret count is upstream's: UTF-8 bytes, allowed to reach one past the line.
+        val characters = line.characters().let {
+            // Platforms decode bytes that are not UTF-8 differently, so the line shows only what comes before them.
+            if (reason is TomlParseError.Reason.InvalidUtf8) it.take(column) else it
+        }
         val spanned = source.substring(span.start.coerceIn(0, source.length), span.end.coerceIn(0, source.length))
-        val highlightLength = minOf(
-            spanned.encodeToByteArray().size + maxOf(span.end - source.length, 0),
-            maxOf(content.encodeToByteArray().size - column, 0),
-        )
+        val highlighted = minOf(spanned.characters().size, characters.size - column)
+
+        val first = (column - SHOWN_CHARACTERS / 2).coerceIn(0, maxOf(characters.size - SHOWN_CHARACTERS, 0))
+        val last = minOf(first + SHOWN_CHARACTERS, characters.size)
+        val cutBefore = if (first > 0) CUT else ""
+        val cutAfter = if (last < characters.size) CUT else ""
 
         append("TOML parse error at line $lineNum, column ${position.column}\n")
         repeat(gutter + 1) { append(' ') }
         append("|\n")
 
         append("$lineNum | ")
-        append(content)
+        append(cutBefore)
+        for (index in first until last) append(characters[index].shown())
+        append(cutAfter)
         append('\n')
 
         repeat(gutter + 1) { append(' ') }
-        append('|')
-        repeat(column + 1) { append(' ') }
+        append("| ")
+        repeat(cutBefore.length) { append(' ') }
+        // Tabs are kept so the caret lines up under a tab however wide the terminal shows it.
+        for (index in first until column) {
+            // An error at the end of the input may point past the line, one column per character it is past.
+            val shown = characters.getOrNull(index)?.shown() ?: " "
+            if (shown == "\t") append('\t') else repeat(shown.length) { append(' ') }
+        }
+        val caretWidth = (column until minOf(column + highlighted, last)).sumOf { characters[it].shown().length }
         // The span is empty at the end of input; always show at least one caret.
-        append('^')
-        for (index in 1 until highlightLength) append('^')
+        repeat(maxOf(caretWidth, 1)) { append('^') }
         append('\n')
     }
     append(describe(reason.describe(), expected))
     append('\n')
+}
+
+/** How many characters of a line around an error [render] shows at most. */
+private const val SHOWN_CHARACTERS = 80
+
+private const val CUT = "…"
+
+/**
+ * The 1-based line [number] of [source] without its line break, or null when there is none. The column does not
+ * count a byte order mark, so the first line is given without it.
+ */
+private fun sourceLine(source: String, number: Int): String? {
+    val lines = source.split('\n')
+    val line = lines.getOrNull(number - 1) ?: return null
+    val withoutBreak = if (number - 1 < lines.lastIndex) line.removeSuffix("\r") else line
+    return if (number == 1) withoutBreak.removePrefix("﻿") else withoutBreak
+}
+
+/** The characters of this text, a surrogate pair as one. */
+private fun String.characters(): List<String> {
+    val characters = ArrayList<String>(length)
+    var index = 0
+    while (index < length) {
+        val pair = this[index].isHighSurrogate() && index + 1 < length && this[index + 1].isLowSurrogate()
+        val end = if (pair) index + 2 else index + 1
+        characters.add(substring(index, end))
+        index = end
+    }
+    return characters
+}
+
+/** This character as [render] shows it: a control character other than a tab as an escape such as `\x0D`. */
+private fun String.shown(): String {
+    val code = this[0].code
+    if (length != 1 || code == '\t'.code || (code >= 0x20 && code != 0x7F)) return this
+    return "\\x" + code.toString(16).uppercase().padStart(2, '0')
 }
 
 internal fun ParseError.describe(): String = describe(reason.describe(), expected)
@@ -90,6 +135,7 @@ internal fun ParseErrorReason.describe(): String = when (this) {
     ParseErrorReason.EmptyUnquotedKey -> "unquoted keys cannot be empty"
     ParseErrorReason.MissingEscapedValue -> "missing escaped value"
     ParseErrorReason.TooFewUnicodeDigits -> "too few unicode value digits"
+    ParseErrorReason.InvalidCodePoint -> "escaped code point is a surrogate or past U+10FFFF"
     ParseErrorReason.LoneCarriageReturn -> "carriage return must be followed by newline"
     ParseErrorReason.UnexpectedLeadingZero -> "unexpected leading zero"
     ParseErrorReason.UnexpectedSign -> "unexpected sign"
@@ -127,7 +173,7 @@ internal fun ParseErrorReason.describe(): String = when (this) {
 
 internal fun Reason.describe(): String = when (this) {
     is Reason.Syntax -> reason.describe()
-    is Reason.DuplicateKey -> "duplicate key `${Key(key)}`"
+    is Reason.DuplicateKey -> "duplicate key `${keyPath.joinToString(".") { Key(it).toString() }}`"
     is Reason.DottedKeyExtendsValue -> "cannot extend value of type ${valueType.describe()} with a dotted key"
     is Reason.InvalidDatetime -> error.describe()
     is Reason.MissingDigits -> when (radix) {
@@ -145,6 +191,8 @@ internal fun Reason.describe(): String = when (this) {
         Toml11Feature.MultilineInlineTable -> "inline tables cannot span lines in TOML 1.0"
         Toml11Feature.InlineTableTrailingComma -> "inline tables cannot end with a comma in TOML 1.0"
         Toml11Feature.TimeWithoutSeconds -> "times need seconds in TOML 1.0"
+        Toml11Feature.HexEscape -> "TOML 1.0 has no `\\x` escape"
+        Toml11Feature.EscapeEscape -> "TOML 1.0 has no `\\e` escape"
     }
 }
 
@@ -185,6 +233,7 @@ internal fun DatetimeExpected.describe(part: DatetimePart?): String = when (this
     DatetimeExpected.MinuteSeparator -> "`:` (HH:MM)"
     DatetimeExpected.OffsetStart -> "`Z`, +OFFSET, -OFFSET"
     DatetimeExpected.SecondBeforeFraction -> "a second before the fraction"
+    DatetimeExpected.End -> "nothing after it"
     is DatetimeExpected.Digits -> field.describe()
     is DatetimeExpected.Width -> {
         val digits = if (width == 4) "four" else "two"

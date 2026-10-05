@@ -10,8 +10,6 @@ import kotlin.test.assertTrue
 /** Where upstream misplaces, misnames or accepts a problem, and how kotoml reports it instead. */
 class ParseFixesTest {
 
-    private val escapesV10 = listOf("b", "f", "n", "r", "t", "\\", "\"", "u", "U").map { Expected.Literal(it) }
-
     private fun syntax(reason: ParseErrorReason) = TomlParseError.Reason.Syntax(reason)
 
     private val invalidDecimal = syntax(ParseErrorReason.InvalidScalar(ScalarKind.Integer(IntegerRadix.Dec)))
@@ -93,18 +91,19 @@ bytes that are not UTF-8
     }
 
     @Test
-    fun `V1_0 reports a malformed x escape as an unknown escape at its letter`() {
+    fun `V1_0 refuses a malformed x escape as a TOML 1_1 escape at its backslash`() {
         val error = TomlDocument.parse("a = \"\\xZ1\"\n", TomlVersion.V1_0).errorOrFail()
-        assertEquals(syntax(ParseErrorReason.MissingEscapedValue), error.reason)
-        assertEquals(escapesV10, error.expected)
-        assertEquals(TextPosition(1, 7), error.position)
+        assertEquals(TomlParseError.Reason.NotInToml10(Toml11Feature.HexEscape), error.reason)
+        assertEquals(Span(5, 7), error.span)
+        assertEquals(TextPosition(1, 6), error.position)
     }
 
     @Test
-    fun `V1_0 reports an x escape with one hex digit as an unknown escape at its letter`() {
+    fun `V1_0 refuses an x escape with one hex digit as a TOML 1_1 escape over its digit`() {
         val error = TomlDocument.parse("a = \"\\x4Z\"\n", TomlVersion.V1_0).errorOrFail()
-        assertEquals(syntax(ParseErrorReason.MissingEscapedValue), error.reason)
-        assertEquals(TextPosition(1, 7), error.position)
+        assertEquals(TomlParseError.Reason.NotInToml10(Toml11Feature.HexEscape), error.reason)
+        assertEquals(Span(5, 8), error.span)
+        assertEquals(TextPosition(1, 6), error.position)
     }
 
     @Test

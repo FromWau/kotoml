@@ -150,7 +150,7 @@ c = { d = "hello" }
     fun `the module README error example renders a duplicate key with its line`() {
         val input = "a = 1\na = 2\n"
         val error = TomlDocument.parse(input).errorOrFail()
-        assertEquals(TomlParseError.Reason.DuplicateKey("a"), error.reason)
+        assertEquals(TomlParseError.Reason.DuplicateKey(listOf("a")), error.reason)
         assertEquals(TextPosition(line = 2, column = 1), error.position)
         assertSnapshot(
             """

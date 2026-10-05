@@ -26,7 +26,7 @@ class ComplianceInvalidTest {
     fun `a control character in a basic string is refused at its column`() {
         assertRefusedWith(
             "a = \"\u007F\"",
-            "\nTOML parse error at line 1, column 6\n  |\n1 | a = \"\u007F\"\n  |      ^\n" +
+            "\nTOML parse error at line 1, column 6\n  |\n1 | a = \"\\x7F\"\n  |      ^^^^\n" +
                 "invalid basic string, expected non-double-quote visible characters, `\\`\n\n",
         )
     }
@@ -35,7 +35,7 @@ class ComplianceInvalidTest {
     fun `a control character in a literal string is refused at its column`() {
         assertRefusedWith(
             "a = '\u007F'",
-            "\nTOML parse error at line 1, column 6\n  |\n1 | a = '\u007F'\n  |      ^\n" +
+            "\nTOML parse error at line 1, column 6\n  |\n1 | a = '\\x7F'\n  |      ^\n" +
                 "invalid literal string, expected non-single-quote visible characters\n\n",
         )
     }
@@ -44,22 +44,22 @@ class ComplianceInvalidTest {
     fun `a carriage return without a newline is refused in every kind of string and array`() {
         assertRefusedWith(
             "\r",
-            "\nTOML parse error at line 1, column 2\n  |\n1 | \n  |  ^\n" +
+            "\nTOML parse error at line 1, column 2\n  |\n1 | \\x0D\n  |     ^\n" +
                 "carriage return must be followed by newline, expected newline\n\n",
         )
         assertRefusedWith(
             "a = [ \r ]",
-            "\nTOML parse error at line 1, column 8\n  |\n1 | a = [ \n ]\n  |        ^\n" +
+            "\nTOML parse error at line 1, column 8\n  |\n1 | a = [ \\x0D ]\n  |           ^\n" +
                 "carriage return must be followed by newline, expected newline\n\n",
         )
         assertRefusedWith(
             "a = \"\"\"\r\"\"\"",
-            "\nTOML parse error at line 1, column 9\n  |\n1 | a = \"\"\"\n\"\"\"\n  |         ^\n" +
+            "\nTOML parse error at line 1, column 9\n  |\n1 | a = \"\"\"\\x0D\"\"\"\n  |            ^\n" +
                 "carriage return must be followed by newline, expected newline\n\n",
         )
         assertRefusedWith(
             "a = \"\"\"\\  \r  \"\"\"",
-            "\nTOML parse error at line 1, column 12\n  |\n1 | a = \"\"\"\\  \n  \"\"\"\n  |            ^\n" +
+            "\nTOML parse error at line 1, column 12\n  |\n1 | a = \"\"\"\\  \\x0D  \"\"\"\n  |               ^\n" +
                 "carriage return must be followed by newline, expected newline\n\n",
         )
         assertRefusedWith(
@@ -67,9 +67,8 @@ class ComplianceInvalidTest {
             """
 TOML parse error at line 1, column 9
   |
-1 | a = '''
-'''
-  |         ^
+1 | a = '''\x0D'''
+  |            ^
 carriage return must be followed by newline, expected newline
 
 """,
@@ -79,8 +78,7 @@ carriage return must be followed by newline, expected newline
             """
 TOML parse error at line 1, column 6
   |
-1 | a = '
-'
+1 | a = '\x0D'
   |      ^
 invalid literal string, expected non-single-quote visible characters
 
@@ -91,9 +89,8 @@ invalid literal string, expected non-single-quote visible characters
             """
 TOML parse error at line 1, column 6
   |
-1 | a = "
-"
-  |      ^
+1 | a = "\x0D"
+  |      ^^^^
 invalid basic string, expected non-double-quote visible characters, `\`
 
 """,
@@ -109,7 +106,7 @@ TOML parse error at line 5, column 1
   |
 5 | a = 2
   | ^
-duplicate key `a`
+duplicate key `t2.a`
 
 """,
         )
@@ -122,8 +119,7 @@ duplicate key `a`
             """
 TOML parse error at line 1, column 3
   |
-1 | ={[]
-].
+1 | ={[]\x0D].
   |   ^
 missing key for inline table element, expected key
 

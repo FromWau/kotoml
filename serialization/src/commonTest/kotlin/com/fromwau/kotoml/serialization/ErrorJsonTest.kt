@@ -55,7 +55,7 @@ class ErrorJsonTest {
     @Test
     fun `a parse error nests the core error`() {
         assertEquals(
-            """{"type":"Parse","error":{"reason":{"type":"DuplicateKey","key":"a"},"span":{"start":6,"end":7},""" +
+            """{"type":"Parse","error":{"reason":{"type":"DuplicateKey","keyPath":["a"]},"span":{"start":6,"end":7},""" +
                 """"position":{"line":2,"column":1},"context":{"start":0,"end":1}}}""",
             json(Toml.decodeFromString<Ports>("a = 1\na = 2\n").errorOrFail()),
         )

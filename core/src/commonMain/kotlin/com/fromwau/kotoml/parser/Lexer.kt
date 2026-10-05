@@ -34,6 +34,9 @@ internal class Lexer internal constructor(bytes: ByteArray) : Iterator<Token> {
 
 /** The input still to be lexed: [bytes] from [position] on. */
 internal class LexStream(val bytes: ByteArray, var position: Int = 0) {
+    /** Where the last search for words ending in a quote stopped without finding them, so it is not searched again. */
+    var wordsWithoutQuoteEnd: Int = -1
+
     fun isEmpty(): Boolean = position >= bytes.size
 
     val remaining: Int
@@ -193,13 +196,66 @@ internal fun LexStream.lexMlBasicString(): Token {
     return token(TokenKind.MultilineBasicString, start)
 }
 
-/** Everything else, up to the next byte that can start another token. */
+/**
+ * Everything else, up to the next byte that can start another token.
+ *
+ * Two runs go on through spaces: a date followed by a space and a digit, as the space between a date and its time,
+ * `1979-05-27 07:32:00`, and words whose last one ends in a quote, as a string missing its opening quote,
+ * `hello world"`, so that it is reported as one.
+ */
 internal fun LexStream.lexAtom(): Token {
     val start = position
     // Quotes are left out of the stop set, so a value missing its opening quote stays one token.
     while (!isEmpty() && !isAtomEnd(peek())) position++
+    if (isDate(start, position) && position + 1 < bytes.size && peek() == ' '.code && isDigit(byteAt(position + 1))) {
+        position++
+        while (!isEmpty() && !isAtomEnd(peek())) position++
+    } else if (!isEmpty() && isWsChar(peek())) {
+        position = wordsEndingInQuote(start) ?: position
+    }
     return token(TokenKind.Atom, start)
 }
+
+/**
+ * Where the words from [start] end when the last one ends in a quote and is followed only by spaces up to the next
+ * token, with no other quote and nothing but spaces, tabs and dots between the words; null otherwise.
+ */
+private fun LexStream.wordsEndingInQuote(start: Int): Int? {
+    // Every word up to where a search stopped would stop there the same way; searching again would be quadratic.
+    if (start < wordsWithoutQuoteEnd) return null
+    var index = start
+    while (index < bytes.size) {
+        val byte = byteAt(index)
+        if (byte == QUOTATION_MARK || byte == APOSTROPHE) {
+            var after = index + 1
+            while (after < bytes.size && isWsChar(byteAt(after))) after++
+            if (!isWsChar(byteAt(index - 1)) && (after == bytes.size || isAtomEnd(byteAt(after)))) return index + 1
+            break
+        }
+        if (byte != '.'.code && isAtomEnd(byte) && !isWsChar(byte)) break
+        index++
+    }
+    wordsWithoutQuoteEnd = index
+    return null
+}
+
+/** Whether `bytes[start, end)` is shaped as a date, three runs of digits joined by `-`, of any widths. */
+private fun LexStream.isDate(start: Int, end: Int): Boolean {
+    var runs = 0
+    var index = start
+    while (index < end) {
+        val runStart = index
+        while (index < end && isDigit(byteAt(index))) index++
+        if (index == runStart) return false
+        runs++
+        if (index == end) break
+        if (byteAt(index) != '-'.code || runs == 3) return false
+        index++
+    }
+    return runs == 3
+}
+
+private fun isDigit(byte: Int): Boolean = byte in '0'.code..'9'.code
 
 private fun isAtomEnd(byte: Int): Boolean = when (byte) {
     '.'.code, '='.code, ','.code, '['.code, ']'.code, '{'.code, '}'.code, ' '.code, '\t'.code, '#'.code,
