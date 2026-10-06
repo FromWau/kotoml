@@ -50,9 +50,6 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
 
 ### Owner calls on wave 1 (2026-10-05)
 
-- [ ] **82. Rename `makeValue()` to `inline()`.** **Ruling 2026-10-05:** rename to `Item.inline()`, and add
-  its mirror `Item.expand()`, which turns `t = { … }` into `[t]` in place; `InlineTable.toStandardTable()` stays
-  for building a table without touching the document. Goes with 66 (wave 2, API).
 
 
 - [ ] **84. Remove `mavenLocal()` from `settings.gradle.kts`.** Added so kotoml builds against kern 0.4.3 and klap
@@ -88,6 +85,14 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **82. Rename `makeValue()` to `inline()`.** **Ruling 2026-10-05:** rename to `Item.inline()`, and add
+  its mirror `Item.expand()`, which turns `t = { … }` into `[t]` in place; `InlineTable.toStandardTable()` stays
+  for building a table without touching the document. Goes with 66 (wave 2, API).
+  **Verdict 2026-10-06:** fixed: `makeValue` is renamed `inline()`, and its mirror `expand()` turns `t = { … }` into
+  `[t]` and an array of inline tables into an array of tables in place, one level deep, keeping comments and printing
+  where a table stored at that key would; already a table: no change; a scalar or plain array: `NotExpandable` (new
+  error); inside a value: `NotAValue`. ExpandTest; the QA scenario sources and gen.py follow the renames of 66 and 82.
 
 - [x] **66. Containers answer in different shapes.** `InlineTable[k]` and `TomlArray[i]` are nullable,
   `StandardTable[k]` a `Result`; no `InlineTable.getOrNull`; `TomlArray.add(String)` is `Unit` and `add(Value)` a

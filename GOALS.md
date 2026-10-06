@@ -37,7 +37,7 @@ official toml-test runner for TOML 1.0 and 1.1.
    - making a table or an inline table dotted, or dotted back into a header or braces, replaces its layout: the
      lines above its key stay and each value keeps its same-line comment, while its header comment, the comment after
      its braces and the comment lines inside it go;
-   - `makeValue` keeps a table whose values have comments across lines in TOML 1.1, its header comment after `{`;
+   - `inline()` keeps a table whose values have comments across lines in TOML 1.1, its header comment after `{`;
      otherwise, or in a document read as TOML 1.0, it writes one line and only the header comment stays, after `}`;
    - a table replaced by a table keeps its header comment;
    - in an array of tables, removing elements drops the comments between them and keeps the one above the first

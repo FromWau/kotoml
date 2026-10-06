@@ -1204,7 +1204,7 @@ a = 1 # one
 
 ## Table to inline table
 
-### S-059: makeValue keeps the comment above the header and moves the header comment to the line
+### S-059: inline() keeps the comment above the header and moves the header comment to the line
 rule: 4, 8   version: 1.0
 settled: owner ruling 2026-10-05 (Q6): makeValue keeps a table with value comments across lines in TOML 1.1, the header comment after `{`; otherwise, or in a document read as 1.0, one line with only the header comment after `}`.
 ```toml input
@@ -1214,14 +1214,14 @@ a = 1 # one
 b = 2
 ```
 ```kotlin edit
-doc["t"].getOrFail().makeValue()
+doc["t"].getOrFail().inline()
 ```
 ```toml expected
 # about t
 t = { a = 1, b = 2 } # t header
 ```
 
-### S-060: makeValue keeps the blank line and comment above the header above the new key
+### S-060: inline() keeps the blank line and comment above the header above the new key
 rule: 4, 8   version: 1.0
 ```toml input
 x = 0
@@ -1231,7 +1231,7 @@ x = 0
 a = 1 # one
 ```
 ```kotlin edit
-doc["t"].getOrFail().makeValue()
+doc["t"].getOrFail().inline()
 ```
 ```toml expected
 x = 0
@@ -1240,7 +1240,7 @@ x = 0
 t = { a = 1 }
 ```
 
-### S-061: makeValue leaves the comment above the next table where it is
+### S-061: inline() leaves the comment above the next table where it is
 rule: 4, 8   version: 1.0
 ```toml input
 [t]
@@ -1250,7 +1250,7 @@ a = 1
 b = 2
 ```
 ```kotlin edit
-doc["t"].getOrFail().makeValue()
+doc["t"].getOrFail().inline()
 ```
 ```toml expected
 t = { a = 1 }
@@ -1259,7 +1259,7 @@ t = { a = 1 }
 b = 2
 ```
 
-### S-062: makeValue folds sub-tables in and drops their comments
+### S-062: inline() folds sub-tables in and drops their comments
 rule: 4, 8   version: 1.0
 ```toml input
 [t]
@@ -1273,7 +1273,7 @@ b = 2
 c = 3
 ```
 ```kotlin edit
-doc["t"].getOrFail().makeValue()
+doc["t"].getOrFail().inline()
 ```
 ```toml expected
 t = { a = 1, u = { b = 2 } }
@@ -1282,7 +1282,7 @@ t = { a = 1, u = { b = 2 } }
 c = 3
 ```
 
-### S-063: makeValue on a dotted-key table keeps the comment above
+### S-063: inline() on a dotted-key table keeps the comment above
 rule: 4, 8   version: 1.0
 ```toml input
 # about t
@@ -1290,14 +1290,14 @@ t.a = 1
 t.b = 2
 ```
 ```kotlin edit
-doc["t"].getOrFail().makeValue()
+doc["t"].getOrFail().inline()
 ```
 ```toml expected
 # about t
 t = { a = 1, b = 2 }
 ```
 
-### S-064: makeValue on a dotted-key table with a comment on its first line
+### S-064: inline() on a dotted-key table with a comment on its first line
 rule: 4, 8, 10   version: 1.0
 settled: owner ruling 2026-10-05 (Q6): makeValue keeps a table with value comments across lines in TOML 1.1, the header comment after `{`; otherwise, or in a document read as 1.0, one line with only the header comment after `}`.
 ```toml input
@@ -1305,13 +1305,13 @@ t.a = 1 # a
 t.b = 2
 ```
 ```kotlin edit
-doc["t"].getOrFail().makeValue()
+doc["t"].getOrFail().inline()
 ```
 ```toml expected
 t = { a = 1, b = 2 }
 ```
 
-### S-065: makeValue in TOML 1.1 still writes a one-line inline table
+### S-065: inline() in TOML 1.1 still writes a one-line inline table
 rule: 4, 8, 9   version: 1.1
 settled: owner ruling 2026-10-05 (Q6): makeValue keeps a table with value comments across lines in TOML 1.1, the header comment after `{`; otherwise, or in a document read as 1.0, one line with only the header comment after `}`.
 ```toml input
@@ -1319,7 +1319,7 @@ settled: owner ruling 2026-10-05 (Q6): makeValue keeps a table with value commen
 a = 1 # one
 ```
 ```kotlin edit
-doc["t"].getOrFail().makeValue()
+doc["t"].getOrFail().inline()
 ```
 ```toml expected
 t = { # t

@@ -25,13 +25,10 @@ def note_bytes(note):
 # API slips in the agents' snippets, corrected without changing what each scenario does.
 FIXES = {
     "R-017": [("tableOrNull!!.remove(", "tableOrNull!!.removeItem(")],
-    "R-029": [("arrayOfTablesOrNull!![0].", "arrayOfTablesOrNull!![0]!!.")],
-    "R-039": [("arrayOfTablesOrNull!![0].", "arrayOfTablesOrNull!![0]!!.")],
     "R-035": [('it["n"].getOrNull()?.longOrNull', 'it.getOrNull("n")?.longOrNull')],
     "R-066": [("k.name ==", "k ==")],
     "R-070": [("k.name ==", "k ==")],
     "S-058": [(".toInlineTable()", ".toInlineTable().getOrFail()")],
-    "C-045": [("arrayOrNull!![1].getOrFail().arrayOrNull", "arrayOrNull!![1]!!.arrayOrNull")],
 }
 
 scenarios = []

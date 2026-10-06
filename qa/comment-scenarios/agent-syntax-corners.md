@@ -1908,7 +1908,7 @@ settled: owner ruling 2026-10-05 (Q6): makeValue on one line keeps the header co
 a = 1 # one
 ```
 ```kotlin edit
-doc["t"].getOrFail().makeValue()
+doc["t"].getOrFail().inline()
 ```
 ```toml expected
 # above t

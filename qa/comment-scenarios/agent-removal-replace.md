@@ -549,7 +549,7 @@ n = 1
 m = 1
 ```
 ```kotlin edit
-doc["p"].getOrFail().arrayOfTablesOrNull!![0].remove("q")
+doc["p"].getOrFail().arrayOfTablesOrNull!![0].getOrFail().remove("q")
 ```
 ```toml expected
 [[p]]
@@ -786,7 +786,7 @@ m = 2
 n = 3
 ```
 ```kotlin edit
-doc["p"].getOrFail().arrayOfTablesOrNull!![0].remove("n")
+doc["p"].getOrFail().arrayOfTablesOrNull!![0].getOrFail().remove("n")
 ```
 ```toml expected
 [[p]]
@@ -1104,7 +1104,7 @@ m = [
 ]
 ```
 ```kotlin edit
-doc["m"].getOrFail().arrayOrNull!![0]!!.arrayOrNull!!.removeAt(1)
+doc["m"].getOrFail().arrayOrNull!![0].getOrFail().arrayOrNull!!.removeAt(1)
 ```
 ```toml expected
 m = [
@@ -1833,7 +1833,7 @@ x = 1
 t = { m = 2 }
 ```
 
-### R-100: makeValue turns a table into an inline table and drops the comments inside it
+### R-100: inline() turns a table into an inline table and drops the comments inside it
 rule: 4, 8   version: 1.0
 settled: owner ruling 2026-10-05 (Q6): makeValue on one line keeps the header comment after `}`.
 ```toml input
@@ -1845,7 +1845,7 @@ x = 1
 a = 1 # one
 ```
 ```kotlin edit
-doc["t"].getOrFail().makeValue()
+doc["t"].getOrFail().inline()
 ```
 ```toml expected
 x = 1
@@ -2033,6 +2033,6 @@ x = 1
 12. R-087: does rule 3 (keep the same-line comment) apply to replacing an array element?
 13. R-091, R-093, R-099, R-100: after a structure change to a value, do the lines above the old header land directly above the new `key = value` line?
 14. R-096 to R-098, R-103, R-104, R-106: a value replaced by a table: do the lines above the old key stay where they printed, and is the new header preceded by a blank line?
-15. R-100, R-105: does a header's same-line comment survive `makeValue` or `isDotted = true`?
+15. R-100, R-105: does a header's same-line comment survive `inline()` or `isDotted = true`?
 16. R-101, R-102: replacing a table with a table (or an array-of-tables element with a table) is not a change of structure: is the header's same-line comment kept?
 17. R-108: where does a hidden implicit header's same-line comment go?
