@@ -27,7 +27,7 @@ class KeyPositionTest {
     @Test
     fun `a header key and the parts of a dotted key know theirs`() {
         assertEquals(TextPosition(2, 2), document.root.keyOrNull("db")?.position)
-        val srv = document["srv"].getOrFail().arrayOfTablesOrNull?.get(0)
+        val srv = document["srv"].getOrFail().arrayOfTablesOrNull?.getOrNull(0)
         assertEquals(TextPosition(6, 1), srv?.keyOrNull("x")?.position)
         val dotted = srv?.getItem("x")?.tableOrNull
         assertEquals(TextPosition(6, 3), dotted?.keyOrNull("y")?.position)

@@ -74,7 +74,7 @@ class HeaderCommentsTest {
         val doc = TomlDocument.parse(text, TomlVersion.V1_1).getOrFail()
         val outer = doc["t"].getOrFail().inlineTableOrNull!!
         outer.isDotted = true
-        outer["u"]!!.inlineTableOrNull!!.isDotted = true
+        outer["u"].getOrFail().inlineTableOrNull!!.isDotted = true
         assertEquals("t.u.k = 1 # one\n", doc.toString())
     }
 }

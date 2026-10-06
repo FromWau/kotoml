@@ -151,8 +151,8 @@ private fun Value.toJson(): JsonElement = when (this) {
     is Value.Float -> value.let { if (it.isFinite()) JsonPrimitive(it) else JsonPrimitive(it.tomlName()) }
     is Value.Boolean -> JsonPrimitive(value)
     is Value.Datetime -> JsonPrimitive(value.withSeconds().toString())
-    is Value.Array -> JsonArray(array.map { it.toJson() })
-    is Value.InlineTable -> JsonObject(table.associate { (key, value) -> key to value.toJson() })
+    is Value.Array -> JsonArray(value.map { it.toJson() })
+    is Value.InlineTable -> JsonObject(value.associate { (key, element) -> key to element.toJson() })
 }
 
 internal fun Double.tomlName(): String = when {

@@ -41,7 +41,7 @@ internal class NodeEncoder(
 
     override fun encodeShort(value: Short) = scalar(Value.Integer(value.toLong()))
 
-    override fun encodeInt(value: Int) = scalar(Value.Integer(value.toLong()))
+    override fun encodeInt(value: Int) = scalar(Value.Integer(value))
 
     override fun encodeLong(value: Long) = scalar(Value.Integer(value))
 

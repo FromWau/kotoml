@@ -96,7 +96,7 @@ public sealed class KeyedScope {
     public infix fun String.to(value: String): Unit = put(this, Value.String(value))
 
     /** Writes an integer at this key. */
-    public infix fun String.to(value: Int): Unit = put(this, Value.Integer(value.toLong()))
+    public infix fun String.to(value: Int): Unit = put(this, Value.Integer(value))
 
     /** Writes an integer at this key. */
     public infix fun String.to(value: Long): Unit = put(this, Value.Integer(value))
@@ -205,7 +205,7 @@ public class ArrayScope internal constructor(private val array: TomlArray) {
     public fun add(value: String): Unit = array.add(value)
 
     /** Appends an integer. */
-    public fun add(value: Int): Unit = array.add(value.toLong())
+    public fun add(value: Int): Unit = array.add(value)
 
     /** Appends an integer. */
     public fun add(value: Long): Unit = array.add(value)

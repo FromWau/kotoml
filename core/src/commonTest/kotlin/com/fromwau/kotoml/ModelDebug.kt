@@ -45,8 +45,8 @@ internal fun Value.dbg(): Dbg = when (this) {
     is Value.Float -> tuple("Float", formatted.dbg { lit(rustDebug(it)) })
     is Value.Boolean -> tuple("Boolean", formatted.dbg { lit(it) })
     is Value.Datetime -> tuple("Datetime", formatted.dbg { it.dbg() })
-    is Value.Array -> tuple("Array", array.dbg())
-    is Value.InlineTable -> tuple("InlineTable", table.dbg())
+    is Value.Array -> tuple("Array", value.dbg())
+    is Value.InlineTable -> tuple("InlineTable", value.dbg())
 }
 
 internal fun TomlArray.dbg(): Dbg = struct(

@@ -33,7 +33,7 @@ class NestingTest {
         val doc = parse("x.y = [[1]]\n")
         val outer = doc.item("x", "y").arrayOrNull!!
         assertEquals(Nesting.InLine(level = 2), nestingOf(outer))
-        assertEquals(Nesting.InLine(level = 3), nestingOf(outer[0]!!.arrayOrNull!!))
+        assertEquals(Nesting.InLine(level = 3), nestingOf(outer[0].getOrFail().arrayOrNull!!))
     }
 
     @Test
@@ -47,7 +47,7 @@ class NestingTest {
         val doc = parse("[[s.t]]\nx = 1\n")
         val tables = doc.item("s", "t").arrayOfTablesOrNull!!
         assertEquals(Nesting.InTables(parts = 2), nestingOf(tables))
-        assertEquals(Nesting.InTable(parts = 2, dots = 0), nestingOf(tables[0]!!))
+        assertEquals(Nesting.InTable(parts = 2, dots = 0), nestingOf(tables[0].getOrFail()))
     }
 
     @Test
@@ -87,10 +87,10 @@ class NestingTest {
     fun `a removed array element stands at the top`() {
         val doc = parse("a = [[1], [2]]\n")
         val array = doc.item("a").arrayOrNull!!
-        val first = array[0]!!.arrayOrNull!!
+        val first = array[0].getOrFail().arrayOrNull!!
         array.removeAt(0)
         assertEquals(Nesting.InLine(level = 1), nestingOf(first))
-        assertEquals(Nesting.InLine(level = 2), nestingOf(array[0]!!.arrayOrNull!!))
+        assertEquals(Nesting.InLine(level = 2), nestingOf(array[0].getOrFail().arrayOrNull!!))
     }
 
     @Test

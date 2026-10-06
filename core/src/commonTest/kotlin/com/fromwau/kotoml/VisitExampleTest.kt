@@ -60,8 +60,8 @@ class VisitExampleTest {
         names: MutableSet<String>,
     ) {
         when (value) {
-            is Value.Array -> value.array.forEach { collectDependencyNames(it, state, names) }
-            is Value.InlineTable -> collectDependencyNames(value.table, state, names)
+            is Value.Array -> value.value.forEach { collectDependencyNames(it, state, names) }
+            is Value.InlineTable -> collectDependencyNames(value.value, state, names)
             is Value.String, is Value.Integer, is Value.Float, is Value.Boolean, is Value.Datetime -> {}
         }
     }
@@ -127,10 +127,10 @@ class VisitExampleTest {
             is Value.Array -> {
                 // Arrays within dependencies go on one line.
                 if (state == VisitState.Dependencies || state == VisitState.SubDependencies) {
-                    value.array.resetFormatting()
+                    value.value.resetFormatting()
                 }
             }
-            is Value.InlineTable -> normalizeDependencyEntries(value.table, state)
+            is Value.InlineTable -> normalizeDependencyEntries(value.value, state)
             is Value.String, is Value.Integer, is Value.Float, is Value.Boolean, is Value.Datetime -> {}
         }
     }

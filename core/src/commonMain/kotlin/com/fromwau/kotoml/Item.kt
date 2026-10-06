@@ -91,8 +91,8 @@ public class Item private constructor(
                 is ValueContent -> when (value) {
                     is Value.String -> value.holder = slot
                     is Value.Datetime -> value.holder = slot
-                    is Value.Array -> value.array.holder = slot
-                    is Value.InlineTable -> value.table.holder = slot
+                    is Value.Array -> value.value.holder = slot
+                    is Value.InlineTable -> value.value.holder = slot
                     is Value.Integer, is Value.Float, is Value.Boolean -> Unit
                 }
                 is TableContent -> table.holder = slot

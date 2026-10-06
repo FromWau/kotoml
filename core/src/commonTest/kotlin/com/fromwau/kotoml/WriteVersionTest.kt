@@ -140,8 +140,8 @@ class WriteVersionTest {
         doc.version = TomlVersion.V1_0
         val array = doc["a"].getOrFail().valueOrNull!!.arrayOrNull!!
         assertEquals("[07:32:00, { s = \"A\" }]", array.toString())
-        assertEquals("{ s = \"A\" }", array[1]!!.toString())
-        assertEquals("{ s = \"A\" }", array[1]!!.inlineTableOrNull!!.toString())
+        assertEquals("{ s = \"A\" }", array[1].getOrFail().toString())
+        assertEquals("{ s = \"A\" }", array[1].getOrFail().inlineTableOrNull!!.toString())
     }
 
     @Test

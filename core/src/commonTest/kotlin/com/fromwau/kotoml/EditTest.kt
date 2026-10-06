@@ -983,7 +983,7 @@ edition = "2024"
                     assertEquals(2, a.size)
                     assertTrue(a.containsKey("a"))
                     assertTrue("a" in a)
-                    assertNotNull(a["c"])
+                    a["c"].getOrFail()
                     a.getOrPut("b") { Value.Integer(42L) }
                     assertEquals(3, a.size)
                     a.resetFormatting()
@@ -1316,7 +1316,7 @@ name = "banana"
                     array.add(0, newTable)
                     // The previously-first table (now at index 1) had no leading blank line
                     // from parsing; fix it up so it separates properly.
-                    val moved = array[1]!!
+                    val moved = array[1].getOrFail()
                     moved.decor = moved.decor.copy(prefix = "\n")
             }
             .prints("""

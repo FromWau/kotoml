@@ -133,7 +133,7 @@ class CommentPlacementTest {
     @Test
     fun `a comment given to an element of an array in an inline table spreads it over CRLF lines`() {
         val doc = parse("t = { a = [1] }\r\n")
-        val array = doc["t"].getOrFail().valueOrNull!!.inlineTableOrNull!!["a"]!!.arrayOrNull!!
+        val array = doc["t"].getOrFail().valueOrNull!!.inlineTableOrNull!!["a"].getOrFail().arrayOrNull!!
         array.add(commented(2L)).getOrFail()
         assertEquals("t = { a = [\r\n  1,\r\n  2, # c\r\n] }\r\n", doc.toString())
     }
@@ -260,7 +260,7 @@ class CommentPlacementTest {
     @Test
     fun `a comment given to a value added at an index of an inline table's array spreads it in CRLF`() {
         val doc = parse("t = { a = [1, 2] }\r\n")
-        val array = doc["t"].getOrFail().valueOrNull!!.inlineTableOrNull!!["a"]!!.arrayOrNull!!
+        val array = doc["t"].getOrFail().valueOrNull!!.inlineTableOrNull!!["a"].getOrFail().arrayOrNull!!
         array.add(0, commented(0L)).getOrFail()
         assertEquals("t = { a = [\r\n  0, # c\r\n  1,\r\n  2,\r\n] }\r\n", doc.toString())
     }

@@ -43,7 +43,7 @@ class EditOutputTest {
     fun `an array of tables copied into one of its own elements prints under that element`() {
         val doc = parse("[[x]]\nn = 1\n\n[[x]]\nn = 2\n")
         val x = doc["x"].getOrFail()
-        x.arrayOfTablesOrNull!![1]!!.set("n", x).getOrFail()
+        x.arrayOfTablesOrNull!![1].getOrFail().set("n", x).getOrFail()
         assertReadsBack(doc)
     }
 

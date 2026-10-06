@@ -13,7 +13,7 @@ import com.fromwau.kern.result.map
  * prints back as a dotted key rather than as `b = { c = 2 }`.
  *
  * Storing a value stores a copy of it, formatting included, so two keys never share one value and a table never
- * holds itself: after `table["b"] = table["a"]!!`, editing `table["a"]` leaves `table["b"]` as it was.
+ * holds itself: after `table["b"] = table.getOrNull("a")!!`, editing `table["a"]` leaves `table["b"]` as it was.
  *
  * ```kotlin
  * val table = inlineTableOf("a" to Value.Integer(1L)).getOrElse { error(it) }
@@ -135,9 +135,9 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
             val value = item.valueOrNull
             val table = item.standardTableOrNull
             when {
-                value is Value.InlineTable && value.table.isDotted -> {
+                value is Value.InlineTable && value.value.isDotted -> {
                     val start = values.size
-                    value.table.appendDottedValues(path, values, entry)
+                    value.value.appendDottedValues(path, values, entry)
                     // The dotted key's first line starts where the key stood, with the key's own spacing.
                     val first = values.getOrNull(start) as? VisualValue
                     val spacing = entry.key.rawLeafDecor.prefix
@@ -291,7 +291,11 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     }
 
     /** The value at [key], or null when there is none. */
-    public operator fun get(key: String): Value? = items.get(key)?.valueOrNull
+    public fun getOrNull(key: String): Value? = items.get(key)?.valueOrNull
+
+    /** The value stored at [key], or [TomlEditError.NotFound] when there is none. */
+    public operator fun get(key: String): Result<Value, TomlEditError> =
+        getOrNull(key)?.let { Ok(it) } ?: Err(TomlEditError.NotFound(key))
 
     /** The slot at [key], or null when there is none. */
     override fun getItem(key: String): Item? = items.get(key)
@@ -329,7 +333,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         key: Key,
         default: () -> Value,
     ): Result<Value, TomlEditError> {
-        get(key.name)?.let { return Ok(it) }
+        getOrNull(key.name)?.let { return Ok(it) }
         val made = default()
         val value = made.copyFor(ValuePlace.InlineTable)
         tooDeepError(this, key.name, Item(value))?.let { return Err(it) }
@@ -373,6 +377,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         key: String,
         item: Item,
     ): Result<Item?, TomlEditError> {
+        if (item.valueOrNull == null) return Err(TomlEditError.NotAValue(item.type))
         val value = item.copy().moveToValue().fitFor(ValuePlace.InlineTable)
         return checkedStore(key, value).map { old -> old?.let { Item(it) } }
     }

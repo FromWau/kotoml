@@ -50,6 +50,12 @@ public operator fun Result<Item, TomlEditError>.set(
     value: Long,
 ): EmptyResult<TomlEditError> = flatMap { it.set(key, value) }
 
+/** Stores an integer at [key]; see [set]. */
+public operator fun Result<Item, TomlEditError>.set(
+    key: String,
+    value: Int,
+): EmptyResult<TomlEditError> = flatMap { it.set(key, value) }
+
 /** Stores a float at [key]; see [set]. */
 public operator fun Result<Item, TomlEditError>.set(
     key: String,

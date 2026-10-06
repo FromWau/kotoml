@@ -47,8 +47,8 @@ private fun Value.tagged(): JsonElement = when (this) {
     is Value.Float -> scalar("float", value.let { if (it.isFinite()) it.toString() else it.tomlName() })
     is Value.Boolean -> scalar("bool", value.toString())
     is Value.Datetime -> scalar(value.tag(), value.withSeconds().toString())
-    is Value.Array -> JsonArray(array.map { it.tagged() })
-    is Value.InlineTable -> JsonObject(table.associate { (key, value) -> key to value.tagged() })
+    is Value.Array -> JsonArray(value.map { it.tagged() })
+    is Value.InlineTable -> JsonObject(value.associate { (key, element) -> key to element.tagged() })
 }
 
 private fun scalar(type: String, value: String): JsonElement =

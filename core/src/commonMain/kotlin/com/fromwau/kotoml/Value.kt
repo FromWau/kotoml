@@ -75,6 +75,12 @@ public sealed interface Value {
             formatted.decor.set(decor)
         }
 
+        /** A value with no spelling of its own, which prints in the default one, surrounded by [decor]. */
+        public constructor(
+            value: Int,
+            decor: Decor = Decor(),
+        ) : this(value.toLong(), decor)
+
         /** The integer. */
         public val value: Long
             get() = formatted.value
@@ -189,16 +195,16 @@ public sealed interface Value {
     /**
      * An array of values.
      *
-     * @param array the array, which this value wraps rather than copies.
-     * @param decor the text around the array; by default the decor [array] already has.
+     * @param value the array, which this value wraps rather than copies.
+     * @param decor the text around the array; by default the decor [value] already has.
      */
-    public class Array internal constructor(public val array: TomlArray) : Value {
-        /** Wraps [array], setting its decor to [decor]. */
+    public class Array internal constructor(public val value: TomlArray) : Value {
+        /** Wraps [value], setting its decor to [decor]. */
         public constructor(
-            array: TomlArray,
-            decor: Decor = array.decor,
-        ) : this(array) {
-            array.decor = decor
+            value: TomlArray,
+            decor: Decor = value.decor,
+        ) : this(value) {
+            value.decor = decor
         }
 
         /** The value as TOML, without its [decor]. */
@@ -208,16 +214,16 @@ public sealed interface Value {
     /**
      * An inline table of key/value pairs.
      *
-     * @param table the table, which this value wraps rather than copies.
-     * @param decor the text around the table; by default the decor [table] already has.
+     * @param value the table, which this value wraps rather than copies.
+     * @param decor the text around the table; by default the decor [value] already has.
      */
-    public class InlineTable internal constructor(public val table: TomlInlineTable) : Value {
-        /** Wraps [table], setting its decor to [decor]. */
+    public class InlineTable internal constructor(public val value: TomlInlineTable) : Value {
+        /** Wraps [value], setting its decor to [decor]. */
         public constructor(
-            table: TomlInlineTable,
-            decor: Decor = table.decor,
-        ) : this(table) {
-            table.decor = decor
+            value: TomlInlineTable,
+            decor: Decor = value.decor,
+        ) : this(value) {
+            value.decor = decor
         }
 
         /** The value as TOML, without its [decor]. */
@@ -258,11 +264,11 @@ public sealed interface Value {
 
     /** The array, or null when this is not one. Changing the array changes this value. */
     public val arrayOrNull: TomlArray?
-        get() = (this as? Array)?.array
+        get() = (this as? Array)?.value
 
     /** The inline table, or null when this is not one. Changing the table changes this value. */
     public val inlineTableOrNull: TomlInlineTable?
-        get() = (this as? InlineTable)?.table
+        get() = (this as? InlineTable)?.value
 
     /**
      * The text around the value. Setting it changes how this value prints where it is stored:
@@ -292,8 +298,8 @@ public sealed interface Value {
             is Float -> formatted.written = null
             is Boolean -> formatted.written = null
             is Datetime -> formatted.written = null
-            is Array -> array.resetFormatting()
-            is InlineTable -> table.resetFormatting()
+            is Array -> value.resetFormatting()
+            is InlineTable -> value.resetFormatting()
         }
     }
 
@@ -304,8 +310,8 @@ public sealed interface Value {
      * included.
      */
     public fun copy(): Value = when (this) {
-        is Array -> Array(array.copy())
-        is InlineTable -> InlineTable(table.copy())
+        is Array -> Array(value.copy())
+        is InlineTable -> InlineTable(value.copy())
         else -> deepCopy()
     }
 
@@ -343,8 +349,8 @@ internal val Value.rawDecor: RawDecor
         is Value.Float -> formatted.decor
         is Value.Boolean -> formatted.decor
         is Value.Datetime -> formatted.decor
-        is Value.Array -> array.rawDecor
-        is Value.InlineTable -> table.rawDecor
+        is Value.Array -> value.rawDecor
+        is Value.InlineTable -> value.rawDecor
     }
 
 internal val Value.span: Span?
@@ -354,8 +360,8 @@ internal val Value.span: Span?
         is Value.Float -> formatted.span
         is Value.Boolean -> formatted.span
         is Value.Datetime -> formatted.span
-        is Value.Array -> array.span
-        is Value.InlineTable -> table.span
+        is Value.Array -> value.span
+        is Value.InlineTable -> value.span
     }
 
 internal fun Value.decorate(prefix: String, suffix: String) {
@@ -371,16 +377,16 @@ internal fun Value.resolveSpans(input: SourceText) {
         is Value.Float -> formatted.resolveSpans(input)
         is Value.Boolean -> formatted.resolveSpans(input)
         is Value.Datetime -> formatted.resolveSpans(input)
-        is Value.Array -> array.resolveSpans(input)
-        is Value.InlineTable -> table.resolveSpans(input)
+        is Value.Array -> value.resolveSpans(input)
+        is Value.InlineTable -> value.resolveSpans(input)
     }
 }
 
 /** The value as TOML, without its decor. */
 internal fun Value.display(): String {
     val version = when (this) {
-        is Value.Array -> documentVersionOf(array)
-        is Value.InlineTable -> documentVersionOf(table)
+        is Value.Array -> documentVersionOf(value)
+        is Value.InlineTable -> documentVersionOf(value)
         else -> documentVersionOf(this)
     }
     return buildString { encodeValue(this, this@display, "", "", RawDecor.EMPTY, PrintVersion(version)) }
@@ -402,8 +408,8 @@ internal fun Value.deepCopy(): Value = when (this) {
     is Value.Float -> Value.Float(formatted.copy())
     is Value.Boolean -> Value.Boolean(formatted.copy())
     is Value.Datetime -> Value.Datetime(formatted.copy())
-    is Value.Array -> Value.Array(array.deepCopy())
-    is Value.InlineTable -> Value.InlineTable(table.deepCopy())
+    is Value.Array -> Value.Array(value.deepCopy())
+    is Value.InlineTable -> Value.InlineTable(value.deepCopy())
 }
 
 /** A copy of this value whose decor fits [place]; see [RawDecor.fitFor]. */

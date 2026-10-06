@@ -124,7 +124,7 @@ class PreservationTest {
     fun `nested inline tables made dotted keep the comment above and take new keys on lines of their own`() {
         val doc = parse("x = 1\r\n# about t\r\nt = { c = { c = 3 } }\r\n")
         val outer = doc["t"].getOrFail().inlineTableOrNull!!
-        val inner = outer["c"]!!.inlineTableOrNull!!
+        val inner = outer["c"].getOrFail().inlineTableOrNull!!
         outer.isDotted = true
         inner.isDotted = true
         inner.set("d", 1L).getOrFail()
@@ -135,7 +135,7 @@ class PreservationTest {
     fun `removing the last key of an inline table made dotted keeps the comment above it`() {
         val doc = parse("x = 1\n# about t\nt = { c = { c = 3 } }\n")
         val outer = doc["t"].getOrFail().inlineTableOrNull!!
-        val inner = outer["c"]!!.inlineTableOrNull!!
+        val inner = outer["c"].getOrFail().inlineTableOrNull!!
         outer.isDotted = true
         inner.isDotted = true
         inner.remove("c")

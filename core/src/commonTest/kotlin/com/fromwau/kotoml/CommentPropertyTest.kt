@@ -110,7 +110,7 @@ class CommentPropertyTest {
                 val index = random.nextInt(array.size + 1)
                 add(Edit("array add") { array.add(edits.value()).let { emptyList() } })
                 add(Edit("array add at $index") { array.add(index, edits.value()).let { emptyList() } })
-                val scalarIndex = (0 until array.size).filter { array[it]!!.isScalar() }.randomOrNull(random)
+                val scalarIndex = (0 until array.size).filter { array[it].getOrFail().isScalar() }.randomOrNull(random)
                 if (scalarIndex != null) {
                     add(Edit("array replace $scalarIndex") {
                         array.replace(scalarIndex, edits.value()).let { emptyList() }
@@ -151,7 +151,7 @@ class CommentPropertyTest {
                     val item = (parent as StandardTable).getOrNull(step)!!
                     item.standardTableOrNull ?: item.arrayOfTablesOrNull!!
                 }
-                else -> (parent as ArrayOfTables)[step as Int]!!
+                else -> (parent as ArrayOfTables)[step as Int].getOrFail()
             }
         }
         when (val last = path.last()) {
@@ -194,8 +194,8 @@ class CommentPropertyTest {
         array: TomlArray,
         index: Int,
     ): List<String> {
-        val suffix = array[index]!!.decor.suffix.orEmpty()
-        val next = array[index + 1]?.decor?.prefix ?: array.trailing
+        val suffix = array[index].getOrFail().decor.suffix.orEmpty()
+        val next = array.getOrNull(index + 1)?.decor?.prefix ?: array.trailing
         val owned = comments(suffix) + comments(next.orEmpty().substringBefore('\n'))
         array.removeAt(index)
         return owned

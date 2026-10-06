@@ -121,7 +121,11 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     }
 
     /** The table at [index], or null when the index is out of bounds. */
-    public operator fun get(index: Int): StandardTable? = values.getOrNull(index)?.standardTableOrNull
+    public fun getOrNull(index: Int): StandardTable? = values.getOrNull(index)?.standardTableOrNull
+
+    /** The table at [index], or [TomlEditError.IndexOutOfBounds] when there is none. */
+    public operator fun get(index: Int): Result<StandardTable, TomlEditError> =
+        getOrNull(index)?.let { Ok(it) } ?: Err(TomlEditError.IndexOutOfBounds(index, size))
 
     /**
      * Appends a copy of [table], which prints under its own `[[header]]`, even when it was dotted.
@@ -192,7 +196,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         table: StandardTable,
         keepDecor: Boolean = true,
     ): Result<StandardTable, TomlEditError> {
-        val old = get(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
+        val old = getOrNull(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         tooDeepError(this, null, Item(table))?.let { return Err(it) }
         val stored = copyToStore(table)
         if (keepDecor) {
@@ -211,7 +215,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
      * @return the removed table, or [TomlEditError.IndexOutOfBounds] when there is no table at [index].
      */
     public fun removeAt(index: Int): Result<StandardTable, TomlEditError> {
-        val removed = get(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
+        val removed = getOrNull(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         keepHeaderLinesOf(removed, isArrayOfTables = true, keptHeaderLines)
         values.removeAt(index).arrayOwner = null
         return Ok(removed)

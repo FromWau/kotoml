@@ -14,6 +14,12 @@ public operator fun Item.set(
     value: Long,
 ): EmptyResult<TomlEditError> = set(key, Value.Integer(value))
 
+/** Stores an integer at [key]; see [Item.set]. */
+public operator fun Item.set(
+    key: String,
+    value: Int,
+): EmptyResult<TomlEditError> = set(key, Value.Integer(value))
+
 /** Stores a float at [key]; see [Item.set]. */
 public operator fun Item.set(
     key: String,
@@ -42,6 +48,12 @@ public operator fun StandardTable.set(
 public operator fun StandardTable.set(
     key: String,
     value: Long,
+): EmptyResult<TomlEditError> = set(key, Value.Integer(value))
+
+/** Stores an integer at [key]; see [StandardTable.set]. */
+public operator fun StandardTable.set(
+    key: String,
+    value: Int,
 ): EmptyResult<TomlEditError> = set(key, Value.Integer(value))
 
 /** Stores a float at [key]; see [StandardTable.set]. */
@@ -74,6 +86,12 @@ public operator fun InlineTable.set(
     value: Long,
 ): EmptyResult<TomlEditError> = set(key, Value.Integer(value))
 
+/** Sets [key] to an integer; see [InlineTable.set]. */
+public operator fun InlineTable.set(
+    key: String,
+    value: Int,
+): EmptyResult<TomlEditError> = set(key, Value.Integer(value))
+
 /** Sets [key] to a float; see [InlineTable.set]. */
 public operator fun InlineTable.set(
     key: String,
@@ -102,6 +120,12 @@ public operator fun TomlDocument.set(
 public operator fun TomlDocument.set(
     key: String,
     value: Long,
+): EmptyResult<TomlEditError> = set(key, Value.Integer(value))
+
+/** Stores an integer at [key] of the root table; see [StandardTable.set]. */
+public operator fun TomlDocument.set(
+    key: String,
+    value: Int,
 ): EmptyResult<TomlEditError> = set(key, Value.Integer(value))
 
 /** Stores a float at [key] of the root table; see [StandardTable.set]. */

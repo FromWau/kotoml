@@ -276,7 +276,7 @@ duplicate key `a`
         arr.add(standardTableOf("name" to Item(Value.String("apple"))).getOrFail())
 
         arr.set(0, standardTableOf("name" to Item(Value.String("banana"))).getOrFail()).getOrFail()
-        assertEquals("banana", arr[0]!!["name"].getOrFail().stringOrNull)
+        assertEquals("banana", arr[0].getOrFail()["name"].getOrFail().stringOrNull)
     }
 
     @Test
@@ -372,8 +372,8 @@ duplicate key `a`
     ) {
         when (value) {
             is Value.String -> strings += value.value
-            is Value.Array -> value.array.forEach { collectStrings(it, strings) }
-            is Value.InlineTable -> collectStrings(value.table, strings)
+            is Value.Array -> value.value.forEach { collectStrings(it, strings) }
+            is Value.InlineTable -> collectStrings(value.value, strings)
             is Value.Integer, is Value.Float, is Value.Boolean, is Value.Datetime -> {}
         }
     }
@@ -416,15 +416,15 @@ the-force = { value = "surrounds-you" }
             Value.String(text, value.decor)
         }
         is Value.Array -> {
-            for (index in 0 until value.array.size) {
-                val element = value.array[index] ?: continue
+            for (index in 0 until value.value.size) {
+                val element = value.value.getOrNull(index) ?: continue
                 val kept = floatsToStrings(element)
-                if (kept !== element) value.array.replace(index, kept, keepDecor = false)
+                if (kept !== element) value.value.replace(index, kept, keepDecor = false)
             }
             value
         }
         is Value.InlineTable -> {
-            floatsToStrings(value.table)
+            floatsToStrings(value.value)
             value
         }
         is Value.String, is Value.Integer, is Value.Boolean, is Value.Datetime -> value

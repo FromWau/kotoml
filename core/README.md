@@ -43,9 +43,10 @@ doc["a"]["b"]["c"]["d"] = "hello"
 An unchanged document prints back byte for byte, and one read without a final newline prints none after an edit
 either.
 
-Indexing returns a `Result`: the stored item, or `TomlEditError.NotFound` for a key that is not there.
-Indexing on through an error passes it on, so `doc["a"]["b"]` stops at the first key it misses; read the end
-with `getOrNull()` or `getOrElse { }`. Writing adds only the key it names, never a missing parent, so create
+Indexing returns a `Result` on every container: the stored item, `TomlEditError.NotFound` for a key that is not
+there, or `TomlEditError.IndexOutOfBounds` for a position past the end; `getOrNull(key)` and `getOrNull(index)` give
+`null` instead. Indexing on through an error passes it on, so `doc["a"]["b"]` stops at the first key it misses; read
+the end with `getOrNull()` or `getOrElse { }`. Writing adds only the key it names, never a missing parent, so create
 each level first, as `c` is created above. Where `toml_edit` panics, for example on an index out of bounds or
 on writing a key into a string, the call returns a `TomlEditError` instead. Every call that stores something
 refuses to nest deeper than `TomlDocument.NESTING_LIMIT` lets the parser read: it returns `TomlEditError.TooDeep`
@@ -75,7 +76,9 @@ Each kind of value has a constructor, and an optional `Decor` sets the text befo
 in `spelling`, and `resetFormatting()` drops it. `toString()` gives the value's text alone, without its decor, and
 `Value.parse` reads such text back, ignoring whitespace and line breaks around it. A float without a spelling of its
 own prints in the shortest digits that read back as it, in exponent form such as `1e300` at 1e16 and above or below
-1e-5. The `OrNull` properties read a value of one kind, or `null` for any other kind.
+1e-5. The `OrNull` properties read a value of one kind, or `null` for any other kind. Every call that stores an
+integer takes an `Int` as well as a `Long`. An array's and an inline table's `value` is the container it wraps, as a
+scalar's `value` is the scalar.
 
 ## Tables and arrays
 

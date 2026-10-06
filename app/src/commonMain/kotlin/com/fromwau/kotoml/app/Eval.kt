@@ -54,8 +54,8 @@ private fun Selected.apply(step: Step): Result<List<Selected>, AppError> {
             size?.let {
                 val at = "$trail[${step.index}]"
                 val index = if (step.index < 0) step.index + size else step.index
-                val element = array?.get(index)?.let { Item(it) }
-                    ?: tables?.get(index)?.let { Item(it) }
+                val element = array?.getOrNull(index)?.let { Item(it) }
+                    ?: tables?.getOrNull(index)?.let { Item(it) }
                     ?: return Err(AppError.NoSuchIndex(at, step.index, size))
                 Ok(listOf(Selected(element, path, at)))
             }

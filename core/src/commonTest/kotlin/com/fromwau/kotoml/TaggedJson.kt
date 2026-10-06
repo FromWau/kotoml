@@ -129,8 +129,8 @@ private fun Value.toTagged(): Tagged = when (this) {
         is Datetime.LocalDate -> Tagged.Scalar("date-local", datetime.toString())
         is Datetime.LocalTime -> Tagged.Scalar("time-local", datetime.copy(time = datetime.time.full()).toString())
     }
-    is Value.Array -> Tagged.Array(array.map { it.toTagged() })
-    is Value.InlineTable -> Tagged.Table(table.associate { (key, value) -> key to value.toTagged() })
+    is Value.Array -> Tagged.Array(value.map { it.toTagged() })
+    is Value.InlineTable -> Tagged.Table(value.associate { (key, element) -> key to element.toTagged() })
 }
 
 private fun taggedFloat(value: Double): String = when {

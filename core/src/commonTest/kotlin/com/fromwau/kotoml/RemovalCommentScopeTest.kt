@@ -23,7 +23,7 @@ class RemovalCommentScopeTest {
         val text = "[[server]]\n#host = \"127.0.0.1\"\nhost = \"localhost\"\nport = 8080\n"
         assertEquals(
             "[[server]]\n#host = \"127.0.0.1\"\nport = 8080\n",
-            removing(text) { it["server"].getOrFail().arrayOfTablesOrNull!![0]!!.remove("host") },
+            removing(text) { it["server"].getOrFail().arrayOfTablesOrNull!![0].getOrFail().remove("host") },
         )
     }
 

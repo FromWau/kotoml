@@ -154,8 +154,8 @@ internal fun encodeValue(
             val spelling = value.formatted.datetimeSpellingIn(version)
             encodeFormatted(buf, value.formatted, defaultPrefix, defaultSuffix, decor, spelling)
         }
-        is Value.Array -> encodeArray(buf, value.array, defaultPrefix, defaultSuffix, decor, version)
-        is Value.InlineTable -> encodeInlineTable(buf, value.table, defaultPrefix, defaultSuffix, decor, version)
+        is Value.Array -> encodeArray(buf, value.value, defaultPrefix, defaultSuffix, decor, version)
+        is Value.InlineTable -> encodeInlineTable(buf, value.value, defaultPrefix, defaultSuffix, decor, version)
     }
 }
 

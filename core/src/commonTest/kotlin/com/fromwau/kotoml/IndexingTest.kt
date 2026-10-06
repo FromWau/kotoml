@@ -69,6 +69,41 @@ class IndexingTest {
     }
 
     @Test
+    fun `an inline table indexes to its value or NotFound`() {
+        val table = parse("t = { a = 1 }\n")["t"].getOrFail().inlineTableOrNull!!
+        assertEquals(1L, table["a"].getOrFail().longOrNull)
+        assertEquals(TomlEditError.NotFound("b"), table["b"].errorOrFail())
+        assertEquals(1L, table.getOrNull("a")?.longOrNull)
+        assertEquals(null, table.getOrNull("b"))
+    }
+
+    @Test
+    fun `an array indexes to its value or IndexOutOfBounds`() {
+        val array = parse("a = [1, 2]\n")["a"].getOrFail().arrayOrNull!!
+        assertEquals(2L, array[1].getOrFail().longOrNull)
+        assertEquals(TomlEditError.IndexOutOfBounds(2, 2), array[2].errorOrFail())
+        assertEquals(TomlEditError.IndexOutOfBounds(-1, 2), array[-1].errorOrFail())
+        assertEquals(1L, array.getOrNull(0)?.longOrNull)
+        assertEquals(null, array.getOrNull(2))
+    }
+
+    @Test
+    fun `an array of tables indexes to its table or IndexOutOfBounds`() {
+        val tables = parse("[[t]]\na = 1\n")["t"].getOrFail().arrayOfTablesOrNull!!
+        assertEquals(1L, tables[0].getOrFail()["a"].getOrFail().longOrNull)
+        assertEquals(TomlEditError.IndexOutOfBounds(1, 1), tables[1].errorOrFail())
+        assertEquals(setOf("a"), tables.getOrNull(0)?.keys)
+        assertEquals(null, tables.getOrNull(1))
+    }
+
+    @Test
+    fun `a document reads a missing key as null through getOrNull`() {
+        val doc = parse("a = 1\n")
+        assertEquals(1L, doc.getOrNull("a")?.longOrNull)
+        assertEquals(null, doc.getOrNull("b"))
+    }
+
+    @Test
     fun `NotFound encodes with the key it missed`() {
         assertEquals(
             """{"type":"NotFound","key":"database"}""",

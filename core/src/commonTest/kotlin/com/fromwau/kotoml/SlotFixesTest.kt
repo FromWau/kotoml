@@ -76,8 +76,8 @@ class SlotFixesTest {
     fun `an inline table stores a copy of a value taken from another of its keys`() {
         val doc = parse("t = { a = [1] }\n")
         val t = doc["t"].getOrFail().inlineTableOrNull!!
-        t["b"] = t["a"]!!
-        t["a"]!!.arrayOrNull!!.add(2L)
+        t["b"] = t["a"].getOrFail()
+        t["a"].getOrFail().arrayOrNull!!.add(2L)
         assertEquals("t = { a = [1, 2] , b = [1] }\n", doc.toString())
     }
 
@@ -94,7 +94,7 @@ class SlotFixesTest {
         val value = Value.Array(tomlArrayOf(Value.Integer(1L)).getOrFail())
         val t = inlineTableOf("a" to value).getOrFail()
         value.arrayOrNull!!.add(2L)
-        assertEquals(1, t["a"]!!.arrayOrNull!!.size)
+        assertEquals(1, t["a"].getOrFail().arrayOrNull!!.size)
     }
 
     @Test

@@ -90,7 +90,11 @@ public class TomlArray() : Iterable<Value> {
     }
 
     /** The value at [index], or null when the index is out of bounds. */
-    public operator fun get(index: Int): Value? = values.getOrNull(index)?.valueOrNull
+    public fun getOrNull(index: Int): Value? = values.getOrNull(index)?.valueOrNull
+
+    /** The value at [index], or [TomlEditError.IndexOutOfBounds] when there is none. */
+    public operator fun get(index: Int): Result<Value, TomlEditError> =
+        getOrNull(index)?.let { Ok(it) } ?: Err(TomlEditError.IndexOutOfBounds(index, size))
 
     /**
      * Appends a copy of [value], keeping its formatting. A value without a prefix of its own starts a line of its own
@@ -249,6 +253,11 @@ public class TomlArray() : Iterable<Value> {
         add(Value.Integer(value))
     }
 
+    /** Appends an integer. */
+    public fun add(value: Int) {
+        add(Value.Integer(value))
+    }
+
     /** Appends a float. */
     public fun add(value: Double) {
         add(Value.Float(value))
@@ -313,7 +322,7 @@ public class TomlArray() : Iterable<Value> {
         value: Value,
         keepDecor: Boolean = true,
     ): Result<Value, TomlEditError> {
-        val old = get(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
+        val old = getOrNull(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         tooDeepError(this, null, Item(value))?.let { return Err(it) }
         val comment = value.callerComment()
         val stored = value.copyFor(ValuePlace.Array)
@@ -337,7 +346,7 @@ public class TomlArray() : Iterable<Value> {
      * @return the removed element, or [TomlEditError.IndexOutOfBounds] when there is no element at [index].
      */
     public fun removeAt(index: Int): Result<Value, TomlEditError> {
-        val removed = get(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
+        val removed = getOrNull(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         removeSlot(index)
         return Ok(removed)
     }

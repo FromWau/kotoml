@@ -25,7 +25,7 @@ class StoreDepthTest {
         var array = doc["a"].getOrFail().arrayOrNull!!
         repeat(depth - 1) {
             array.add(Value.Array(TomlArray())).getOrFail()
-            array = array[0]!!.arrayOrNull!!
+            array = array[0].getOrFail().arrayOrNull!!
         }
         return array
     }
@@ -64,7 +64,7 @@ class StoreDepthTest {
         val doc = TomlDocument()
         val holder = innermostArray(doc, limit - 1)
         holder.add(Value.InlineTable(InlineTable())).getOrFail()
-        val table = holder[0]!!.inlineTableOrNull!!
+        val table = holder[0].getOrFail().inlineTableOrNull!!
         assertUnchanged(doc, { table.set("k", 1L).errorOrFail() }, tooDeep("a", "k"))
     }
 
@@ -85,7 +85,7 @@ class StoreDepthTest {
         val tables = holder.getOrNull("aot")!!.arrayOfTablesOrNull!!
         tables.add(StandardTable()).getOrFail()
         val path = repeated("t", limit - 1) + "aot" + "t"
-        assertUnchanged(doc, { tables[0]!!.set("t", StandardTable()).errorOrFail() }, tooDeep(path))
+        assertUnchanged(doc, { tables[0].getOrFail().set("t", StandardTable()).errorOrFail() }, tooDeep(path))
     }
 
     @Test
@@ -179,7 +179,7 @@ class StoreDepthTest {
         repeat(limit) { table = table.getOrNull("h")!!.standardTableOrNull!! }
         table.set("x", 1L).getOrFail()
         var array = table.getOrNull("k")!!.arrayOrNull!!
-        repeat(limit - 1) { array = array[0]!!.arrayOrNull!! }
+        repeat(limit - 1) { array = array[0].getOrFail().arrayOrNull!! }
         array.add(2L)
         TomlDocument.parse(doc.toString()).getOrFail()
     }

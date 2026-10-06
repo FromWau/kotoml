@@ -369,4 +369,20 @@ class CollectionApiTest {
         assertTrue(array.any { it.stringOrNull == "a" })
         assertEquals(0, array.indexOfFirst { it.stringOrNull == "a" })
     }
+
+    @Test
+    fun `every store of an integer takes an Int`() {
+        val count: Int = 3
+        val doc = parse("[t]\ni = {}\n")
+        doc["a"] = count
+        doc.root["b"] = count
+        doc["t"]["c"] = count
+        doc["t"].getOrFail()["d"] = count
+        doc["t"]["i"].getOrFail().inlineTableOrNull!!["e"] = count
+        val array = TomlArray()
+        array.add(count)
+        doc["t"]["f"] = Value.Array(array)
+        doc["t"]["g"] = Value.Integer(count)
+        assertEquals("a = 3\nb = 3\n\n[t]\ni = { e = 3 }\nc = 3\nd = 3\nf = [3]\ng = 3\n", doc.toString())
+    }
 }

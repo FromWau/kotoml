@@ -17,7 +17,7 @@ class SlotSemanticsTest {
         val second = TomlArray()
         first.add(shared)
         second.add(shared)
-        first[0]!!.arrayOrNull!!.add(2L)
+        first[0].getOrFail().arrayOrNull!!.add(2L)
         assertEquals("[[1, 2]] [[1]]", "$first $second")
     }
 
@@ -34,7 +34,7 @@ class SlotSemanticsTest {
         val tables = ArrayOfTables()
         tables.add(doc["t"].getOrFail().standardTableOrNull!!)
         doc["t"]["x"] = 2L
-        assertEquals(1L, tables[0]!!.getOrNull("x")?.longOrNull)
+        assertEquals(1L, tables[0].getOrFail().getOrNull("x")?.longOrNull)
     }
 
     @Test
@@ -251,10 +251,21 @@ class SlotSemanticsTest {
     }
 
     @Test
-    fun `a table put into an inline table becomes an inline table`() {
+    fun `a table put into an inline table is NotAValue and stores nothing`() {
         val inline = InlineTable()
-        inline.putItem("a", Item(standardTableOf("x" to Item(Value.Integer(1L))).getOrFail()))
-        assertEquals("{ a = { x = 1 } }", inline.toString())
+        val table = standardTableOf("x" to Item(Value.Integer(1L))).getOrFail()
+        assertEquals(TomlEditError.NotAValue(TomlType.Table), inline.putItem("a", Item(table)).errorOrFail())
+        assertEquals("{}", inline.toString())
+    }
+
+    @Test
+    fun `an array of tables put into an inline table is NotAValue`() {
+        val inline = InlineTable()
+        val tables = arrayOfTablesOf(StandardTable()).getOrFail()
+        assertEquals(
+            TomlEditError.NotAValue(TomlType.ArrayOfTables),
+            inline.putItem("a", Item(tables)).errorOrFail(),
+        )
     }
 
     @Test

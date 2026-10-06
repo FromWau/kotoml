@@ -962,12 +962,12 @@ private fun descendInlinePath(
         table = when (value) {
             is Value.InlineTable -> {
                 // Tables cannot be defined more than once, and dotted keys cannot extend an inline table.
-                if (dotted && !value.table.isImplicit) {
+                if (dotted && !value.value.isImplicit) {
                     val keyPath = startPath + path.take(index + 1).names()
                     errors.report(Reason.DuplicateKey(keyPath), unexpected = keySpan(key))
                     return null
                 }
-                value.table
+                value.value
             }
             else -> {
                 errors.report(Reason.DottedKeyExtendsValue(key.name, value.type), unexpected = keySpan(key))

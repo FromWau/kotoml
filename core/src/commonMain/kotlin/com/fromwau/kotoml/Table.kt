@@ -18,11 +18,11 @@ public sealed interface Table {
     public fun getItem(key: String): Item?
 
     /**
-     * Sets [key] to a copy of [item]. An inline table holds only values, so it stores a table as an inline table
-     * and an array of tables as an array of inline tables.
+     * Sets [key] to a copy of [item].
      *
-     * @return the item [key] held before, or null when it held none; or [TomlEditError.TooDeep], storing nothing,
-     *   when [item] would nest deeper than the parser reads.
+     * @return the item [key] held before, or null when it held none; [TomlEditError.NotAValue] when this is an
+     *   inline table and [item] holds no value; or [TomlEditError.TooDeep], storing nothing, when [item] would nest
+     *   deeper than the parser reads.
      */
     public fun putItem(
         key: String,

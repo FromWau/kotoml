@@ -327,9 +327,9 @@ private fun StandardTable.headerTables(): List<StandardTable> {
  * element after it, which gets the separator that text ends with, so a comment ending the line before stays on it.
  */
 private fun TomlArray.layOutInserted(index: Int) {
-    val value = this[index] ?: return
+    val value = getOrNull(index) ?: return
     // An element appended at the end was laid out by TomlArray.add.
-    val next = this[index + 1] ?: return
+    val next = getOrNull(index + 1) ?: return
     val nextPrefix = next.decor.prefix
     value.decor = Decor(prefix = nextPrefix)
     next.decor = next.decor.copy(prefix = nextPrefix?.let(::elementSeparator))

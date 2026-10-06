@@ -328,9 +328,9 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
                         }
                     }
                 }
-                value is Value.InlineTable && value.table.isDotted -> {
+                value is Value.InlineTable && value.value.isDotted -> {
                     val start = values.size
-                    value.table.appendDottedValues(path, values, entry)
+                    value.value.appendDottedValues(path, values, entry)
                     values.takeOutOfBraces(start, entry, value)
                 }
                 value != null -> values.add(VisualValue(path.toList(), value, entry))
@@ -360,8 +360,8 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
             val value = entry.item.valueOrNull
             when {
                 table != null -> table.appendAllValues(path, values)
-                value is Value.InlineTable && value.table.isDotted -> {
-                    value.table.appendDottedValues(path, values, entry)
+                value is Value.InlineTable && value.value.isDotted -> {
+                    value.value.appendDottedValues(path, values, entry)
                 }
                 value != null -> values.add(VisualValue(path.toList(), value, entry))
             }
@@ -880,14 +880,14 @@ private fun MutableList<BodyLine>.takeOutOfBraces(
     val lastOfNested = HashMap<InlineTable, Int>()
     for ((position, index) in lines.withIndex()) {
         val owner = (this[index] as VisualValue).entry.pairs?.owner as? InlineTable ?: continue
-        if (owner !== inline.table && owner.isDotted) lastOfNested[owner] = position
+        if (owner !== inline.value && owner.isDotted) lastOfNested[owner] = position
     }
     for ((nested, position) in lastOfNested) {
         val text = nested.rawTrailing.textOrNull.orEmpty()
         endLine(position, text.commentBeforeBreak(), text.lineBreak())
     }
     val last = lines.lastIndex
-    val trailing = inline.table.rawTrailing.textOrNull.orEmpty()
+    val trailing = inline.value.rawTrailing.textOrNull.orEmpty()
     val lineBreak = trailing.lineBreak()
     endLine(last, trailing.commentBeforeBreak(), lineBreak)
     val linesBefore = linesAboveOnTableLines(KeptText.from(trailing)).removeSuffix(lineBreak)

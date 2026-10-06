@@ -482,7 +482,7 @@ class CommentScenariosTest {
     }
 
     private fun eR_029(doc: TomlDocument) {
-        doc["p"].getOrFail().arrayOfTablesOrNull!![0]!!.remove("q")
+        doc["p"].getOrFail().arrayOfTablesOrNull!![0].getOrFail().remove("q")
     }
 
     private fun eR_030(doc: TomlDocument) {
@@ -522,7 +522,7 @@ class CommentScenariosTest {
     }
 
     private fun eR_039(doc: TomlDocument) {
-        doc["p"].getOrFail().arrayOfTablesOrNull!![0]!!.remove("n")
+        doc["p"].getOrFail().arrayOfTablesOrNull!![0].getOrFail().remove("n")
     }
 
     private fun eR_040(doc: TomlDocument) {
@@ -594,7 +594,7 @@ class CommentScenariosTest {
     }
 
     private fun eR_057(doc: TomlDocument) {
-        doc["m"].getOrFail().arrayOrNull!![0]!!.arrayOrNull!!.removeAt(1)
+        doc["m"].getOrFail().arrayOrNull!![0].getOrFail().arrayOrNull!!.removeAt(1)
     }
 
     private fun eR_058(doc: TomlDocument) {
@@ -1476,7 +1476,7 @@ class CommentScenariosTest {
     }
 
     private fun eC_045(doc: TomlDocument) {
-        doc["a"].getOrFail().arrayOrNull!![1]!!.arrayOrNull!!.add(Value.Integer(4L))
+        doc["a"].getOrFail().arrayOrNull!![1].getOrFail().arrayOrNull!!.add(Value.Integer(4L))
     }
 
     private fun eC_046(doc: TomlDocument) {

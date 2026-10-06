@@ -366,8 +366,8 @@ private fun Item.loneSurrogatePath(): List<String>? {
 
 private fun Value.loneSurrogatePath(): List<String>? = when (this) {
     is Value.String -> if (value.hasLoneSurrogate()) emptyList() else null
-    is Value.Array -> array.firstNotNullOfOrNull { it.loneSurrogatePath() }
-    is Value.InlineTable -> table.loneSurrogatePath()
+    is Value.Array -> value.firstNotNullOfOrNull { it.loneSurrogatePath() }
+    is Value.InlineTable -> value.loneSurrogatePath()
     is Value.Integer, is Value.Float, is Value.Boolean, is Value.Datetime -> null
 }
 
@@ -388,7 +388,7 @@ private fun Table.toml11Only(path: List<String> = emptyList()): TomlWriteError.N
 
 private fun Value.toml11Only(path: List<String>): TomlWriteError.NotInToml10? {
     // A dotted inline table prints as the parts of dotted keys, not in braces.
-    if (this is Value.InlineTable && table.isDotted) return table.toml11Only(path)
+    if (this is Value.InlineTable && value.isDotted) return value.toml11Only(path)
     if (this !is Value.Array && this !is Value.InlineTable) return null
     val text = buildString {
         encodeValue(this, this@toml11Only, "", "", RawDecor.EMPTY, PrintVersion(TomlVersion.V1_0))
