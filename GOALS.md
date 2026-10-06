@@ -39,6 +39,9 @@ official toml-test runner for TOML 1.0 and 1.1.
      its braces and the comment lines inside it go;
    - `inline()` keeps a table whose values have comments across lines in TOML 1.1, its header comment after `{`;
      otherwise, or in a document read as TOML 1.0, it writes one line and only the header comment stays, after `}`;
+   - `expand()` turns an inline table and every inline table inside it into header tables, and arrays of inline
+     tables into arrays of tables, keeping every comment: the one after `{`, or else after `}`, goes on the header,
+     each value keeps its same-line comment, and the comment lines inside stay with their keys;
    - a table replaced by a table keeps its header comment;
    - in an array of tables, removing elements drops the comments between them and keeps the one above the first
      and the one after the last; one left empty prints `key = []` under the comment that was above its first header;
