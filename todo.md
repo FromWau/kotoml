@@ -69,10 +69,14 @@ is one edit away; a swap of two neighbouring letters counts as one edit (`ture`,
 its same-line comment into an array as into a table (C5 stands).
 
 
-- [ ] **93. `expand()` turns only the top level into a table.** Inline tables inside stay inline, so `inline()` then
-  `expand()` does not give back a table with sub-tables. **Ruling 2026-10-06:** `expand()` mirrors `inline()` over the
-  whole tree: the value and every inline table inside it become header tables, arrays of inline tables become arrays
-  of tables.
+
+- [ ] **94. A multi-line inline table is a layout no caller can choose.** `inline()` writes one across lines only
+  when comments need it, and nested tables always on one line, dropping their comments in 1.1. **Ruling 2026-10-06:**
+  B: an explicit layout, `InlineTable.isMultiline`, like `isDotted`: `true` prints one entry per line, `false` one
+  line (comments inside go, as on one line today); a parsed multi-line inline table reads `true`;
+  `Item.inline(multiline = …)` picks it for the table and its nested tables, and without the argument picks
+  multi-line when there are comments to keep, as today; in a 1.0 document `writeTo` refuses it with
+  `NotInToml10(MultilineInlineTable)`. Four layouts: header, dotted, one-line inline, multi-line inline.
 
 Settled the same day, no change: a copied table prints where its key stands (item 38 over 29's "after the tables
 already there"); a moved table gets the default blank line (spacing is not kept across operations); a bare value's
@@ -90,6 +94,15 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **93. `expand()` turns only the top level into a table.** Inline tables inside stay inline, so `inline()` then
+  `expand()` does not give back a table with sub-tables. **Ruling 2026-10-06:** `expand()` mirrors `inline()` over the
+  whole tree: the value and every inline table inside it become header tables, arrays of inline tables become arrays
+  of tables.
+  **Verdict 2026-10-06:** fixed: `expand()` mirrors `inline()` over the whole tree: nested inline tables become
+  headers, arrays of only inline tables become arrays of tables, comments kept at every level, `TooDeep` on header
+  depth; dotted keys inside stay dotted; a table holding only tables prints no header unless it carries a comment. The
+  1.1 round trip is exact for the comments `inline()` keeps; nested tables' comments are item 94. ExpandTest.
 
 - [x] **82. Rename `makeValue()` to `inline()`.** **Ruling 2026-10-05:** rename to `Item.inline()`, and add
   its mirror `Item.expand()`, which turns `t = { … }` into `[t]` in place; `InlineTable.toStandardTable()` stays
