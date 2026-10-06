@@ -79,10 +79,6 @@ Settled with no change (wave 3): a longer word starting with a keyword (`info`, 
 is one edit away; a swap of two neighbouring letters counts as one edit (`ture`, `fasle`); a copied value brings
 its same-line comment into an array as into a table (C5 stands).
 
-- [ ] **92. A type mismatch does not suggest the value meant.** A `Boolean` field given `"ture"` reports
-  `TypeMismatch` with the value but no hint. **Ruling 2026-10-06:** yes: `TypeMismatch` gains a suggestion from
-  kern:fuzzy's `didYouMean` with the expected type's names `preferred` (`true`/`false` for a boolean, `inf`/`nan`
-  for a float).
 
 Settled the same day, no change: a copied table prints where its key stands (item 38 over 29's "after the tables
 already there"); a moved table gets the default blank line (spacing is not kept across operations); a bare value's
@@ -100,6 +96,15 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **92. A type mismatch does not suggest the value meant.** A `Boolean` field given `"ture"` reports
+  `TypeMismatch` with the value but no hint. **Ruling 2026-10-06:** yes: `TypeMismatch` gains a suggestion from
+  kern:fuzzy's `didYouMean` with the expected type's names `preferred` (`true`/`false` for a boolean, `inf`/`nan`
+  for a float).
+  **Verdict 2026-10-06:** fixed: `TypeMismatch` gains `suggestion` (wire field), from kern:fuzzy's `didYouMean` with
+  the expected type's names preferred: a boolean field suggests `true`/`false`, a float `inf`/`nan` (keeping its
+  sign), an enum one of its names; only strings and booleans are compared; a suggestion of another type is dropped; a
+  quoted exact keyword (`"true"`) suggests itself. DecodeSuggestionTest, ErrorMessageTest, ErrorJsonTest.
 
 - [x] **91. `+inf` followed by a control character is told to quote.** `a = +inf` and a vertical tab reports
   "string values must be quoted" over the whole word. **Ruling 2026-10-06:** B: a keyword followed by a control
