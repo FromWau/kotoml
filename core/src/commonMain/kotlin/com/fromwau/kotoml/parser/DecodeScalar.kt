@@ -1,5 +1,6 @@
 package com.fromwau.kotoml.parser
 
+import com.fromwau.kern.fuzzy.didYouMean
 import com.fromwau.kotoml.Expected
 import com.fromwau.kotoml.ExpectedToken
 import com.fromwau.kotoml.FloatPart
@@ -473,10 +474,8 @@ private fun decodeKeyword(
     if (keywords.any { word.length > it.text.length && word.startsWith(it.text) }) {
         return decodeInvalid(raw, output, error)
     }
-    val keyword = keywords
-        .filter { isOneEditAway(word, it.text) }
-        .minByOrNull { if (word == it.text) 0 else 1 }
-        ?: return decodeInvalid(raw, output, error)
+    val meant = keywords.firstOrNull { it.text == word }?.text ?: didYouMean(word, keywords.map { it.text })
+    val keyword = keywords.firstOrNull { it.text == meant } ?: return decodeInvalid(raw, output, error)
     if (!raw.textEquals(from, keyword.text)) {
         error.reportError(
             ParseError(
@@ -497,26 +496,6 @@ private fun Raw.isFollowedByControl(from: Int, keyword: String): Boolean {
     if (end >= length) return false
     val next = byteAt(end)
     return (next < 0x20 || next == 0x7F) && text(from, end).equals(keyword, ignoreCase = true)
-}
-
-/**
- * Whether [word] is one character inserted, removed or replaced, or two neighbours swapped, away from [symbol], or
- * is [symbol] itself.
- */
-private fun isOneEditAway(word: String, symbol: String): Boolean {
-    if (word.length == symbol.length) {
-        val differences = word.indices.filter { word[it] != symbol[it] }
-        return differences.size <= 1 || differences.areSwappedNeighbours(word, symbol)
-    }
-    val (shorter, longer) = if (word.length < symbol.length) word to symbol else symbol to word
-    if (longer.length - shorter.length != 1) return false
-    val firstDifference = shorter.indices.firstOrNull { shorter[it] != longer[it] } ?: return true
-    return shorter.substring(firstDifference) == longer.substring(firstDifference + 1)
-}
-
-private fun List<Int>.areSwappedNeighbours(word: String, symbol: String): Boolean {
-    if (size != 2 || this[1] != this[0] + 1) return false
-    return word[this[0]] == symbol[this[1]] && word[this[1]] == symbol[this[0]]
 }
 
 private fun decodeInvalid(raw: Raw, output: DecodedStringBuilder, error: ErrorSink): ScalarKind {

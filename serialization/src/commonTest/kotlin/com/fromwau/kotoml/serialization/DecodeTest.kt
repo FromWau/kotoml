@@ -225,7 +225,7 @@ class DecodeTest {
                 "ports.sctp",
                 "sctp",
                 listOf("TCP", "udp"),
-                "TCP",
+                null,
                 position = TextPosition(1, 11),
             ),
             Toml.decodeFromString<ModePorts>("ports = { sctp = 1 }\n").errorOrFail(),

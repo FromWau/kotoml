@@ -122,13 +122,10 @@ class ParseMessageTest {
             "a = Inf\n" to "inf",
             "a = INF\n" to "inf",
             "a = in_f\n" to "inf",
-            "a = imf\n" to "inf",
-            "a = inn\n" to "inf",
             "a = ifn\n" to "inf",
             "a = na\n" to "nan",
             "a = +NaN\n" to "nan",
             "a = -nAn\n" to "nan",
-            "a = nam\n" to "nan",
             "a = nna\n" to "nan",
         )
         for ((text, symbol) in cases) {
@@ -170,7 +167,8 @@ class ParseMessageTest {
             "a = nf\n" to "inf",
             "a = +nf\n" to "inf",
             "a = an\n" to "nan",
-            "a = -man\n" to "nan",
+            "a = tr\n" to "true",
+            "a = fa\n" to "false",
         )
         for ((text, keyword) in cases) {
             val error = errorOf(text)
@@ -212,8 +210,15 @@ class ParseMessageTest {
 
     @Test
     fun `a word far from every keyword is a string missing its quotes`() {
-        val words = listOf("tomato", "foo", "t", "f", "tr", "fa", "trash", "fail", "index", "-nil", "n", "in_fo")
+        val words = listOf("tomato", "foo", "t", "f", "trash", "fail", "index", "-nil", "n", "in_fo", "value")
         for (word in words) {
+            assertEquals(syntax(ParseErrorReason.UnquotedString), errorOf("a = $word\n").reason, word)
+        }
+    }
+
+    @Test
+    fun `a replaced letter in a word of three letters is a string missing its quotes`() {
+        for (word in listOf("imf", "inn", "nam", "-man", "can", "man", "tan")) {
             assertEquals(syntax(ParseErrorReason.UnquotedString), errorOf("a = $word\n").reason, word)
         }
     }

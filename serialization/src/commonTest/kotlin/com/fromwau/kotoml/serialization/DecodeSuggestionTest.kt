@@ -38,12 +38,12 @@ class DecodeSuggestionTest {
 
     @Test
     fun `an enum value that begins exactly one name suggests it`() {
-        assertEquals(unknownMode("u", "udp"), mode("u"))
+        assertEquals(unknownMode("ud", "udp"), mode("ud"))
     }
 
     @Test
     fun `an enum value a few edits away suggests the nearest name`() {
-        assertEquals(unknownMode("sctp", "TCP"), mode("sctp"))
+        assertEquals(unknownMode("tcpp", "TCP"), mode("tcpp"))
         assertEquals(unknownMode("udpp", "udp"), mode("udpp"))
     }
 
