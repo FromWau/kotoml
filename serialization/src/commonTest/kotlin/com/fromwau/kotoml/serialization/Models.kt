@@ -139,6 +139,19 @@ data class Timeout(val timeout: Duration)
 data class Grid(val rows: List<List<Int>>)
 
 @Serializable
+enum class Answer {
+    Yes,
+    No,
+    True,
+}
+
+@Serializable
+data class Switches(
+    val enabled: Boolean = false,
+    val answer: Answer = Answer.No,
+)
+
+@Serializable
 data class Groups(val groups: List<Fleet>)
 
 @Serializable

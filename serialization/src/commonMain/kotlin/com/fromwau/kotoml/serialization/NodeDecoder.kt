@@ -32,7 +32,10 @@ internal class NodeDecoder(
     override val serializersModule: SerializersModule
         get() = toml.serializersModule
 
-    private fun mismatch(expected: TomlType): Nothing = throw DecodeFailure(mismatchAt(path, expected, input))
+    private fun mismatch(
+        expected: TomlType,
+        meant: List<String> = emptyList(),
+    ): Nothing = throw DecodeFailure(mismatchAt(path, expected, input, meant))
 
     private fun scalar(): Value? = (input as? TomlInput.Scalar)?.value
 
@@ -41,7 +44,7 @@ internal class NodeDecoder(
 
     override fun decodeNull(): Nothing? = throw DecodeFailure(TomlDecodeError.NullValue("$path", path.position))
 
-    override fun decodeBoolean(): Boolean = scalar()?.booleanOrNull ?: mismatch(TomlType.Boolean)
+    override fun decodeBoolean(): Boolean = scalar()?.booleanOrNull ?: mismatch(TomlType.Boolean, BOOLEAN_NAMES)
 
     override fun decodeByte(): Byte =
         input.integerIn(path, "kotlin.Byte", Byte.MIN_VALUE.toLong()..Byte.MAX_VALUE.toLong()).toByte()
@@ -54,7 +57,7 @@ internal class NodeDecoder(
 
     override fun decodeLong(): Long = scalar()?.longOrNull ?: mismatch(TomlType.Integer)
 
-    override fun decodeDouble(): Double = scalar()?.asDouble ?: mismatch(TomlType.Float)
+    override fun decodeDouble(): Double = scalar()?.asDouble ?: mismatch(TomlType.Float, FLOAT_NAMES)
 
     override fun decodeFloat(): Float {
         val double = decodeDouble()
@@ -68,17 +71,19 @@ internal class NodeDecoder(
             ?: throw DecodeFailure(TomlDecodeError.Unparsable("$path", text, "kotlin.Char", path.position))
     }
 
+    override fun decodeString(): String = string()
+
     // A native date-time read as a string gives its TOML text, so a serializer that parses dates itself works.
-    override fun decodeString(): String {
+    private fun string(meant: List<String> = emptyList()): String {
         val value = scalar()
-        return value?.stringOrNull ?: value?.datetimeOrNull?.toString() ?: mismatch(TomlType.String)
+        return value?.stringOrNull ?: value?.datetimeOrNull?.toString() ?: mismatch(TomlType.String, meant)
     }
 
     override fun decodeEnum(enumDescriptor: SerialDescriptor): Int {
-        val name = decodeString()
+        val names = enumDescriptor.elementNames.toList()
+        val name = string(names)
         val index = enumDescriptor.getElementIndex(name)
         if (index == CompositeDecoder.UNKNOWN_NAME) {
-            val names = enumDescriptor.elementNames.toList()
             val suggestion = didYouMean(name, names)
             throw DecodeFailure(TomlDecodeError.UnknownEnumValue("$path", name, names, suggestion, path.position))
         }
@@ -402,16 +407,42 @@ internal fun Double.asFloatOrNull(): Float? {
     return float.takeUnless { overflows || underflows }
 }
 
-/** The error for [input] at [path] not being [expected]: [TomlDecodeError.MissingKey] when nothing is there. */
+/**
+ * The error for [input] at [path] not being [expected]: [TomlDecodeError.MissingKey] when nothing is there.
+ * [meant] are the values of the expected type a string or boolean found instead may be a slip for.
+ */
 internal fun mismatchAt(
     path: TomlPath,
     expected: TomlType,
     input: TomlInput?,
+    meant: List<String> = emptyList(),
 ): TomlDecodeError = if (input == null) {
     TomlDecodeError.MissingKey("$path", path.position)
 } else {
-    TomlDecodeError.TypeMismatch("$path", expected, input.type, input.spelling(), path.position)
+    val suggestion = input.closestOf(meant, signed = expected == TomlType.Float)
+    TomlDecodeError.TypeMismatch("$path", expected, input.type, input.spelling(), suggestion, path.position)
 }
+
+/**
+ * Which of [meant] a string or boolean is most likely a slip for, ranked among TOML's keywords; a word closer to
+ * a keyword the field does not read suggests nothing. A [signed] word keeps its sign, as in `-inf`.
+ */
+private fun TomlInput.closestOf(
+    meant: List<String>,
+    signed: Boolean,
+): String? {
+    val value = (this as? TomlInput.Scalar)?.value ?: return null
+    val written = value.stringOrNull ?: value.booleanOrNull?.toString() ?: return null
+    val sign = written.take(1).takeIf { signed && it in SIGNS }.orEmpty()
+    val word = written.removePrefix(sign)
+    val closest = if (word in meant) word else didYouMean(word, KEYWORDS + meant, preferred = meant)
+    return closest?.takeIf { it in meant }?.let { sign + it }
+}
+
+private val BOOLEAN_NAMES = listOf("true", "false")
+private val FLOAT_NAMES = listOf("inf", "nan")
+private val KEYWORDS = BOOLEAN_NAMES + FLOAT_NAMES
+private val SIGNS = listOf("+", "-")
 
 /** A scalar as it is written, without the text around it; null for a table or an array. */
 private fun TomlInput.spelling(): String? = (this as? TomlInput.Scalar)

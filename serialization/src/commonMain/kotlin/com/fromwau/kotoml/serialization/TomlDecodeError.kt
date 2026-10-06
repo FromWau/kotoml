@@ -100,7 +100,9 @@ public sealed interface TomlDecodeError : IError {
 
     /**
      * The item at [path] is a [found], where the field reads a TOML [expected]. [value] is the found value as it is
-     * written, such as `"ten"`, when it is a string, number, boolean or date-time.
+     * written, such as `"ten"`, when it is a string, number, boolean or date-time. [suggestion] is the value of the
+     * expected type a found string or boolean is closest to, such as `true` for `"ture"` in a boolean field; null
+     * when none is close.
      */
     @Serializable
     @SerialName("TypeMismatch")
@@ -109,6 +111,7 @@ public sealed interface TomlDecodeError : IError {
         val expected: TomlType,
         val found: TomlType,
         val value: String? = null,
+        val suggestion: String? = null,
         override val position: TextPosition? = null,
     ) : Located
 
@@ -248,7 +251,7 @@ private fun TomlDecodeError.describe(): String = when (this) {
     is TomlDecodeError.UnknownKey -> "unknown key $path" + suggestion.asSuggestion()
     is TomlDecodeError.TypeMismatch -> {
         val foundText = value?.shortened()?.let { "the ${found.words()} $it" } ?: found.withArticle()
-        at(path, "expected ${expected.withArticle()}, found $foundText")
+        at(path, "expected ${expected.withArticle()}, found $foundText") + suggestion.asSuggestion()
     }
     is TomlDecodeError.DatetimeKindMismatch ->
         at(path, "expected ${expected.withArticle()}, found ${found.withArticle()}")

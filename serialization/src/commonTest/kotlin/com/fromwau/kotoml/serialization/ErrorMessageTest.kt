@@ -24,6 +24,14 @@ class ErrorMessageTest {
     }
 
     @Test
+    fun `a type mismatch close to a value of the expected type suggests it`() {
+        assertEquals(
+            "enabled: expected a boolean, found the string \"ture\", did you mean true?",
+            Toml.decodeFromString<Switches>("enabled = \"ture\"\n").errorOrFail().message,
+        )
+    }
+
+    @Test
     fun `a mismatch on a table names its kind alone`() {
         assertEquals(
             "servers: expected an array, found a table",

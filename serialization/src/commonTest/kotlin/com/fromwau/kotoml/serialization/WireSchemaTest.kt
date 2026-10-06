@@ -24,7 +24,7 @@ class WireSchemaTest {
                 OutOfRange(path, value, target, position)
                 Parse(error)
                 Serializer(path, detail, position)
-                TypeMismatch(path, expected, found, value, position)
+                TypeMismatch(path, expected, found, value, suggestion, position)
                 UnknownEnumValue(path, value, names, suggestion, position)
                 UnknownKey(path, suggestion, position)
                 UnknownSubtype(path, name, names, suggestion, position)

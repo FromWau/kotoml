@@ -278,6 +278,9 @@ built in code, and for a `NullableType` found from the types before anything is 
 | `Parse`                     | ``line 2, column 1: duplicate key `a` ``                          |
 
 `TypeMismatch` carries the value it found as written, `"ten"`, when it is a string, number, boolean or date-time.
+When the string or boolean it found is close to a value the field reads, it carries that value as `suggestion`:
+`true` for `"ture"` in a boolean field, `nan` for `"NaN"` in a float field, an enum's name for a boolean in an enum
+field. Its `message` then ends `, did you mean true?`. A number of the wrong type gets no suggestion.
 `UnknownKey` carries the field name closest to the key as `suggestion`. A type with no serializer, such as a class
 that is not `@Serializable` or a `@Contextual` type `serializersModule` has none for, is `NoSerializer` with the
 type's simple name, `Color`, and its `path`. A custom serializer that throws becomes `TomlDecodeError.Serializer`

@@ -38,6 +38,15 @@ class ErrorJsonTest {
     }
 
     @Test
+    fun `a type mismatch carries its suggestion`() {
+        assertEquals(
+            """{"type":"TypeMismatch","path":"double","expected":"Float","found":"String","value":"\"NaN\"",""" +
+                """"suggestion":"nan","position":{"line":1,"column":1}}""",
+            json(Toml.decodeFromString<Numbers>("double = \"NaN\"\n").errorOrFail()),
+        )
+    }
+
+    @Test
     fun `an unknown enum value lists the names`() {
         assertEquals(
             """{"type":"UnknownEnumValue","path":"mode","value":"tcp","names":["TCP","udp"],"suggestion":"TCP",""" +
