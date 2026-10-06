@@ -194,6 +194,51 @@ public class TomlArray() : Iterable<Value> {
     }
 
     /**
+     * Moves the inline tables into a new array of tables that keeps their comments, leaving this empty, or null,
+     * moving nothing, when this is empty or holds anything but inline tables. Each table keeps its comments as
+     * [InlineTable.toStandardTable] does, and the comment after its comma as [keepCommentAfterBraces] does. The comment
+     * after `[` and the comment lines above an element go above its header; the comment lines before `]` and
+     * [closingComment], the one after `]`, end the last table.
+     */
+    internal fun moveToArrayOfTablesKeepingComments(
+        closingComment: String,
+        lineBreak: String,
+    ): ArrayOfTables? {
+        val inlineTables = map { it.inlineTableOrNull ?: return null }
+        if (inlineTables.isEmpty()) return null
+        // Index 0 is the line of `[`, and each later one the text after an element: its suffix, which holds the
+        // comment ending its line when no comma follows, then the prefix of the next element or the trailing text.
+        val texts = List(size + 1) { index ->
+            val before = if (index == 0) "" else values[index - 1].valueOrNull?.rawDecor?.suffix?.textOrNull.orEmpty()
+            val after = if (index == size) rawTrailing else values[index].valueOrNull?.rawDecor?.prefix
+            before + after?.textOrNull.orEmpty()
+        }
+        val lineComments = Array(size + 1) { "" }
+        val linesAbove = Array(size + 1) { "" }
+        for ((index, text) in texts.withIndex()) {
+            val raw = text.takeIf { '\n' in it } ?: continue
+            lineComments[index] = raw.substringBefore('\n').removeSuffix("\r").takeIf { '#' in it }.orEmpty()
+            val rest = raw.substringAfter('\n')
+            linesAbove[index] = indentedCommentLines(rest.substring(0, rest.lastIndexOf('\n') + 1), "", lineBreak)
+        }
+        linesAbove[0] = indentedCommentLines(lineComments[0], "", lineBreak) + linesAbove[0]
+        val closingLines = indentedCommentLines(closingComment, "", lineBreak)
+        val tables = ArrayOfTables()
+        for ((index, inline) in inlineTables.withIndex()) {
+            val table = inline.moveToStandardTable()
+            table.keepCommentAfterBraces(lineComments[index + 1], lineBreak)
+            val above = linesAbove[index]
+            if (above.isNotEmpty()) table.rawDecor.prefix = KeptText.from(if (index == 0) above else lineBreak + above)
+            val end = if (index == inlineTables.lastIndex) linesAbove[size] + closingLines else ""
+            if (end.isNotEmpty()) table.items.keptLines += KeptLines(end, null)
+            tables.append(table)
+        }
+        for (slot in values) slot.arrayOwner = null
+        values.clear()
+        return tables
+    }
+
+    /**
      * Readies [value], inserted before [next], to take [next]'s place. On one line it takes [next]'s spacing, and
      * [next] follows it after a comma. When [next]'s line starts after a comment ending the line before, [value] takes
      * that comment and the indentation, so the comment stays on its line, and [next] goes on a line of its own below.

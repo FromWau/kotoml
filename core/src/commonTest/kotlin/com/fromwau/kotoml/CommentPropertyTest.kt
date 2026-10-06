@@ -29,6 +29,8 @@ class CommentPropertyTest {
         "a = [\n  # above one\n  1, # one\n  [2, 3], # pair\n  # above last\n  { x = 1 },\n  # end\n] # array\n",
         "# t\nt = { a = 1, b = { c = [] } } # inline\n# fruit\n[fruit]\n# apple\napple.color = 'red' # red\n",
         "a = 1 # one\r\n# about b\r\nb = 2\r\n\r\n# about t\r\n[t] # t\r\nc = 3 # c",
+        "s = [ # s\n  { x = 1 }, # one\n  # above\n  { # two\n    y = 2, # y\n  },\n] # end\n" +
+            "t = { # t\n  z = 3 # z\n} # u\n",
     )
 
     @Test
@@ -128,6 +130,9 @@ class CommentPropertyTest {
             }
             edits.tableArrays.randomOrNull(random)?.let { tables ->
                 add(Edit("tables add") { tables.add(edits.table()).let { emptyList() } })
+            }
+            edits.slots.randomOrNull(random)?.let { slot ->
+                add(Edit("slot expand") { slot.expand().let { emptyList() } })
             }
         }
         return options.random(random)

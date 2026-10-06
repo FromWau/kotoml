@@ -96,6 +96,7 @@ class WireSchemaTest {
                 NotATableElement(itemType)
                 NotAValue(itemType)
                 NotAnArray(index, itemType)
+                NotExpandable(itemType)
                 NotFound(key)
                 TooDeep(keyPath)
                 TypeMismatch(key, expected, found)

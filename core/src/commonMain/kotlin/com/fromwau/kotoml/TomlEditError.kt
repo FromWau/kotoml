@@ -50,6 +50,14 @@ public sealed interface TomlEditError : IError {
     public data class NotATableElement(val itemType: TomlType) : TomlEditError
 
     /**
+     * [Item.expand] found an item of type [itemType]: only an inline table, or an array holding inline tables and
+     * nothing else, becomes a table or an array of tables.
+     */
+    @Serializable
+    @SerialName("NotExpandable")
+    public data class NotExpandable(val itemType: TomlType) : TomlEditError
+
+    /**
      * Storing would nest deeper than [TomlDocument.NESTING_LIMIT] allows, so the document could not be read back;
      * nothing was stored. [keyPath] leads to where it gets too deep from the document's root, or from the top of the
      * table, array or value being built when that is stored in no document; an element of an array adds no part.

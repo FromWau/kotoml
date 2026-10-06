@@ -158,7 +158,7 @@ class CommentPlacementTest {
         val table = StandardTable()
         table.set("k", commented(1L)).getOrFail()
         doc.set("t", table).getOrFail()
-        doc["t"].getOrFail().makeValue().getOrFail()
+        doc["t"].getOrFail().inline().getOrFail()
         assertEquals("x = 1\r\nt = {\r\n  k = 1 # c\r\n}\r\n", doc.toString())
     }
 
@@ -168,7 +168,7 @@ class CommentPlacementTest {
         val first = StandardTable()
         first.set("k", commented(1L)).getOrFail()
         doc.set("s", listOf(first, StandardTable()).toArrayOfTables().getOrFail()).getOrFail()
-        doc["s"].getOrFail().makeValue().getOrFail()
+        doc["s"].getOrFail().inline().getOrFail()
         assertEquals("x = 1\r\ns = [\r\n  {\r\n    k = 1 # c\r\n  },\r\n  {},\r\n]\r\n", doc.toString())
     }
 
@@ -275,14 +275,14 @@ class CommentPlacementTest {
     @Test
     fun `an array of tables made a value keeps its comments in TOML 1_1`() {
         val doc = parse("# first\n[[s]] # ac\nn = 1 # one\n\n[[s]]\nn = 2\n")
-        doc["s"].getOrFail().makeValue().getOrFail()
+        doc["s"].getOrFail().inline().getOrFail()
         assertEquals("# first\ns = [\n  { # ac\n    n = 1 # one\n  },\n  { n = 2 },\n]\n", doc.toString())
     }
 
     @Test
     fun `an array of tables made a value in TOML 1_0 keeps the comments on and between its headers`() {
         val doc = parse("# first\n[[s]] # ac\nn = 1 # one\n\n# second\n[[s]]\nn = 2\n", TomlVersion.V1_0)
-        doc["s"].getOrFail().makeValue().getOrFail()
+        doc["s"].getOrFail().inline().getOrFail()
         val expected = "# first\ns = [\n  { n = 1 }, # ac\n  # second\n  { n = 2 },\n]\n"
         assertEquals(expected, doc.toString())
         assertEquals(expected, parse(expected, TomlVersion.V1_0).toString())

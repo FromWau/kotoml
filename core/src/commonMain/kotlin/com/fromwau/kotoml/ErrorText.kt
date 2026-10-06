@@ -210,6 +210,8 @@ internal fun TomlEditError.describe(): String = when (this) {
     is TomlEditError.NotAValue -> "an inline table or array holds only values, not ${itemType.describe().withArticle()}"
     is TomlEditError.NotATableElement ->
         "an array of tables holds only tables, not ${itemType.describe().withArticle()}"
+    is TomlEditError.NotExpandable ->
+        "only an inline table or an array of inline tables expands, not ${itemType.describe().withArticle()}"
     is TomlEditError.TooDeep -> at(keyPath, TOO_DEEP)
 }
 

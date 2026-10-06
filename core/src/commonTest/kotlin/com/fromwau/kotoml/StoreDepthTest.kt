@@ -140,7 +140,7 @@ class StoreDepthTest {
     fun `a table made a value too deep for its line is TooDeep`() {
         val doc = TomlDocument()
         innermostTable(doc, limit).set("x", 1L).getOrFail()
-        val error = doc["t"].getOrFail().makeValue().errorOrFail()
+        val error = doc["t"].getOrFail().inline().errorOrFail()
         assertEquals(tooDeep(repeated("t", limit) + "x"), error)
         assertEquals(TomlType.Table, doc["t"].getOrFail().type)
     }

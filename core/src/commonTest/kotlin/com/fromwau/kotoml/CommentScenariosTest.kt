@@ -766,7 +766,7 @@ class CommentScenariosTest {
     }
 
     private fun eR_100(doc: TomlDocument) {
-        doc["t"].getOrFail().makeValue()
+        doc["t"].getOrFail().inline()
     }
 
     private fun eR_101(doc: TomlDocument) {
@@ -1058,31 +1058,31 @@ class CommentScenariosTest {
     }
 
     private fun eS_059(doc: TomlDocument) {
-        doc["t"].getOrFail().makeValue()
+        doc["t"].getOrFail().inline()
     }
 
     private fun eS_060(doc: TomlDocument) {
-        doc["t"].getOrFail().makeValue()
+        doc["t"].getOrFail().inline()
     }
 
     private fun eS_061(doc: TomlDocument) {
-        doc["t"].getOrFail().makeValue()
+        doc["t"].getOrFail().inline()
     }
 
     private fun eS_062(doc: TomlDocument) {
-        doc["t"].getOrFail().makeValue()
+        doc["t"].getOrFail().inline()
     }
 
     private fun eS_063(doc: TomlDocument) {
-        doc["t"].getOrFail().makeValue()
+        doc["t"].getOrFail().inline()
     }
 
     private fun eS_064(doc: TomlDocument) {
-        doc["t"].getOrFail().makeValue()
+        doc["t"].getOrFail().inline()
     }
 
     private fun eS_065(doc: TomlDocument) {
-        doc["t"].getOrFail().makeValue()
+        doc["t"].getOrFail().inline()
     }
 
     private fun eS_066(doc: TomlDocument) {
@@ -1735,7 +1735,7 @@ class CommentScenariosTest {
     }
 
     private fun eC_109(doc: TomlDocument) {
-        doc["t"].getOrFail().makeValue()
+        doc["t"].getOrFail().inline()
     }
 
     private fun eC_110(doc: TomlDocument) {

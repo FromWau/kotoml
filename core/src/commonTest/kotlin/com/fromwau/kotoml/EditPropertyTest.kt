@@ -183,7 +183,8 @@ internal class Edits(
             }
             slots.randomOrNull(random)?.let { slot ->
                 add("slot assign" to { slot.assign(item()) })
-                add("slot makeValue" to { slot.makeValue() })
+                add("slot inline" to { slot.inline() })
+                add("slot expand" to { slot.expand() })
                 add("slot index set" to { slot.set(keyFor(emptySet()), item()) })
             }
             slots.randomOrNull(random)?.let { source ->

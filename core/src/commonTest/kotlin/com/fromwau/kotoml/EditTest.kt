@@ -1138,7 +1138,7 @@ name = "test.swf"
     }
 
     @Test
-    fun `makeValue turns a table and its sub-tables into one inline table`() {
+    fun `inline turns a table and its sub-tables into one inline table`() {
         val toml = """
 [table]
 string = "value"
@@ -1149,7 +1149,7 @@ inline = { "1" = 1, "2" = 2 }
 other = "world"
 """
         val doc = TomlDocument.parse(toml).getOrFail()
-        doc.getOrNull("table")!!.makeValue().getOrFail()
+        doc.getOrNull("table")!!.inline().getOrFail()
         val actual = doc.toString()
         assertSnapshot(
             "\ntable = { string = \"value\", array = [1, 2, 3], inline = { \"1\" = 1, \"2\" = 2 }, child = { other = " +
@@ -1178,7 +1178,7 @@ child = { other = "world" }
     }
 
     @Test
-    fun `makeValue turns an array of tables into an array of inline tables`() {
+    fun `inline turns an array of tables into an array of inline tables`() {
         val toml = """
 [[table]]
 string = "value"
@@ -1197,7 +1197,7 @@ inline = { "1" = 1, "2" = 2 }
 other = "world"
 """
         val doc = TomlDocument.parse(toml).getOrFail()
-        doc.getOrNull("table")!!.makeValue().getOrFail()
+        doc.getOrNull("table")!!.inline().getOrFail()
         val actual = doc.toString()
         assertSnapshot(
             "\ntable = [{ string = \"value\", array = [1, 2, 3], inline = { \"1\" = 1, \"2\" = 2 }, " +

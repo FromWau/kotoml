@@ -82,7 +82,8 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     /**
      * A standard table holding copies of this table's entries, formatted anew; this table stays as it is. The
      * comments of a table written across lines are kept: the comment after `{` on its header line, each value's
-     * comment after it, and the comment lines inside above the key below them.
+     * comment after it, and the comment lines inside above the key below them. [Item.expand] turns an inline table
+     * in a document into a table in place.
      */
     public fun toStandardTable(): StandardTable = deepCopy().moveToStandardTable()
 
@@ -679,6 +680,22 @@ public fun inlineTableOf(vararg pairs: Pair<String, Value>): Result<InlineTable,
 public fun Iterable<Pair<String, Value>>.toInlineTable(): Result<InlineTable, TomlEditError> {
     val table = InlineTable()
     return table.putAll(this).map { table }
+}
+
+/**
+ * Keeps [comment], which ended the line of this table's closing brace, on its header, or as a comment line ending its
+ * lines when the header has one already.
+ */
+internal fun StandardTable.keepCommentAfterBraces(
+    comment: String,
+    lineBreak: String,
+) {
+    if (comment.isEmpty()) return
+    if (headerComment.isEmpty()) {
+        rawDecor.suffix = KeptText.from(comment)
+    } else {
+        items.keptLines += KeptLines(indentedCommentLines(comment, "", lineBreak), null)
+    }
 }
 
 // `{ key1 = value1, ... }`

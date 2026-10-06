@@ -194,7 +194,8 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     }
 
     /**
-     * An inline table holding copies of this table's values, formatted anew; the table stays as it is.
+     * An inline table holding copies of this table's values, formatted anew; the table stays as it is. [Item.inline]
+     * turns a table in a document into an inline table in place.
      *
      * @return [TomlEditError.TooDeep] when its tables, nested as inline tables, would be deeper than the parser reads.
      */
