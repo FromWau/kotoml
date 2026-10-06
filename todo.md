@@ -35,14 +35,6 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
   comments. It cannot fail: writing is `writeTo`'s.
   **Ruling 2026-10-05 (2):** `format()` fixes key quoting (`'q'` becomes `q`), blank lines between tables and
   spacing; it leaves the layout as it is (dotted stays dotted, inline stays inline).
-- [ ] **66. Containers answer in different shapes.** `InlineTable[k]` and `TomlArray[i]` are nullable,
-  `StandardTable[k]` a `Result`; no `InlineTable.getOrNull`; `TomlArray.add(String)` is `Unit` and `add(Value)` a
-  `Result`; store calls refuse `Int`; payloads are `.value`, `.array` and `.table`; `putItem` turns a table into an
-  inline table where `Item.set` refuses it.
-  **Ruling 2026-10-05:** yes, breaking changes are fine before the first release: `Result` indexing and `getOrNull` on
-  every container, `Int` overloads, one payload name, `putItem` of a table into an inline table is `NotAValue`.
-  **Ruling 2026-10-05 (2):** scalar `add`s stay `Unit`: a call that cannot fail returns no `Result`. The payloads
-  `Value.Array.array` and `Value.InlineTable.table` are renamed to `.value`, like the scalars.
 - [ ] **70. CLI has no set, delete or in-place edit.** The only path, `decode | jq | encode`, drops every comment
   and writes all tables inline. `encode` reads only tagged JSON, not what `get --json` prints.
   **Ruling 2026-10-05:** `-i` writes back into the file. Low priority: do when nothing else is open. Plain JSON to
@@ -96,6 +88,19 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **66. Containers answer in different shapes.** `InlineTable[k]` and `TomlArray[i]` are nullable,
+  `StandardTable[k]` a `Result`; no `InlineTable.getOrNull`; `TomlArray.add(String)` is `Unit` and `add(Value)` a
+  `Result`; store calls refuse `Int`; payloads are `.value`, `.array` and `.table`; `putItem` turns a table into an
+  inline table where `Item.set` refuses it.
+  **Ruling 2026-10-05:** yes, breaking changes are fine before the first release: `Result` indexing and `getOrNull` on
+  every container, `Int` overloads, one payload name, `putItem` of a table into an inline table is `NotAValue`.
+  **Ruling 2026-10-05 (2):** scalar `add`s stay `Unit`: a call that cannot fail returns no `Result`. The payloads
+  `Value.Array.array` and `Value.InlineTable.table` are renamed to `.value`, like the scalars.
+  **Verdict 2026-10-06:** fixed: every container indexes to a `Result` with `getOrNull` beside it, every integer store
+  takes `Int` (and `Value.Integer(Int)`), scalar adds stay `Unit`, the payloads are `.value`, and `putItem` of a table
+  or array of tables into an inline table is `NotAValue`. Scalar `set`s keep `EmptyResult`: they can fail (`TooDeep`,
+  `NotATable`). IndexingTest, CollectionApiTest, SlotSemanticsTest.
 
 - [x] **92. A type mismatch does not suggest the value meant.** A `Boolean` field given `"ture"` reports
   `TypeMismatch` with the value but no hint. **Ruling 2026-10-06:** yes: `TypeMismatch` gains a suggestion from
