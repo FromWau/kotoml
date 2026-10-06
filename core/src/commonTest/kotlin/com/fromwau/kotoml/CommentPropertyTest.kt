@@ -14,7 +14,8 @@ import kotlin.test.assertEquals
 /**
  * Edits keep every comment they do not own. Adding, replacing a value with a value, sorting and changing how a table
  * prints keep them all; removing a value takes only the comment on its own line, and giving a table a new layout with
- * `isDotted` may take its comments, all but the lines above its key. Removing or replacing whole tables
+ * `isDotted` may take its comments, all but the lines above its key; putting an inline table on one line with
+ * `isMultiline` may take the comments inside its braces. Removing or replacing whole tables
  * is covered by `RemovalPropertyTest` and the comment scope tests, which state what those take.
  */
 class CommentPropertyTest {
@@ -125,6 +126,12 @@ class CommentPropertyTest {
                     // A new layout for the table: its comments may go, but for those above it.
                     val inside = comments(inline.toString()) + comments(inline.decor.suffix.orEmpty())
                     inline.isDotted = !inline.isDotted
+                    inside
+                })
+                add(Edit("inline isMultiline") {
+                    // One line holds no comment: going to one, the comments inside the braces may go.
+                    val inside = if (inline.isMultiline) comments(inline.toString()) else emptyList()
+                    inline.isMultiline = !inline.isMultiline
                     inside
                 })
             }

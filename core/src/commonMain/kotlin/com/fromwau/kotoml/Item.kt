@@ -330,54 +330,44 @@ public class Item private constructor(
 
     /**
      * Turns a table in this slot into an inline table and an array of tables into an array of inline tables; a value
-     * stays as it is. The comment lines above the header move above the key. A table whose values carry comments
-     * becomes an inline table across lines that keeps them, its header comment after `{`, in a document whose
-     * [TomlDocument.version] is TOML 1.1, since only TOML 1.1 reads that; otherwise it goes on one line, formatted
-     * anew, and only the header comment stays, after `}`. An array of tables with comments on or between its headers
-     * becomes an array across lines, a table a line, each header comment after its table's comma and the comment
-     * lines above a later header above its table; its tables keep the comments inside them as a single table does.
+     * stays as it is. The comment lines above the header move above the key.
+     *
+     * [multiline] picks the layout of the table and of every table under it, as [InlineTable.isMultiline] does for
+     * one. When true each goes across lines, one entry per line, keeping every comment: its header comment after `{`,
+     * each value's same-line comment after its comma, the comment lines above a key or above a header inside above
+     * the key; keys written dotted stay dotted. When false each goes on one line, formatted anew, and only the header
+     * comment of the table in this slot stays, after `}`. Without it a table goes across lines when it, or a table
+     * under it, has comments to keep, and otherwise on one line with its header comment after `}`, which stays on that
+     * line inside a table across lines. Only TOML 1.1 reads an inline table across lines, so without [multiline] a
+     * document whose [TomlDocument.version] is TOML 1.0 gets one line, and with it set to true
+     * [TomlDocument.writeTo] refuses the document.
+     *
+     * An array of tables with comments on or between its headers, or holding a table that goes across lines, becomes
+     * an array across lines, a table a line, each header comment after its table's comma, or after `{` for a table
+     * across lines, and the comment lines above a later header above its table.
+     *
      * A table taken from this slot earlier keeps its content and no longer belongs to the document. [expand] turns
-     * it back.
+     * it back: in TOML 1.1, `inline(multiline = true)` then [expand] gives back the text of a table with the tables
+     * under it and their comments.
      *
      * @return [TomlEditError.NotATableElement], changing nothing, when this is a table in an array of tables, or
      *   [TomlEditError.TooDeep] when the value would nest deeper than the parser reads.
      */
-    public fun inline(): EmptyResult<TomlEditError> {
+    public fun inline(multiline: Boolean? = null): EmptyResult<TomlEditError> {
         if (holds == Holds.Table) return Err(TomlEditError.NotATableElement(TomlType.InlineTable))
-        val value = standardTableOrNull?.let(::inlineValueOf)
-            ?: arrayOfTablesOrNull?.let(::arrayValueOf)
-            ?: copyWithComments().moveToValue()
+        val table = standardTableOrNull
+        val tables = arrayOfTablesOrNull
+        val version = owner?.let(::documentVersionOf) ?: TomlVersion.V1_1
+        val lineBreak = (table ?: tables?.firstOrNull())?.headerLineEnding ?: newLineEnding()
+        val layout = InlineLayout(multiline, version, lineBreak)
+        val value = when {
+            table != null -> table.deepCopy().toInlineValue(layout, "")
+            tables != null -> Value.Array(tables.deepCopy().moveToTomlArrayKeepingComments(layout, ""))
+            else -> copyWithComments().moveToValue()
+        }
         tooDeepToHold(Item(value))?.let { return Err(it) }
         holdValue(value)
         return Ok(Unit)
-    }
-
-    /**
-     * [table] as an inline table value. Its values' comments need one across lines, which only TOML 1.1 reads, so a
-     * table with them becomes that in a document that writes 1.1 or in no document; otherwise it goes on one line and
-     * only the comment on its header survives, after `}`.
-     */
-    private fun inlineValueOf(table: StandardTable): Value {
-        val version = owner?.let(::documentVersionOf) ?: TomlVersion.V1_1
-        val headerComment = if (table.isDotted) "" else table.headerComment
-        if (version == TomlVersion.V1_1 && table.holdsComments()) {
-            val lineBreak = table.headerLineEnding ?: newLineEnding()
-            return Value.InlineTable(table.deepCopy().moveToInlineTableAcrossLines(headerComment, lineBreak))
-        }
-        val value = copyWithComments().moveToValue()
-        if (headerComment.isNotEmpty()) value.rawDecor.suffix = KeptText.from(headerComment)
-        return value
-    }
-
-    /**
-     * [array] as an array of inline tables. The comments on and between its headers put it across lines, a table a
-     * line; in a document whose [TomlDocument.version] is TOML 1.1 a table whose values carry comments goes across
-     * lines too, keeping them as [inlineValueOf] does. Otherwise its comments inside go.
-     */
-    private fun arrayValueOf(array: ArrayOfTables): Value {
-        val version = owner?.let(::documentVersionOf) ?: TomlVersion.V1_1
-        val lineBreak = array.firstOrNull()?.headerLineEnding ?: newLineEnding()
-        return Value.Array(array.deepCopy().moveToTomlArrayKeepingComments(lineBreak, version == TomlVersion.V1_1))
     }
 
     /**
@@ -397,9 +387,8 @@ public class Item private constructor(
      * element's comma goes on its header the same way, the comment after `[` and the comment lines above an element go
      * above its header, and the comment lines before `]` and the comment after it below the last table. So [inline]
      * then [expand] gives back the text of a table, with the tables and arrays of tables under it, wherever [inline]
-     * kept the comments: in TOML 1.1 all but those inside the tables under it, in TOML 1.0 only its header comment
-     * and the lines above it. An inline table taken from this slot earlier keeps its content and no longer belongs to
-     * the document.
+     * kept the comments: in TOML 1.1 all of them, in TOML 1.0 only its header comment and the lines above it. An
+     * inline table taken from this slot earlier keeps its content and no longer belongs to the document.
      *
      * @return [TomlEditError.NotExpandable] when this holds any other value: a scalar, or an array that is empty or
      *   holds anything but inline tables; [TomlEditError.NotAValue] when this is a slot in an array or an inline

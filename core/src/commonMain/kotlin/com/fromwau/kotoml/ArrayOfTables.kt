@@ -53,45 +53,54 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     }
 
     /**
-     * Moves the tables into a new array of inline tables that keeps their comments, leaving this empty. Comments on
-     * or between the headers put it across lines, a table a line: the comment lines above a later header go above
-     * its table, and a header comment after its comma. When [tablesAcrossLines], which only TOML 1.1 reads, a table
-     * whose values carry comments goes across lines keeping them, its header comment after `{`; otherwise its
-     * comments inside go. With no comment to keep it goes on one line, formatted anew.
+     * Whether these tables, made an array of inline tables at [key], have comments to keep: above or on their headers,
+     * or inside them as [StandardTable.holdsComments] says.
+     */
+    internal fun holdsComments(key: Key): Boolean = toList().withIndex().any { (index, table) ->
+        val above = if (index == 0) table.headerLinesAbove(key) else linesAbove(table.rawDecor.prefix)
+        '#' in above || table.headerComment.isNotEmpty() || table.holdsComments()
+    }
+
+    /**
+     * Moves the tables into a new array of inline tables that keeps their comments, leaving this empty, for a line
+     * indented by [indent]. Comments on or between the headers, or a table [layout] puts across lines, put it across
+     * lines, a table a line: the comment lines above a later header go above its table, and a header comment after
+     * its comma, or after `{` for a table across lines, which keeps its comments inside; a table on one line loses
+     * them. With neither it goes on one line, formatted anew.
      */
     internal fun moveToTomlArrayKeepingComments(
-        lineBreak: String,
-        tablesAcrossLines: Boolean,
+        layout: InlineLayout,
+        indent: String,
     ): TomlArray {
         val tables = toList()
-        val keepsComments = tables.withIndex().any { (index, table) ->
-            table.headerComment.isNotEmpty() ||
-                (index > 0 && '#' in linesAbove(table.rawDecor.prefix)) ||
-                (tablesAcrossLines && table.holdsComments())
-        }
+        val acrossLines = tables.map(layout::acrossLines)
+        val keepsComments = acrossLines.any { it } ||
+            tables.withIndex().any { (index, table) ->
+                table.headerComment.isNotEmpty() || (index > 0 && '#' in linesAbove(table.rawDecor.prefix))
+            }
         if (!keepsComments) return moveToTomlArray()
-        val indent = "  "
+        val lineBreak = layout.lineBreak
+        val elementIndent = indent + INDENT
         val array = TomlArray()
         var carried = ""
         for ((index, slot) in values.withIndex()) {
             val table = tables[index]
             val above = if (index == 0) "" else linesAbove(table.rawDecor.prefix)
-            val acrossLines = tablesAcrossLines && table.holdsComments()
-            val value = if (acrossLines) {
-                Value.InlineTable(table.moveToInlineTableAcrossLines(table.headerComment, lineBreak, indent))
+            val value = if (acrossLines[index]) {
+                Value.InlineTable(table.moveToInlineTableAcrossLines(table.headerComment, layout, elementIndent))
             } else {
                 slot.moveToValue()
             }
-            val lines = indentedCommentLines(above, indent, lineBreak)
-            value.rawDecor.prefix = KeptText.from(carried + lineBreak + lines + indent)
+            val lines = indentedCommentLines(above, elementIndent, lineBreak)
+            value.rawDecor.prefix = KeptText.from(carried + lineBreak + lines + elementIndent)
             value.rawDecor.suffix = KeptText.from("")
-            carried = if (acrossLines) "" else table.headerComment
+            carried = if (acrossLines[index]) "" else table.headerComment
             array.append(value)
             slot.arrayOwner = null
         }
         values.clear()
         array.trailingComma = true
-        array.trailing = carried + lineBreak
+        array.trailing = carried + lineBreak + indent
         return array
     }
 

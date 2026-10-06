@@ -229,6 +229,14 @@ class ExpandTest {
     }
 
     @Test
+    fun `an element marked dotted prints in braces and keeps their comments as a table`() {
+        val doc = parse("a = [\n  {\n    x = 1, # xc\n  },\n]\n")
+        doc["a"].getOrFail().arrayOrNull!![0].getOrFail().inlineTableOrNull!!.isDotted = true
+        doc["a"].getOrFail().expand().getOrFail()
+        assertEquals("[[a]]\nx = 1 # xc\n", doc.toString())
+    }
+
+    @Test
     fun `the comment after the last element of an array without a trailing comma goes on its header`() {
         val text = "a = [\n  { x = 1 },\n  { x = 2 } # two\n]\n"
         assertEquals("[[a]]\nx = 1\n\n[[a]] # two\nx = 2\n", expand(text, "a"))

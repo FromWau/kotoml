@@ -49,6 +49,90 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         dotted = value
     }
 
+    /**
+     * Whether the table prints across lines: `{`, then each entry on a line of its own, indented two spaces more than
+     * the line holding `{`, then `}` on a line of its own. False when it prints on one line, `{ a = 1, b = 2 }`. A
+     * table read from text reads true when it was written across lines, and a table built in code reads false.
+     *
+     * Setting it changes the layout, as setting [isDotted] does. Across lines the new lines end as the document's
+     * lines do, in `\r\n` in a document read with them. On one line the entries take the default spacing and the
+     * comments inside the braces go, since a line holds none. Only this table changes: an inline table inside keeps
+     * its own layout, and a value inside written across lines, such as an array, still spans lines. Only TOML 1.1
+     * reads an inline table across lines, so in a document whose [TomlDocument.version] is 1.0
+     * [TomlDocument.writeTo] refuses one with [TomlWriteError.NotInToml10].
+     *
+     * A dotted table prints no braces: its keys print on the lines of the table holding them, whose layout decides
+     * theirs. While [isDotted] is true this reads false and setting it changes nothing.
+     *
+     * ```kotlin
+     * val doc = TomlDocument.parse("t = { a = 1, b = 2 }\n").getOrElse { error(it) }
+     * doc["t"].getOrNull()?.inlineTableOrNull?.isMultiline = true
+     * doc.toString() // "t = {\n  a = 1,\n  b = 2\n}\n"
+     * ```
+     */
+    public var isMultiline: Boolean
+        get() = !isDotted && spansLines()
+        set(value) {
+            if (isDotted || value == isMultiline) return
+            if (value) layOutAcrossLines(lineEndingOf(this), lineIndentOf(this)) else layOutOnOneLine()
+        }
+
+    // Whether a line break stands in the text between the braces outside the values.
+    private fun spansLines(): Boolean = '\n' in trailing ||
+        bodyLines().any { line ->
+            when (line) {
+                is KeptLines -> '\n' in line.text
+                is VisualValue -> {
+                    val start = line.lineStart ?: line.path.last().rawLeafDecor.prefix
+                    '\n' in start?.textOrNull.orEmpty() || '\n' in line.value.rawDecor.suffix?.textOrNull.orEmpty()
+                }
+            }
+        }
+
+    /**
+     * Lays the table out across lines indented by [INDENT] more than [indent], the indentation of the line holding
+     * `{`, ending them in [lineBreak], with [comments] on them.
+     */
+    internal fun layOutAcrossLines(
+        lineBreak: String,
+        indent: String,
+        comments: LineComments = LineComments(),
+    ) {
+        val entryIndent = indent + INDENT
+        forgetLineStarts()
+        var carried = comments.headerComment
+        for (line in visualValues()) {
+            val above = indentedCommentLines(comments.above(line.value), entryIndent, lineBreak)
+            line.path.last().rawLeafDecor.prefix = KeptText.from(carried + lineBreak + above + entryIndent)
+            line.value.rawDecor.suffix = KeptText.from("")
+            carried = comments.after(line.value)
+        }
+        val end = indentedCommentLines(comments.endLines, entryIndent, lineBreak)
+        trailingComma = false
+        rawTrailing = KeptText.from(carried + lineBreak + end + indent)
+    }
+
+    // On one line the entries take the default spacing, and no comment fits inside.
+    private fun layOutOnOneLine() {
+        forgetLineStarts()
+        for (line in visualValues()) {
+            line.path.last().rawLeafDecor.prefix = null
+            line.value.rawDecor.suffix = null
+        }
+        trailingComma = false
+        rawTrailing = KeptText()
+    }
+
+    // Each line starts with its last key's spacing alone, and the lines kept from removed entries go.
+    private fun forgetLineStarts() {
+        items.keptLines.clear()
+        for (entry in items.entries) {
+            val dotted = entry.item.inlineTableOrNull?.takeIf { it.isDotted } ?: continue
+            entry.key.rawLeafDecor.prefix = null
+            dotted.forgetLineStarts()
+        }
+    }
+
     // A new layout keeps each value's comment on its line, held at the start of the next entry's prefix or of the
     // text before `}`, and drops the table's other comments: after `{`, on lines of their own, and after `}`.
     private fun dropCommentsForNewLayout() {
@@ -374,8 +458,8 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
      * Sets [key] to a copy of [value], as `table[key] = value` does: a key already there keeps its position, its
      * spelling and its decor. Pass a [Key] to replace those. A new key is spaced like the entries already there.
      *
-     * A comment in [value]'s decor suffix, such as `Decor(suffix = " # note")`, puts a table on one line on lines of
-     * its own, one entry per line, and prints after the value's comma, in place of the comment that stood there. The
+     * A comment in [value]'s decor suffix, such as `Decor(suffix = " # note")`, puts a table on one line across lines,
+     * as setting [isMultiline] does, and prints after the value's comma, in place of the comment that stood there. The
      * lines it adds end as the document's lines do, in `\r\n` in a document read with them. TOML 1.0 has no comments
      * inside an inline table, so in a document whose [TomlDocument.version] is 1.0 the comment is dropped.
      *
@@ -427,10 +511,13 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         comment: String = "",
     ): Value? {
         val isNew = !items.containsKey(key.name)
-        if (comment.isNotEmpty() && printsOnOneLine()) {
+        if (comment.isNotEmpty() && !isMultiline) {
             val lineBreak = lineEndingOf(this)
-            spreadOverLines(lineBreak)
-            if (isNew && key.rawLeafDecor.prefix == null) key.rawLeafDecor.prefix = KeptText.from(lineBreak + INDENT)
+            val indent = lineIndentOf(this)
+            layOutAcrossLines(lineBreak, indent)
+            if (isNew && key.rawLeafDecor.prefix == null) {
+                key.rawLeafDecor.prefix = KeptText.from(lineBreak + indent + INDENT)
+            }
             value.rawDecor.suffix = KeptText.from("")
         }
         if (isNew) {
@@ -447,16 +534,6 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     private fun commentToKeep(value: Value): String {
         val version = documentVersionOf(this)
         return if (isDotted || version == TomlVersion.V1_0) "" else value.callerComment()
-    }
-
-    // One entry per line, indented, as a comment after a value needs.
-    private fun spreadOverLines(lineBreak: String) {
-        for (line in visualValues()) {
-            line.path.last().rawLeafDecor.prefix = KeptText.from(lineBreak + INDENT)
-            line.value.rawDecor.suffix = KeptText.from("")
-        }
-        trailingComma = false
-        rawTrailing = KeptText.from(lineBreak)
     }
 
     // A comment after a value holds the start of the next entry's line, or of the closing line, after the comma, in
@@ -478,7 +555,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         }
         val decor = next.path.last().rawLeafDecor
         val start = decor.prefix?.textOrNull.orEmpty()
-        decor.prefix = KeptText.from(start.withCommentEndingLine(comment, lineBreak, INDENT))
+        decor.prefix = KeptText.from(start.withCommentEndingLine(comment, lineBreak, lineIndentOf(this) + INDENT))
     }
 
     // A new entry is spaced around `=` like the last one, and on one line after its comma like it too.
@@ -728,6 +805,33 @@ internal fun StandardTable.keepCommentAfterBraces(
 
 // `{ key1 = value1, ... }`
 internal val DEFAULT_INLINE_KEY_DECOR: Pair<String, String> = " " to " "
+
+/**
+ * The comments for the lines of an inline table across lines: [headerComment] after `{`, for each value the comment
+ * lines above it and the comment after its comma, and [endLines] above `}`.
+ */
+internal class LineComments(val headerComment: String = "") {
+    var endLines: String = ""
+    private val values = mutableListOf<Value>()
+    private val aboveEach = mutableListOf<String>()
+    private val afterEach = mutableListOf<String>()
+
+    fun add(
+        value: Value,
+        above: String,
+        after: String,
+    ) {
+        values += value
+        aboveEach += above
+        afterEach += after
+    }
+
+    fun above(value: Value): String = aboveEach.getOrNull(indexOf(value)).orEmpty()
+
+    fun after(value: Value): String = afterEach.getOrNull(indexOf(value)).orEmpty()
+
+    private fun indexOf(value: Value): Int = values.indexOfFirst { it === value }
+}
 
 /**
  * The comments of an inline table across lines, gathered for the lines of a standard table: [headerComment] for its

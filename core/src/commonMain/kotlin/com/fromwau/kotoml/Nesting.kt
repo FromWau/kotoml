@@ -96,6 +96,24 @@ internal fun lineEndingOf(container: Any): String = outermostTableOf(container)?
 /** The TOML version of the document [container] is stored in, or TOML 1.1 when it is stored nowhere. */
 internal fun documentVersionOf(container: Any): TomlVersion = outermostTableOf(container)?.version ?: TomlVersion.V1_1
 
+/**
+ * The indentation of the line [container] starts on: the spacing after the last line break before the key or element
+ * holding it, found through the slots holding it up to the first that starts a line; "" when it is stored nowhere.
+ */
+internal fun lineIndentOf(container: Any): String {
+    var current = container
+    while (true) {
+        val slot = slotOf(current) ?: return ""
+        val owner = slot.owner ?: return ""
+        val entry = slot.entry
+        val start = if (entry != null) entry.key.rawLeafDecor.prefix else slot.valueOrNull?.rawDecor?.prefix
+        val text = start?.textOrNull.orEmpty()
+        if ('\n' in text) return text.substringAfterLast('\n')
+        if (owner is StandardTable && !owner.isDotted) return text
+        current = owner
+    }
+}
+
 private fun topNestingOf(container: Any): Nesting = when (container) {
     is StandardTable -> Nesting.InTable(parts = 0, dots = 0)
     is ArrayOfTables -> Nesting.InTables(parts = 1)

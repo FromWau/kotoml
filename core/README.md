@@ -109,15 +109,24 @@ one entry per line, whether the entry is added, inserted at an index or replaces
 of the one that stood after the entry it replaces, and the new lines end as the document's do. In a document that writes TOML 1.0, which has no comments inside an inline table, an inline table's
 value drops it. Sorting, by key name with `sort()` or by your own order with `sortBy` and `sortWith`, moves each key
 and each table header with the comment lines right above it and leaves blank lines in place.
-Making a table dotted, or a header again, keeps the lines above its key and each value's same-line comment and drops
-its other comments. An `Item` is a slot that holds a value, a table or an array of tables; `valueOrNull`,
+A table prints in one of four layouts: under a header (`[t]`), as dotted keys (`t.a = 1`, with `isDotted`), as an
+inline table on one line (`t = { a = 1 }`), or as an inline table across lines, one entry per line between `{` and
+`}` (with `InlineTable.isMultiline`, which only TOML 1.1 reads). Making a table dotted, or a header again, keeps the
+lines above its key and each value's same-line comment and drops its other comments. Setting `isMultiline` lays out
+that inline table alone, the tables inside keeping theirs: across lines each entry gets a line of its own, indented
+from the line holding `{` and ending as the document's lines do; on one line the comments inside the braces go. A
+dotted inline table prints its keys on the lines of the table holding them, so for it `isMultiline` reads false and
+setting it changes nothing. An `Item` is a slot that holds a value, a table or an array of tables; `valueOrNull`,
 `standardTableOrNull` and their siblings read what it holds, and `tableOrNull` reads a table of either kind; how
 items carry comments when stored, copied or removed is under [Items and their comments](#items-and-their-comments).
 A table stored under a new key prints right after
 its new parent's lines and the tables stored before it there; one stored in place of a table prints where that table
 did. A table made in code that holds only tables prints no header of its own, as `[tool]` does not above
 `[tool.ruff]`. A table's `position` sets where its header prints among the document's tables. An item's `inline()`
-turns the table or array of tables in its slot into an inline table or array in place, and `expand()` turns an inline
+turns the table or array of tables in its slot into an inline table or array in place: `inline(multiline = true)`
+writes it and every table under it across lines, keeping every comment, `inline(multiline = false)` writes each on
+one line, and plain `inline()` goes across lines only where there are comments to keep, and never in a TOML 1.0
+document. `expand()` turns an inline
 table or array of inline tables back, `t = { … }` into `[t]`, printing where a table stored at that key would, with
 every inline table inside it a table under its own header (`[t.sub]`) and every array of only inline tables an array
 of tables (`[[t.list]]`);

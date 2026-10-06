@@ -162,6 +162,7 @@ internal class Edits(
                 add("inline putItem $inlineKey" to { inline.putItem(inlineKey, item()) })
                 inline.keys.randomOrNull(random)?.let { old -> add("inline remove $old" to { inline.remove(old) }) }
                 add("inline isDotted" to { inline.isDotted = !inline.isDotted })
+                add("inline isMultiline" to { inline.isMultiline = !inline.isMultiline })
                 add("inline resetFormatting" to { inline.resetFormatting() })
             }
             arrays.randomOrNull(random)?.let { array ->
@@ -184,6 +185,7 @@ internal class Edits(
             slots.randomOrNull(random)?.let { slot ->
                 add("slot assign" to { slot.assign(item()) })
                 add("slot inline" to { slot.inline() })
+                add("slot inline multiline" to { slot.inline(multiline = random.nextBoolean()) })
                 add("slot expand" to { slot.expand() })
                 add("slot index set" to { slot.set(keyFor(emptySet()), item()) })
             }

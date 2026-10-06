@@ -201,53 +201,121 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
      */
     public fun toInlineTable(): Result<InlineTable, TomlEditError> = deepCopy().moveToInlineTable().refusedWhenTooDeep()
 
-    /** Moves the entries into a new inline table, formatted anew, leaving this table empty. */
     /**
-     * Whether this table's lines carry a comment: above a key inside it, after a value, or kept from a removed key.
-     * The lines above a dotted table's first line are above its key, outside it.
+     * Whether this table, made an inline table, has comments to keep: on its lines or kept from removed keys, and on
+     * or above the headers of the tables under it, at any depth. The lines above a dotted table's first line are above
+     * its key, outside it.
      */
     internal fun holdsComments(): Boolean {
-        if (items.keptLines.any { '#' in it.text }) return true
-        return visualValues().withIndex().any { (index, line) ->
-            val above = if (isDotted && index == 0) "" else linesAbove(line.path.last().rawLeafDecor.prefix)
-            '#' in above || '#' in line.value.rawDecor.suffix?.textOrNull.orEmpty()
+        if (bodyLines().any { it is KeptLines && '#' in it.text }) return true
+        val onLines = visualValues().withIndex().any { (index, line) ->
+            val start = line.lineStart ?: line.path.last().rawLeafDecor.prefix
+            val above = if (isDotted && index == 0) "" else linesAbove(start)
+            '#' in above || '#' in line.value.commentAfter() || '#' in line.lineEnd
         }
+        return onLines || items.entries.any { entry ->
+            val table = entry.item.standardTableOrNull
+            val tables = entry.item.arrayOfTablesOrNull
+            when {
+                table != null && table.isDotted -> table.holdsComments()
+                table != null -> table.headerLinesAbove(entry.key).isNotEmpty() ||
+                    table.headerComment.isNotEmpty() ||
+                    table.holdsComments()
+                tables != null -> tables.holdsComments(entry.key)
+                else -> false
+            }
+        }
+    }
+
+    /**
+     * This table, a copy to use up, as the inline table value [Item.inline] makes of it on a line indented by
+     * [indent]: across lines keeping its comments when [layout] says so, its header comment after `{`; otherwise on
+     * one line, formatted anew, its header comment after `}`.
+     */
+    internal fun toInlineValue(
+        layout: InlineLayout,
+        indent: String,
+    ): Value {
+        val comment = if (isDotted) "" else headerComment
+        if (layout.acrossLines(this)) return Value.InlineTable(moveToInlineTableAcrossLines(comment, layout, indent))
+        val value = Value.InlineTable(moveToInlineTable())
+        if (comment.isNotEmpty()) value.rawDecor.suffix = KeptText.from(comment)
+        return value
     }
 
     /**
      * Moves the entries into a new inline table across lines that keeps their comments, which only TOML 1.1 reads:
-     * [headerComment] after `{`, each value's comment after its comma, and the comment lines above a key above it.
-     * Its lines are indented by [indent] more than the line holding `{`. Tables under this one become inline tables
-     * on one line.
+     * [headerComment] after `{`, each value's comment after its comma, and the comment lines above a key, or above the
+     * header of a table under this one, above it. Keys written dotted stay dotted, and each table and array of tables
+     * under this one becomes a value as [layout] lays it out. Its lines are indented by [INDENT] more than [indent],
+     * the indentation of the line holding `{`.
      */
     internal fun moveToInlineTableAcrossLines(
         headerComment: String,
-        lineBreak: String,
-        indent: String = "",
+        layout: InlineLayout,
+        indent: String,
     ): InlineTable {
-        for (entry in items.entries) {
-            if (entry.item.valueOrNull == null) entry.item.holdValue(entry.item.copyWithComments().moveToValue())
-        }
-        val entryIndent = "$indent$INDENT"
-        var carried = headerComment
-        for ((index, entry) in items.entries.withIndex()) {
-            val decor = entry.key.rawLeafDecor
-            val above = if (isDotted && index == 0) "" else linesAbove(decor.prefix)
-            val lines = indentedCommentLines(above, entryIndent, lineBreak)
-            decor.prefix = KeptText.from(carried + lineBreak + lines + entryIndent)
-            decor.suffix = null
-            val value = entry.item.valueOrNull ?: continue
-            carried = value.commentAfter()
-            value.rawDecor.suffix = KeptText.from("")
-        }
-        val kept = items.keptLines.joinToString("") { indentedCommentLines(it.text, entryIndent, lineBreak) }
-        items.keptLines.clear()
-        val table = InlineTable(items.takeAll())
-        table.trailingComma = false
-        table.rawTrailing = KeptText.from(carried + lineBreak + kept + indent)
+        inlineTablesUnderHeaders(layout, indent + INDENT)
+        val comments = lineComments(headerComment)
+        for (line in visualValues()) line.path.last().rawLeafDecor.suffix = null
+        val table = moveToBraces()
+        table.layOutAcrossLines(layout.lineBreak, indent, comments)
         return table
     }
 
+    // Every table and array of tables under a header beneath this one, through dotted keys, becomes a value on a line
+    // indented by [indent]; the lines above its header go above its key.
+    private fun inlineTablesUnderHeaders(
+        layout: InlineLayout,
+        indent: String,
+    ) {
+        for (entry in items.entries) {
+            val item = entry.item
+            val table = item.standardTableOrNull
+            val tables = item.arrayOfTablesOrNull
+            when {
+                table != null && table.isDotted -> table.inlineTablesUnderHeaders(layout, indent)
+                table != null -> item.holdValue(table.deepCopy().toInlineValue(layout, indent))
+                tables != null -> {
+                    val array = tables.deepCopy().moveToTomlArrayKeepingComments(layout, indent)
+                    item.holdValue(Value.Array(array))
+                }
+            }
+        }
+    }
+
+    // The comments on this table's lines, for the same lines in braces; the lines kept from removed keys go above the
+    // line below them. The lines above a dotted table's first line are above its key, outside it.
+    private fun lineComments(headerComment: String): LineComments {
+        val comments = LineComments(headerComment)
+        var kept = ""
+        var first = true
+        for (line in bodyLines()) {
+            when (line) {
+                is KeptLines -> kept += line.text
+                is VisualValue -> {
+                    val start = line.lineStart ?: line.path.last().rawLeafDecor.prefix
+                    val above = if (isDotted && first) "" else linesAbove(start)
+                    comments.add(line.value, kept + above, line.value.commentAfter() + line.lineEnd)
+                    kept = ""
+                    first = false
+                }
+            }
+        }
+        comments.endLines = kept
+        return comments
+    }
+
+    // Moves the entries into an inline table keeping their formatting, dotted tables into dotted inline tables.
+    private fun moveToBraces(): InlineTable {
+        for (entry in items.entries) {
+            val dotted = entry.item.standardTableOrNull ?: continue
+            entry.item.holdValue(Value.InlineTable(dotted.moveToBraces().also { it.setDotted(true) }))
+        }
+        return InlineTable(items.takeAll())
+    }
+
+    /** Moves the entries into a new inline table, formatted anew, leaving this table empty. */
     internal fun moveToInlineTable(): InlineTable {
         for (entry in items.entries) entry.item.holdValue(entry.item.copyWithComments().moveToValue())
         val table = InlineTable(items.takeAll())
@@ -932,6 +1000,20 @@ private fun String.splitLinesAbove(first: Boolean): Pair<String, String> {
         fullLines.takeWhile { it in blank }.lastOrNull()?.second ?: 0
     }
     return text.substring(0, placeEnd) to text.substring(placeEnd)
+}
+
+/**
+ * How [Item.inline] lays out each inline table it makes: across lines when [multiline] is true, on one line when it is
+ * false, and when it is null across lines only where there are comments to keep and [version] reads that. The lines it
+ * adds end in [lineBreak].
+ */
+internal class InlineLayout(
+    private val multiline: Boolean?,
+    private val version: TomlVersion,
+    val lineBreak: String,
+) {
+    fun acrossLines(table: StandardTable): Boolean =
+        multiline ?: (version == TomlVersion.V1_1 && table.holdsComments())
 }
 
 /** The comment lines of [lines], each indented by [indent] and ended by [lineBreak]; blank lines go. */
