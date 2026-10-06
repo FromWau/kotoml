@@ -69,6 +69,11 @@ is one edit away; a swap of two neighbouring letters counts as one edit (`ture`,
 its same-line comment into an array as into a table (C5 stands).
 
 
+- [ ] **93. `expand()` turns only the top level into a table.** Inline tables inside stay inline, so `inline()` then
+  `expand()` does not give back a table with sub-tables. **Ruling 2026-10-06:** `expand()` mirrors `inline()` over the
+  whole tree: the value and every inline table inside it become header tables, arrays of inline tables become arrays
+  of tables.
+
 Settled the same day, no change: a copied table prints where its key stands (item 38 over 29's "after the tables
 already there"); a moved table gets the default blank line (spacing is not kept across operations); a bare value's
 same-line comment travels with it; `makeValue` on a 1.0 array of tables keeps header comments and comment lines
