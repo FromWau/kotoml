@@ -118,7 +118,9 @@ its new parent's lines and the tables stored before it there; one stored in plac
 did. A table made in code that holds only tables prints no header of its own, as `[tool]` does not above
 `[tool.ruff]`. A table's `position` sets where its header prints among the document's tables. An item's `inline()`
 turns the table or array of tables in its slot into an inline table or array in place, and `expand()` turns an inline
-table or array of inline tables back, `t = { … }` into `[t]`, printing where a table stored at that key would;
+table or array of inline tables back, `t = { … }` into `[t]`, printing where a table stored at that key would, with
+every inline table inside it a table under its own header (`[t.sub]`) and every array of only inline tables an array
+of tables (`[[t.list]]`);
 `toInlineTable` and `toStandardTable` build the converted table without touching the document. Each keeps the
 comments of what it converts. The full set of rules is goal 4 in [GOALS.md](../GOALS.md).
 

@@ -96,6 +96,34 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         return table
     }
 
+    /**
+     * Moves the entries of this dotted table, whose lines print on a standard table's, into a new dotted standard
+     * table printing the same lines: each keeps its comments, and the spacing it had in braces goes.
+     */
+    internal fun moveToDottedTable(): StandardTable {
+        for (line in visualValues()) {
+            val keyDecor = line.path.last().rawLeafDecor
+            if (keyDecor.prefix?.textOrNull.isNullOrBlank()) keyDecor.prefix = null
+            if (line.value.commentAfter().isEmpty()) line.value.rawDecor.suffix = null
+        }
+        return StandardTable(items.takeAll()).also { it.setDotted(true) }
+    }
+
+    /**
+     * Whether [Item.expand] turns something under this dotted table into a table: an inline table not dotted, or a
+     * non-empty array of only inline tables.
+     */
+    internal fun holdsExpandable(): Boolean = items.entries.any { entry ->
+        val value = entry.item.valueOrNull
+        val inline = value?.inlineTableOrNull
+        val array = value?.arrayOrNull
+        when {
+            inline != null -> !inline.isDotted || inline.holdsExpandable()
+            array != null -> array.isNotEmpty() && array.all { it is Value.InlineTable }
+            else -> false
+        }
+    }
+
     // In braces a value's comment ends its line after the comma, so it starts the text before the next key or `}`.
     private fun commentsOnTableLines(): TableLineComments {
         val lines = visualValues()

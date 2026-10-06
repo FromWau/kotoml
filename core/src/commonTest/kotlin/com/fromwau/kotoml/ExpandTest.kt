@@ -68,8 +68,134 @@ class ExpandTest {
     }
 
     @Test
-    fun `inline tables inside the inline table stay inline`() {
-        assertEquals("[t]\nu = { x = 1 }\n", expand("t = { u = { x = 1 } }\n", "t"))
+    fun `inline tables inside the inline table become tables at any depth`() {
+        val text = "t = { a = 1, u = { x = 1, v = { y = 2 } } }\n"
+        assertEquals("[t]\na = 1\n\n[t.u]\nx = 1\n\n[t.u.v]\ny = 2\n", expand(text, "t"))
+    }
+
+    @Test
+    fun `an inline table holding only tables prints no header of its own`() {
+        assertEquals("[t.u]\nx = 1\n", expand("t = { u = { x = 1 } }\n", "t"))
+    }
+
+    @Test
+    fun `arrays of inline tables inside the inline table become arrays of tables at any depth`() {
+        val text = "t = { a = 1, l = [{ x = 1 }, { x = 2, d = [{ y = 1 }] }] }\n"
+        val expected = "[t]\na = 1\n\n[[t.l]]\nx = 1\n\n[[t.l]]\nx = 2\n\n[[t.l.d]]\ny = 1\n"
+        assertEquals(expected, expand(text, "t"))
+    }
+
+    @Test
+    fun `inline tables inside an array of inline tables become tables`() {
+        assertEquals("[[t]]\nx = 1\n\n[t.u]\ny = 1\n", expand("t = [{ x = 1, u = { y = 1 } }]\n", "t"))
+    }
+
+    @Test
+    fun `plain arrays and arrays holding more than inline tables stay values`() {
+        val text = "t = { p = [1, 2], m = [{ x = 1 }, 2], e = [], n = [[{ x = 1 }]] }\n"
+        assertEquals("[t]\np = [1, 2]\nm = [{ x = 1 }, 2]\ne = []\nn = [[{ x = 1 }]]\n", expand(text, "t"))
+    }
+
+    @Test
+    fun `an empty inline table inside becomes an empty table`() {
+        assertEquals("[t]\na = 1\n\n[t.s]\n", expand("t = { a = 1, s = {} }\n", "t"))
+    }
+
+    @Test
+    fun `dotted keys inside stay dotted keys`() {
+        assertEquals("[t]\na.b = 1 # c\nc = 2\n", expand("t = {\n  a.b = 1, # c\n  c = 2,\n}\n", "t"))
+    }
+
+    @Test
+    fun `an inline table under a dotted key inside becomes a table under the dotted path`() {
+        val text = "t = {\n  a.b = { x = 1 },\n  a.c = 2, # c\n}\n"
+        assertEquals("[t]\na.c = 2 # c\n\n[t.a.b]\nx = 1\n", expand(text, "t"))
+    }
+
+    @Test
+    fun `an inline table inside keeps its comments as a table`() {
+        val text = "t = {\n  a = 1,\n  # about u\n  u = { # uc\n    x = 1, # xc\n  }, # after u\n  b = 2,\n}\n"
+        assertEquals("[t]\na = 1\nb = 2\n\n# about u\n[t.u] # uc\nx = 1 # xc\n# after u\n", expand(text, "t"))
+    }
+
+    @Test
+    fun `the comment after the braces of an inline table inside goes on its header`() {
+        val text = "t = {\n  a = 1,\n  # above u\n  u = { x = 1 }, # uc\n}\n"
+        assertEquals("[t]\na = 1\n\n# above u\n[t.u] # uc\nx = 1\n", expand(text, "t"))
+    }
+
+    @Test
+    fun `an array of inline tables inside keeps its comments as an array of tables`() {
+        val text = "t = {\n  a = 1,\n  l = [ # first\n    { x = 1 }, # one\n    # above two\n    { x = 2 },\n" +
+            "  ], # after l\n}\n"
+        val expected = "[t]\na = 1\n\n# first\n[[t.l]] # one\nx = 1\n\n# above two\n[[t.l]]\nx = 2\n# after l\n"
+        assertEquals(expected, expand(text, "t"))
+    }
+
+    @Test
+    fun `the comment after the opening bracket goes below the comment lines above the key`() {
+        val text = "x = 1\n# about t\nt = [ # first\n  { x = 1 },\n]\n"
+        assertEquals("x = 1\n\n# about t\n# first\n[[t]]\nx = 1\n", expand(text, "t"))
+    }
+
+    @Test
+    fun `tables inside expanded in a document with CRLF line breaks print CRLF lines`() {
+        val text = "t = {\r\n  a = 1,\r\n  # above u\r\n  u = { x = 1 }, # uc\r\n}\r\n"
+        assertEquals("[t]\r\na = 1\r\n\r\n# above u\r\n[t.u] # uc\r\nx = 1\r\n", expand(text, "t"))
+    }
+
+    @Test
+    fun `a table with tables and arrays of tables made inline in TOML 1_1 and expanded again prints as before`() {
+        val text = "x = 1\n\n# about t\n[t] # hc\na = 1 # ac\n# above b\nb = 2\n\n# about sub\n[t.sub]\nc = 3\n\n" +
+            "[t.sub.deep]\nd = 4\n\n# about list\n[[t.list]]\ne = 5\n\n[[t.list]]\ne = 6\n\n[[t.list.inner]]\nf = 7\n" +
+            "\n[z]\ny = 1\n"
+        val doc = parse(text)
+        doc["t"].getOrFail().inline().getOrFail()
+        doc["t"].getOrFail().expand().getOrFail()
+        assertEquals(text, doc.toString())
+    }
+
+    @Test
+    fun `a table with tables and arrays of tables made inline in TOML 1_0 and expanded again reads the same`() {
+        val text = "x = 1\n\n# about t\n[t] # hc\na = 1 # ac\n# above b\nb = 2\n\n# about sub\n[t.sub]\nc = 3\n\n" +
+            "[t.sub.deep]\nd = 4\n\n# about list\n[[t.list]]\ne = 5\n\n[[t.list]]\ne = 6\n\n[[t.list.inner]]\nf = 7\n"
+        val doc = parse(text, TomlVersion.V1_0)
+        doc["t"].getOrFail().inline().getOrFail()
+        doc["t"].getOrFail().expand().getOrFail()
+        val kept = "x = 1\n\n# about t\n[t] # hc\na = 1\nb = 2\n\n[t.sub]\nc = 3\n\n[t.sub.deep]\nd = 4\n\n" +
+            "[[t.list]]\ne = 5\n\n[[t.list]]\ne = 6\n\n[[t.list.inner]]\nf = 7\n"
+        assertEquals(kept, doc.toString())
+    }
+
+    @Test
+    fun `an array of tables holding tables made inline and expanded again prints as before`() {
+        val text = "# about t\n[[t]] # hc\na = 1\n\n[t.sub]\nc = 3\n\n[[t.sub.list]]\nd = 4\n\n[[t]]\na = 2\n"
+        for (version in listOf(TomlVersion.V1_1, TomlVersion.V1_0)) {
+            val doc = parse(text, version)
+            doc["t"].getOrFail().inline().getOrFail()
+            doc["t"].getOrFail().expand().getOrFail()
+            assertEquals(text, doc.toString(), version.toString())
+        }
+    }
+
+    @Test
+    fun `inline tables nested to fit their line but whose headers would not fit are TooDeep and change nothing`() {
+        val depth = TomlDocument.NESTING_LIMIT - 1
+        val text = "[a.b]\nt = " + "{ t = ".repeat(depth - 1) + "{ x = 1 }" + " }".repeat(depth - 1) + "\n"
+        val doc = parse(text)
+        val error = doc["a"]["b"]["t"].getOrFail().expand().errorOrFail()
+        assertEquals(TomlEditError.TooDeep(listOf("a", "b") + List(depth) { "t" }), error)
+        assertEquals(text, doc.toString())
+    }
+
+    @Test
+    fun `inline tables nested to the limit of headers expand and read back`() {
+        val depth = TomlDocument.NESTING_LIMIT - 1
+        val text = "[a]\nt = " + "{ t = ".repeat(depth - 1) + "{ x = 1 }" + " }".repeat(depth - 1) + "\n"
+        val doc = parse(text)
+        doc["a"]["t"].getOrFail().expand().getOrFail()
+        assertEquals("[a]\n\n[a" + ".t".repeat(depth) + "]\nx = 1\n", doc.toString())
+        parse(doc.toString())
     }
 
     @Test
