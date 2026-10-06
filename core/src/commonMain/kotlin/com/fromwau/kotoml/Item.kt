@@ -382,49 +382,96 @@ public class Item private constructor(
 
     /**
      * Turns an inline table in this slot into a table, `t = { … }` into `[t]`, and an array of inline tables into an
-     * array of tables, the mirror of [inline]; a table or an array of tables stays as it is. Only the outer table
-     * changes: inline tables inside it stay inline. An inline table written as dotted keys, `t.a = 1`, becomes a
-     * table too. The table prints where a table stored at this key would: after its parent's values and the tables
-     * stored before its key.
+     * array of tables, the mirror of [inline]; a table or an array of tables stays as it is. The whole tree changes:
+     * every inline table inside, at any depth, becomes a table under its own header, `[t.sub]`, and every array
+     * holding only inline tables an array of tables, `[[t.list]]`. An array holding anything else stays a value with
+     * all it holds, and keys written dotted inside stay dotted keys, though tables under them get headers. An inline
+     * table written as dotted keys in this slot, `t.a = 1`, becomes a table too. The table prints where a table
+     * stored at this key would: after its parent's values and the tables stored before its key, and a table holding
+     * only tables prints no header of its own.
      *
-     * The comment lines above the key go above the header, and the table keeps its comments as
+     * At every depth the comment lines above a key go above its header, and each table keeps its comments as
      * [InlineTable.toStandardTable] does: the comment after `{` becomes the header comment, each value keeps its
      * same-line comment, and the comment lines inside stay above the key below them. The comment after `}` goes on the
      * header too, or below the table's lines when the one after `{` is there. In an array the comment after an
      * element's comma goes on its header the same way, the comment after `[` and the comment lines above an element go
      * above its header, and the comment lines before `]` and the comment after it below the last table. So [inline]
-     * then [expand] gives back the text of a table that holds no table, and in TOML 1.0 no comment inside. An inline
-     * table taken from this slot earlier keeps its content and no longer belongs to the document.
+     * then [expand] gives back the text of a table, with the tables and arrays of tables under it, wherever [inline]
+     * kept the comments: in TOML 1.1 all but those inside the tables under it, in TOML 1.0 only its header comment
+     * and the lines above it. An inline table taken from this slot earlier keeps its content and no longer belongs to
+     * the document.
      *
      * @return [TomlEditError.NotExpandable] when this holds any other value: a scalar, or an array that is empty or
      *   holds anything but inline tables; [TomlEditError.NotAValue] when this is a slot in an array or an inline
-     *   table, which holds only values; or [TomlEditError.TooDeep] when the table would nest deeper than the parser
-     *   reads. Each changes nothing.
+     *   table, which holds only values; or [TomlEditError.TooDeep] when its headers would have more parts than the
+     *   parser reads, though the inline tables fit on their line. Each changes nothing.
      */
     public fun expand(): EmptyResult<TomlEditError> {
         val value = valueOrNull ?: return Ok(Unit)
-        val expanded = expandedOrNull(value.deepCopy()) ?: return Err(TomlEditError.NotExpandable(value.type))
+        val expanded = expandedOrNull(value.deepCopy(), newLineEnding())
+            ?: return Err(TomlEditError.NotExpandable(value.type))
         if (holds == Holds.Value) return Err(TomlEditError.NotAValue(expanded.type))
         tooDeepToHold(expanded)?.let { return Err(it) }
+        takeExpanded(expanded)
+        return Ok(Unit)
+    }
+
+    /** Turns this slot's value into [expanded], made from it, keeping the lines above. */
+    private fun takeExpanded(expanded: Item) {
+        val entry = entry
         val linesAbove = entry?.takeLinesAbove(expanded).orEmpty()
         entry?.prepareFor(expanded)
         content = expanded.content
         entry?.keepLinesAbove(linesAbove)
-        return Ok(Unit)
+        // The comment lines above the first header join the key's, so the default spacing goes above both.
+        val first = expanded.arrayOfTablesOrNull?.firstOrNull()
+        val firstLines = first?.rawDecor?.prefix?.textOrNull
+        if (entry != null && first != null && firstLines != null && '#' in firstLines) {
+            val keyDecor = entry.key.rawLeafDecor
+            keyDecor.prefix = KeptText.from(keyDecor.prefix?.textOrNull.orEmpty() + firstLines)
+            first.rawDecor.prefix = null
+        }
     }
 
-    /** [value], a copy, as a table or an array of tables keeping its comments; see [expand]. */
-    private fun expandedOrNull(value: Value): Item? {
+    /** [value], a copy, as a table or an array of tables keeping its comments, expanded inside; see [expand]. */
+    private fun expandedOrNull(
+        value: Value,
+        lineBreak: String,
+    ): Item? {
         val inline = value.inlineTableOrNull
         if (inline != null) {
             // Braces first, so the dotted lines' comments are read where a table across lines holds them.
             inline.isDotted = false
             val table = inline.moveToStandardTable()
-            table.keepCommentAfterBraces(value.commentAfter(), newLineEnding())
+            table.keepCommentAfterBraces(value.commentAfter(), lineBreak)
+            expandWithin(table, lineBreak)
             return Item(table)
         }
         val array = value.arrayOrNull ?: return null
-        return array.moveToArrayOfTablesKeepingComments(value.commentAfter(), newLineEnding())?.let(::Item)
+        val tables = array.moveToArrayOfTablesKeepingComments(value.commentAfter(), lineBreak) ?: return null
+        for (table in tables) expandWithin(table, lineBreak)
+        return Item(tables)
+    }
+
+    /**
+     * Expands each inline table and array of inline tables in [table]'s slots, and those under its dotted keys,
+     * which stay dotted keys.
+     */
+    private fun expandWithin(
+        table: StandardTable,
+        lineBreak: String,
+    ) {
+        for (entry in table.items.entries) {
+            val slot = entry.item
+            val value = slot.valueOrNull ?: continue
+            val dotted = value.inlineTableOrNull?.takeIf { it.isDotted }
+            val expanded = when {
+                dotted == null -> expandedOrNull(value, lineBreak)
+                dotted.holdsExpandable() -> Item(dotted.moveToDottedTable().also { expandWithin(it, lineBreak) })
+                else -> null
+            }
+            expanded?.let(slot::takeExpanded)
+        }
     }
 
     // The line ending of the document this slot is in, for lines a table built in code has none of its own for.
