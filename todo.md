@@ -14,10 +14,6 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
 
 ### Bugs against a goal
 
-- [ ] **39. Printing a document built in code is quadratic.** ✓ The DSL, n tables each with two sub-tables:
-  2500 print in 378 ms, 5000 in 1.46 s; the same text parsed prints in 31 ms. Built tables have no position.
-  `encodeInto` of 8000 reversed `[[servers]]` takes 5.6 s (todo 23 left wholly changed lists quadratic). Should 5.
-  **Ruling 2026-10-05:** expected: printing a built document is linear.
 
 ### Layout no person would write
 
@@ -59,10 +55,6 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
 
 ### Found while fixing
 
-- [ ] **75. `clean build` fails now and then linking the Windows binary.** `./gradlew clean build` once stopped at
-  `:app:linkReleaseExecutableMingwX64` with `ld.lld: cannot open output file .../mingwX64/releaseExecutable/kotoml.exe:
-  No such file or directory`; a plain `build` right after linked it. Likely `clean` racing the parallel link; not
-  yet reproduced.
 
 ### Owner calls on wave 1 (2026-10-05)
 
@@ -82,17 +74,15 @@ removed table keeps the comment lines above its header in place; a copy of a doc
 
 ### Owner calls on wave 3 (2026-10-06)
 
-- [ ] **90. A keyword typo in the first letter is told to quote.** `rue` and `yrue` say "string values must be
-  quoted"; `nf` is compared only to `nan`. Only words starting with t, f, i or n are compared to the keywords.
-  **Ruling 2026-10-06:** B: compare every unquoted word to `true`, `false`, `inf` and `nan`; the nearest keyword
-  wins, and a tie goes to the first in that order.
-- [ ] **91. `+inf` followed by a control character is told to quote.** `a = +inf` and a vertical tab reports
-  "string values must be quoted" over the whole word. **Ruling 2026-10-06:** B: a keyword followed by a control
-  character reports the control character itself, under it.
 
 Settled with no change (wave 3): a longer word starting with a keyword (`info`, `nann`) must be quoted, even when it
 is one edit away; a swap of two neighbouring letters counts as one edit (`ture`, `fasle`); a copied value brings
 its same-line comment into an array as into a table (C5 stands).
+
+- [ ] **92. A type mismatch does not suggest the value meant.** A `Boolean` field given `"ture"` reports
+  `TypeMismatch` with the value but no hint. **Ruling 2026-10-06:** yes: `TypeMismatch` gains a suggestion from
+  kern:fuzzy's `didYouMean` with the expected type's names `preferred` (`true`/`false` for a boolean, `inf`/`nan`
+  for a float).
 
 Settled the same day, no change: a copied table prints where its key stands (item 38 over 29's "after the tables
 already there"); a moved table gets the default blank line (spacing is not kept across operations); a bare value's
@@ -110,6 +100,39 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **91. `+inf` followed by a control character is told to quote.** `a = +inf` and a vertical tab reports
+  "string values must be quoted" over the whole word. **Ruling 2026-10-06:** B: a keyword followed by a control
+  character reports the control character itself, under it.
+  **Verdict 2026-10-06:** fixed: a keyword directly followed by a control character reports `InvalidScalar` under the
+  control character (`+inf` and a vertical tab: "invalid float" at column 25). ParseMessageTest; one upstream snapshot
+  changed.
+
+- [x] **90. A keyword typo in the first letter is told to quote.** `rue` and `yrue` say "string values must be
+  quoted"; `nf` is compared only to `nan`. Only words starting with t, f, i or n are compared to the keywords.
+  **Ruling 2026-10-06:** B: compare every unquoted word to `true`, `false`, `inf` and `nan`; the nearest keyword
+  wins, and a tie goes to the first in that order.
+  **Verdict 2026-10-06:** fixed: every unquoted word is compared to `true`, `false`, `inf` and `nan` (a signed word to
+  `inf` and `nan`) through kern:fuzzy's `didYouMean`, which kotoml's findings made stricter in kern 0.4.4: a prefix
+  needs two characters, one edit up to five characters, no replaced letter in a word of three or fewer. `rue`, `tr`,
+  `nf`, `an` are keyword typos; `can`, `imf`, `value` must be quoted. ParseMessageTest.
+
+- [x] **75. `clean build` fails now and then linking the Windows binary.** `./gradlew clean build` once stopped at
+  `:app:linkReleaseExecutableMingwX64` with `ld.lld: cannot open output file .../mingwX64/releaseExecutable/kotoml.exe:
+  No such file or directory`; a plain `build` right after linked it. Likely `clean` racing the parallel link; not
+  yet reproduced.
+  **Verdict 2026-10-06:** not a defect: a single `clean build` orders `clean` before every producer (five runs green);
+  the exact ld.lld error was reproduced only with a second Gradle invocation running `clean` in the same checkout
+  while the first linked. Seen once, in the assistant's own run; the owner never hit it.
+
+- [x] **39. Printing a document built in code is quadratic.** ✓ The DSL, n tables each with two sub-tables:
+  2500 print in 378 ms, 5000 in 1.46 s; the same text parsed prints in 31 ms. Built tables have no position.
+  `encodeInto` of 8000 reversed `[[servers]]` takes 5.6 s (todo 23 left wholly changed lists quadratic). Should 5.
+  **Ruling 2026-10-05:** expected: printing a built document is linear.
+  **Verdict 2026-10-06:** fixed: the print order keeps the slotted part each anchor leads to, and an array element
+  finds its array's first without copying it. 20000 built tables print in about 109 ms (was 121 s); output unchanged
+  byte for byte. `encodeInto`'s reversed-list merge stays quadratic in the matching (todo 23), its print share is
+  linear. PrintScalingTest.
 
 - [x] **89. A container's `copy()` keeps every comment.** `src["db"].getOrFail().standardTableOrNull!!.copy()`
   stored elsewhere brings `# Generated` and `# db hdr`; `src["db"].getOrFail().copy()` does not. **Ruling
