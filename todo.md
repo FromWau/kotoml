@@ -67,11 +67,6 @@ its same-line comment into an array as into a table (C5 stands).
   lost.
 
 
-- [ ] **102. `displaySpelling` follows the document for strings but not date-times; a detached string forgets its
-  file.**
-  **Ruling 2026-10-07:** `Value.Datetime.displaySpelling` follows its document's version, as a string's follows the line
-  ending; a string taken out of a document (removed, or a detached handle) keeps the line ending of the document it came
-  from; one built in code and never stored uses `\n`.
 
 Settled the same day, no change: a copied table prints where its key stands (item 38 over 29's "after the tables
 already there"); a moved table gets the default blank line (spacing is not kept across operations); a bare value's
@@ -89,6 +84,17 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **102. `displaySpelling` follows the document for strings but not date-times; a detached string forgets its
+  file.**
+  **Ruling 2026-10-07:** `Value.Datetime.displaySpelling` follows its document's version, as a string's follows the line
+  ending; a string taken out of a document (removed, or a detached handle) keeps the line ending of the document it came
+  from; one built in code and never stored uses `\n`.
+  **Verdict 2026-10-07:** fixed: `Value.Datetime.displaySpelling` follows its document's version (`07:32:00` in TOML
+  1.0); a table, array or value taken out of a document (remove, removeAt, a replace that detaches it, or `copy()`)
+  keeps that document's line ending and TOML version, for printing and edits, until stored again (owner confirmed);
+  one built in code uses `\n` and TOML 1.1; a table's `toString()` uses its document's line ending;
+  `TomlDocument(table)` takes the source's line ending and version. PreservationTest, VersionTest, ValueTextTest.
 
 - [x] **101. Two indents for arrays, and LF lines in a CRLF file.** The spreading a caller's comment triggers indents
   two spaces from column 0, while `setMultiline(true)` indents from the array's line; and a multi-line string written in
