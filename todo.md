@@ -91,6 +91,22 @@ its same-line comment into an array as into a table (C5 stands).
   multi-line inline table's last entry takes a trailing comma in TOML 1.1 (a 1.0 document has neither multi-line
   inline tables nor trailing commas).
 
+- [ ] **96. A table's layout is three setters with flags, and the version is a print option.** `setInline`,
+  `setMultiline` and `setDotted` pick between states of one thing, and a 1.0 document refuses 1.1-only syntax only
+  when written. **Ruling 2026-10-07:** a table's layout is a state, a sealed `TableLayout` (`Header`, `Dotted`,
+  `Inline`, `MultilineInline`), read as `layout` and changed with `Item.setLayout(layout, force = false)`, which
+  reaches the tables inside for `Header` and `MultilineInline`; the tables stay `StandardTable` and `InlineTable`
+  objects, so handles stay live. The version belongs to the document: `doc.setVersion(version, force = false)`
+  converts it (to 1.0: seconds on times, `\e`/`\x` respelled, multi-line inline tables to one line, trailing
+  commas dropped; typed errors, `CommentsWouldBeLost` unless forced); under 1.0 an edit that would add 1.1-only
+  syntax is refused at the edit, so `writeTo` no longer refuses a version problem. Replaces item 95's setters
+  before release.
+- [ ] **97. `setInline(true)` on a dotted table holding lines kept from removed keys loses and duplicates
+  comments.** Parse `# about a.x\na.x = 1 # x\n# about b\nb = 2\n# about a.y\na.y = 3 # y\n`, then
+  `a.remove("y")`, `a.setDotted(false, true)`, `a.setImplicit(true)`, `a.setDotted(true, true)`, `doc.remove("b")`,
+  `doc["a"].setInline(true)`: refused with `CommentsWouldBeLost(["a"], 1)` (forced, it drops the comment above the
+  first line and repeats the kept lines). In 1.1 an inline conversion should never fail on comments.
+
 Settled the same day, no change: a copied table prints where its key stands (item 38 over 29's "after the tables
 already there"); a moved table gets the default blank line (spacing is not kept across operations); a bare value's
 same-line comment travels with it; `makeValue` on a 1.0 array of tables keeps header comments and comment lines
