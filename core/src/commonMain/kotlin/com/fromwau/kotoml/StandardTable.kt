@@ -377,7 +377,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
                 table != null && table.printsDotted -> {
                     val start = values.size
                     table.appendValues(path, values)
-                    if (table.items.size == 0) values.add(emptyTableLine(path, entry, table.items.keptLines))
+                    if (table.items.size == 0) values.add(emptyTableLine(path, entry, table.items))
                     // A table made dotted prints no header: its comments go with its first line.
                     val first = values.indexOfFirstValue(start)
                     if (first >= 0) {
@@ -1158,16 +1158,18 @@ internal val DEFAULT_TABLE_DECOR: Pair<String, String> = "\n" to ""
 internal val DEFAULT_KEY_PATH_DECOR: Pair<String, String> = "" to ""
 
 /**
- * The line a dotted table left holding nothing prints, as `{}` under its key, below the lines [kept] from its removed
- * keys so that a comment above them stays above it.
+ * The line a dotted table left holding [pairs] empty prints, as `{}` under its key spaced by
+ * [KeyValuePairs.emptyTableDecor], below the lines kept from its removed keys so that a comment above them stays above
+ * it.
  */
 internal fun emptyTableLine(
     path: List<Key>,
     entry: KeyValue,
-    kept: List<KeptLines>,
+    pairs: KeyValuePairs,
 ): VisualValue {
-    val belowKept = kept.mapNotNull { it.order }.maxOrNull()
-    return VisualValue(path.toList(), Value.InlineTable(InlineTable()), entry, belowKept)
+    val belowKept = pairs.keptLines.mapNotNull { it.order }.maxOrNull()
+    // A new table on each read, so what a caller puts in it never prints; only its spacing lasts.
+    return VisualValue(path.toList(), Value.InlineTable(InlineTable(pairs.emptyTableDecor)), entry, belowKept)
 }
 
 /** The tables under [start] and the lines kept among their headers: what has a position among a document's tables. */

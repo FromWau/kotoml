@@ -337,7 +337,9 @@ private fun graftValue(
     read: Value,
     linePath: List<Key>,
 ) {
-    graftDecor(value.rawDecor, read.rawDecor)
+    // An empty dotted table prints `{}`, which reads back as a value spaced as that line.
+    val emptyDotted = (value as? Value.InlineTable)?.value?.takeIf { it.isDotted && it.isEmpty() }
+    graftDecor(emptyDotted?.items?.emptyTableDecor ?: value.rawDecor, read.rawDecor)
     when {
         value is Value.Array && read is Value.Array -> graftArray(value.value, read.value)
         value is Value.InlineTable && read is Value.InlineTable ->

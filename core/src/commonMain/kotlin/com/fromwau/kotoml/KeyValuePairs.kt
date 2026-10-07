@@ -265,6 +265,9 @@ internal class KeyValuePairs {
     /** Lines kept from removed entries, printed among the entries' lines; see [KeptLines]. */
     val keptLines: MutableList<KeptLines> = mutableListOf()
 
+    /** The spacing around the `{}` these pairs print as while empty under a dotted key; see [emptyTableLine]. */
+    val emptyTableDecor: RawDecor = RawDecor()
+
     val size: Int get() = byName.size
 
     fun get(key: String): Item? = byName[key]?.item
@@ -335,6 +338,7 @@ internal class KeyValuePairs {
             copy.byName[entry.key.name] = copied
         }
         keptLines.mapTo(copy.keptLines) { it.copy() }
+        copy.emptyTableDecor.assign(emptyTableDecor)
         return copy
     }
 

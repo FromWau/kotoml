@@ -231,4 +231,78 @@ class MultilineInlineTableTest {
         doc["t"].assertSuccess().setLayout(TableLayout.Header).assertSuccess()
         assertEquals(text, doc.toString())
     }
+
+    private fun TomlDocument.removeFromDotted(vararg path: String) {
+        slotAt(*path.dropLast(1).toTypedArray()).inlineTableOrNull!!.remove(path.last())
+    }
+
+    @Test
+    fun `an empty dotted table last in a table set multi-line takes the trailing comma after its braces`() {
+        val doc = parse("t = { a = 1, b.d.e = 2 }\n")
+        doc.removeFromDotted("t", "b", "d", "e")
+        doc.slotAt("t").setLayout(TableLayout.MultilineInline).assertSuccess()
+        assertEquals("t = {\n  a = 1,\n  b.d = {},\n}\n", doc.toString())
+        doc.format()
+        assertEquals("t = {\n  a = 1,\n  b.d = {},\n}\n", doc.toString())
+    }
+
+    @Test
+    fun `an empty dotted table last in a table made multi-line inline from a header takes the trailing comma`() {
+        val doc = parse("[t]\na = 1\nb.d.e = 2\n")
+        doc["t"]["b"]["d"].assertSuccess().standardTableOrNull!!.remove("e")
+        doc["t"].assertSuccess().setLayout(TableLayout.MultilineInline).assertSuccess()
+        assertEquals("t = {\n  a = 1,\n  b.d = {},\n}\n", doc.toString())
+    }
+
+    @Test
+    fun `removing the last key of a dotted table across lines leaves its empty table on the key's line`() {
+        val last = "t = {\n  a = 1,\n  b.d = {},\n}\n"
+        val cases = listOf(
+            Triple("t = {\n  a = 1,\n  b.d.e = 2,\n}\n", last, last),
+            Triple("t = {\n  a = 1,\n  b.d.e = 2\n}\n", "t = {\n  a = 1,\n  b.d = {}\n}\n", last),
+            Triple("t = {\n  a = 1,\n  b.d.e=2,\n}\n", "t = {\n  a = 1,\n  b.d={},\n}\n", last),
+            Triple("t = {\n  b.d.e = 2,\n  a = 1,\n}\n", "t = {\n  b.d = {},\n  a = 1,\n}\n", null),
+            Triple(
+                "t = {\n  a = 1,\n  # about e\n  b.d.e = 2 # e\n}\n",
+                "t = {\n  a = 1,\n  # about e\n  b.d = {}\n}\n",
+                "t = {\n  a = 1,\n  # about e\n  b.d = {},\n}\n",
+            ),
+        )
+        for ((text, expected, formatted) in cases) {
+            val doc = parse(text)
+            doc.removeFromDotted("t", "b", "d", "e")
+            assertEquals(expected, doc.toString(), text)
+            doc.format()
+            assertEquals(formatted ?: expected, doc.toString(), text)
+        }
+    }
+
+    @Test
+    fun `a key put in an emptied dotted table across lines and removed again leaves the empty table on its line`() {
+        val doc = parse("t = {\n  a = 1,\n  b.d.e = 2,\n  c = 3,\n}\n")
+        val d = doc.slotAt("t", "b", "d").inlineTableOrNull!!
+        d.remove("e")
+        d["x"] = Value.Integer(5L)
+        assertEquals("t = {\n  a = 1,\n  b.d.x = 5,\n  c = 3,\n}\n", doc.toString())
+        d.remove("x")
+        assertEquals("t = {\n  a = 1,\n  b.d = {},\n  c = 3,\n}\n", doc.toString())
+    }
+
+    @Test
+    fun `removing the last key of a dotted table on one line leaves its empty table spaced as the key was`() {
+        val cases = listOf(
+            "t = { a = 1, b.d.e = 2 }\n" to "t = { a = 1, b.d = {} }\n",
+            "t = { b.d.e = 2, a = 1 }\n" to "t = { b.d = {}, a = 1 }\n",
+            "t = { a = 1, b.d.e = 2, c = 3 }\n" to "t = { a = 1, b.d = {}, c = 3 }\n",
+        )
+        for (version in TomlVersion.entries) {
+            for ((text, expected) in cases) {
+                val doc = parse(text, version)
+                doc.removeFromDotted("t", "b", "d", "e")
+                assertEquals(expected, doc.toString(), "$version $text")
+                doc["t"].assertSuccess().setLayout(TableLayout.Inline).assertSuccess()
+                assertEquals(expected, doc.toString(), "$version $text")
+            }
+        }
+    }
 }

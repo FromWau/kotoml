@@ -47,7 +47,8 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     }
 
     internal var isImplicit: Boolean = false
-    internal val rawDecor: RawDecor = RawDecor()
+    internal var rawDecor: RawDecor = RawDecor()
+        private set
     internal var span: Span? = null
 
     /**
@@ -231,6 +232,11 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         items.owner = this
     }
 
+    /** An empty table spaced by [decor], which it shares rather than copies. */
+    internal constructor(decor: RawDecor) : this() {
+        rawDecor = decor
+    }
+
     internal constructor(items: KeyValuePairs) : this() {
         for (entry in items.entries) entry.item = entry.item.movedTo(Item.Holds.Value)
         this.items = items
@@ -311,7 +317,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     /** Appends the lines this dotted table prints under [entry]'s key at [path]. */
     internal fun appendDottedValues(path: MutableList<Key>, values: MutableList<BodyLine>, entry: KeyValue) {
         appendValues(path, values)
-        if (items.size == 0) values.add(emptyTableLine(path, entry, items.keptLines))
+        if (items.size == 0) values.add(emptyTableLine(path, entry, items))
     }
 
     internal fun appendValues(path: MutableList<Key>, values: MutableList<BodyLine>) {
@@ -777,6 +783,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
             leaveTextAfterRemoved(bodyLines(), RemovedLines(removed))
             return
         }
+        if (removed.size == items.size) spaceEmptyLineLike(visualValues())
         keepLinesAbove(
             lines = bodyLines(),
             removed = RemovedLines(removed),
@@ -785,6 +792,25 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
             keyDefault = DEFAULT_INLINE_KEY_DECOR.first,
             keep = { items.keptLines += it },
         )
+    }
+
+    /**
+     * Spaces the `{}` this dotted table prints once emptied as its [lines] were: starting as the first started below
+     * the lines above it, which stay where they are, and ending as the last ended without its comment, which goes.
+     */
+    private fun spaceEmptyLineLike(lines: List<VisualValue>) {
+        val first = lines.firstOrNull() ?: return
+        val key = holder?.entry?.key ?: return
+        val firstKey = first.path.last().rawLeafDecor
+        // The key's own spacing, when it has one, is where its first line starts already.
+        if (key.rawLeafDecor.prefix == null) {
+            val start = (first.lineStart ?: firstKey.prefix)?.textOrNull
+            key.rawLeafDecor.prefix = start?.let { KeptText.from(it.substring(it.lastIndexOf('\n').coerceAtLeast(0))) }
+        }
+        key.rawLeafDecor.suffix = firstKey.suffix
+        val end = lines.last().value.rawDecor.suffix?.textOrNull
+        items.emptyTableDecor.prefix = first.value.rawDecor.prefix
+        items.emptyTableDecor.suffix = end?.let { KeptText.from(it.withoutCommentLines(keepFirstLineComment = false)) }
     }
 
     /** Whether this dotted table's keys print on lines of a standard table, rather than inside braces. */
