@@ -359,4 +359,40 @@ class FormatTest {
         doc.format()
         assertTrue(parse(doc.toString()).toTagged().sameAs(parse(text).toTagged()))
     }
+
+    // Formats the document made by removing [removed] from the dotted table [dottedKey] of `t` and making `t` a header.
+    private fun assertRemovedThenMadeHeaderFormatsOnce(
+        text: String,
+        dottedKey: String,
+        removed: String,
+    ) {
+        val doc = parse(text)
+        doc["t"][dottedKey].assertSuccess().valueOrNull!!.inlineTableOrNull!!.remove(removed)
+        doc["t"].assertSuccess().setLayout(TableLayout.Header, force = true).assertSuccess()
+        val printed = doc.toString()
+        doc.format()
+        assertEquals(formatted(printed), doc.toString())
+        doc.format()
+        assertEquals(formatted(printed), doc.toString())
+    }
+
+    @Test
+    fun `a comment line kept above an emptied key prints once after formatting`() {
+        assertRemovedThenMadeHeaderFormatsOnce("t = {\n  # about c\n  b.c = 1,\n}\n", "b", "c")
+    }
+
+    @Test
+    fun `a comment line kept above an emptied key with a key after it prints once after formatting`() {
+        assertRemovedThenMadeHeaderFormatsOnce("t = {\n  # about c\n  b.c = 1,\n  d = 2,\n}\n", "b", "c")
+    }
+
+    @Test
+    fun `a comment line kept below the last key of a dotted table prints once after formatting`() {
+        assertRemovedThenMadeHeaderFormatsOnce("t = {\n  b.c = 1,\n  # about d\n  b.d = 2,\n}\n", "b", "d")
+    }
+
+    @Test
+    fun `a CRLF comment line kept above an emptied key prints once after formatting`() {
+        assertRemovedThenMadeHeaderFormatsOnce("t = {\r\n  # about c\r\n  b.c = 1,\r\n}\r\n", "b", "c")
+    }
 }

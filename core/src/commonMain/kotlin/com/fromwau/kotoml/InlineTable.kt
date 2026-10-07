@@ -253,6 +253,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     /** Moves the entries into a new standard table, formatted anew but keeping comments, leaving this table empty. */
     internal fun moveToStandardTable(): StandardTable {
         val comments = if (isDotted) null else commentsOnTableLines()
+        if (comments != null) dropKeptLinesWithin()
         val table = StandardTable(items.takeAll())
         table.useDefaultSpacing()
         comments?.applyTo(table)
@@ -288,17 +289,36 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     }
 
     // In braces a value's comment ends its line after the comma, so it starts the text before the next key or `}`.
+    // The lines kept from removed entries print after the comma before them, so they start the text after it.
     private fun commentsOnTableLines(): TableLineComments {
-        val lines = visualValues()
-        val texts = lines.flatMap { listOf(it.path.last().rawLeafDecor.prefix, it.value.rawDecor.suffix) } + rawTrailing
+        val body = bodyLines()
+        val lines = body.filterIsInstance<VisualValue>()
+        val texts = lines.flatMap { listOf(it.path.last().rawLeafDecor.prefix, it.value.rawDecor.suffix) } +
+            rawTrailing + body.filterIsInstance<KeptLines>().map { KeptText.from(it.text) }
         val lineBreak = if (texts.any { "\r\n" in it?.textOrNull.orEmpty() }) "\r\n" else "\n"
         val comments = TableLineComments(lines.map { it.path.last() to it.value }, lineBreak)
-        for ((index, line) in lines.withIndex()) {
-            comments.read(line.path.last().rawLeafDecor.prefix, before = index - 1, linesFor = index)
-            comments.read(line.value.rawDecor.suffix, before = index, linesFor = index + 1, sameLine = true)
+        var kept = ""
+        var index = 0
+        for (line in body) {
+            when (line) {
+                is KeptLines -> kept += line.text
+                is VisualValue -> {
+                    val prefix = line.path.last().rawLeafDecor.prefix.withInFront(kept)
+                    comments.read(prefix, before = index - 1, linesFor = index)
+                    comments.read(line.value.rawDecor.suffix, before = index, linesFor = index + 1, sameLine = true)
+                    kept = ""
+                    index++
+                }
+            }
         }
-        comments.read(rawTrailing, before = lines.lastIndex, linesFor = lines.size)
+        comments.read(rawTrailing.withInFront(kept), before = lines.lastIndex, linesFor = lines.size)
         return comments
+    }
+
+    // Read into the comments of the lines below them, the kept lines would print a second time.
+    private fun dropKeptLinesWithin() {
+        items.keptLines.clear()
+        for (entry in items.entries) entry.item.inlineTableOrNull?.takeIf { it.isDotted }?.dropKeptLinesWithin()
     }
 
     /** The values visually under this table with the key path that reaches each, dotted keys followed. */
@@ -1027,6 +1047,9 @@ private class TableLineComments(
         if (above[lines.size].isNotEmpty()) table.items.keptLines += KeptLines(above[lines.size], null)
     }
 }
+
+private fun KeptText?.withInFront(text: String): KeptText? =
+    if (text.isEmpty()) this else KeptText.from(text + this?.textOrNull.orEmpty())
 
 /** The inline tables [value] is or holds in its arrays, at any depth of arrays. */
 private fun inlineTablesIn(value: Value?): List<InlineTable> = when (value) {
