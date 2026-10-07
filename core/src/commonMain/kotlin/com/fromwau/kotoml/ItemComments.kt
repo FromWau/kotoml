@@ -13,6 +13,8 @@ internal data class ItemComments(
     val afterOpening: String = "",
     /** The comment ending the item's last line, with the spacing before it. */
     val sameLine: String = "",
+    /** Whole lines between the item's value and the comma after it, which stands on a later line. */
+    val attachedBelow: String = "",
     /** Whole lines between the last item in brackets or braces and the closing one, which belong to no item. */
     val freeBelow: String = "",
 ) {
@@ -121,18 +123,19 @@ private fun VisualValue.start(): String = (lineStart ?: entry.key.rawLeafDecor.p
  * the text before each item and, last, the text before the closing bracket.
  */
 private fun bracedComments(
-    gaps: List<String>,
+    gaps: List<BracedGap>,
     first: Int,
     last: Int,
     value: Value?,
 ): ItemComments {
-    val above = splitLinesAbove(gapOf(gaps[first], startsMidLine = true).lines)
-    val after = gapOf(gaps[last + 1], startsMidLine = true)
+    val above = splitLinesAbove(gaps[first].lines)
+    val after = gaps[last + 1]
     return ItemComments(
         freeAbove = above.free,
         attachedAbove = above.attached,
         afterOpening = value?.commentAfterOpening().orEmpty(),
-        sameLine = if (value == null) "" else commentIn(after.lineEnd),
+        sameLine = if (value == null) "" else commentIn(gapOf(after.text, startsMidLine = true).lineEnd),
+        attachedBelow = if (after.commaOnLaterLine) gapOf(after.beforeComma, startsMidLine = true).lines else "",
         freeBelow = if (last + 1 == gaps.lastIndex) after.lines else "",
     )
 }
@@ -143,10 +146,10 @@ private fun Value.commentAfterOpening(): String {
         is Value.InlineTable -> value.bracedGaps(value.bodyLines())
         else -> return ""
     }
-    return commentIn(gapOf(gaps.first(), startsMidLine = true).lineEnd)
+    return commentIn(gapOf(gaps.first().text, startsMidLine = true).lineEnd)
 }
 
-private fun TomlArray.bracedGaps(): List<String> {
+private fun TomlArray.bracedGaps(): List<BracedGap> {
     val elements = values
         .mapNotNull { it.valueOrNull }
         .map { BracedItem(it.rawDecor.prefix.text(), it.rawDecor.suffix.text()) }
@@ -154,7 +157,7 @@ private fun TomlArray.bracedGaps(): List<String> {
 }
 
 // Kept lines print after the comma ending the entry before them, as encodeInlineTable prints them.
-private fun InlineTable.bracedGaps(lines: List<BodyLine>): List<String> {
+private fun InlineTable.bracedGaps(lines: List<BodyLine>): List<BracedGap> {
     val entries = mutableListOf<BracedItem>()
     var kept = ""
     for (line in lines) {
@@ -176,21 +179,40 @@ private class BracedItem(
     val keptBefore: String = "",
 )
 
+/**
+ * The text between two items, or an item and a bracket: [beforeComma], the end of the item before, then the comma
+ * after it when [hasComma], then [afterComma], up to the next item or the closing bracket.
+ */
+private class BracedGap(
+    val beforeComma: String,
+    val hasComma: Boolean,
+    val afterComma: String,
+) {
+    val text: String
+        get() = beforeComma + (if (hasComma) "," else "") + afterComma
+
+    /** Whether the comma stands on a line after the one the item before ends on. */
+    val commaOnLaterLine: Boolean
+        get() = hasComma && '\n' in beforeComma
+
+    /** The whole lines that belong to no item before: those before a comma on a later line belong to that item. */
+    val lines: String
+        get() = gapOf(if (commaOnLaterLine) afterComma else text, startsMidLine = true).lines
+}
+
 private fun gapsBetween(
     items: List<BracedItem>,
     keptAtEnd: String,
     trailingComma: Boolean,
     trailing: String,
-): List<String> {
-    val gaps = mutableListOf<String>()
+): List<BracedGap> {
+    val gaps = mutableListOf<BracedGap>()
     var before = ""
     for ((index, item) in items.withIndex()) {
-        val comma = if (index > 0) "," else ""
-        gaps += before + comma + item.keptBefore + item.prefix
+        gaps += BracedGap(before, hasComma = index > 0, afterComma = item.keptBefore + item.prefix)
         before = item.suffix
     }
-    val comma = if (trailingComma && items.isNotEmpty()) "," else ""
-    gaps += before + comma + keptAtEnd + trailing
+    gaps += BracedGap(before, hasComma = trailingComma && items.isNotEmpty(), afterComma = keptAtEnd + trailing)
     return gaps
 }
 
