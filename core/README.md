@@ -118,14 +118,15 @@ doc.remove("x", force = true) // Ok(item)
 // y = 2
 ```
 
-Replacing a value keeps its spacing and the comment after it. An array of tables left with no tables prints
+Replacing a value keeps its spacing and its comments, the comment lines right above it and the one after it, unless
+the new item brings comments of its own, which take their place. An array of tables left with no tables prints
 `key = []` below the comment lines that stood above its first header, which stay since the array does. A new key
 takes the indentation of the key above it, and an element or key added to an array or inline table on one line takes
-the spacing already there. A comment a caller gives an element or an inline table's
-value in its decor, such as `Decor(suffix = " # note")`, puts a one-line array or inline table on lines of its own,
-one entry per line, whether the entry is added, inserted at an index or replaces another; its comment takes the place
-of the one that stood after the entry it replaces, and the new lines end as the document's do. In a document of
-TOML 1.0, which has no comments inside an inline table, an inline table's value drops it. Sorting, by key name
+the spacing already there. A comment an element or an inline table's value brings, read with it or given in its
+decor, such as `Decor(suffix = " # note")`, puts a one-line array or inline table on lines of its own, one entry per
+line, whether the entry is added, inserted at an index or replaces another; its comment takes the place of the one
+that stood after the entry it replaces, and the new lines end as the document's do. In a document of TOML 1.0, which
+has no comments inside an inline table, an inline table's value drops it. Sorting, by key name
 with `sort()` or by your own order with `sortBy` and `sortWith`, moves each key and each table header with the
 comment lines right above it and leaves blank lines in place.
 
@@ -294,10 +295,12 @@ follows the header on its line. `keyOrNull(name)` reads a key of a table.
 ## Items and their comments
 
 ```kotlin
-val src = TomlDocument.parse("# Generated\n[db] # primary\nurl = \"x\" # local\n").getOrElse { error(it) }
+val text = "# Generated\n\n# about db\n[db] # primary\nurl = \"x\" # local\n"
+val src = TomlDocument.parse(text).getOrElse { error(it) }
 val dst = TomlDocument()
 dst["db"] = src["db"].getOrElse { error(it) } // prints as storing its copy() would
-// [db]
+// # about db
+// [db] # primary
 // url = "x" # local
 ```
 
@@ -305,14 +308,18 @@ An item handed out by indexing, and the comments that go with it, follow five ru
 
 1. **Reading gives a live view.** `doc["a"]` is the slot stored in the document: writing through it, its value's
    `decor` included, changes the document.
-2. **Storing stores a copy that leaves its source's comments.** An item read from a document, this one or another,
-   is stored without its same-line comment, its header comment and the comment lines above its header; the comments
-   inside it go along. Editing the original afterwards does not change the copy.
+2. **Storing stores a copy that takes the item's comments.** An item read from a document, this one or another, is
+   stored with the comments that belong to it: the comment lines right above it, with no blank line between, and its
+   same-line comment, for a table those of its header, and every comment inside it, blank lines included. Comment
+   lines set apart from it by a blank line belong to no item and stay in its source. Stored in place of another item,
+   it keeps the comments of that slot unless it brings comments of its own, which take their place. Editing the
+   original afterwards does not change the copy.
 3. **`copy()` is exactly what a store would store.** With `val db = src["db"].getOrElse { error(it) }`,
    `dst.set("db", db.copy())` prints the same as `dst.set("db", db)`, in another document or the same one. The same
    holds for the `copy()` of what an item holds: `db.standardTableOrNull!!.copy()` stores as `db.copy()` does, and
-   so do the copies of an `InlineTable`, a `TomlArray`, an `ArrayOfTables` and a `Value`. A `TomlDocument.copy()` is
-   a whole document and keeps every comment and its version.
+   so do the copies of an `InlineTable`, a `TomlArray`, an `ArrayOfTables` and a `Value`, though the comment lines
+   above a value's key belong to its key's line, which only the item brings. A `TomlDocument.copy()` is a whole
+   document and keeps every comment and its version.
 4. **Removing is a move.** `remove` and `removeAt` take the item's comments with it: the comment lines right above
    it, its same-line and header comment, and every comment inside it. When that would take a comment out of the
    document they return `CommentsWouldBeLost` and change nothing, unless called with `force = true`. The returned

@@ -107,8 +107,8 @@ internal fun Selected.toToml(): Printed {
     }
     item.arrayOfTablesOrNull?.let { tables ->
         // Printed under the header path it has in the file, inside parents that print nothing themselves. Only a
-        // key reaches an array of tables, so the path is never empty. A copy leaves the comments above its first
-        // header behind, as storing the file's own array would; set back through decor, they print with it.
+        // key reaches an array of tables, so the path is never empty. A copy leaves the comment lines set apart from
+        // its first header behind, as storing the file's own array would; set back through decor, they print with it.
         val copy = tables.copy()
         copy.firstOrNull()?.decor = tables.first().decor
         val holder = tableHolding(path.last(), Item(copy))

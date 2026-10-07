@@ -25,24 +25,24 @@ class HandleRulesTest {
         stored.set("db", parse(banneredSource)["db"].assertSuccess()).assertSuccess()
         val copied = parse("[app]\nname = 1\n")
         copied.set("db", parse(banneredSource)["db"].assertSuccess().copy()).assertSuccess()
-        assertEquals("[app]\nname = 1\n\n[db]\nurl = 1 # url c\n", copied.toString())
+        assertEquals("[app]\nname = 1\n\n[db] # db hdr\nurl = 1 # url c\n", copied.toString())
         assertEquals(stored.toString(), copied.toString())
     }
 
     @Test
-    fun `a table stored in a new document keeps only the comments inside it`() {
-        val src = parse("# Generated\n[db] # primary\nurl = \"x\" # local\n")
+    fun `a table stored in a new document brings its comments and leaves the free ones`() {
+        val src = parse("# Generated\n\n# about db\n[db] # primary\nurl = \"x\" # local\n")
         val dst = TomlDocument()
         dst["db"] = src["db"].assertSuccess()
-        assertEquals("[db]\nurl = \"x\" # local\n", dst.toString())
+        assertEquals("# about db\n[db] # primary\nurl = \"x\" # local\n", dst.toString())
     }
 
     @Test
-    fun `a copy of a value from another document leaves its same-line comment`() {
+    fun `a copy of a value from another document brings its same-line comment`() {
         val source = parse("a = 1 # from source\n")
         val doc = parse("x = 1\n")
         doc.set("a", source["a"].assertSuccess().copy()).assertSuccess()
-        assertEquals("x = 1\na = 1\n", doc.toString())
+        assertEquals("x = 1\na = 1 # from source\n", doc.toString())
     }
 
     @Test
@@ -62,7 +62,7 @@ class HandleRulesTest {
         stored.set("b", stored["a"].assertSuccess()).assertSuccess()
         val copied = parse(text)
         copied.set("b", copied["a"].assertSuccess().copy()).assertSuccess()
-        assertEquals("a = [1, 2] # a c\nb = [1, 2]\n[t]\n", copied.toString())
+        assertEquals("a = [1, 2] # a c\nb = [1, 2] # a c\n[t]\n", copied.toString())
         assertEquals(stored.toString(), copied.toString())
     }
 
@@ -82,7 +82,7 @@ class HandleRulesTest {
         viaItem.set("db", parse(banneredSource)["db"].assertSuccess().copy()).assertSuccess()
         val viaTable = parse("[app]\nname = 1\n")
         viaTable.set("db", parse(banneredSource)["db"].assertSuccess().standardTableOrNull!!.copy()).assertSuccess()
-        assertEquals("[app]\nname = 1\n\n[db]\nurl = 1 # url c\n", viaTable.toString())
+        assertEquals("[app]\nname = 1\n\n[db] # db hdr\nurl = 1 # url c\n", viaTable.toString())
         assertEquals(viaItem.toString(), viaTable.toString())
     }
 
@@ -103,7 +103,7 @@ class HandleRulesTest {
         viaItem.set("t", parse(source)["t"].assertSuccess().copy()).assertSuccess()
         val viaTable = parse("y = 1\n")
         viaTable.set("t", Value.InlineTable(parse(source)["t"].assertSuccess().inlineTableOrNull!!.copy())).assertSuccess()
-        assertEquals("y = 1\nt = { x = 1 }\n", viaTable.toString())
+        assertEquals("y = 1\nt = { x = 1 } # t c\n", viaTable.toString())
         assertEquals(viaItem.toString(), viaTable.toString())
     }
 
@@ -114,7 +114,7 @@ class HandleRulesTest {
         viaItem.set("a", parse(source)["a"].assertSuccess().copy()).assertSuccess()
         val viaArray = parse("y = 1\n")
         viaArray.set("a", Value.Array(parse(source)["a"].assertSuccess().arrayOrNull!!.copy())).assertSuccess()
-        assertEquals("y = 1\na = [\n  1, # one\n]\n", viaArray.toString())
+        assertEquals("y = 1\na = [\n  1, # one\n] # a c\n", viaArray.toString())
         assertEquals(viaItem.toString(), viaArray.toString())
     }
 
@@ -125,7 +125,7 @@ class HandleRulesTest {
         viaItem.set("a", parse(source)["a"].assertSuccess().copy()).assertSuccess()
         val viaValue = parse("y = 1\n")
         viaValue.set("a", parse(source)["a"].assertSuccess().valueOrNull!!.copy()).assertSuccess()
-        assertEquals("y = 1\na = [1, 2]\n", viaValue.toString())
+        assertEquals("y = 1\na = [1, 2] # a c\n", viaValue.toString())
         assertEquals(viaItem.toString(), viaValue.toString())
     }
 
@@ -136,7 +136,7 @@ class HandleRulesTest {
         viaItem.set("arr", parse(source)["arr"].assertSuccess().copy()).assertSuccess()
         val viaArray = parse("[app]\n")
         viaArray.set("arr", parse(source)["arr"].assertSuccess().arrayOfTablesOrNull!!.copy()).assertSuccess()
-        assertEquals("[app]\n\n[[arr]]\nx = 1\n\n[[arr]] # second\nx = 2\n", viaArray.toString())
+        assertEquals("[app]\n\n# about arr\n[[arr]] # first\nx = 1\n\n[[arr]] # second\nx = 2\n", viaArray.toString())
         assertEquals(viaItem.toString(), viaArray.toString())
     }
 

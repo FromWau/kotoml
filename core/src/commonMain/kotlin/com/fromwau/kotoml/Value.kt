@@ -343,10 +343,10 @@ public sealed interface Value {
     }
 
     /**
-     * A deep copy of this value, with its spelling, stored nowhere: exactly what storing this value would store. A
-     * copy of an array or inline table read from a document leaves the comment after it on its line behind, as
-     * [TomlArray.copy] and [com.fromwau.kotoml.InlineTable.copy] say; any other value keeps its decor, comment
-     * included.
+     * A deep copy of this value, with its spelling and its decor, stored nowhere: exactly what storing this value would
+     * store. A copy of an array or inline table read from a document takes the comment after it on its line, as
+     * [TomlArray.copy] and [com.fromwau.kotoml.InlineTable.copy] say. The comment lines above a value's key belong to
+     * the key's line, which a copy of the [Item] holding the value brings.
      */
     public fun copy(): Value = when (this) {
         is Array -> Array(value.copy())
@@ -477,11 +477,11 @@ internal fun Value.copyFor(place: ValuePlace): Value = copyOutOfBraces().fitFor(
 /** This value, its decor fitted to [place]. */
 internal fun Value.fitFor(place: ValuePlace): Value = also { rawDecor.fitFor(place) }
 
-/** The comment a caller gave this value to print after it, with the spacing before it; "" when there is none. */
-internal fun Value.callerComment(): String {
-    if (rawDecor.suffix?.isRead != false) return ""
-    return commentAfter().substringBefore('\n').trimEnd('\r')
-}
+/**
+ * The comment this value brings to print after it, read with it or given by a caller, with the spacing before it; ""
+ * when there is none.
+ */
+internal fun Value.broughtComment(): String = commentAfter().substringBefore('\n').trimEnd('\r')
 
 internal const val LINE_BREAK: String = "\n"
 internal const val INDENT: String = "  "

@@ -493,7 +493,7 @@ class RemovalKeepsCommentsTest {
     @Test
     fun `free lines kept in a dotted table in braces stored into a table print on their own line`() {
         val doc = storedAfterRemoving("s = {\n  b.c = 1,\n  # about d\n\n  b.d = 2,\n}\n[t]\nx = 0\n", "d")
-        assertEquals("s = {\n  b.c = 1,\n  # about d\n}\n[t]\nb.c = 1\n# about d\nx = 0\n", doc.toString())
+        assertEquals("s = {\n  b.c = 1,\n  # about d\n}\n[t]\nx = 0\nb.c = 1\n# about d\n", doc.toString())
     }
 
     @Test
@@ -507,33 +507,33 @@ class RemovalKeepsCommentsTest {
     fun `free lines kept above a later key of a dotted table in braces stay above that key in a table`() {
         val text = "s = {\n  b.c = 1,\n  # about d\n\n  b.d = 2,\n  b.e = 3,\n}\n[t]\nx = 0\n"
         val doc = storedAfterRemoving(text, "d")
-        assertEquals("[t]\nb.c = 1\n# about d\nb.e = 3\nx = 0\n", doc.toString().substringAfter("}\n"))
+        assertEquals("[t]\nx = 0\nb.c = 1\n# about d\nb.e = 3\n", doc.toString().substringAfter("}\n"))
     }
 
     @Test
     fun `free lines kept from the only key of a dotted table in braces print above its empty table in a table`() {
         val doc = storedAfterRemoving("s = {\n  # about c\n\n  b.c = 1,\n}\n[t]\nx = 0\n", "c")
-        assertEquals("[t]\n# about c\nb = {}\nx = 0\n", doc.toString().substringAfter("}\n"))
+        assertEquals("[t]\nx = 0\n# about c\nb = {}\n", doc.toString().substringAfter("}\n"))
     }
 
     @Test
     fun `a comment after a comma kept in a dotted table in braces ends the line before in a table`() {
         val doc = storedAfterRemoving("s = {\n  b.c = 1, # on c\n  b.d = 2,\n}\n[t]\nx = 0\n", "d")
-        assertEquals("[t]\nb.c = 1 # on c\nx = 0\n", doc.toString().substringAfter("}\n"))
+        assertEquals("[t]\nx = 0\nb.c = 1 # on c\n", doc.toString().substringAfter("}\n"))
     }
 
     @Test
     fun `free lines kept in a dotted table in braces stored under a dotted key of a table print on their own line`() {
         val text = "s = {\n  b.c = 1,\n  # about d\n\n  b.d = 2,\n}\n[t]\nx = 0\n[t.u]\ny = 1\n"
         val doc = storedAfterRemoving(text, "d", path = listOf("u", "b"))
-        assertEquals("[t]\nx = 0\n[t.u]\nb.c = 1\n# about d\ny = 1\n", doc.toString().substringAfter("}\n"))
+        assertEquals("[t]\nx = 0\n[t.u]\ny = 1\nb.c = 1\n# about d\n", doc.toString().substringAfter("}\n"))
     }
 
     @Test
     fun `free lines kept in a stored dotted table stay on their own line when the table is put on one line`() {
         val doc = storedAfterRemoving("s = {\n  b.c = 1,\n  # about d\n\n  b.d = 2,\n}\n[t]\nx = 0\n", "d")
         doc["t"]["b"].assertSuccess().setLayout(TableLayout.Inline).assertSuccess()
-        assertEquals("[t]\nb = { c = 1 }\n# about d\nx = 0\n", doc.toString().substringAfter("}\n"))
+        assertEquals("[t]\nx = 0\n# about d\nb = { c = 1 }\n", doc.toString().substringAfter("}\n"))
     }
 
     @Test
@@ -542,8 +542,8 @@ class RemovalKeepsCommentsTest {
         val doc = storedAfterRemoving(text, "d")
         val u = doc["t"]["u"].assertSuccess().valueOrNull!!.inlineTableOrNull!!
         u["b"] = doc["t"]["b"].assertSuccess().valueOrNull!!
-        val inBraces = "u = {\n  b.c = 1,\n  # about d\n  y = 1,\n}\n"
-        assertEquals("[t]\nb.c = 1\n# about d\n$inBraces", doc.toString().substringAfter("}\n"))
+        val inBraces = "u = {\n  y = 1,\n  b.c = 1,\n  # about d\n}\n"
+        assertEquals("[t]\n${inBraces}b.c = 1\n# about d\n", doc.toString().substringAfter("}\n"))
     }
 
     private fun assertFormatsTo(
@@ -561,8 +561,8 @@ class RemovalKeepsCommentsTest {
         val text = "s = {\n  b.c = 1,\n  y = 5, # on y\n  # about d\n\n  b.d = 2,\n}\n[t]\nx = 0\n"
         val doc = storedAfterRemoving(text, "d")
         val s = "s = {\n  b.c = 1,\n  y = 5, # on y\n  # about d\n}\n"
-        assertEquals("$s[t]\nb.c = 1\n# about d\nx = 0\n", doc.toString())
-        assertFormatsTo("$s\n[t]\nb.c = 1\n# about d\nx = 0\n", doc)
+        assertEquals("$s[t]\nx = 0\nb.c = 1\n# about d\n", doc.toString())
+        assertFormatsTo("$s\n[t]\nx = 0\nb.c = 1\n# about d\n", doc)
     }
 
     @Test
@@ -578,7 +578,7 @@ class RemovalKeepsCommentsTest {
     @Test
     fun `a comment after a sibling's comma alone above a removed dotted key in braces stays with that sibling`() {
         val doc = storedAfterRemoving("s = {\n  b.c = 1,\n  y = 5, # on y\n  b.d = 2,\n}\n[t]\nx = 0\n", "d")
-        assertEquals("[t]\nb.c = 1\nx = 0\n", doc.toString().substringAfter("}\n"))
+        assertEquals("[t]\nx = 0\nb.c = 1\n", doc.toString().substringAfter("}\n"))
         assertEquals("s = {\n  b.c = 1,\n  y = 5, # on y\n}\n", doc.toString().substringBefore("[t]"))
     }
 
@@ -587,8 +587,8 @@ class RemovalKeepsCommentsTest {
         val text = "s = {\r\n  b.c = 1,\r\n  y = 5, # on y\r\n  # about d\r\n\r\n  b.d = 2,\r\n}\r\n[t]\r\nx = 0\r\n"
         val doc = storedAfterRemoving(text, "d")
         val s = "s = {\r\n  b.c = 1,\r\n  y = 5, # on y\r\n  # about d\r\n}\r\n"
-        assertEquals("$s[t]\r\nb.c = 1\r\n# about d\r\nx = 0\r\n", doc.toString())
-        assertFormatsTo("$s\r\n[t]\r\nb.c = 1\r\n# about d\r\nx = 0\r\n", doc)
+        assertEquals("$s[t]\r\nx = 0\r\nb.c = 1\r\n# about d\r\n", doc.toString())
+        assertFormatsTo("$s\r\n[t]\r\nx = 0\r\nb.c = 1\r\n# about d\r\n", doc)
     }
 
     @Test
@@ -596,7 +596,7 @@ class RemovalKeepsCommentsTest {
         val text = "s = {\n  b.c = 1, # on c\n  # about d\n\n  b.d = 2,\n}\n[t]\nx = 0\n"
         val doc = storedAfterRemoving(text, "d")
         val s = "s = {\n  b.c = 1, # on c\n  # about d\n}\n"
-        assertEquals("$s[t]\nb.c = 1 # on c\n# about d\nx = 0\n", doc.toString())
-        assertFormatsTo("$s\n[t]\nb.c = 1 # on c\n# about d\nx = 0\n", doc)
+        assertEquals("$s[t]\nx = 0\nb.c = 1 # on c\n# about d\n", doc.toString())
+        assertFormatsTo("$s\n[t]\nx = 0\nb.c = 1 # on c\n# about d\n", doc)
     }
 }

@@ -63,7 +63,10 @@ internal class KeyValue(key: Key, item: Item) {
      * Puts [next], not copied, in place of this entry's slot, keeping the lines above; returns the old slot, which
      * keeps its content and no longer belongs to the table, as a removed one.
      */
-    fun replace(next: Item): Item {
+    fun replace(
+        next: Item,
+        above: String = "",
+    ): Item {
         val lines = takeLinesAbove(next)
         val old = item
         val oldDecor = old.valueOrNull?.rawDecor
@@ -73,10 +76,61 @@ internal class KeyValue(key: Key, item: Item) {
         old.entry = null
         keepValueDecor(oldDecor)
         keepHeaderComment(oldTable?.rawDecor)
-        if (!keepPlacesOf(oldArray)) keepLinesAbove(lines)
+        val keptPlaces = keepPlacesOf(oldArray)
+        if (!keptPlaces) keepLinesAbove(lines)
         keepTablePlace(oldTable)
+        if (!keptPlaces) takeAttachedAbove(above)
         return old
     }
+
+    /**
+     * Puts [block], the comment lines an item stored here brings from where it was read, directly above what the item
+     * prints, in place of the comment lines directly above it there; the lines set apart from it by a blank line stay.
+     * Above a header that takes the default spacing they print below that spacing.
+     */
+    fun takeAttachedAbove(block: String) {
+        if (block.isEmpty()) return
+        val lineBreak = pairs?.owner?.let(::lineEndingOf) ?: LINE_BREAK
+        val header = item.headerTable
+        if (header != null) {
+            val lines = indentedCommentLines(block, "", lineBreak)
+            val prefix = header.rawDecor.prefix
+            if (prefix == null) {
+                val keyLines = linesAbove(key.rawLeafDecor.prefix)
+                key.rawLeafDecor.prefix = KeptText.from(splitLinesAbove(keyLines).free + lines)
+            } else {
+                header.rawDecor.prefix = prefix.withAttachedAbove(lines)
+            }
+            return
+        }
+        val lineKey = firstLineKey() ?: return
+        val start = lineKey.rawLeafDecor.prefix?.textOrNull
+        val inBraces = pairs?.owner is InlineTable
+        // Braces on one line have no line for a comment.
+        if (inBraces && '\n' !in start.orEmpty()) return
+        val indent = start?.substringAfterLast('\n') ?: indentOfLineBefore()
+        val lines = indentedCommentLines(block, indent, lineBreak)
+        // In braces the first break of a prefix ends the line before, whose comment stays with it.
+        val spacedForBraces = inBraces || item.inlineTableOrNull?.isDotted == true
+        val prefix = lineKey.rawLeafDecor.prefix ?: KeptText.from(indent)
+        lineKey.rawLeafDecor.prefix = prefix.withAttachedAbove(lines, spacedForBraces)
+    }
+
+    // A line made by hand prints indented like the line above it, so lines put above it take that indentation too.
+    private fun indentOfLineBefore(): String {
+        val table = pairs?.owner as? StandardTable ?: return ""
+        val lines = table.visualValues()
+        val index = lines.indexOfFirst { line -> line.path.any { it === key } }
+        val start = lines.getOrNull(index - 1)?.let { it.lineStart ?: it.path.last().rawLeafDecor.prefix }
+        return start?.textOrNull?.substringAfterLast('\n').orEmpty()
+    }
+
+    /**
+     * The comments this entry, removed from its table, owns above a value's line, which its key's decor still holds; a
+     * table holds those above its header or first line, and the comment at the end of its line went with its item.
+     */
+    fun removedComments(): ItemComments =
+        ItemComments(attachedAbove = splitLinesAbove(linesAbove(key.rawLeafDecor.prefix)).attached)
 
     /**
      * Gives an array of tables now in the slot the places of [old]'s tables and the lines above them, as
@@ -99,10 +153,14 @@ internal class KeyValue(key: Key, item: Item) {
 
     /**
      * Gives the value now in the slot the spacing and same-line comment of the value [old] it replaced, on each side
-     * the new value leaves to the default.
+     * the new value leaves to the default, and the same-line comment when the new value brings none.
      */
     fun keepValueDecor(old: RawDecor?) {
-        if (old != null) item.valueOrNull?.rawDecor?.fillDefaultsFrom(old)
+        if (old == null) return
+        val decor = item.valueOrNull?.rawDecor ?: return
+        val oldComment = '#' in old.suffix?.textOrNull.orEmpty()
+        if (oldComment && '#' !in decor.suffix?.textOrNull.orEmpty()) decor.suffix = null
+        decor.fillDefaultsFrom(old)
     }
 
     /**
@@ -312,17 +370,24 @@ internal class KeyValuePairs {
 
     /**
      * Inserts or replaces the item under [key]'s text. A replaced entry keeps its own key and its position, and takes
-     * [item] as its slot as [KeyValue.replace] puts it, so a slot handed out for the key before is detached.
+     * [item] as its slot as [KeyValue.replace] puts it, so a slot handed out for the key before is detached. [above]
+     * goes directly above what [item] prints, as [KeyValue.takeAttachedAbove] says.
      *
      * @return the item the key held before, or null when there was no entry.
      */
-    fun put(key: Key, item: Item): Item? {
+    fun put(
+        key: Key,
+        item: Item,
+        above: String = "",
+    ): Item? {
         val existing = byName[key.name]
         if (existing == null) {
-            byName[key.name] = KeyValue(key, item).also { it.pairs = this }
+            val entry = KeyValue(key, item).also { it.pairs = this }
+            byName[key.name] = entry
+            entry.takeAttachedAbove(above)
             return null
         }
-        return existing.replace(item).also { old -> owner?.let(old::keepDocumentOf) }
+        return existing.replace(item, above).also { old -> owner?.let(old::keepDocumentOf) }
     }
 
     fun remove(key: String): KeyValue? = byName.remove(key)?.also { entry -> owner?.let(entry.item::keepDocumentOf) }

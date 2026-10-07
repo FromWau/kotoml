@@ -54,6 +54,180 @@ internal fun KeyValue.itemComments(): ItemComments {
     }
 }
 
+/** The comments [slot] owns where it is stored: as an entry of a table, an element, or a table of tables. */
+internal fun ownCommentsOf(slot: Item): ItemComments {
+    val entry = slot.entry
+    if (entry != null && entry.isStored) return entry.itemComments()
+    return when (val owner = slot.arrayOwner) {
+        is TomlArray -> owner.elementComments(owner.values.indexOfFirst { it === slot })
+        is ArrayOfTables -> slot.standardTableOrNull?.headerComments() ?: ItemComments.NONE
+        else -> ItemComments.NONE
+    }
+}
+
+/**
+ * The comment lines directly above a header that [prefix], a header's decor read from a document, holds; the lines
+ * above them up to a blank line belong to no item.
+ */
+internal fun attachedAboveHeader(prefix: KeptText?): String = splitLinesAbove(linesAbove(prefix)).attached
+
+/**
+ * The comment lines a table stored nowhere brings above its header from the document it was read in, taken out of its
+ * decor, which then prints the default spacing; "" for a table whose decor a caller set.
+ */
+internal fun StandardTable.takeAttachedAboveHeader(): String {
+    val prefix = rawDecor.prefix?.takeIf { it.isRead } ?: return ""
+    val block = attachedAboveHeader(prefix)
+    if ('#' !in block) return ""
+    rawDecor.prefix = null
+    return block
+}
+
+/**
+ * Keeps of the lines above this header, read from a document, only the comment lines directly above it; read spacing,
+ * the empty spacing of a file's first header included, is the place's.
+ */
+internal fun StandardTable.keepOnlyAttachedAbove() {
+    val prefix = rawDecor.prefix?.takeIf { it.isRead || it.textOrNull == "" } ?: return
+    rawDecor.prefix = attachedAboveHeader(prefix).takeIf { '#' in it }?.let(KeptText::read)
+}
+
+/**
+ * This text above an item, its whole lines and the spacing on the item's line, with [lines] in place of the comment
+ * lines directly above the item. Text [spacedForBraces] starts with the end of the line before, which stays.
+ */
+internal fun KeptText.withAttachedAbove(
+    lines: String,
+    spacedForBraces: Boolean = false,
+): KeptText {
+    val text = textOrNull.orEmpty()
+    val lineBefore = if (spacedForBraces) text.indexOf('\n') + 1 else 0
+    val above = wholeLinesAbove(spacedForBraces)
+    val onLine = text.substring(lineBefore + above.length)
+    return KeptText.from(text.substring(0, lineBefore) + splitLinesAbove(above).free + lines + onLine)
+}
+
+/** Puts [block], comment lines a table stored here brings, right above its header; see [KeyValue.takeAttachedAbove]. */
+internal fun StandardTable.putAttachedAbove(block: String) {
+    if (block.isEmpty()) return
+    val lines = indentedCommentLines(block, "", lineEndingOf(this))
+    rawDecor.prefix = (rawDecor.prefix ?: KeptText.from(lineEndingOf(this))).withAttachedAbove(lines)
+}
+
+/**
+ * Keeps of the lines read above this dotted table's first line only the comment lines directly above it, and prints
+ * its lines together wherever it is stored, not among others by the order they were read in.
+ */
+internal fun StandardTable.keepOnlyAttachedAboveFirstLine() {
+    keepKeptLinesInFront(bodyLines(), keptLineLists(), DEFAULT_KEY_DECOR.first) { it.path.last().rawLeafDecor }
+    forgetOrder()
+    firstLineDecor()?.let { it.prefix = it.prefix?.withLinesAbove(attachedOnly = true, spacedForBraces = false) }
+}
+
+/** Takes out the comment lines read directly above this dotted table's first line, for the slot it is stored in. */
+internal fun StandardTable.takeAttachedAboveFirstLine(): String =
+    firstLineDecor()?.takeAttachedAbove(spacedForBraces = false).orEmpty()
+
+/** As [StandardTable.keepOnlyAttachedAboveFirstLine], for dotted keys in braces. */
+internal fun InlineTable.keepOnlyAttachedAboveFirstLine() {
+    keepKeptLinesInFront(bodyLines(), keptLineLists(), DEFAULT_INLINE_KEY_DECOR.first) { line ->
+        val start = line.lineStart
+        line.path.firstOrNull { start != null && it.rawLeafDecor.prefix === start }?.rawLeafDecor
+            ?: line.entry.key.rawLeafDecor
+    }
+    forgetOrder()
+    firstLineDecor()?.let { it.prefix = it.prefix?.withLinesAbove(attachedOnly = true, spacedForBraces = true) }
+}
+
+private fun StandardTable.keptLineLists(): List<MutableList<KeptLines>> = listOf(items.keptLines) +
+    items.entries.flatMap { entry -> entry.item.standardTableOrNull?.takeIf { it.isDotted }?.keptLineLists().orEmpty() }
+
+private fun InlineTable.keptLineLists(): List<MutableList<KeptLines>> = listOf(items.keptLines) +
+    items.entries.flatMap { entry -> entry.item.inlineTableOrNull?.takeIf { it.isDotted }?.keptLineLists().orEmpty() }
+
+/**
+ * Puts the lines kept from removed keys among [lines], held in [lists], in front of the line printed after them, whose
+ * decor [decorOf] gives, so they stay in place once the order the lines were read in is forgotten.
+ */
+private fun keepKeptLinesInFront(
+    lines: List<BodyLine>,
+    lists: List<MutableList<KeptLines>>,
+    keyDefault: String,
+    decorOf: (VisualValue) -> RawDecor,
+) {
+    val pending = mutableListOf<KeptLines>()
+    for (line in lines) {
+        if (line is KeptLines) {
+            pending += line
+            continue
+        }
+        if (pending.isEmpty()) continue
+        decorOf(line as VisualValue).prependToPrefix(pending.joinToString("") { it.text }, keyDefault)
+        for (list in lists) list.removeAll { kept -> pending.any { it === kept } }
+        pending.clear()
+    }
+}
+
+/** As [StandardTable.takeAttachedAboveFirstLine], for dotted keys in braces. */
+internal fun InlineTable.takeAttachedAboveFirstLine(): String =
+    firstLineDecor()?.takeAttachedAbove(spacedForBraces = true).orEmpty()
+
+private fun StandardTable.firstLineDecor(): RawDecor? = visualValues().firstOrNull()?.entry?.key?.rawLeafDecor
+
+private fun InlineTable.firstLineDecor(): RawDecor? = visualValues().firstOrNull()?.entry?.key?.rawLeafDecor
+
+private fun RawDecor.takeAttachedAbove(spacedForBraces: Boolean): String {
+    val start = prefix?.takeIf { it.isRead } ?: return ""
+    val block = splitLinesAbove(start.wholeLinesAbove(spacedForBraces)).attached
+    if ('#' !in block) return ""
+    prefix = start.withLinesAbove(attachedOnly = false, spacedForBraces)
+    return block
+}
+
+/** The whole lines this text before an item holds above the item's line; see [withAttachedAbove]. */
+private fun KeptText.wholeLinesAbove(spacedForBraces: Boolean): String {
+    val text = textOrNull.orEmpty()
+    val lineBefore = if (spacedForBraces) text.indexOf('\n') + 1 else 0
+    return text.substring(lineBefore, text.lastIndexOf('\n').coerceAtLeast(lineBefore - 1) + 1)
+}
+
+/**
+ * This text before an item, read or given as it was, keeping of the whole lines above the item's line the comment
+ * lines directly above it when [attachedOnly], or none; in braces the end of the line before goes too, since a comment
+ * there belongs to what the line holds.
+ */
+private fun KeptText.withLinesAbove(
+    attachedOnly: Boolean,
+    spacedForBraces: Boolean,
+): KeptText = mapText { text ->
+    val above = wholeLinesAbove(spacedForBraces)
+    val lineBefore = if (spacedForBraces && '\n' in text) text.lineBreak() else ""
+    val kept = if (attachedOnly) splitLinesAbove(above).attached else ""
+    lineBefore + kept + text.substringAfterLast('\n')
+}
+
+/**
+ * Gives an element in brackets whose decor is [old], replaced by one whose decor is this, the comment lines directly
+ * above the new one in place of those above the old one, when the old one starts a line; the rest stays as in [old].
+ */
+internal fun RawDecor.keepAttachedAboveIn(old: RawDecor) {
+    val block = prefix?.let { splitLinesAbove(it.wholeLinesAbove(spacedForBraces = true)).attached }.orEmpty()
+    val start = old.prefix
+    prefix = start
+    if ('#' !in block || start == null || '\n' !in start.textOrNull.orEmpty()) return
+    val text = start.textOrNull.orEmpty()
+    val lines = indentedCommentLines(block, text.substringAfterLast('\n'), text.lineBreak())
+    prefix = start.withAttachedAbove(lines, spacedForBraces = true)
+}
+
+/** Puts [comment], the same-line comment this copy's source owns, after it when its decor holds no comment there. */
+internal fun RawDecor.keepSameLineComment(comment: String) {
+    if ('#' !in suffix?.textOrNull.orEmpty() && '#' in comment) suffix = KeptText.read(comment)
+}
+
+/** The same-line comment the slot holding [container] owns, or "" when it is stored nowhere. */
+internal fun sameLineCommentOf(container: Any): String = slotOf(container)?.let(::ownCommentsOf)?.sameLine.orEmpty()
+
 /** The comments a `[t]` or `[[a]]` header owns; a table that prints no header owns none. */
 internal fun StandardTable.headerComments(): ItemComments {
     val isArrayElement = holder?.arrayOwner is ArrayOfTables
@@ -118,7 +292,7 @@ private fun textAbove(
     return kept + line.start()
 }
 
-private fun VisualValue.start(): String = (lineStart ?: entry.key.rawLeafDecor.prefix).text()
+internal fun VisualValue.start(): String = (lineStart ?: entry.key.rawLeafDecor.prefix).text()
 
 /**
  * The comments of the items [first] to [last], one item's lines, among items in brackets or braces whose [gaps] are

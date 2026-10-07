@@ -182,15 +182,16 @@ public class TomlArray() : Iterable<Value> {
      * when the array's elements do, below the last one and its comment; on one line it takes the spacing the
      * elements already have.
      *
-     * A comment in [value]'s decor suffix, such as `Decor(suffix = " # note")`, puts an array on one line on lines of
-     * its own, one element per line with a comma after each, and prints after the new element's comma. The lines it
+     * A comment in [value]'s decor suffix, read with it or given, such as `Decor(suffix = " # note")`, puts an array on
+     * one line on lines of its own, one element per line with a comma after each, and prints after the new element's
+     * comma. The lines it
      * adds end as the document's lines do, in `\r\n` in a document read with them.
      *
      * @return [TomlEditError.TooDeep], storing nothing, when [value] would nest deeper than the parser reads.
      */
     public fun add(value: Value): EmptyResult<TomlEditError> {
         storeError(this, null, Item(value))?.let { return Err(it) }
-        val comment = value.callerComment()
+        val comment = value.broughtComment()
         val stored = value.copyFor(ValuePlace.Array).also { giveSecondsInToml10(this, Item(it)) }
         if (comment.isNotEmpty()) spreadForComment(stored)
         if (stored.decor.prefix == null) {
@@ -203,11 +204,33 @@ public class TomlArray() : Iterable<Value> {
         return Ok(Unit)
     }
 
+    /**
+     * Puts the comments [value], one of the elements, brings in place of those it has there: [linesAbove] directly
+     * above it and [comment] after it; see [add].
+     */
+    internal fun takeBroughtComments(
+        value: Value,
+        linesAbove: String,
+        comment: String,
+    ) {
+        if (comment.isEmpty() && linesAbove.isEmpty()) return
+        spreadForComment(value)
+        if (linesAbove.isNotEmpty()) {
+            val start = value.rawDecor.prefix?.textOrNull.orEmpty()
+            val lines = indentedCommentLines(linesAbove, start.substringAfterLast('\n'), start.lineBreak())
+            value.rawDecor.prefix = value.rawDecor.prefix?.withAttachedAbove(lines, spacedForBraces = true)
+        }
+        if (comment.isEmpty()) return
+        if (value === printedValues().lastOrNull()) leaveLastLineForComma()
+        putCommentAfter(value, comment)
+    }
+
     // A comment after an element needs one element per line; [value], going in, starts a line when it has no prefix.
     private fun spreadForComment(value: Value) {
         if (!printsOnOneLine()) return
         val elementStart = spreadOverLines()
-        if (value.decor.prefix == null) value.rawDecor.prefix = KeptText.from(elementStart)
+        // Spacing for a place on a line goes; a value starting a line of its own keeps its lines above.
+        if ('\n' !in value.decor.prefix.orEmpty()) value.rawDecor.prefix = KeptText.from(elementStart)
     }
 
     // A comment after an element ends its line after the comma, so it starts the next element's prefix or the text
@@ -446,7 +469,7 @@ public class TomlArray() : Iterable<Value> {
         if (index < 0 || index > values.size) return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         storeError(this, null, Item(value))?.let { return Err(it) }
         if (index == values.size) return add(value)
-        val comment = value.callerComment()
+        val comment = value.broughtComment()
         val stored = value.copyFor(ValuePlace.Array).also { giveSecondsInToml10(this, Item(it)) }
         if (comment.isNotEmpty()) spreadForComment(stored)
         val next = values.subList(index, values.size).firstNotNullOfOrNull { it.valueOrNull }
@@ -471,8 +494,9 @@ public class TomlArray() : Iterable<Value> {
      * Replaces the element at [index] with a copy of [value]. A comment in [value]'s decor suffix prints after the
      * element's comma, as [add] says, in place of the comment that stood there.
      *
-     * @param keepDecor whether the copy takes over the old element's decor, so it sits where the old one did;
-     *   false keeps [value]'s own decor.
+     * @param keepDecor whether the copy takes over the old element's decor, so it sits where the old one did, with the
+     *   comment lines right above [value], when its decor holds some, in place of those above the old element; false
+     *   keeps [value]'s own decor.
      * @return the old element, or [TomlEditError.IndexOutOfBounds], with nothing replaced, when there is no
      *   element at [index], or [TomlEditError.TooDeep] when [value] would nest deeper than the parser reads.
      */
@@ -483,13 +507,16 @@ public class TomlArray() : Iterable<Value> {
     ): Result<Value, TomlEditError> {
         val old = getOrNull(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         storeError(this, null, Item(value))?.let { return Err(it) }
-        val comment = value.callerComment()
+        val comment = value.broughtComment()
         val stored = value.copyFor(ValuePlace.Array).also { giveSecondsInToml10(this, Item(it)) }
         if (comment.isNotEmpty()) {
             spreadForComment(stored)
             if (old === printedValues().last()) leaveLastLineForComma()
         }
-        if (keepDecor) stored.rawDecor.assign(old.rawDecor)
+        if (keepDecor) {
+            stored.rawDecor.keepAttachedAboveIn(old.rawDecor)
+            stored.rawDecor.suffix = old.rawDecor.suffix
+        }
         values.set(index, Item.inArray(stored, this)).leaveArray()
         if (comment.isNotEmpty()) putCommentAfter(stored, comment)
         return Ok(old)
@@ -672,13 +699,13 @@ public class TomlArray() : Iterable<Value> {
 
     /**
      * A deep copy of this array, stored nowhere: exactly what storing this array would store. A copy of an array read
-     * from a document leaves the comment after it on its line behind and takes the comments inside it, those of its
-     * elements included. Comments a caller set through [decor] stay. A copy of an array stored nowhere, built in code
-     * or returned by `remove`, keeps all its comments.
+     * from a document takes the comment after it on its line and the comments inside it, those of its elements
+     * included. Comments a caller set through [decor] stay. A copy of an array stored nowhere, built in code or
+     * returned by `remove`, keeps all its comments.
      */
     public fun copy(): TomlArray = deepCopy().also { copy ->
         copy.takenFrom = documentOf(this)
-        if (isStored(this)) copy.rawDecor.dropReadComments(isHeader = false)
+        if (isStored(this)) copy.rawDecor.keepSameLineComment(sameLineCommentOf(this))
     }
 
     /** A deep copy that keeps every comment. */

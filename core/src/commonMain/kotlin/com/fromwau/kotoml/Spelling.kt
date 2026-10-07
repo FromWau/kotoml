@@ -84,6 +84,9 @@ internal class KeptText private constructor(private val state: State) {
         /** Holds [text]; an empty string becomes the empty raw string. */
         fun from(text: String): KeptText = if (text.isEmpty()) KeptText() else KeptText(State.Explicit(text))
 
+        /** Holds [text] as read from a document, as the text a copy brings from there. */
+        fun read(text: String): KeptText = if (text.isEmpty()) KeptText() else KeptText(State.Read(text))
+
         fun withSpan(start: Int, end: Int): KeptText = KeptText(State.Spanned(Span(start, end)))
 
         fun withSpan(span: Span): KeptText = KeptText(State.Spanned(span))
@@ -220,18 +223,6 @@ internal class RawDecor(
             ValuePlace.Array -> '#' in after
         }
         if (unfit) suffix = null
-    }
-
-    /**
-     * Drops what a copy must not take from the place it was read in: the comment on its line, and for a table under
-     * a header the lines above that header, which take the default spacing of a new header, and the comment after
-     * it. A decor a caller gave stays.
-     */
-    fun dropReadComments(isHeader: Boolean) {
-        // Read spacing, the empty spacing of a file's first header included, is the source's.
-        if (isHeader && (prefix?.isRead == true || prefix?.textOrNull == "")) prefix = null
-        val after = suffix
-        if (after != null && after.isRead && '#' in after.textOrNull.orEmpty()) suffix = null
     }
 
     fun prefixEncode(buf: StringBuilder, default: String) {

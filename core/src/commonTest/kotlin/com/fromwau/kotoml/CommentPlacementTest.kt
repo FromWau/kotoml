@@ -25,27 +25,27 @@ class CommentPlacementTest {
     }
 
     @Test
-    fun `a table copied from another document leaves its banner and header comment behind`() {
+    fun `a table copied from another document leaves its banner behind and brings its header comment`() {
         val source = parse("# Generated, do not edit\n\n[db] # db hdr\nurl = 1\n")
         val doc = parse("[app]\nname = 1\n")
         doc.set("db", source["db"].assertSuccess()).assertSuccess()
-        assertEquals("[app]\nname = 1\n\n[db]\nurl = 1\n", doc.toString())
+        assertEquals("[app]\nname = 1\n\n[db] # db hdr\nurl = 1\n", doc.toString())
     }
 
     @Test
-    fun `a value copied from another document leaves its same-line comment behind`() {
+    fun `a value copied from another document brings its same-line comment`() {
         val source = parse("a = 1 # from source\n")
         val doc = parse("x = 1\n")
         doc.set("a", source["a"].assertSuccess()).assertSuccess()
-        assertEquals("x = 1\na = 1\n", doc.toString())
+        assertEquals("x = 1\na = 1 # from source\n", doc.toString())
     }
 
     @Test
-    fun `a table replaced by one from another document keeps its header comment`() {
+    fun `a table replaced by one from another document takes the header comment the new one brings`() {
         val source = parse("[app] # bh\ny = 2\n")
         val doc = parse("[app] # ah\nx = 1\n")
         doc.set("app", source["app"].assertSuccess()).assertSuccess()
-        assertEquals("[app] # ah\ny = 2\n", doc.toString())
+        assertEquals("[app] # bh\ny = 2\n", doc.toString())
     }
 
     @Test
@@ -397,8 +397,8 @@ class CommentPlacementTest {
     fun `a dotted table in braces stored in a table leaves the comment after a sibling's comma with that sibling`() {
         val doc = parse("$siblingCommented[t]\nx = 0\n")
         storeDottedB(doc)
-        assertEquals("$siblingCommented[t]\nb.c = 1\n# about d\nb.d = 2\nx = 0\n", doc.toString())
-        assertFormatsTo("$siblingCommented\n[t]\nb.c = 1\n# about d\nb.d = 2\nx = 0\n", doc)
+        assertEquals("$siblingCommented[t]\nx = 0\nb.c = 1\n# about d\nb.d = 2\n", doc.toString())
+        assertFormatsTo("$siblingCommented\n[t]\nx = 0\nb.c = 1\n# about d\nb.d = 2\n", doc)
     }
 
     @Test
@@ -406,8 +406,8 @@ class CommentPlacementTest {
         val s = siblingCommented.replace("\n", "\r\n")
         val doc = parse("$s[t]\r\nx = 0\r\n")
         storeDottedB(doc)
-        assertEquals("$s[t]\r\nb.c = 1\r\n# about d\r\nb.d = 2\r\nx = 0\r\n", doc.toString())
-        assertFormatsTo("$s\r\n[t]\r\nb.c = 1\r\n# about d\r\nb.d = 2\r\nx = 0\r\n", doc)
+        assertEquals("$s[t]\r\nx = 0\r\nb.c = 1\r\n# about d\r\nb.d = 2\r\n", doc.toString())
+        assertFormatsTo("$s\r\n[t]\r\nx = 0\r\nb.c = 1\r\n# about d\r\nb.d = 2\r\n", doc)
     }
 
     @Test
@@ -415,8 +415,8 @@ class CommentPlacementTest {
         val s = "s = {\n  b.c = 1, # on c\n  # about d\n  b.d = 2,\n}\n"
         val doc = parse("$s[t]\nx = 0\n")
         storeDottedB(doc)
-        assertEquals("$s[t]\nb.c = 1 # on c\n# about d\nb.d = 2\nx = 0\n", doc.toString())
-        assertFormatsTo("$s\n[t]\nb.c = 1 # on c\n# about d\nb.d = 2\nx = 0\n", doc)
+        assertEquals("$s[t]\nx = 0\nb.c = 1 # on c\n# about d\nb.d = 2\n", doc.toString())
+        assertFormatsTo("$s\n[t]\nx = 0\nb.c = 1 # on c\n# about d\nb.d = 2\n", doc)
     }
 
     @Test
@@ -424,7 +424,7 @@ class CommentPlacementTest {
         val s = "s = {\n  b.c = 1,\n  y = 5, # on y\n  # about e\n  b.e.f = 2,\n}\n"
         val doc = parse("$s[t]\nx = 0\n")
         storeDottedB(doc)
-        assertEquals("$s[t]\nb.c = 1\n# about e\nb.e.f = 2\nx = 0\n", doc.toString())
+        assertEquals("$s[t]\nx = 0\nb.c = 1\n# about e\nb.e.f = 2\n", doc.toString())
     }
 
     @Test

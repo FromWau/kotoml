@@ -4,6 +4,7 @@ import com.fromwau.kern.result.EmptyResult
 import com.fromwau.kern.result.Err
 import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
+import com.fromwau.kern.result.map
 
 /**
  * A slot in a table or array holding a [Value], a [StandardTable] or an [ArrayOfTables].
@@ -22,12 +23,12 @@ import com.fromwau.kern.result.Result
  *
  * Storing an item stores a copy of what it holds, so two places never share one slot or one table or value:
  * after `doc["b"] = doc["a"].getOrElse { error(it) }`, editing `doc["a"]` leaves `doc["b"]` as it was. A copy
- * taken from a place in a document, this one or another, leaves its source's own comments behind (its same-line
- * comment, its header comment and the comment lines above its header) and takes the comments inside it; a table
- * copied within one document prints after the tables already there. [copy] gives exactly what a store would store.
- * An item stored nowhere, built in code or returned by `remove`, keeps what it holds, its comments included, and a
- * removed table the comment lines right above its header. A comment a caller set through `decor` travels with every
- * store and copy.
+ * taken from a place in a document, this one or another, takes the comments that belong to it there: the comment
+ * lines right above it with no blank line between, its same-line comment, for a table those of its header, and every
+ * comment inside it. Comment lines set apart from it by a blank line stay in its source. A table copied within one
+ * document prints after the tables already there. [copy] gives exactly what a store would store. An item stored
+ * nowhere, built in code or returned by `remove`, keeps what it holds, its comments included. A comment a caller set
+ * through `decor` travels with every store and copy.
  *
  * A slot inside an array or an inline table holds only a value, and one inside an array of tables only a table;
  * writing anything else there fails with [TomlEditError.NotAValue] or [TomlEditError.NotATableElement].
@@ -125,13 +126,38 @@ public class Item private constructor(
             is ArrayOfTablesContent -> array === container
         }
 
-        /** Drops the comments a copy read with its source's own lines; the comments inside it travel. */
-        fun leaveSource() {
-            when (this) {
-                is ValueContent -> value.rawDecor.dropReadComments(isHeader = false)
-                is TableContent -> table.rawDecor.dropReadComments(isHeader = true)
-                is ArrayOfTablesContent -> array.firstOrNull()?.rawDecor?.dropReadComments(isHeader = true)
+        /**
+         * Keeps, of the comments this copy read with its source's lines, those the source owns, [comments]: its
+         * same-line comment, and the comment lines directly above a header or dotted keys' first line, which it holds.
+         * Returns the comment lines directly above any other value's line, which the slot it is stored in prints; the
+         * comments inside it travel as they are.
+         */
+        fun keepOwnComments(comments: ItemComments): String = when (this) {
+            is ValueContent -> {
+                value.rawDecor.keepSameLineComment(comments.sameLine)
+                // A dotted table holds the lines above its first line, which it brings as a table brings its header's.
+                val dotted = value.inlineTableOrNull?.takeIf { it.isDotted }
+                dotted?.keepOnlyAttachedAboveFirstLine()
+                if (dotted == null) comments.attachedAbove else ""
             }
+            is TableContent -> {
+                if (table.isDotted) table.keepOnlyAttachedAboveFirstLine() else table.keepOnlyAttachedAbove()
+                ""
+            }
+            is ArrayOfTablesContent -> {
+                array.firstOrNull()?.keepOnlyAttachedAbove()
+                ""
+            }
+        }
+
+        /** Takes out the comment lines this content, stored nowhere, holds above what it prints from its source. */
+        fun takeAttachedAbove(): String = when (this) {
+            is ValueContent -> value.inlineTableOrNull?.takeIf { it.isDotted }?.takeAttachedAboveFirstLine().orEmpty()
+            is TableContent -> when {
+                table.isDotted -> table.takeAttachedAboveFirstLine()
+                else -> table.takeAttachedAboveHeader()
+            }
+            is ArrayOfTablesContent -> array.firstOrNull()?.takeAttachedAboveHeader().orEmpty()
         }
 
         fun deepCopy(): Content = when (this) {
@@ -193,30 +219,45 @@ public class Item private constructor(
     }
 
     /**
-     * Replaces this slot's content with a copy of [item]'s; a key keeps the lines above it, as [StandardTable.put]
-     * says. Fails when this slot is in an array or an inline table and [item] holds no value, or in an array of
-     * tables and [item] holds no table, with [TomlEditError.TooDeep] when [item] would nest deeper than the parser
-     * reads, and with [TomlEditError.NotInToml10] when it holds what only TOML 1.1 reads and this slot is in a document
-     * whose [TomlDocument.version] is 1.0.
+     * Replaces this slot's content with a copy of [item]'s. The slot keeps its comments, the comment lines right above
+     * it and its same-line comment, unless [item] brings comments of its own, which take their place, as
+     * [StandardTable.put] says. Fails when this slot is in an array or an inline table and [item] holds no value, or in
+     * an array of tables and [item] holds no table, with [TomlEditError.TooDeep] when [item] would nest deeper than the
+     * parser reads, and with [TomlEditError.NotInToml10] when it holds what only TOML 1.1 reads and this slot is in a
+     * document whose [TomlDocument.version] is 1.0.
      */
     public fun assign(item: Item): EmptyResult<TomlEditError> {
         val within = owner?.let { copiesWithinDocument(item, it) } ?: false
         val next = item.content
             .copyOutOfBraces()
             .placedIn(holds)
-            .also { if (copiesFromDocument(item)) it.leaveSource() }
+        val above = carriedAboveOf(item, next) + next.takeAttachedAbove()
         owner?.let { placeStored(Item(next, Holds.Anything), within, it) }
         refusal(next)?.let { return Err(it) }
         tooDeepToHold(item)?.let { return Err(it) }
         owner?.let { notInToml10Error(it, storedKey, item) }?.let { return Err(it) }
         owner?.let { giveSecondsInToml10(it, Item(next, Holds.Anything)) }
-        valuePlace?.let { place -> (next as? Content.ValueContent)?.value?.fitFor(place) }
+        val nextValue = (next as? Content.ValueContent)?.value
+        // In brackets or braces a comment after a value follows its comma, not its decor.
+        val comment = nextValue?.takeIf { valuePlace.let { it != null && it != ValuePlace.Line } }?.broughtComment()
+        valuePlace?.let { place -> nextValue?.fitFor(place) }
         val entry = entry
         if (entry == null) {
             val oldElement = standardTableOrNull?.takeIf { arrayOwner is ArrayOfTables }
+            val oldDecor = valueOrNull?.rawDecor?.copy()
             content = next
             val element = standardTableOrNull
-            if (oldElement != null && element != null) takePlaceOf(element, oldElement)
+            if (oldElement != null && element != null) {
+                takePlaceOf(element, oldElement)
+                element.putAttachedAbove(above)
+            }
+            val array = owner as? TomlArray
+            if (array != null && nextValue != null && oldDecor != null) {
+                // The element takes the slot's place on its line, as [TomlArray.replace] puts it.
+                nextValue.rawDecor.keepAttachedAboveIn(oldDecor)
+                nextValue.rawDecor.suffix = oldDecor.suffix
+                array.takeBroughtComments(nextValue, above, comment.orEmpty())
+            }
             return Ok(Unit)
         }
         entry.prepareFor(item)
@@ -227,8 +268,15 @@ public class Item private constructor(
         content = next
         entry.keepValueDecor(oldDecor)
         entry.keepHeaderComment(oldTable?.rawDecor)
-        if (!entry.keepPlacesOf(oldArray)) entry.keepLinesAbove(linesAbove)
+        val keptPlaces = entry.keepPlacesOf(oldArray)
+        if (!keptPlaces) entry.keepLinesAbove(linesAbove)
         entry.keepTablePlace(oldTable)
+        val inline = owner as? InlineTable
+        if (inline == null) {
+            if (!keptPlaces) entry.takeAttachedAbove(above)
+        } else if (nextValue != null) {
+            inline.takeBroughtComments(nextValue, entry, above, comment.orEmpty())
+        }
         return Ok(Unit)
     }
 
@@ -314,8 +362,7 @@ public class Item private constructor(
     ): EmptyResult<TomlEditError> {
         standardTableOrNull?.let { table -> return table.set(key, item) }
         val inline = inlineTableOrNull ?: return Err(TomlEditError.NotATable(key, type))
-        val value = item.valueOrNull ?: return Err(TomlEditError.NotAValue(item.type))
-        return inline.set(key, value)
+        return inline.putItem(key, item).map { }
     }
 
     /** Stores a copy of [value] at [key]; see [set]. */
@@ -803,20 +850,48 @@ public class Item private constructor(
 
     /**
      * A deep copy of this item, stored nowhere and free to be put anywhere: exactly what storing this item would
-     * store. A copy of an item read from a place in a document leaves that place's own comments behind, its same-line
-     * comment, its header comment and the comment lines above its header, and takes the comments inside it, so with
-     * `val db = src["db"].getOrElse { error(it) }`, `dst.set("db", db.copy())` prints the same as `dst.set("db", db)`.
-     * Comments a caller set through `decor` stay. A copy of an item stored nowhere, built in code or returned by
-     * `remove`, keeps all its comments.
+     * store. A copy of an item read from a place in a document takes the comments that belong to it there, the comment
+     * lines right above it, its same-line comment and its header's, and the comments inside it, and leaves the comment
+     * lines set apart from it by a blank line. So with `val db = src["db"].getOrElse { error(it) }`,
+     * `dst.set("db", db.copy())` prints the same as `dst.set("db", db)`. Comments a caller set through `decor` stay.
+     * A copy of an item stored nowhere, built in code or returned by `remove`, keeps all its comments.
      */
     public fun copy(): Item = Item(content.copyOutOfBraces(), Holds.Anything).also { copy ->
         copy.copiedWithin = outermostTableOfSource(this) ?: copiedWithin
         copy.content.keepDocument(document)
-        if (copiesFromDocument(this)) copy.content.leaveSource()
+        copy.carriedAbove = carriedAboveOf(this, copy.content)
     }
 
     /** For a copy stored nowhere, the outermost table of the document it was read from; see [copiesWithinDocument]. */
     internal var copiedWithin: StandardTable? = null
+
+    /**
+     * For a slot stored nowhere, the comment lines directly above the line of the value it holds where it was read,
+     * which go above that line where it is stored.
+     */
+    internal var carriedAbove: String = ""
+
+    /** Takes out the comment lines this slot, stored nowhere, brings above what it prints; see [carriedAbove]. */
+    internal fun takeCarriedAbove(): String =
+        (carriedAbove + content.takeAttachedAbove()).also { carriedAbove = "" }
+
+    /**
+     * The comment lines [source] brings above what it prints, keeping in [copied], a copy of its content, only the
+     * comments [source] owns where it was read; an item stored nowhere brings what it holds.
+     */
+    private fun carriedAboveOf(
+        source: Item,
+        copied: Content,
+    ): String {
+        val slot = source.takeIf { it.owner != null } ?: source.container?.let(::slotOf)
+        if (slot != null) {
+            val above = copied.keepOwnComments(ownCommentsOf(slot))
+            // A container a caller wrapped brings what its own copy() holds, which has no lines above a value.
+            return if (slot === source) above else ""
+        }
+        val removed = source.entry?.takeUnless { it.isStored } ?: return source.carriedAbove
+        return copied.keepOwnComments(removed.removedComments())
+    }
 
     /** A deep copy that keeps every comment, for turning this slot's content into another kind in place. */
     internal fun copyWithComments(): Item = Item(content.deepCopy(), Holds.Anything)

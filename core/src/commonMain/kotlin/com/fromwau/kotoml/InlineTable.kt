@@ -368,8 +368,8 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         values += items.keptLines
     }
 
-    // A sort sets the order, so the order entries were read in no longer applies.
-    private fun forgetOrder() {
+    /** Forgets the order the lines were read in, which a sort or a copy stored elsewhere no longer follows. */
+    internal fun forgetOrder() {
         for (kept in items.keptLines) kept.order = null
         for (entry in items.entries) {
             entry.order = null
@@ -591,11 +591,11 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
      * Sets [key] to a copy of [value], as `table[key] = value` does: a key already there keeps its position, its
      * spelling and its decor. Pass a [Key] to replace those. A new key is spaced like the entries already there.
      *
-     * A comment in [value]'s decor suffix, such as `Decor(suffix = " # note")`, puts a table on one line across lines,
-     * as [Item.setLayout] does for [TableLayout.MultilineInline], and prints after the value's comma, in place of the
-     * comment that stood there. The lines it adds end as the document's lines do, in `\r\n` in a document read with
-     * them. TOML 1.0 has no comments inside an inline table, so in a document whose [TomlDocument.version] is 1.0 the
-     * comment is dropped.
+     * A comment in [value]'s decor suffix, read with it or given, such as `Decor(suffix = " # note")`, puts a table on
+     * one line across lines, as [Item.setLayout] does for [TableLayout.MultilineInline], and prints after the value's
+     * comma, in place of the comment that stood there. The lines it adds end as the document's lines do, in `\r\n` in
+     * a document read with them. TOML 1.0 has no comments inside an inline table, so in a document whose
+     * [TomlDocument.version] is 1.0 the comment is dropped.
      *
      * @return the value [key] held before, or null when it held none; or [TomlEditError.TooDeep], storing nothing,
      *   when [value] would nest deeper than the parser reads.
@@ -625,8 +625,14 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         item: Item,
     ): Result<Item?, TomlEditError> {
         if (item.valueOrNull == null) return Err(TomlEditError.NotAValue(item.type))
-        val value = item.copy().moveToValue().fitFor(ValuePlace.InlineTable)
-        return checkedStore(key, value).map { old -> old?.let { Item(it) } }
+        val copy = item.copy()
+        val above = copy.takeCarriedAbove()
+        val value = copy.moveToValue()
+        val comment = commentToKeep(value)
+        value.fitFor(ValuePlace.InlineTable)
+        storeError(this, key, Item(value))?.let { return Err(it) }
+        val linesAbove = if (holdsComments()) above else ""
+        return Ok(putEntry(Key(key), value, comment, linesAbove)?.let { Item(it) })
     }
 
     // Stores the value itself, so only for one nothing else holds.
@@ -643,10 +649,11 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         key: Key,
         value: Value,
         comment: String = "",
+        linesAbove: String = "",
     ): Value? {
         giveSecondsInToml10(this, Item(value))
         val isNew = !items.containsKey(key.name)
-        if (comment.isNotEmpty() && !isMultiline) {
+        if ((comment.isNotEmpty() || linesAbove.isNotEmpty()) && !isMultiline) {
             val lineBreak = lineEndingOf(this)
             val indent = lineIndentOf(this)
             layOutAcrossLines(lineBreak, indent, documentVersionOf(this))
@@ -660,16 +667,32 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
             startOwnLine(key, value)
             takeSpacingOfLast(key, value)
         }
-        val old = items.put(key, Item.inInlineTable(value))?.valueOrNull
+        val old = items.put(key, Item.inInlineTable(value), linesAbove)?.valueOrNull
         if (comment.isNotEmpty()) putCommentAfter(value, comment)
         return old
     }
 
-    // The comment a caller gave [value], which a table of key/value lines or one in TOML 1.0 cannot hold after it.
-    private fun commentToKeep(value: Value): String {
-        val version = documentVersionOf(this)
-        return if (isDotted || version == TomlVersion.V1_0) "" else value.callerComment()
+    /**
+     * Puts the comments [value], held by [entry], brings in place of those it has there: [linesAbove] directly above it
+     * and [comment] after it; see [put].
+     */
+    internal fun takeBroughtComments(
+        value: Value,
+        entry: KeyValue,
+        linesAbove: String,
+        comment: String,
+    ) {
+        if (!holdsComments() || (comment.isEmpty() && linesAbove.isEmpty())) return
+        if (!isMultiline) layOutAcrossLines(lineEndingOf(this), lineIndentOf(this), documentVersionOf(this))
+        entry.takeAttachedAbove(linesAbove)
+        if (comment.isNotEmpty()) putCommentAfter(value, comment)
     }
+
+    // The comment [value] brings, which a table of key/value lines or one in TOML 1.0 cannot hold after it.
+    private fun commentToKeep(value: Value): String = if (holdsComments()) value.broughtComment() else ""
+
+    // A dotted table prints its keys among other lines, and TOML 1.0 has no comments in braces.
+    private fun holdsComments(): Boolean = !isDotted && documentVersionOf(this) != TomlVersion.V1_0
 
     // A comment after a value holds the start of the next entry's line, or of the closing line, after the comma, in
     // place of the comment that stood there.
@@ -905,17 +928,37 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     }
 
     /**
-     * A [deepCopy] to store away from the braces this dotted table prints in: the comment ending the line of an entry
-     * not under it, which the prefix of its next key starts with, stays with that entry.
+     * A [deepCopy] to store away from the braces this dotted table prints in, each of its lines keeping the comment
+     * that ends it. In braces that comment follows the comma, at the start of the text before the next line or `}`, so
+     * a line of this table printed after an entry not under it starts with that entry's comment, which stays with it.
+     * A copy across lines ends with a line break before its `}`.
      */
     internal fun copyOutOfBraces(): InlineTable {
         val copy = deepCopy()
+        if (!isDotted) return copy
         val copies = HashMap<KeyValue, KeyValue>()
         pairEntries(items, copy.items, copies)
-        for ((_, line) in linesAfterOtherEntries()) {
+        val braces = outermostBraces()
+        val lines = braces.bodyLines()
+        val own = visualValues().mapTo(HashSet()) { it.entry }
+        val ownKept = bodyLines().filterIsInstance<KeptLines>().toSet()
+        var ending = ""
+        for ((index, line) in lines.withIndex()) {
+            if (line !is VisualValue || line.entry !in own) continue
             val decor = copies[line.entry]?.key?.rawLeafDecor ?: continue
-            val prefix = decor.prefix?.textOrNull ?: continue
-            decor.prefix = KeptText.from(prefix.substring(prefix.leadingCommentLength()))
+            decor.prefix = decor.prefix?.mapText { ending + it.substring(it.leadingCommentLength()) }
+            val after = when (val next = lines.getOrNull(index + 1)) {
+                is VisualValue -> next.start()
+                // Lines kept in this table hold that comment themselves, and the copy holds them.
+                is KeptLines -> if (next in ownKept) "" else next.text
+                null -> braces.trailing
+            }
+            ending = after.substring(0, after.leadingCommentLength())
+        }
+        val firstStart = copy.visualValues().firstOrNull()?.start().orEmpty()
+        if ('\n' in firstStart) {
+            val closing = braces.trailing.substringAfterLast('\n', missingDelimiterValue = "")
+            copy.rawTrailing = KeptText.from(ending + firstStart.lineBreak() + closing)
         }
         return copy
     }
@@ -1018,13 +1061,14 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
 
     /**
      * A deep copy of this table, stored nowhere: exactly what storing this table would store. A copy of a table read
-     * from a document leaves the comment after it on its line behind and takes the comments inside it. Comments a
-     * caller set through [decor] stay. A copy of a table stored nowhere, built in code or returned by `remove`, keeps
-     * all its comments.
+     * from a document takes the comment after it on its line and the comments inside it. Comments a caller set through
+     * [decor] stay. A copy of a table stored nowhere, built in code or returned by `remove`, keeps all its comments.
      */
     public fun copy(): InlineTable = copyOutOfBraces().also { copy ->
         copy.takenFrom = documentOf(this)
-        if (isStored(this)) copy.rawDecor.dropReadComments(isHeader = false)
+        if (!isStored(this)) return@also
+        copy.rawDecor.keepSameLineComment(sameLineCommentOf(this))
+        if (isDotted) copy.keepOnlyAttachedAboveFirstLine()
     }
 
     /** A deep copy that keeps every comment. */

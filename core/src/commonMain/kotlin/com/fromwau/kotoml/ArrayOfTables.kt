@@ -137,25 +137,40 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         getOrNull(index)?.let { Ok(it) } ?: Err(TomlEditError.IndexOutOfBounds(index, size))
 
     /**
-     * Appends a copy of [table], which prints under its own `[[header]]`, even when it was dotted.
+     * Appends a copy of [table], which prints under its own `[[header]]`, even when it was dotted. A table read from
+     * another place, in this document or another, brings its header comment and the comment lines right above its
+     * header, which print below a blank line; the comment lines set apart from it by a blank line stay there.
      *
      * @return [TomlEditError.TooDeep], storing nothing, when [table] would nest deeper than the parser reads.
      */
     public fun add(table: StandardTable): EmptyResult<TomlEditError> {
         storeError(this, null, Item(table))?.let { return Err(it) }
-        append(copyToStore(table))
+        append(copyToAdd(table))
         return Ok(Unit)
     }
 
-    // A copy from another place, in this document or another, leaves the comments of the header it was read under.
+    /**
+     * A copy of [table] to store here. One from another place, in this document or another, brings the comment lines
+     * directly above its header, which it holds read, and its header comment, and prints after the element before it,
+     * not where its source printed.
+     */
     private fun copyToStore(table: StandardTable): StandardTable = table.deepCopy().also { copy ->
         giveSecondsInToml10(this, Item(copy))
         if (copiesFromElsewhere(table, this)) {
-            copy.rawDecor.dropReadComments(isHeader = true)
-            // It prints after the element before it, not where its source printed.
+            copy.keepOnlyAttachedAbove()
             forgetPlacement(Item(copy))
         }
     }
+
+    // The comment lines a copy from elsewhere brings print below the default spacing of a new header.
+    private fun copyToAdd(table: StandardTable): StandardTable =
+        copyToStore(table).also { copy -> copy.putAttachedAbove(attachedAboveBroughtBy(table, copy)) }
+
+    /** Takes out of [copy] the comment lines that [table], copied from elsewhere, brings above its header. */
+    private fun attachedAboveBroughtBy(
+        table: StandardTable,
+        copy: StandardTable,
+    ): String = if (copiesFromElsewhere(table, this)) copy.takeAttachedAboveHeader() else ""
 
     /** Appends [table] itself, for a caller that built it and holds no other reference to it. */
     internal fun append(table: StandardTable) {
@@ -163,7 +178,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     }
 
     /**
-     * Inserts a copy of [table] at [index], shifting later tables right.
+     * Inserts a copy of [table] at [index], shifting later tables right; it brings its comments as [add] says.
      *
      * @return [TomlEditError.IndexOutOfBounds], with nothing inserted, when [index] is negative or greater
      *   than [size], or [TomlEditError.TooDeep] when [table] would nest deeper than the parser reads.
@@ -174,14 +189,14 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     ): EmptyResult<TomlEditError> {
         if (index < 0 || index > values.size) return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         storeError(this, null, Item(table))?.let { return Err(it) }
-        values.add(index, Item.inArrayOfTables(copyToStore(table), this))
+        values.add(index, Item.inArrayOfTables(copyToAdd(table), this))
         return Ok(Unit)
     }
 
     /**
      * Replaces the table at [index] with [table], which takes over the old table's place among the document's tables
-     * and its header decor: the comment and blank lines above its `[[header]]` and the comment after it on its line.
-     * See [replace].
+     * and its header decor: the comment and blank lines above its `[[header]]` and the comment after it on its line,
+     * unless [table] brings comments of its own. See [replace].
      *
      * In the `tables[index] = table` form the result is discarded, so an [index] past the end does nothing; call
      * `tables.set(index, table)` to see the [TomlEditError.IndexOutOfBounds].
@@ -195,8 +210,9 @@ public class ArrayOfTables() : Iterable<StandardTable> {
      * Replaces the table at [index] with a copy of [table].
      *
      * @param keepDecor whether the copy takes over the old table's [StandardTable.position] and header decor, the
-     *   comment and blank lines above its `[[header]]` and the comment after it on its line; false keeps [table]'s
-     *   own position and decor.
+     *   comment and blank lines above its `[[header]]` and the comment after it on its line, where a table read from
+     *   another place brings its own header comment and comment lines right above its header in their place; false
+     *   keeps [table]'s own position and decor.
      * @return the old table; [TomlEditError.TooDeep], with nothing replaced, when [table] would nest deeper than the
      *   parser reads; or [TomlEditError.IndexOutOfBounds], with nothing replaced, when there is no table
      *   at [index].
@@ -209,10 +225,14 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         val old = getOrNull(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         storeError(this, null, Item(table))?.let { return Err(it) }
         val stored = copyToStore(table)
+        val above = attachedAboveBroughtBy(table, stored)
         if (keepDecor) {
+            val comment = stored.headerComment.takeIf { it.isNotEmpty() }?.let { stored.rawDecor.suffix }
             stored.rawDecor.assign(old.rawDecor)
+            if (comment != null) stored.rawDecor.suffix = comment
             stored.placeAt(old.position, old.positionFromText)
         }
+        stored.putAttachedAbove(above)
         values.set(index, Item.inArrayOfTables(stored, this)).leaveArray()
         return Ok(old)
     }
@@ -300,11 +320,20 @@ public class ArrayOfTables() : Iterable<StandardTable> {
      *
      * @return [TomlEditError.TooDeep], appending none of them, when one would nest deeper than the parser reads.
      */
-    public fun addAll(tables: Iterable<StandardTable>): EmptyResult<TomlEditError> = appendCopies(tables, ::copyToStore)
+    public fun addAll(tables: Iterable<StandardTable>): EmptyResult<TomlEditError> = appendCopies(tables, ::copyToAdd)
 
-    /** Appends a copy of every table of [tables] that keeps its header decor and its place among the tables. */
+    /**
+     * Appends a copy of every table of [tables] that keeps its place among the tables, its header comment and the
+     * comment lines directly above its header, which the first holds read for the slot this array is stored in.
+     */
     internal fun addAllKeepingPlaces(tables: Iterable<StandardTable>): EmptyResult<TomlEditError> =
-        appendCopies(tables) { table -> table.deepCopy().also { giveSecondsInToml10(this, Item(it)) } }
+        appendCopies(tables) { table ->
+            table.deepCopy().also { copy ->
+                giveSecondsInToml10(this, Item(copy))
+                if (isStored(table)) copy.keepOnlyAttachedAbove()
+                if (isNotEmpty()) copy.putAttachedAbove(copy.takeAttachedAboveHeader())
+            }
+        }
 
     /**
      * Hands the places that copies of [old]'s tables brought along out again in array order, as printing does, and
@@ -371,16 +400,16 @@ public class ArrayOfTables() : Iterable<StandardTable> {
 
     /**
      * A deep copy, stored nowhere: exactly what storing this array of tables would store. A copy of an array of
-     * tables read from a document leaves the comment after its first header and the comment lines above that header
-     * behind and takes the comments inside it, those of the later headers included. Comments a caller set through
-     * an element's `decor` stay. A copy of an array of tables stored nowhere, built in code or returned by `remove`,
-     * keeps all its comments.
+     * tables read from a document takes the comment after its first header, the comment lines right above that header
+     * and the comments inside it, those of the later headers included, and leaves the comment lines set apart from its
+     * first header by a blank line. Comments a caller set through an element's `decor` stay. A copy of an array of
+     * tables stored nowhere, built in code or returned by `remove`, keeps all its comments.
      */
     public fun copy(): ArrayOfTables = deepCopy().also { copy ->
         copy.takenFrom = documentOf(this)
         if (isStored(this)) {
             copy.copiedWithin = outermostTableOf(this)
-            copy.firstOrNull()?.rawDecor?.dropReadComments(isHeader = true)
+            copy.firstOrNull()?.keepOnlyAttachedAbove()
         } else {
             copy.copiedWithin = copiedWithin
         }
@@ -410,7 +439,9 @@ public fun arrayOfTablesOf(vararg tables: StandardTable): Result<ArrayOfTables, 
 /**
  * An array of copies of these tables, in order. Each copy keeps its place among the document's tables, so
  * `doc["arr"] = arr.reversed().toArrayOfTables()` reorders the tables where they print. Each table takes its header
- * comment and the tables under it along, while the comment and blank lines above each header stay where they print.
+ * comment and the tables under it along. Stored in place of the array its tables were read from, the comment and blank
+ * lines above each header stay where they print; stored anywhere else, each table read from a document brings the
+ * comment lines right above its header, as [ArrayOfTables.add] says.
  *
  * @return [TomlEditError.TooDeep] when a table would nest deeper than the parser reads in an array of tables under a
  *   document's root.

@@ -38,13 +38,6 @@ internal fun nestingOf(container: Any): Nesting {
 }
 
 /**
- * Whether storing [item] copies it from a place in a document, this one or another: then the copy leaves the
- * comments of its source's own lines behind. Storing a table or array that is stored nowhere, removed or built in
- * code, or a bare value, keeps them.
- */
-internal fun copiesFromDocument(item: Item): Boolean = sourceOf(item) != null
-
-/**
  * Whether storing [item] in [receiver] copies it to another place of the document it is read from: then the copy
  * prints after the tables already there.
  */
@@ -62,7 +55,7 @@ internal fun copiesWithinDocument(
 /** The outermost table of the document [item] is read from, or null when it is stored nowhere. */
 internal fun outermostTableOfSource(item: Item): StandardTable? = sourceOf(item)?.let(::outermostTableOf)
 
-/** Whether [container] is stored in a table or array, so a copy of it leaves the comments of that place behind. */
+/** Whether [container] is stored in a table or array, so a copy of it takes only the comments it owns there. */
 internal fun isStored(container: Any): Boolean = parentOf(container) != null
 
 private fun sourceOf(item: Item): Any? = item.owner ?: item.container?.let(::parentOf)

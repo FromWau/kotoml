@@ -231,7 +231,7 @@ class CollectionApiTest {
             return target.toString()
         }
         val byAdd = addedBy { tables, table -> tables.add(table).assertSuccess() }
-        assertEquals("[[t]]\ny = 0\n\n[[t]]\nx = 1\n", byAdd)
+        assertEquals("[[t]]\ny = 0\n\n# above\n[[t]] # head\nx = 1\n", byAdd)
         assertEquals(byAdd, addedBy { tables, table -> tables.addAll(listOf(table)).assertSuccess() })
     }
 

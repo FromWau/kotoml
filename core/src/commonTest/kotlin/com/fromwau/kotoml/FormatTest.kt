@@ -410,7 +410,7 @@ class FormatTest {
         doc["s"]["b"].assertSuccess().valueOrNull!!.inlineTableOrNull!!.remove("d").assertSuccess()
         doc["t"].assertSuccess().standardTableOrNull!!["b"] = doc["s"]["b"].assertSuccess()
         doc.format()
-        val expected = "s = {\n  b.c = 1,\n  # about d\n}\n\n[t]\nb.c = 1\n# about d\nx = 0\n"
+        val expected = "s = {\n  b.c = 1,\n  # about d\n}\n\n[t]\nx = 0\nb.c = 1\n# about d\n"
         assertEquals(expected, doc.toString())
         doc.format()
         assertEquals(expected, doc.toString())

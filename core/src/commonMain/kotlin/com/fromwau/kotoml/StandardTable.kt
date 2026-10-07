@@ -443,8 +443,8 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         }
     }
 
-    // A sort sets the order, so the order lines were read in no longer applies.
-    private fun forgetOrder() {
+    /** Forgets the order the lines were read in, which a sort or a copy stored elsewhere no longer follows. */
+    internal fun forgetOrder() {
         for (kept in items.keptLines) kept.order = null
         for (entry in items.entries) {
             entry.order = null
@@ -697,9 +697,17 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
 
     /**
      * Sets [key] to a copy of [item], as `table[key] = item` does: a key already there keeps its position, its
-     * spelling and the comments above it. It keeps its spacing too, unless [item] moves it between a `key = value`
-     * line and a `[header]` or `[[header]]`, where it takes the default spacing. Pass a [Key] to replace all of
-     * its formatting.
+     * spelling and its comments, the comment lines right above it and its same-line comment, unless [item] brings
+     * comments of its own from where it was read, which take their place. It keeps its spacing too, unless [item] moves
+     * it between a `key = value` line and a `[header]` or `[[header]]`, where it takes the default spacing. Pass a
+     * [Key] to replace all of its formatting.
+     *
+     * ```kotlin
+     * val doc = TomlDocument.parse("# about x\nx = 1 # one\n").getOrElse { error(it) }
+     * val other = TomlDocument.parse("# about y\ny = 5 # five\n").getOrElse { error(it) }
+     * doc.root.put("x", Item(Value.Integer(2L))) // # about x\nx = 2 # one
+     * doc.root.put("x", other["y"].getOrElse { error(it) }) // # about y\nx = 5 # five
+     * ```
      *
      * @return the item [key] held before, which no longer belongs to the table, or null when it held none; or
      *   [TomlEditError.TooDeep], storing nothing, when [item] would nest deeper than the parser reads.
@@ -710,7 +718,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     ): Result<Item?, TomlEditError> {
         storeError(this, key, item)?.let { return Err(it) }
         items.getEntry(key)?.prepareFor(item)
-        return Ok(items.put(Key(key), copyToStore(item)))
+        return Ok(putCopy(Key(key), item))
     }
 
     /**
@@ -725,10 +733,18 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     ): Result<Item?, TomlEditError> {
         storeError(this, key.name, item, key)?.let { return Err(it) }
         items.getEntry(key.name)?.key = key.copy()
-        return Ok(items.put(key.copy(), copyToStore(item)))
+        return Ok(putCopy(key.copy(), item))
     }
 
-    // A copy from a document leaves its source's comments.
+    // The comment lines a copy brings above its line go above it here, as its same-line comment goes after it.
+    private fun putCopy(
+        key: Key,
+        item: Item,
+    ): Item? {
+        val stored = copyToStore(item)
+        return items.put(key, stored, stored.takeCarriedAbove())
+    }
+
     private fun copyToStore(item: Item): Item {
         val stored = item.copyFor(ValuePlace.Line)
         placeStored(stored, copiesWithinDocument(item, this), this)
@@ -761,7 +777,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         getOrNull(key.name)?.let { return Ok(it) }
         val stored = copyToStore(default())
         storeError(this, key.name, stored, key)?.let { return Err(it) }
-        items.put(key.copy(), stored)
+        items.put(key.copy(), stored, stored.takeCarriedAbove())
         return Ok(stored)
     }
 
@@ -937,14 +953,19 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
 
     /**
      * A deep copy of this table, stored nowhere: exactly what storing this table would store. A copy of a table read
-     * from a document leaves its header comment and the comment lines above its header behind and takes the comments
-     * inside it, so with `val db = src["db"].getOrElse { error(it) }`, `dst.set("db", db.standardTableOrNull!!.copy())`
-     * prints the same as `dst.set("db", db.copy())`. Comments a caller set through [decor] stay. A copy of a table
-     * stored nowhere, built in code, returned by `remove` or a document's [TomlDocument.root], keeps all its comments.
+     * from a document takes its header comment, the comment lines right above its header and the comments inside it,
+     * and leaves the comment lines set apart from its header by a blank line. So with
+     * `val db = src["db"].getOrElse { error(it) }`, `dst.set("db", db.standardTableOrNull!!.copy())` prints the same as
+     * `dst.set("db", db.copy())`. Comments a caller set through [decor] stay. A copy of a table stored nowhere, built
+     * in code, returned by `remove` or a document's [TomlDocument.root], keeps all its comments.
      */
     public fun copy(): StandardTable = deepCopy().also { copy ->
         copy.takenFrom = documentOf(this)
-        if (isStored(this)) copy.rawDecor.dropReadComments(isHeader = true)
+        when {
+            !isStored(this) -> Unit
+            isDotted -> copy.keepOnlyAttachedAboveFirstLine()
+            else -> copy.keepOnlyAttachedAbove()
+        }
     }
 
     /** A deep copy that keeps every comment. */

@@ -34,10 +34,10 @@ class EditOutputTest {
     }
 
     @Test
-    fun `a value with a comment after it stored in an array leaves the comment behind`() {
+    fun `a value with a comment after it stored in an array brings the comment onto a line of its own`() {
         val doc = parse("a = 1 # note\nb = []\n")
         doc["b"].assertSuccess().arrayOrNull!!.add(doc["a"].assertSuccess().valueOrNull!!).assertSuccess()
-        assertEquals("a = 1 # note\nb = [ 1]\n", doc.toString())
+        assertEquals("a = 1 # note\nb = [\n  1, # note\n]\n", doc.toString())
     }
 
     @Test
