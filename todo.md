@@ -61,14 +61,6 @@ its same-line comment into an array as into a table (C5 stands).
 
 
 
-- [ ] **99. No one call writes a value in its default spelling or puts an array on one line.** `resetFormatting()`
-  did both; `format()` keeps value spellings and layouts by ruling, so `0x10` cannot become `16` and a multi-line
-  array cannot go to one line without decor calls by hand.
-  **Ruling 2026-10-07:** two tools. Arrays get the table pattern: `TomlArray.isMultiline` read-only and
-  `setMultiline(value, force = false): EmptyResult<TomlEditError>`, one line refused with `CommentsWouldBeLost` unless
-  forced, across lines one element per line with a trailing comma. Spellings: `respell(): Unit`, deep like
-  `format()`, on the document, tables, `Item`, `Value` and arrays, writes every value in its default spelling
-  (`0x1F90` becomes `8080`, `'kotoml'` `"kotoml"`, `1e0` `1.0`, `07:32` `07:32:00`); keys keep theirs.
 
 - [ ] **100. An empty dotted table last in a multi-line inline table prints `{} ,`.** `b.d = {} ,`: a space before
   the comma, because the empty table's value is built anew on each read and loses its suffix. Valid TOML, no comment
@@ -90,6 +82,20 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **99. No one call writes a value in its default spelling or puts an array on one line.** `resetFormatting()`
+  did both; `format()` keeps value spellings and layouts by ruling, so `0x10` cannot become `16` and a multi-line
+  array cannot go to one line without decor calls by hand.
+  **Ruling 2026-10-07:** two tools. Arrays get the table pattern: `TomlArray.isMultiline` read-only and
+  `setMultiline(value, force = false): EmptyResult<TomlEditError>`, one line refused with `CommentsWouldBeLost` unless
+  forced, across lines one element per line with a trailing comma. Spellings: `respell(): Unit`, deep like
+  `format()`, on the document, tables, `Item`, `Value` and arrays, writes every value in its default spelling
+  (`0x1F90` becomes `8080`, `'kotoml'` `"kotoml"`, `1e0` `1.0`, `07:32` `07:32:00`); keys keep theirs.
+  **Verdict 2026-10-07:** fixed: `TomlArray.isMultiline`/`setMultiline(value, force)` follow the table pattern (one
+  line refused with `CommentsWouldBeLost` unless forced, the comment after `]` kept; across lines one element per
+  line, indented from the array's line, with a trailing comma; nested arrays keep their layout), and `respell()` on
+  the document, tables, arrays, `Item` and `Value` writes every value in its default spelling, keys and comments
+  untouched. ArrayMultilineTest, RespellTest, both property tests.
 
 - [x] **98. A forced layout change drops the comment lines above a table's first sub-header.** At ten times the
   seeds, `CommentPropertyTest` finds `setLayout(force = true)` dropping comments that removing the same table keeps:
