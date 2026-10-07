@@ -198,10 +198,10 @@ public class ArrayOfTables() : Iterable<StandardTable> {
      * and its header decor: the comment and blank lines above its `[[header]]` and the comment after it on its line,
      * unless [table] brings comments of its own. See [replace].
      *
-     * In the `tables[index] = table` form the result is discarded, so an [index] past the end does nothing; call
-     * `tables.set(index, table)` to see the [TomlEditError.IndexOutOfBounds].
+     * In the `tables[index] = table` form a failure, such as [TomlEditError.IndexOutOfBounds] for an [index] past the
+     * end, throws [TomlEditException] instead, changing nothing.
      */
-    public operator fun set(
+    public fun set(
         index: Int,
         table: StandardTable,
     ): Result<StandardTable, TomlEditError> = replace(index, table)

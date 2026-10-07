@@ -130,8 +130,8 @@ and its comma stay between them wherever the element goes, and on a line of a ta
 has no comments inside an inline table, and a dotted table prints its keys among other lines, so neither can hold
 the comments a value brings: `put`, `putAll`, `getOrPut`, `putItem` and `Item.assign` there return
 `TomlEditError.CommentsWouldBeLost` and change nothing, unless called with `force = true`, which stores the value
-without them. The `table[key] = value` form cannot take `force`: it does what `set` does without it, and discards the
-failure, so nothing changes. Sorting, by key name with `sort()` or by your own order with `sortBy` and `sortWith`,
+without them. The `table[key] = value` form cannot take `force`: it does what `set` does without it, and throws when
+the store fails. Sorting, by key name with `sort()` or by your own order with `sortBy` and `sortWith`,
 moves each key and each table header with the comment lines right above it and leaves blank lines in place.
 
 ```kotlin
@@ -427,6 +427,21 @@ wrong as a typed `reason`, where as a `span` of indices into the parsed text and
 with the offending line and a caret under each character of the offending text. A long line is shown only around
 the error, about 80 characters with `…` where it is cut, and a control character as an escape such as `\x0D`; the
 error itself keeps the full span. A duplicate key names its whole path from the document's root, `a.b.c`.
+
+An edit called by name, such as `set`, `put` or `assign`, returns a `Result` holding a `TomlEditError` when it fails.
+The `[]=` form, `doc["a"]["b"] = 1L`, cannot return one, so it throws a `TomlEditException` carrying the same
+`error` instead; a failed store changes nothing either way. That includes indexing on through a key that is not
+there, which throws `NotFound`. The `[]=` form of a store is an extension, imported as `com.fromwau.kotoml.set`.
+
+```kotlin
+val doc = TomlDocument.parse("[server]\nport = 8080\n").getOrElse { error(it) }
+doc["database"].flatMap { it.set("url", "postgres://") } // Err(NotFound("database")), nothing changed
+try {
+    doc["database"]["url"] = "postgres://"
+} catch (e: TomlEditException) {
+    e.error // NotFound("database")
+}
+```
 
 A `TomlEditError`, a `TomlWriteError` and a `DatetimeParseError` have a `message` that words them for a person, led
 by the key path when the error has one: `server: expected a table, found an integer`,

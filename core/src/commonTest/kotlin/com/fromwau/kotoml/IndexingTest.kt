@@ -2,8 +2,10 @@ package com.fromwau.kotoml
 
 import com.fromwau.kern.result.assertError
 import com.fromwau.kern.result.assertSuccess
+import com.fromwau.kern.result.flatMap
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlinx.serialization.json.Json
 
 /** Indexing returns the stored item or a typed error, and writing never creates a missing parent. */
@@ -47,8 +49,17 @@ class IndexingTest {
     fun `writing under a missing parent is NotFound and changes nothing`() {
         val text = "[server]\nport = 8080\n"
         val doc = parse(text)
-        assertEquals(TomlEditError.NotFound("database"), doc["database"].set("url", "postgres://").assertError<TomlEditError.NotFound>())
-        doc["database"]["url"] = "postgres://"
+        val error = doc["database"].flatMap { it.set("url", "postgres://") }.assertError<TomlEditError.NotFound>()
+        assertEquals(TomlEditError.NotFound("database"), error)
+        assertEquals(text, doc.toString())
+    }
+
+    @Test
+    fun `writing under a missing parent with the index form throws NotFound and changes nothing`() {
+        val text = "[server]\nport = 8080\n"
+        val doc = parse(text)
+        val thrown = assertFailsWith<TomlEditException> { doc["database"]["url"] = "postgres://" }
+        assertEquals(TomlEditError.NotFound("database"), thrown.error)
         assertEquals(text, doc.toString())
     }
 

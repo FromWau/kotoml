@@ -666,28 +666,64 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
      *
      * @return [TomlEditError.TooDeep], storing nothing, when [item] would nest deeper than the parser reads.
      */
-    public operator fun set(
+    public fun set(
         key: String,
         item: Item,
     ): EmptyResult<TomlEditError> = put(key, item).map { }
 
     /** Stores a copy of [value] at [key], as `table[key] = Item(value)` does. */
-    public operator fun set(
+    public fun set(
         key: String,
         value: Value,
     ): EmptyResult<TomlEditError> = set(key, Item(value))
 
     /** Stores a copy of [table] at [key], as `table[key] = Item(table)` does. */
-    public operator fun set(
+    public fun set(
         key: String,
         table: StandardTable,
     ): EmptyResult<TomlEditError> = set(key, Item(table))
 
     /** Stores a copy of [arrayOfTables] at [key], as `table[key] = Item(arrayOfTables)` does. */
-    public operator fun set(
+    public fun set(
         key: String,
         arrayOfTables: ArrayOfTables,
     ): EmptyResult<TomlEditError> = set(key, Item(arrayOfTables))
+
+    /** Stores a string at [key]; see [set]. */
+    public fun set(
+        key: String,
+        value: String,
+    ): EmptyResult<TomlEditError> = set(key, Value.String(value))
+
+    /** Stores an integer at [key]; see [set]. */
+    public fun set(
+        key: String,
+        value: Long,
+    ): EmptyResult<TomlEditError> = set(key, Value.Integer(value))
+
+    /** Stores an integer at [key]; see [set]. */
+    public fun set(
+        key: String,
+        value: Int,
+    ): EmptyResult<TomlEditError> = set(key, Value.Integer(value))
+
+    /** Stores a float at [key]; see [set]. */
+    public fun set(
+        key: String,
+        value: Double,
+    ): EmptyResult<TomlEditError> = set(key, Value.Float(value))
+
+    /** Stores a boolean at [key]; see [set]. */
+    public fun set(
+        key: String,
+        value: Boolean,
+    ): EmptyResult<TomlEditError> = set(key, Value.Boolean(value))
+
+    /** Stores a date-time at [key]; see [set]. */
+    public fun set(
+        key: String,
+        value: Datetime,
+    ): EmptyResult<TomlEditError> = set(key, Value.Datetime(value))
 
     /** Whether [key] holds an item. */
     override fun containsKey(key: String): Boolean = items.containsKey(key)

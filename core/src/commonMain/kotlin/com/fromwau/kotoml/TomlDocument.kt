@@ -140,28 +140,64 @@ public class TomlDocument internal constructor(
     public operator fun get(key: String): Result<Item, TomlEditError> = root[key]
 
     /** Stores a copy of [item] at [key] of the root table; see [StandardTable.set]. */
-    public operator fun set(
+    public fun set(
         key: String,
         item: Item,
     ): EmptyResult<TomlEditError> = root.set(key, item)
 
     /** Stores a copy of [value] at [key] of the root table; see [StandardTable.set]. */
-    public operator fun set(
+    public fun set(
         key: String,
         value: Value,
     ): EmptyResult<TomlEditError> = root.set(key, value)
 
     /** Stores a copy of [table] at [key] of the root table; see [StandardTable.set]. */
-    public operator fun set(
+    public fun set(
         key: String,
         table: StandardTable,
     ): EmptyResult<TomlEditError> = root.set(key, table)
 
     /** Stores a copy of [arrayOfTables] at [key] of the root table; see [StandardTable.set]. */
-    public operator fun set(
+    public fun set(
         key: String,
         arrayOfTables: ArrayOfTables,
     ): EmptyResult<TomlEditError> = root.set(key, arrayOfTables)
+
+    /** Stores a string at [key]; see [StandardTable.set]. */
+    public fun set(
+        key: String,
+        value: String,
+    ): EmptyResult<TomlEditError> = set(key, Value.String(value))
+
+    /** Stores an integer at [key]; see [StandardTable.set]. */
+    public fun set(
+        key: String,
+        value: Long,
+    ): EmptyResult<TomlEditError> = set(key, Value.Integer(value))
+
+    /** Stores an integer at [key]; see [StandardTable.set]. */
+    public fun set(
+        key: String,
+        value: Int,
+    ): EmptyResult<TomlEditError> = set(key, Value.Integer(value))
+
+    /** Stores a float at [key]; see [StandardTable.set]. */
+    public fun set(
+        key: String,
+        value: Double,
+    ): EmptyResult<TomlEditError> = set(key, Value.Float(value))
+
+    /** Stores a boolean at [key]; see [StandardTable.set]. */
+    public fun set(
+        key: String,
+        value: Boolean,
+    ): EmptyResult<TomlEditError> = set(key, Value.Boolean(value))
+
+    /** Stores a date-time at [key]; see [StandardTable.set]. */
+    public fun set(
+        key: String,
+        value: Datetime,
+    ): EmptyResult<TomlEditError> = set(key, Value.Datetime(value))
 
     /** The item at [key] of the root table, or null; see [StandardTable.getOrNull]. */
     public fun getOrNull(key: String): Item? = root.getOrNull(key)

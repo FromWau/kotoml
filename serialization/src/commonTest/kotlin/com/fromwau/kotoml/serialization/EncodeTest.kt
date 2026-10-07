@@ -4,6 +4,7 @@ import com.fromwau.kern.result.assertError
 import com.fromwau.kern.result.assertSuccess
 import com.fromwau.kotoml.TomlDocument
 import com.fromwau.kotoml.Value
+import com.fromwau.kotoml.set
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.minutes

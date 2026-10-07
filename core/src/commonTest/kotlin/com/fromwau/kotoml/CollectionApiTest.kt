@@ -3,6 +3,7 @@ package com.fromwau.kotoml
 import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -368,11 +369,13 @@ class CollectionApiTest {
     }
 
     @Test
-    fun `setting an element past the end through the index form leaves the containers as they were`() {
+    fun `setting an element past the end through the index form throws IndexOutOfBounds and changes nothing`() {
         val array = tomlArrayOf(Value.Integer(1L)).assertSuccess()
-        array[3] = Value.Integer(2L)
+        val inArray = assertFailsWith<TomlEditException> { array[3] = Value.Integer(2L) }
         val tables = arrayOfTablesOf(StandardTable()).assertSuccess()
-        tables[3] = StandardTable()
+        val inTables = assertFailsWith<TomlEditException> { tables[3] = StandardTable() }
+        assertEquals(TomlEditError.IndexOutOfBounds(3, 1), inArray.error)
+        assertEquals(TomlEditError.IndexOutOfBounds(3, 1), inTables.error)
         assertEquals("[1]", array.toString())
         assertEquals(1, tables.size)
     }

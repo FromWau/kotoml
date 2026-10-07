@@ -69,7 +69,7 @@ class SlotFixesTest {
     fun `a dotted table stored as an array of tables element is no longer dotted`() {
         val doc = parse("[[a]]\nx = 1\n")
         val dotted = parse("t.y = 2\n")["t"].assertSuccess()
-        doc["a"].set(0, dotted).assertSuccess()
+        doc["a"].assertSuccess().set(0, dotted).assertSuccess()
         assertEquals(TableLayout.Header, doc["a"][0].assertSuccess().layout)
         assertEquals("[[a]]\ny = 2\n", doc.toString())
     }
@@ -122,14 +122,15 @@ class SlotFixesTest {
     @Test
     fun `writing past the end of an array through its index reports the index and the length`() {
         val doc = parse("a = [1]\n")
-        val error = doc["a"].set(5, Item(Value.Integer(2L))).assertError<TomlEditError.IndexOutOfBounds>()
+        val array = doc["a"].assertSuccess()
+        val error = array.set(5, Item(Value.Integer(2L))).assertError<TomlEditError.IndexOutOfBounds>()
         assertEquals(TomlEditError.IndexOutOfBounds(5, 1), error)
     }
 
     @Test
     fun `writing through an index of a scalar reports that it is not an array`() {
         val doc = parse("a = 1\n")
-        val error = doc["a"].set(0, Item(Value.Integer(2L))).assertError<TomlEditError.NotAnArray>()
+        val error = doc["a"].assertSuccess().set(0, Item(Value.Integer(2L))).assertError<TomlEditError.NotAnArray>()
         assertEquals(TomlEditError.NotAnArray(0, TomlType.Integer), error)
     }
 

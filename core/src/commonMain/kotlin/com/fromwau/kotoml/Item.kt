@@ -36,8 +36,8 @@ import com.fromwau.kern.result.map
  * Indexing returns a [Result]: a key that is not there is [TomlEditError.NotFound], and indexing on through an
  * error passes it on, so a chain stops at the first key it misses. Writing creates only the key it names, never
  * a missing parent; create each level first. Writing through an index that cannot hold the write, such as a key
- * of an integer or a position past the end of an array, fails with [TomlEditError]; upstream panics there. In the
- * `item[key] = x` form the failure is discarded, so call [set] to see it.
+ * of an integer or a position past the end of an array, fails with [TomlEditError]; upstream panics there. The
+ * `item[key] = x` form throws [TomlEditException] with the error instead, changing nothing; call [set] for a [Result].
  */
 public class Item private constructor(
     content: Content,
@@ -237,7 +237,7 @@ public class Item private constructor(
         val next = item.content
             .copyOutOfBraces()
             .placedIn(holds)
-        val above = carriedAboveOf(item, next) + next.takeAttachedAbove()
+        var above = carriedAboveOf(item, next) + next.takeAttachedAbove()
         owner?.let { placeStored(Item(next, Holds.Anything), within, it) }
         refusal(next)?.let { return Err(it) }
         tooDeepToHold(item)?.let { return Err(it) }
@@ -249,6 +249,7 @@ public class Item private constructor(
         if (!force && inline != null && nextValue != null && key != null) {
             inline.lostComments(key, nextValue.rawDecor, above)?.let { return Err(it) }
         }
+        if (valuePlace == ValuePlace.Line) nextValue?.let { above += it.rawDecor.takeCommentLinesBelow() }
         // In brackets or braces a comment after a value follows its comma, not its decor.
         val comment = nextValue?.takeIf { valuePlace.let { it != null && it != ValuePlace.Line } }?.broughtComment()
         valuePlace?.let { place -> nextValue?.fitFor(place) }
@@ -304,6 +305,8 @@ public class Item private constructor(
     /** A [copy] of what this item holds for storing at [place]; see [Value.fitFor]. */
     internal fun copyFor(place: ValuePlace): Item = copy().also { copy ->
         copy.copiedWithin = null
+        // On a table's line the comment lines between a value and its comma go above its key, so they stay its own.
+        if (place == ValuePlace.Line) copy.valueOrNull?.let { copy.carriedAbove += it.rawDecor.takeCommentLinesBelow() }
         copy.valueOrNull?.fitFor(place)
     }
 
@@ -370,7 +373,7 @@ public class Item private constructor(
      *   [TomlEditError.CommentsWouldBeLost] when this is an inline table that cannot hold the comments [item] brings;
      *   call [InlineTable.putItem] with `force = true` to store it without them.
      */
-    public operator fun set(
+    public fun set(
         key: String,
         item: Item,
     ): EmptyResult<TomlEditError> {
@@ -380,22 +383,58 @@ public class Item private constructor(
     }
 
     /** Stores a copy of [value] at [key]; see [set]. */
-    public operator fun set(
+    public fun set(
         key: String,
         value: Value,
     ): EmptyResult<TomlEditError> = set(key, Item(value))
 
     /** Stores a copy of [table] at [key]; see [set]. */
-    public operator fun set(
+    public fun set(
         key: String,
         table: StandardTable,
     ): EmptyResult<TomlEditError> = set(key, Item(table))
 
     /** Stores a copy of [arrayOfTables] at [key]; see [set]. */
-    public operator fun set(
+    public fun set(
         key: String,
         arrayOfTables: ArrayOfTables,
     ): EmptyResult<TomlEditError> = set(key, Item(arrayOfTables))
+
+    /** Stores a string at [key]; see [set]. */
+    public fun set(
+        key: String,
+        value: String,
+    ): EmptyResult<TomlEditError> = set(key, Value.String(value))
+
+    /** Stores an integer at [key]; see [set]. */
+    public fun set(
+        key: String,
+        value: Long,
+    ): EmptyResult<TomlEditError> = set(key, Value.Integer(value))
+
+    /** Stores an integer at [key]; see [set]. */
+    public fun set(
+        key: String,
+        value: Int,
+    ): EmptyResult<TomlEditError> = set(key, Value.Integer(value))
+
+    /** Stores a float at [key]; see [set]. */
+    public fun set(
+        key: String,
+        value: Double,
+    ): EmptyResult<TomlEditError> = set(key, Value.Float(value))
+
+    /** Stores a boolean at [key]; see [set]. */
+    public fun set(
+        key: String,
+        value: Boolean,
+    ): EmptyResult<TomlEditError> = set(key, Value.Boolean(value))
+
+    /** Stores a date-time at [key]; see [set]. */
+    public fun set(
+        key: String,
+        value: Datetime,
+    ): EmptyResult<TomlEditError> = set(key, Value.Datetime(value))
 
     /**
      * Renames the key [old] of this table or inline table to [new], as [StandardTable.rename] or [InlineTable.rename]
@@ -415,7 +454,7 @@ public class Item private constructor(
      * [TomlEditError.IndexOutOfBounds] when there is no such position, and with [TomlEditError.NotAnArray] when this
      * holds neither kind of array.
      */
-    public operator fun set(
+    public fun set(
         index: Int,
         item: Item,
     ): EmptyResult<TomlEditError> {

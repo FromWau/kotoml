@@ -212,25 +212,32 @@ internal class RawDecor(
     /**
      * Drops the sides of a value's decor that cannot stand where a copy of it is stored: a line break before a value
      * after `=`, or a comment after a value inside brackets or braces, which would run over what closes them. The
-     * comment lines between a value and its comma stay: on a line of a table they print below it, and in brackets or
-     * braces the place lays them out.
+     * comment lines between a value and its comma stay in brackets or braces, where the place lays them out; for a line
+     * of a table, [takeCommentLinesBelow] takes them out first.
      */
     fun fitFor(place: ValuePlace) {
         val before = prefix?.textOrNull.orEmpty()
         val after = suffix?.textOrNull.orEmpty()
         if (place != ValuePlace.Array && '\n' in before) prefix = null
         val below = commentLinesBelow()
-        if (place == ValuePlace.Line && below.isNotEmpty()) {
-            val lineBreak = after.lineBreak()
-            suffix = KeptText.read(commentOnLine() + below.joinToString("") { lineBreak + it })
-            return
-        }
         val unfit = when (place) {
             ValuePlace.Line -> '\n' in after
             ValuePlace.InlineTable -> below.isEmpty() && ('\n' in after || '#' in after)
             ValuePlace.Array -> below.isEmpty() && '#' in after
         }
         if (unfit) suffix = null
+    }
+
+    /**
+     * Takes out the comment lines below the value's line, before its comma, each ending in a line break, leaving the
+     * comment on its line.
+     */
+    fun takeCommentLinesBelow(): String {
+        val below = commentLinesBelow()
+        if (below.isEmpty()) return ""
+        val lineBreak = suffix?.textOrNull.orEmpty().lineBreak()
+        suffix = KeptText.read(commentOnLine())
+        return below.joinToString("") { it + lineBreak }
     }
 
     /** The comment lines this decor of a value holds below its line, before the comma after it, unindented. */

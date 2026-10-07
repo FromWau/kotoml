@@ -228,7 +228,7 @@ c = { d = "hello" }
     @Test
     fun `writing a key into a string fails with NotATable and changes nothing`() {
         val doc = TomlDocument.parse("a = 'text'\n").assertSuccess()
-        doc["a"].set("key", 1L).assertError<TomlEditError.NotATable>()
+        doc["a"].assertSuccess().set("key", 1L).assertError<TomlEditError.NotATable>()
         assertEquals("a = 'text'\n", doc.toString())
     }
 

@@ -4,6 +4,7 @@ import com.fromwau.kern.result.assertError
 import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 /**
  * Storing or copying an item takes the comments it owns: the comment lines directly above it and its same-line
@@ -209,7 +210,7 @@ class StoreCarriesCommentsTest {
         val doc = parse("t = { a = 0 }\n", TomlVersion.V1_0)
         val x = parse("# about x\nx = 1 # one\n")["x"].assertSuccess()
         val table = doc["t"].assertSuccess().inlineTableOrNull!!
-        val error = doc["t"].set("x", x).assertError<TomlEditError.CommentsWouldBeLost>()
+        val error = doc["t"].assertSuccess().set("x", x).assertError<TomlEditError.CommentsWouldBeLost>()
         assertEquals(TomlEditError.CommentsWouldBeLost(listOf("t", "x"), 2), error)
         assertEquals("t = { a = 0 }\n", doc.toString())
         table.putItem("x", x, force = true).assertSuccess()
@@ -239,6 +240,54 @@ class StoreCarriesCommentsTest {
     }
 
     @Test
+    fun `a refused store in the index form throws the error and changes nothing`() {
+        val doc = parse("v = 1 # one\nt = { a = 1 }\n", TomlVersion.V1_0)
+        val thrown = assertFailsWith<TomlEditException> { doc["t"]["v"] = doc["v"].assertSuccess() }
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("t", "v"), 1), thrown.error)
+        val table = doc["t"].assertSuccess().inlineTableOrNull!!
+        val onTable = assertFailsWith<TomlEditException> { table["v"] = doc["v"].assertSuccess().valueOrNull!! }
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("t", "v"), 1), onTable.error)
+        assertEquals("v = 1 # one\nt = { a = 1 }\n", doc.toString())
+    }
+
+    @Test
+    fun `a value with a comment stored in a dotted table in braces across lines keeps the comment`() {
+        val doc = parse("v = 1 # one\ns = {\n  b.c = 1,\n}\n")
+        doc["s"]["b"].assertSuccess().set("d", doc["v"].assertSuccess()).assertSuccess()
+        assertEquals("v = 1 # one\ns = {\n  b.c = 1,\n  b.d = 1, # one\n}\n", doc.toString())
+    }
+
+    @Test
+    fun `a value with a comment stored in a dotted table in braces on one line spreads the braces across lines`() {
+        val doc = parse("v = 1 # one\ns = { b.c = 1 }\n")
+        doc["s"]["b"].assertSuccess().set("d", doc["v"].assertSuccess()).assertSuccess()
+        assertEquals("v = 1 # one\ns = {\n  b.c = 1,\n  b.d = 1, # one\n}\n", doc.toString())
+    }
+
+    @Test
+    fun `a value with a comment stored in a dotted table in braces of TOML 1 0 is refused`() {
+        val doc = parse("v = 1 # one\ns = { b.c = 1 }\n", TomlVersion.V1_0)
+        val error = doc["s"]["b"].assertSuccess().set("d", doc["v"].assertSuccess())
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("s", "b", "d"), 1), error.assertError())
+        assertEquals("v = 1 # one\ns = { b.c = 1 }\n", doc.toString())
+    }
+
+    @Test
+    fun `a value with a comment stored in dotted keys on lines of a table keeps the comment`() {
+        val doc = parse("v = 1 # one\n[t]\nb.c = 1\n")
+        doc["t"]["b"].assertSuccess().set("d", doc["v"].assertSuccess()).assertSuccess()
+        assertEquals("v = 1 # one\n[t]\nb.c = 1\nb.d = 1 # one\n", doc.toString())
+    }
+
+    @Test
+    fun `a value with a comment stored in a dotted table taken out of braces onto lines of a table keeps it`() {
+        val doc = parse("v = 1 # one\ns = {\n  b.c = 1,\n}\n[t]\nx = 0\n")
+        doc["t"].assertSuccess().set("b", doc["s"]["b"].assertSuccess()).assertSuccess()
+        doc["t"]["b"].assertSuccess().set("d", doc["v"].assertSuccess()).assertSuccess()
+        assertEquals("v = 1 # one\ns = {\n  b.c = 1,\n}\n[t]\nx = 0\nb.c = 1\nb.d = 1 # one\n", doc.toString())
+    }
+
+    @Test
     fun `putAll on an inline table of TOML 1 0 stores none of the pairs when one brings a comment`() {
         val doc = parse("v = 1 # one\nt = { a = 1 }\n", TomlVersion.V1_0)
         val table = doc["t"].assertSuccess().inlineTableOrNull!!
@@ -250,24 +299,24 @@ class StoreCarriesCommentsTest {
     @Test
     fun `a dotted table stored in braces on one line keeps the comment above it`() {
         val doc = parse("t = {\n  # about b\n  b.c = 1,\n}\nu = { x = 1 }\n")
-        doc["u"].set("b", doc["t"]["b"].assertSuccess()).assertSuccess()
+        doc["u"].assertSuccess().set("b", doc["t"]["b"].assertSuccess()).assertSuccess()
         assertEquals("t = {\n  # about b\n  b.c = 1,\n}\nu = {\n  x = 1,\n  # about b\n  b.c = 1,\n}\n", doc.toString())
     }
 
     private val linesBelow = "a = [\n  1,\n  2 # on 2\n  # more\n  , 3,\n]\n"
 
     @Test
-    fun `an element stored on a line of a table brings its same-line comment and the comment lines below it`() {
+    fun `an element stored on a line of a table puts the comment lines below it above its key`() {
         val doc = parse(linesBelow)
         doc.set("b", doc["a"][1].assertSuccess()).assertSuccess()
-        assertEquals("${linesBelow}b = 2 # on 2\n# more\n", doc.toString())
+        assertEquals("$linesBelow# more\nb = 2 # on 2\n", doc.toString())
     }
 
     @Test
-    fun `an element value stored on a line of a table brings its same-line comment and the comment lines below it`() {
+    fun `an element value stored on a line of a table puts the comment lines below it above its key`() {
         val doc = parse(linesBelow)
         doc.set("b", doc["a"].assertSuccess().arrayOrNull!![1].assertSuccess()).assertSuccess()
-        assertEquals("${linesBelow}b = 2 # on 2\n# more\n", doc.toString())
+        assertEquals("$linesBelow# more\nb = 2 # on 2\n", doc.toString())
     }
 
     @Test
@@ -288,7 +337,7 @@ class StoreCarriesCommentsTest {
     @Test
     fun `an element stored in an inline table keeps the comment lines between it and its comma`() {
         val doc = parse("${linesBelow}t = { z = 0 }\n")
-        doc["t"].set("x", doc["a"][1].assertSuccess()).assertSuccess()
+        doc["t"].assertSuccess().set("x", doc["a"][1].assertSuccess()).assertSuccess()
         assertEquals("${linesBelow}t = {\n  z = 0,\n  x = 2 # on 2\n  # more\n  ,\n}\n", doc.toString())
     }
 

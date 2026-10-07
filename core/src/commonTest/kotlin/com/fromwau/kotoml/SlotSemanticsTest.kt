@@ -154,7 +154,7 @@ class SlotSemanticsTest {
     @Test
     fun `item set by key stores a copy of the content`() {
         val doc = TomlDocument.parse("a = [1]\n[t]\n").assertSuccess()
-        doc["t"].set("b", doc["a"].assertSuccess()).assertSuccess()
+        doc["t"].assertSuccess().set("b", doc["a"].assertSuccess()).assertSuccess()
         doc["a"].assertSuccess().arrayOrNull!!.add(2L)
         assertEquals("a = [1, 2]\n[t]\nb = [1]\n", doc.toString())
     }
@@ -179,7 +179,7 @@ class SlotSemanticsTest {
     @Test
     fun `a value assigned into an array slot replaces the element`() {
         val doc = TomlDocument.parse("a = [1, 2]\n").assertSuccess()
-        doc["a"].set(1, Item(Value.Integer(3L))).assertSuccess()
+        doc["a"].assertSuccess().set(1, Item(Value.Integer(3L))).assertSuccess()
         assertEquals("a = [1, 3]\n", doc.toString())
     }
 
@@ -205,7 +205,7 @@ class SlotSemanticsTest {
         val doc = TomlDocument.parse("[[a]]\nx = 1\n").assertSuccess()
         val replacement = StandardTable()
         replacement["y"] = 2L
-        doc["a"].set(0, Item(replacement)).assertSuccess()
+        doc["a"].assertSuccess().set(0, Item(replacement)).assertSuccess()
         assertEquals("[[a]]\ny = 2\n", doc.toString())
     }
 
@@ -243,7 +243,7 @@ class SlotSemanticsTest {
     @Test
     fun `an array of tables written to a new key of an inline table fails`() {
         val doc = TomlDocument.parse("t = { a = 1 }\n").assertSuccess()
-        val error = doc["t"].set("b", Item(ArrayOfTables())).assertError<TomlEditError.NotAValue>()
+        val error = doc["t"].assertSuccess().set("b", Item(ArrayOfTables())).assertError<TomlEditError.NotAValue>()
         assertEquals(TomlEditError.NotAValue(TomlType.ArrayOfTables), error)
         assertEquals("t = { a = 1 }\n", doc.toString())
     }

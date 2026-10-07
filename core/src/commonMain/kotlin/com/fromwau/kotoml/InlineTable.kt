@@ -548,15 +548,51 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
 
     /**
      * Sets [key] to a copy of [value], keeping the key's position and formatting when it is already there, as [put]
-     * does without force. In the `table[key] = value` form a failure is discarded and nothing changes; call [put] to
-     * see it or to force the store.
+     * does without force. In the `table[key] = value` form a failure throws [TomlEditException] instead, changing
+     * nothing; call [put] to force the store.
      *
      * @return [TomlEditError.TooDeep] or [TomlEditError.CommentsWouldBeLost], storing nothing, as [put] says.
      */
-    public operator fun set(
+    public fun set(
         key: String,
         value: Value,
     ): EmptyResult<TomlEditError> = put(key, value).map { }
+
+    /** Stores a string at [key]; see [set]. */
+    public fun set(
+        key: String,
+        value: String,
+    ): EmptyResult<TomlEditError> = set(key, Value.String(value))
+
+    /** Stores an integer at [key]; see [set]. */
+    public fun set(
+        key: String,
+        value: Long,
+    ): EmptyResult<TomlEditError> = set(key, Value.Integer(value))
+
+    /** Stores an integer at [key]; see [set]. */
+    public fun set(
+        key: String,
+        value: Int,
+    ): EmptyResult<TomlEditError> = set(key, Value.Integer(value))
+
+    /** Stores a float at [key]; see [set]. */
+    public fun set(
+        key: String,
+        value: Double,
+    ): EmptyResult<TomlEditError> = set(key, Value.Float(value))
+
+    /** Stores a boolean at [key]; see [set]. */
+    public fun set(
+        key: String,
+        value: Boolean,
+    ): EmptyResult<TomlEditError> = set(key, Value.Boolean(value))
+
+    /** Stores a date-time at [key]; see [set]. */
+    public fun set(
+        key: String,
+        value: Datetime,
+    ): EmptyResult<TomlEditError> = set(key, Value.Datetime(value))
 
     /** Whether there is a value at [key]. */
     override fun containsKey(key: String): Boolean = items.get(key)?.valueOrNull != null
@@ -706,13 +742,27 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         val isNew = !items.containsKey(key.name)
         val linesBelow = holdsComments() && value.bringsCommentLinesBelow()
         val lineBreak = lineEndingOf(this)
-        if ((comment.isNotEmpty() || linesAbove.isNotEmpty() || linesBelow) && !isMultiline) {
-            val indent = lineIndentOf(this)
-            layOutAcrossLines(lineBreak, indent, documentVersionOf(this))
+        if (printsOnTableLines()) {
+            // A new key's line starts after a line break, and its comment ends that line.
+            if (isNew && key.rawLeafDecor.prefix == null) key.rawLeafDecor.prefix = KeptText.from(lineBreak)
+            if (comment.isNotEmpty()) value.rawDecor.suffix = KeptText.read(comment)
+            return items.put(key, Item.inInlineTable(value), linesAbove)?.valueOrNull
+        }
+        // A dotted table's lines print in the braces holding it, which spread across lines for a comment.
+        val braces = outermostBraces()
+        if ((comment.isNotEmpty() || linesAbove.isNotEmpty() || linesBelow) && !braces.isMultiline) {
+            val indent = lineIndentOf(braces)
+            braces.layOutAcrossLines(lineBreak, indent, documentVersionOf(this))
             if (isNew && key.rawLeafDecor.prefix == null) {
                 key.rawLeafDecor.prefix = KeptText.from(lineBreak + indent + INDENT)
             }
             if (!linesBelow) value.rawDecor.suffix = KeptText.from("")
+        }
+        if (isNew && isDotted && braces.isMultiline) {
+            if (key.rawLeafDecor.prefix == null) {
+                key.rawLeafDecor.prefix = KeptText.from(lineBreak + lineIndentOf(braces) + INDENT)
+            }
+            if (value.rawDecor.suffix == null) value.rawDecor.suffix = KeptText.from("")
         }
         if (isNew) {
             takeClosingSpace(value)
@@ -720,8 +770,8 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
             takeSpacingOfLast(key, value)
         }
         val old = items.put(key, Item.inInlineTable(value), linesAbove)?.valueOrNull
-        if (linesBelow) layOutCommentLinesBelow(value, lineBreak)
-        if (comment.isNotEmpty()) putCommentAfter(value, comment)
+        if (linesBelow) braces.layOutCommentLinesBelow(value, lineBreak)
+        if (comment.isNotEmpty()) braces.putCommentAfter(value, comment)
         return old
     }
 
@@ -748,9 +798,17 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         comment: String,
     ) {
         if (!holdsComments() || (comment.isEmpty() && linesAbove.isEmpty())) return
-        if (!isMultiline) layOutAcrossLines(lineEndingOf(this), lineIndentOf(this), documentVersionOf(this))
+        if (printsOnTableLines()) {
+            entry.takeAttachedAbove(linesAbove)
+            if (comment.isNotEmpty()) value.rawDecor.suffix = KeptText.read(comment)
+            return
+        }
+        val braces = outermostBraces()
+        if (!braces.isMultiline) {
+            braces.layOutAcrossLines(lineEndingOf(this), lineIndentOf(braces), documentVersionOf(this))
+        }
         entry.takeAttachedAbove(linesAbove)
-        if (comment.isNotEmpty()) putCommentAfter(value, comment)
+        if (comment.isNotEmpty()) braces.putCommentAfter(value, comment)
     }
 
     // The comment [value] brings, which a table of key/value lines or one in TOML 1.0 cannot hold after it.
@@ -761,8 +819,8 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         if (!holdsComments() && '#' in value.rawDecor.suffix?.textOrNull.orEmpty()) value.rawDecor.suffix = null
     }
 
-    // A dotted table prints its keys among other lines, and TOML 1.0 has no comments in braces.
-    private fun holdsComments(): Boolean = !isDotted && documentVersionOf(this) != TomlVersion.V1_0
+    // TOML 1.0 has no comments in braces; in 1.1 braces spread across lines to hold them, a dotted table's included.
+    private fun holdsComments(): Boolean = documentVersionOf(this) != TomlVersion.V1_0
 
     // A comment after a value holds the start of the next entry's line, or of the closing line, after the comma, in
     // place of the comment that stood there.

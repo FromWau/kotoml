@@ -507,10 +507,10 @@ public class TomlArray() : Iterable<Value> {
     /**
      * Replaces the element at [index] with [value], which takes over the old element's decor; see [replace].
      *
-     * In the `array[index] = value` form the result is discarded, so an [index] past the end does nothing; call
-     * `array.set(index, value)` to see the [TomlEditError.IndexOutOfBounds].
+     * In the `array[index] = value` form a failure, such as [TomlEditError.IndexOutOfBounds] for an [index] past the
+     * end, throws [TomlEditException] instead, changing nothing.
      */
-    public operator fun set(
+    public fun set(
         index: Int,
         value: Value,
     ): Result<Value, TomlEditError> = replace(index, value)
