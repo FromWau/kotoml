@@ -14,13 +14,15 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
 
 ### Bugs against a goal
 
-- [ ] **104. `format()` prints a kept comment line twice.** Removing the last key of `b.c` in
-  `t = {\n  # about c\n  b.c = 1,\n}` and then `setLayout(Header, force = true)` on `t` prints
-  `[t]\n\n  # about cb = {}\n`; `format()` on that document prints the line twice:
-  `[t]\n\n  # about cb = {}\n\n# about cb = {}\n`. **Ruling 2026-10-07:** that the forced layout change lets the
-  emptied key fall into the comment is fine; the doubled line is the bug. **Ruling 2026-10-07, later:** the
-  glued line is a printing bug too: a comment kept in a dotted table prints on its own line on a table's lines, so
-  the example prints `[t]\n# about c\nb = {}\n` and `format()` prints it once.
+- [ ] **114. A comment above a dotted key in braces glues onto the line before once the table is a header.**
+  `t = {\n  x = 0,\n  b.c = 1,\n  # about d\n  b.d = 2,\n}` made a header prints `b.c = 1# about d\nb.d = 2`;
+  after `format()` the comment ends the line of `c` instead of standing above `d`. Likewise making
+  `t = {\n  # about c\n  b.c = 1,\n  d = 2,\n}` a header and then removing `c` from `b` prints `b = {}# about c`.
+  `TableLineComments.applyTo` writes table-style prefixes onto keys in dotted inline tables, which
+  `takeOutOfBraces` reads as brace-style. Found while fixing 104; already on dev before it.
+- [ ] **115. `KeyValuePairs.takeAll()` leaves the kept lines behind.** `moveToDottedTable()` and
+  `takeReadDottedTable()` move only the entries, so a dotted table's kept comment lines, `emptyTableDecor` and
+  `emptyLineKeyDecor` may be lost on that conversion. Not yet reproduced.
 
 ### Cleanup pass rulings (2026-10-07)
 
@@ -92,6 +94,18 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **104. `format()` prints a kept comment line twice.** Removing the last key of `b.c` in
+  `t = {\n  # about c\n  b.c = 1,\n}` and then `setLayout(Header, force = true)` on `t` prints
+  `[t]\n\n  # about cb = {}\n`; `format()` on that document prints the line twice:
+  `[t]\n\n  # about cb = {}\n\n# about cb = {}\n`. **Ruling 2026-10-07:** that the forced layout change lets the
+  emptied key fall into the comment is fine; the doubled line is the bug. **Ruling 2026-10-07, later:** the
+  glued line is a printing bug too: a comment kept in a dotted table prints on its own line on a table's lines, so
+  the example prints `[t]\n# about c\nb = {}\n` and `format()` prints it once.
+  **Verdict 2026-10-07:** fixed: making a dotted inline table's holder a header table turns the brace-style comment
+  lines kept in it into comment lines above the next key, or kept lines at the end, as comments above keys already
+  convert; the example prints `[t]\n# about c\nb = {}\n` and `format()` leaves it as is. Pinned in LayoutChangeTest and
+  FormatTest.
 
 - [x] **113. Reordering an array of tables moves the comment lines above its headers.** Reversing
   `# first\n[[a]] # h1\nn = 1 #one\n\n# second\n[[a]] # h2\nn = 2 #two\n` with
