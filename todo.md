@@ -22,6 +22,13 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
 
 ### Cleanup pass rulings (2026-10-07)
 
+- [ ] **113. Reordering an array of tables moves the comment lines above its headers.** Reversing
+  `# first\n[[a]] # h1\nn = 1 #one\n\n# second\n[[a]] # h2\nn = 2 #two\n` with
+  `doc["a"] = arr.reversed().toArrayOfTables()` prints `# first` twice, drops `# second` and the blank line:
+  `# first\n[[a]] # h2\nn = 2 #two\n# first\n[[a]] # h1\nn = 1 #one\n`. **Ruling 2026-10-07:** the lines above a
+  header stay where they are, since they need not be about that header (`# x = 1` above `[[a]]`); only the tables
+  swap, each with its header comment and values:
+  `# first\n[[a]] # h2\nn = 2 #two\n\n# second\n[[a]] # h1\nn = 1 #one\n`.
 - [ ] **112. Split StandardTable.kt.** Move the out-of-braces body lines (`VisualValue`, `takeOutOfBraces`,
   `inPrintOrder`), table placement (`placedParts`, `place*`) and the sort helpers into their own files; no API or
   behaviour change. `FRICTION_LOG.md` stays tracked on `dev` (ruling, D5).
