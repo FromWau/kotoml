@@ -273,6 +273,46 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     internal fun addAllKeepingPlaces(tables: Iterable<StandardTable>): EmptyResult<TomlEditError> =
         appendCopies(tables) { table -> table.deepCopy().also { giveSecondsInToml10(this, Item(it)) } }
 
+    /**
+     * Hands the places that copies of [old]'s tables brought along out again in array order, as printing does, and
+     * gives each table the lines that stood above the header at its place, which need not be about that table. Does
+     * nothing when a table holds a place [old] does not.
+     *
+     * @return whether the place of [old]'s first header was handed out.
+     */
+    internal fun takePlacesOf(old: ArrayOfTables): Boolean {
+        val oldParts = old.values.flatMap(::placedParts)
+        val oldPlaces = oldParts.mapNotNull { it.placement }.toSet()
+        val oldTables = oldParts
+            .filterIsInstance<StandardTable>()
+            .filter { it.position != null }
+            .associateBy { it.position }
+        val parts = values.flatMap(::partsInPrintOrder)
+        if (parts.isEmpty() || parts.any { it.placement !in oldPlaces }) return false
+        val places = parts.mapNotNull { it.placement }.sorted()
+        for ((part, place) in parts.zip(places)) {
+            part.placement = place
+            if (part is StandardTable) oldTables[place]?.let { part.takeLinesAboveOf(it) }
+        }
+        val firstPlace = old.values.firstOrNull()?.standardTableOrNull?.position
+        return firstPlace != null && firstPlace in places
+    }
+
+    /** The placed parts of [element] that print among the tables: its header first, then the rest by place. */
+    private fun partsInPrintOrder(element: Item): List<Any> {
+        val header = element.standardTableOrNull?.takeIf { it.placement != null }
+        val under = placedParts(element)
+            .filter { it !== header && it.placement != null && (it as? StandardTable)?.isDotted != true }
+            .sortedBy { it.placement }
+        return listOfNotNull(header) + under
+    }
+
+    private fun StandardTable.takeLinesAboveOf(old: StandardTable) {
+        val onHeaderLine = rawDecor.prefix?.textOrNull?.substringAfterLast('\n').orEmpty()
+        rawDecor.prefix = old.rawDecor.prefix?.let { KeptText.from(linesAbove(it) + onHeaderLine) }
+        opensFile = old.opensFile
+    }
+
     private fun appendCopies(
         tables: Iterable<StandardTable>,
         copy: (StandardTable) -> StandardTable,
@@ -336,7 +376,8 @@ public fun arrayOfTablesOf(vararg tables: StandardTable): Result<ArrayOfTables, 
 
 /**
  * An array of copies of these tables, in order. Each copy keeps its place among the document's tables, so
- * `doc["arr"] = arr.reversed().toArrayOfTables()` reorders the tables where they print.
+ * `doc["arr"] = arr.reversed().toArrayOfTables()` reorders the tables where they print. Each table takes its header
+ * comment and the tables under it along, while the comment and blank lines above each header stay where they print.
  *
  * @return [TomlEditError.TooDeep] when a table would nest deeper than the parser reads in an array of tables under a
  *   document's root.

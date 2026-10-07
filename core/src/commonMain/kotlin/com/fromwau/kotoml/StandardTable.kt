@@ -1204,7 +1204,7 @@ internal fun emptyTableLine(
 }
 
 /** The tables under [start] and the lines kept among their headers: what has a position among a document's tables. */
-private fun placedParts(start: Item): List<Any> {
+internal fun placedParts(start: Item): List<Any> {
     val parts = mutableListOf<Any>()
     val items = ArrayDeque<Item>()
     items.addLast(start)
@@ -1223,7 +1223,7 @@ private fun placedParts(start: Item): List<Any> {
     return parts
 }
 
-private var Any.placement: Long?
+internal var Any.placement: Long?
     get() = when (this) {
         is StandardTable -> position
         is KeptLines -> order

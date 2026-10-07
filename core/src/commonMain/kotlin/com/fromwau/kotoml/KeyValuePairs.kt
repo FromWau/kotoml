@@ -68,14 +68,22 @@ internal class KeyValue(key: Key, item: Item) {
         val old = item
         val oldDecor = old.valueOrNull?.rawDecor
         val oldTable = old.standardTableOrNull?.takeUnless { it.isDotted }
+        val oldArray = old.arrayOfTablesOrNull
         item = next
         old.entry = null
         keepValueDecor(oldDecor)
         keepHeaderComment(oldTable?.rawDecor)
-        keepLinesAbove(lines)
+        if (!keepPlacesOf(oldArray)) keepLinesAbove(lines)
         keepTablePlace(oldTable)
         return old
     }
+
+    /**
+     * Gives an array of tables now in the slot the places of [old]'s tables and the lines above them, as
+     * [ArrayOfTables.takePlacesOf] says; returns whether the lines above [old]'s first header stay at its place.
+     */
+    fun keepPlacesOf(old: ArrayOfTables?): Boolean =
+        old != null && item.arrayOfTablesOrNull?.takePlacesOf(old) == true
 
     /** Gives a table now in the slot the place among the document's tables of the table [old] it replaced. */
     fun keepTablePlace(old: StandardTable?) {

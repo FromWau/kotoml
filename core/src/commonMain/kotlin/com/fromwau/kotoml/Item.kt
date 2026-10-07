@@ -217,10 +217,11 @@ public class Item private constructor(
         val linesAbove = entry.takeLinesAbove(item)
         val oldDecor = valueOrNull?.rawDecor
         val oldTable = standardTableOrNull?.takeUnless { it.isDotted }
+        val oldArray = arrayOfTablesOrNull
         content = next
         entry.keepValueDecor(oldDecor)
         entry.keepHeaderComment(oldTable?.rawDecor)
-        entry.keepLinesAbove(linesAbove)
+        if (!entry.keepPlacesOf(oldArray)) entry.keepLinesAbove(linesAbove)
         entry.keepTablePlace(oldTable)
         return Ok(Unit)
     }
