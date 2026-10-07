@@ -292,7 +292,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
                 is VisualValue -> {
                     val start = line.lineStart ?: line.path.last().rawLeafDecor.prefix
                     val above = if (isDotted && first) "" else linesAbove(start)
-                    comments.add(line.value, kept + above, line.value.commentAfter() + line.lineEnd)
+                    comments.add(line.path.last(), kept + above, line.value.commentAfter() + line.lineEnd)
                     kept = ""
                     first = false
                 }

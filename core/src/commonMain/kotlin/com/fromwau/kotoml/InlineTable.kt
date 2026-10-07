@@ -136,10 +136,10 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         forgetLineStarts()
         var carried = comments.headerComment
         for (line in visualValues()) {
-            val above = indentedCommentLines(comments.above(line.value), entryIndent, lineBreak)
+            val above = indentedCommentLines(comments.above(line.path.last()), entryIndent, lineBreak)
             line.path.last().rawLeafDecor.prefix = KeptText.from(carried + lineBreak + above + entryIndent)
             line.value.rawDecor.suffix = KeptText.from("")
-            carried = comments.after(line.value)
+            carried = comments.after(line.path.last())
         }
         val end = indentedCommentLines(comments.endLines, entryIndent, lineBreak)
         trailingComma = version == TomlVersion.V1_1
@@ -909,30 +909,31 @@ internal fun StandardTable.keepCommentAfterBraces(
 internal val DEFAULT_INLINE_KEY_DECOR: Pair<String, String> = " " to " "
 
 /**
- * The comments for the lines of an inline table across lines: [headerComment] after `{`, for each value the comment
- * lines above it and the comment after its comma, and [endLines] above `}`.
+ * The comments for the lines of an inline table across lines: [headerComment] after `{`, for each line, known by the
+ * last key of its path, the comment lines above it and the comment after its comma, and [endLines] above `}`.
  */
 internal class LineComments(val headerComment: String = "") {
     var endLines: String = ""
-    private val values = mutableListOf<Value>()
+    private val keys = mutableListOf<Key>()
     private val aboveEach = mutableListOf<String>()
     private val afterEach = mutableListOf<String>()
 
+    // By key, not value: an empty dotted table's line holds a value made anew each time its lines are read.
     fun add(
-        value: Value,
+        key: Key,
         above: String,
         after: String,
     ) {
-        values += value
+        keys += key
         aboveEach += above
         afterEach += after
     }
 
-    fun above(value: Value): String = aboveEach.getOrNull(indexOf(value)).orEmpty()
+    fun above(key: Key): String = aboveEach.getOrNull(indexOf(key)).orEmpty()
 
-    fun after(value: Value): String = afterEach.getOrNull(indexOf(value)).orEmpty()
+    fun after(key: Key): String = afterEach.getOrNull(indexOf(key)).orEmpty()
 
-    private fun indexOf(value: Value): Int = values.indexOfFirst { it === value }
+    private fun indexOf(key: Key): Int = keys.indexOfFirst { it === key }
 }
 
 /**

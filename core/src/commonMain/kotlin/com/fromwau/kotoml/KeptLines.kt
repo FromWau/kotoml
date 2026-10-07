@@ -221,6 +221,20 @@ internal fun keepHeaderLinesOf(
 }
 
 /**
+ * Keeps in [kept], and takes from [table], the lines removing it keeps when a header under it prints before its own:
+ * those above the first header it prints, which a layout without headers puts above its key.
+ */
+internal fun keepLinesAboveEarlierHeaders(
+    table: StandardTable,
+    kept: MutableList<KeptLines>,
+) {
+    val own = table.position ?: return
+    val parts = mutableListOf<HeaderPart>()
+    collectHeaderParts(table, isArrayOfTables = false, parts)
+    keepAboveFirstHeader(parts, kept, printedBefore = own)
+}
+
+/**
  * A header a removal takes out of the document with the lines above it, or lines kept from an earlier removal;
  * [leave] takes those lines from the removed item once the document keeps them.
  */
@@ -271,10 +285,12 @@ private fun collectKeptParts(
 private fun keepAboveFirstHeader(
     parts: List<HeaderPart>,
     kept: MutableList<KeptLines>,
+    printedBefore: Long = Long.MAX_VALUE,
 ) {
     var previous = Long.MIN_VALUE
     val printed = parts
         .map { part -> (part.position ?: previous).also { previous = it } to part }
+        .filter { it.first < printedBefore }
         .sortedBy { it.first }
         .map { it.second }
     val firstHeader = printed.indexOfFirst { it.isHeader }

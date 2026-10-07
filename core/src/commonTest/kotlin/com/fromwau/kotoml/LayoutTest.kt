@@ -305,6 +305,42 @@ class LayoutTest {
     }
 
     @Test
+    fun `a table made inline keeps the lines above a header under it printing before its own above its key`() {
+        val doc = parse("# [x] you\n[x.y.z.w] # ...\n[x]\nd = 4\n")
+        doc["x"].assertSuccess().setLayout(TableLayout.Inline, force = true).assertSuccess()
+        assertEquals("# [x] you\nx = { y = { z = { w = {} } }, d = 4 }\n", doc.toString())
+    }
+
+    @Test
+    fun `a table made inline keeps the lines above an earlier header under it above the lines above its own`() {
+        for (layout in listOf(TableLayout.Inline, TableLayout.MultilineInline)) {
+            val doc = parse("# about y\n[x.y]\nb = 1\n\n# about x\n[x]\nd = 4\n")
+            doc["x"].assertSuccess().setLayout(layout).assertSuccess()
+            val inline = when (layout) {
+                TableLayout.Inline -> "{ y = { b = 1 }, d = 4 }"
+                else -> "{\n  y = {\n    b = 1,\n  },\n  d = 4,\n}"
+            }
+            assertEquals("# about y\n\n# about x\nx = $inline\n", doc.toString(), layout.toString())
+        }
+    }
+
+    @Test
+    fun `a table made inline keeps the lines above an earlier header under a table given a header later`() {
+        val doc = parse("# about w\n[x.y.z.w]\n[x]\nc = 3\n")
+        doc["x"]["y"]["z"].assertSuccess().standardTableOrNull!!["q"] = Item(Value.Integer(1L))
+        doc["x"].assertSuccess().setLayout(TableLayout.Inline).assertSuccess()
+        assertEquals("# about w\nx = { y = { z = { w = {}, q = 1 } }, c = 3 }\n", doc.toString())
+    }
+
+    @Test
+    fun `an empty dotted table across lines keeps the lines kept above it from a removed key`() {
+        val doc = parse("a.b.c = 1\n# about e\na.b.d.e = true\na.f = 2\n")
+        doc["a"]["b"]["d"].assertSuccess().standardTableOrNull!!.remove("e")
+        doc["a"].assertSuccess().setLayout(TableLayout.MultilineInline).assertSuccess()
+        assertEquals("a = {\n  b.c = 1,\n  # about e\n  b.d = {},\n  f = 2,\n}\n", doc.toString())
+    }
+
+    @Test
     fun `a table made inline across lines in a TOML 1_0 document is refused`() {
         val doc = parse("[t] # t\na = 1 # a\n", TomlVersion.V1_0)
         val error = doc["t"].assertSuccess().setLayout(TableLayout.MultilineInline).assertError<TomlEditError.NotInToml10>()

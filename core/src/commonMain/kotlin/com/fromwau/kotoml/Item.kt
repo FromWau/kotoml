@@ -544,8 +544,13 @@ public class Item private constructor(
         val copy = table?.deepCopy()
         // Without a header of its own, the table's first lines are those above the first header printed under it.
         val firstLines = mutableListOf<KeptLines>()
-        if (copy != null && (copy.isDotted || !copy.printsHeader(isArrayOfTables = false))) {
-            keepHeaderLinesOf(copy, isArrayOfTables = false, firstLines)
+        val earlierLines = mutableListOf<KeptLines>()
+        when {
+            copy == null -> Unit
+            copy.isDotted || !copy.printsHeader(isArrayOfTables = false) -> {
+                keepHeaderLinesOf(copy, isArrayOfTables = false, firstLines)
+            }
+            else -> keepLinesAboveEarlierHeaders(copy, earlierLines)
         }
         val value = when {
             copy != null -> copy.toInlineValue(layout, "")
@@ -553,7 +558,12 @@ public class Item private constructor(
             else -> return Ok(Unit)
         }
         tooDeepToHold(Item(value))?.let { return Err(it) }
-        holdValue(value, keptInside = multiline, alsoAbove = firstLines.joinToString("") { it.text })
+        holdValue(
+            value,
+            keptInside = multiline,
+            firstAbove = earlierLines.joinToString("") { it.text },
+            alsoAbove = firstLines.joinToString("") { it.text },
+        )
         return Ok(Unit)
     }
 
@@ -636,17 +646,18 @@ public class Item private constructor(
     /**
      * Turns a table or array of tables in this slot into [value], made from it, keeping the lines above; with
      * [keptInside], [value] holds the comment lines among a dotted table's lines, which stay out of the lines above;
-     * [alsoAbove] goes above the key after them.
+     * [firstAbove] goes above the key before them and [alsoAbove] after them.
      */
     internal fun holdValue(
         value: Value,
         keptInside: Boolean = false,
+        firstAbove: String = "",
         alsoAbove: String = "",
     ) {
         val linesAbove = entry?.takeLinesAbove(Item(value), keptInside).orEmpty()
         entry?.prepareFor(Item(value))
         content = Content.ValueContent(value)
-        entry?.keepLinesAbove(linesAbove + alsoAbove)
+        entry?.keepLinesAbove(firstAbove + linesAbove + alsoAbove)
     }
 
     /**
