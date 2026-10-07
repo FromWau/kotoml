@@ -48,6 +48,14 @@ class ErrorJsonTest {
     }
 
     @Test
+    fun `a rename onto a key already there names the key`() {
+        assertEquals(
+            """{"type":"KeyTaken","key":"b"}""",
+            Json.encodeToString(TomlEditError.serializer(), TomlEditError.KeyTaken("b")),
+        )
+    }
+
+    @Test
     fun `a layout change refused for its comments names the key path and the count`() {
         val error = TomlEditError.CommentsWouldBeLost(listOf("t", "sub"), 2)
         assertEquals(

@@ -153,6 +153,9 @@ internal class Edits(
             add("table put $key" to { table.put(Key(key), item()) })
             add("table getOrPut $key" to { table.getOrPut(key) { item() } })
             table.keys.randomOrNull(random)?.let { old -> add("table remove $old" to { table.remove(old) }) }
+            table.keys.randomOrNull(random)?.let { old ->
+                add("table rename $old to $key" to { table.rename(old, key) })
+            }
             add("table sort" to { table.sortWith(compareBy { it.first.name }) })
             add("table retainAll" to { table.retainAll { random.nextBoolean() } })
             add("table clear" to { table.clear() })
@@ -167,6 +170,9 @@ internal class Edits(
                 add("inline set $inlineKey" to { inline.set(inlineKey, value()) })
                 add("inline putItem $inlineKey" to { inline.putItem(inlineKey, item()) })
                 inline.keys.randomOrNull(random)?.let { old -> add("inline remove $old" to { inline.remove(old) }) }
+                inline.keys.randomOrNull(random)?.let { old ->
+                    add("inline rename $old to $inlineKey" to { inline.rename(old, inlineKey) })
+                }
                 add("inline resetFormatting" to { inline.resetFormatting() })
             }
             arrays.randomOrNull(random)?.let { array ->

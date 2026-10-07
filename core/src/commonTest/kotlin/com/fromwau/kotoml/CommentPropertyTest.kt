@@ -12,10 +12,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Edits keep every comment they do not own. Adding, replacing a value with a value, sorting and changing how a table
- * prints keep them all; removing a value takes only the comment on its own line, and giving a table a new layout with
- * `setLayout(force = true)` may take its comments, all but the lines above its key, as `setVersion(force = true)` may
- * take those of inline tables across lines. Without force a layout or version change keeps every comment or is
+ * Edits keep every comment they do not own. Adding, replacing a value with a value, renaming, sorting and changing how
+ * a table prints keep them all; removing a value takes only the comment on its own line, and giving a table a new
+ * layout with `setLayout(force = true)` may take its comments, all but the lines above its key, as
+ * `setVersion(force = true)` may take those of inline tables across lines. Without force a layout or version change keeps every comment or is
  * refused and changes nothing. Removing or replacing whole tables is covered by
  * `RemovalPropertyTest` and the comment scope tests, which state what those take.
  */
@@ -99,6 +99,16 @@ class CommentPropertyTest {
             if (scalarKey != null) {
                 add(Edit("table set value at $scalarKey") { table.set(scalarKey, edits.value()).let { emptyList() } })
                 add(Edit("table remove value $scalarKey") { removedValue(table, scalarKey) })
+            }
+            val renamed = table.keys.randomOrNull(random)
+            if (renamed != null) {
+                val to = edits.keyFor(table.keys)
+                add(Edit("table rename $renamed to $to") { table.rename(renamed, to).let { emptyList() } })
+            }
+            edits.inlines.randomOrNull(random)?.let { inline ->
+                val old = inline.keys.randomOrNull(random) ?: return@let
+                val to = edits.keyFor(inline.keys)
+                add(Edit("inline rename $old to $to") { inline.rename(old, to).let { emptyList() } })
             }
             add(Edit("table sort") { table.sortWith(compareBy { it.first.name }).let { emptyList() } })
             if (table !== edits.tables.first()) {

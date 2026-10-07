@@ -14,6 +14,12 @@ public operator fun Result<Item, TomlEditError>.get(key: String): Result<Item, T
 public operator fun Result<Item, TomlEditError>.get(index: Int): Result<Item, TomlEditError> =
     flatMap { it[index] }
 
+/** Renames the key [old] to [new] in the item an earlier index found, or returns that index's error. */
+public fun Result<Item, TomlEditError>.rename(
+    old: String,
+    new: String,
+): EmptyResult<TomlEditError> = flatMap { it.rename(old, new) }
+
 /** Stores a copy of [item] at [key] of the item an earlier index found, or returns that index's error. */
 public operator fun Result<Item, TomlEditError>.set(
     key: String,

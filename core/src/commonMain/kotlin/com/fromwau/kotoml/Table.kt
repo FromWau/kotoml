@@ -1,5 +1,6 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.EmptyResult
 import com.fromwau.kern.result.Result
 
 /**
@@ -34,6 +35,17 @@ public sealed interface Table {
      * blank lines above it stay where they print, as [StandardTable.remove] and [InlineTable.remove] keep them.
      */
     public fun removeItem(key: String): Item?
+
+    /**
+     * Renames the key [old] to [new], as [StandardTable.rename] and [InlineTable.rename] do.
+     *
+     * @return [TomlEditError.NotFound] when there is no [old], or [TomlEditError.KeyTaken] when [new] is another key
+     *   already there; either changes nothing.
+     */
+    public fun rename(
+        old: String,
+        new: String,
+    ): EmptyResult<TomlEditError>
 
     /** The number of keys. */
     public val size: Int

@@ -202,6 +202,7 @@ private fun Toml11Feature.describe(): String = when (this) {
 
 internal fun TomlEditError.describe(): String = when (this) {
     is TomlEditError.NotFound -> "no key ${Key(key)}"
+    is TomlEditError.KeyTaken -> "there is already a key ${Key(key)}"
     is TomlEditError.TypeMismatch ->
         "${Key(key)}: expected ${expected.describe().withArticle()}, found ${found.describe().withArticle()}"
     is TomlEditError.IndexOutOfBounds -> "index $index is out of bounds for a length of $length"

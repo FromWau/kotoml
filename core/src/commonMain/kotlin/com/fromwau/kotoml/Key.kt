@@ -101,6 +101,12 @@ public class Key(
         it.rawDottedDecor.assign(rawDottedDecor)
     }
 
+    /** A key named [name] with this key's decor, spelled as a new key is: bare when it can be. */
+    internal fun renamed(name: String): Key = Key(name).also {
+        it.rawLeafDecor.assign(rawLeafDecor)
+        it.rawDottedDecor.assign(rawDottedDecor)
+    }
+
     override fun compareTo(other: Key): Int = compareByCodePoint(name, other.name)
 
     override fun equals(other: Any?): Boolean = other is Key && name == other.name

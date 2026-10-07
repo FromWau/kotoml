@@ -97,6 +97,20 @@ c = { d = "hello" }
     }
 
     @Test
+    fun `the module README rename example renames a table and the header under it`() {
+        val doc = TomlDocument.parse("# db\n[old] # main\nurl = 1\n\n[cache]\n[old.pool]\nsize = 2\n").getOrFail()
+        doc.rename("old", "db").getOrFail()
+        assertEquals("# db\n[db] # main\nurl = 1\n\n[cache]\n[db.pool]\nsize = 2\n", doc.toString())
+    }
+
+    @Test
+    fun `the KDoc example of rename renames a table and its sub-table`() {
+        val doc = TomlDocument.parse("# db\n[old] # main\nurl = 1\n[old.pool]\nsize = 2\n").getOrFail()
+        doc.rename("old", "db").getOrFail()
+        assertEquals("# db\n[db] # main\nurl = 1\n[db.pool]\nsize = 2\n", doc.toString())
+    }
+
+    @Test
     fun `the module README layout example makes a table inline across lines and then forces it on one line`() {
         val text = "[t] # t\na = 1 # one\n"
         val doc = TomlDocument.parse(text).getOrFail()
