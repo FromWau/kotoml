@@ -4,7 +4,6 @@ import com.fromwau.kern.result.assertError
 import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertIs
 
 /**
  * Storing an item never makes two places share one slot or its content, and a slot in an array, inline table or
@@ -214,8 +213,10 @@ class SlotSemanticsTest {
     fun `an array turned into an array of tables keeps its own slots`() {
         val doc = TomlDocument.parse("a = [{ x = 1 }]\n").assertSuccess()
         val tables = doc["a"].assertSuccess().copy().moveToArrayOfTables()!!
-        val error = Item(tables)[0].assertSuccess().assign(Item(Value.Integer(1L))).assertError<TomlEditError.NotATableElement>()
-        assertIs<TomlEditError.NotATableElement>(error)
+        Item(tables)[0]
+            .assertSuccess()
+            .assign(Item(Value.Integer(1L)))
+            .assertError<TomlEditError.NotATableElement>()
         assertEquals("a = [{ x = 1 }]\n", doc.toString())
     }
 
@@ -224,8 +225,10 @@ class SlotSemanticsTest {
         val tables = ArrayOfTables()
         tables.add(StandardTable())
         val array = tables.toTomlArray().assertSuccess()
-        val error = Item(Value.Array(array))[0].assertSuccess().assign(Item(StandardTable())).assertError<TomlEditError.NotAValue>()
-        assertIs<TomlEditError.NotAValue>(error)
+        Item(Value.Array(array))[0]
+            .assertSuccess()
+            .assign(Item(StandardTable()))
+            .assertError<TomlEditError.NotAValue>()
         assertEquals(1, array.size)
     }
 
@@ -276,7 +279,7 @@ class SlotSemanticsTest {
         source["a"] = 1L
         val inline = source.toInlineTable().assertSuccess()
         val slot = Item(Value.InlineTable(inline))["a"]
-        assertIs<TomlEditError.NotAValue>(slot.assertSuccess().assign(Item(StandardTable())).assertError<TomlEditError.NotAValue>())
+        slot.assertSuccess().assign(Item(StandardTable())).assertError<TomlEditError.NotAValue>()
     }
 
     @Test
@@ -293,7 +296,7 @@ class SlotSemanticsTest {
     fun `a copied inline table holds only values`() {
         val doc = TomlDocument.parse("t = { a = 1 }\n").assertSuccess()
         doc["u"] = doc["t"].assertSuccess()
-        assertIs<TomlEditError.NotAValue>(doc["u"]["a"].assertSuccess().assign(Item(StandardTable())).assertError<TomlEditError.NotAValue>())
+        doc["u"]["a"].assertSuccess().assign(Item(StandardTable())).assertError<TomlEditError.NotAValue>()
     }
 
     @Test

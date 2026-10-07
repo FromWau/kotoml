@@ -52,10 +52,10 @@ on writing a key into a string, the call returns a `TomlEditError` instead. Ever
 refuses to nest deeper than `TomlDocument.NESTING_LIMIT` lets the parser read: it returns `TomlEditError.TooDeep`
 and stores nothing, as do the `…Of` builders and the conversions to inline content. Its `keyPath` leads from the
 document's root to where the content gets too deep, or from the top of what is built when it is stored nowhere yet,
-and passes over array elements without a part. The `item["key"] = value` form
-drops these errors; call `item.set("key", value)` to see them. Writing never deletes a key; `remove` does.
-An item taken before its key is removed, or replaced by `set` or `put`, keeps what it held but no longer belongs
-to the document: writing through it changes nothing there, so index again.
+and passes over array elements without a part. The `item["key"] = value` form drops these errors; call
+`item.set("key", value)` to see them. Writing never deletes a key; `remove` does. An item taken before its key is
+removed, or replaced by `set` or `put`, keeps what it held but no longer belongs to the document: writing through it
+changes nothing there, so index again.
 
 ## Make and read values
 
@@ -205,8 +205,8 @@ A document's top-level keys live in its `root` table. The document itself offers
 `getOrNull`, `contains`, `keys`, `put`, `putAll`, `getOrPut`, `remove`, `rename`, `retainAll`, `removeAll`,
 `clear`, `size`) and iterates over the root's pairs; everything else a `StandardTable` does, such as
 `sortBy { (key, _) -> key }` or `keyOrNull(name)`, goes through `doc.root`. A key read from text knows its
-`position`, the line and column it
-was written at, so a program checking a parsed document can point at the line it complains about.
+`position`, the line and column it was written at, so a program checking a parsed document can point at the line it
+complains about.
 
 ## Format
 
@@ -296,8 +296,8 @@ An item handed out by indexing, and the comments that go with it, follow five ru
 3. **`copy()` is exactly what a store would store.** With `val db = src["db"].getOrElse { error(it) }`,
    `dst.set("db", db.copy())` prints the same as `dst.set("db", db)`, in another document or the same one. The same
    holds for the `copy()` of what an item holds: `db.standardTableOrNull!!.copy()` stores as `db.copy()` does, and
-so do the copies of an `InlineTable`, a `TomlArray`, an `ArrayOfTables` and a `Value`. A
-   `TomlDocument.copy()` is a whole document and keeps every comment and its version.
+   so do the copies of an `InlineTable`, a `TomlArray`, an `ArrayOfTables` and a `Value`. A `TomlDocument.copy()` is
+   a whole document and keeps every comment and its version.
 4. **Removing is a move.** An item returned by `remove` or `removeAt` keeps its own comments, its same-line and header
    comment included, and stores with them. The comment lines above it stay in the document it left, so storing it
    there again prints them once. A comment a caller set through `decor` is the item's own too, so it travels with
@@ -431,8 +431,8 @@ table or value built in code, or read by `Value.parse`, is TOML 1.1.
 The types keep upstream's names (`Array` is `TomlArray`), and their members read like Kotlin's collections:
 `size` for `len`, `put` and `getOrPut` for `insert` and the entry API, `add` for `push`. A document is a
 `TomlDocument` whose `root` is its top-level table. Unchanged text prints back byte for byte, which goes past
-upstream: line endings are kept per
-line, each dotted key and header keeps its own spelling, and dotted keys keep the order they were read in.
+upstream: line endings are kept per line, each dotted key and header keeps its own spelling, and dotted keys keep the
+order they were read in.
 `format()` replaces upstream's `fmt()`: it reaches everything under what it is called on, keeps comments, layouts and
 spellings, and fixes blank lines, indentation and key quoting as well as spacing.
 

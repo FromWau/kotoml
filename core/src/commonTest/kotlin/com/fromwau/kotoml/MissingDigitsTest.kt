@@ -18,7 +18,7 @@ class MissingDigitsTest {
     }
 
     @Test
-    fun `an integer too large still reports an overflow`() {
+    fun `a radix integer too large reports an overflow`() {
         assertEquals(TomlParseError.Reason.IntegerOverflow, reason("a = 0x1_0000_0000_0000_0000\n"))
     }
 

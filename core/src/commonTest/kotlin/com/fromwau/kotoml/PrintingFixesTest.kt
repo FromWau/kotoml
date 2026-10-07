@@ -5,7 +5,6 @@ import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
-import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.io.Buffer
@@ -246,9 +245,7 @@ class PrintingFixesTest {
         val source = raw.buffered()
         source.close()
 
-        val error = TomlDocument.read(source).assertError<TomlIoError>()
-
-        assertIs<TomlIoError>(error)
+        TomlDocument.read(source).assertError<TomlIoError>()
     }
 
     @Test
@@ -257,9 +254,7 @@ class PrintingFixesTest {
         val sink = raw.buffered()
         sink.close()
 
-        val error = parse("a = 1\n").writeTo(sink).assertError<TomlIoError>()
-
-        assertIs<TomlIoError>(error)
+        parse("a = 1\n").writeTo(sink).assertError<TomlIoError>()
     }
 
     @Test
@@ -293,7 +288,6 @@ class PrintingFixesTest {
 
         val error = doc.writeTo(Buffer()).assertError<TomlWriteError.NotUnicode>()
 
-        assertIs<TomlWriteError.NotUnicode>(error)
         assertNull(error.keyPath)
     }
 

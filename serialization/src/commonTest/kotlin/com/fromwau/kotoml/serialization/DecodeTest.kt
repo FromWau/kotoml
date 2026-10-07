@@ -7,7 +7,6 @@ import com.fromwau.kotoml.TomlDocument
 import com.fromwau.kotoml.TomlType
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -267,13 +266,12 @@ class DecodeTest {
 
     @Test
     fun `a type without a serializer is a typed error`() {
-        assertIs<TomlDecodeError.NoSerializer>(Toml.decodeFromString<Any>("a = 1\n").assertError<TomlDecodeError.NoSerializer>())
+        Toml.decodeFromString<Any>("a = 1\n").assertError<TomlDecodeError.NoSerializer>()
     }
 
     @Test
     fun `a contextual field with no serializer registered is NoSerializer named by its type`() {
         val error = Toml.decodeFromString<Themed>("accent = \"#000000\"\n").assertError<TomlDecodeError.NoSerializer>()
-        assertIs<TomlDecodeError.NoSerializer>(error)
         assertEquals("Color", error.type)
         assertEquals("accent", error.path)
     }
@@ -293,7 +291,7 @@ class DecodeTest {
 
     @Test
     fun `text that is not TOML is a parse error`() {
-        assertIs<TomlDecodeError.Parse>(Toml.decodeFromString<Server>("host = \n").assertError<TomlDecodeError.Parse>())
+        Toml.decodeFromString<Server>("host = \n").assertError<TomlDecodeError.Parse>()
     }
 
     @Test
@@ -336,7 +334,6 @@ class DecodeTest {
     @Test
     fun `a custom serializer's exception becomes a Serializer error`() {
         val failure = Toml.decodeFromString(RefusingSerializer, "a = 1\n").assertError<TomlDecodeError.Serializer>()
-        assertIs<TomlDecodeError.Serializer>(failure)
         assertEquals("", failure.path)
         assertTrue(failure.detail.orEmpty().contains("refused"))
     }

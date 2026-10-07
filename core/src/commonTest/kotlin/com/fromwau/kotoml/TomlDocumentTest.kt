@@ -4,7 +4,6 @@ import com.fromwau.kern.result.assertError
 import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlinx.io.Buffer
 import kotlinx.io.IOException
@@ -104,7 +103,6 @@ class TomlDocumentTest {
 
         val error = TomlDocument.read(Buffer().apply { writeString(text) }).assertError<TomlReadError.Parse>()
 
-        assertIs<TomlReadError.Parse>(error)
         assertEquals(TomlParseError.Reason.DuplicateKey(listOf("a")), error.error.reason)
         assertEquals(text, error.text)
     }
@@ -115,7 +113,6 @@ class TomlDocumentTest {
 
         val error = TomlDocument.read(source).assertError<TomlReadError.Parse>()
 
-        assertIs<TomlReadError.Parse>(error)
         assertEquals(TomlParseError.Reason.InvalidUtf8(byteOffset = 1), error.error.reason)
     }
 
@@ -125,7 +122,6 @@ class TomlDocumentTest {
 
         val error = TomlDocument.read(source, TomlVersion.V1_0).assertError<TomlReadError.Parse>()
 
-        assertIs<TomlReadError.Parse>(error)
         assertEquals(TomlParseError.Reason.NotInToml10(Toml11Feature.TimeWithoutSeconds), error.error.reason)
     }
 

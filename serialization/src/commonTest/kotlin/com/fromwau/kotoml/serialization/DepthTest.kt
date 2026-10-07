@@ -5,7 +5,6 @@ import com.fromwau.kern.result.assertSuccess
 import com.fromwau.kotoml.TomlDocument
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertIs
 import kotlinx.serialization.Serializable
 
 /** A model is written only as deep as kotoml reads back, whichever way its lists are written. */
@@ -35,21 +34,20 @@ class DepthTest {
     @Test
     fun `a model nested past the limit is TooDeep`() {
         for (toml in listOf(Toml, inline)) {
-            val error = toml.encodeToString(nested(TomlDocument.NESTING_LIMIT + 20)).assertError<TomlEncodeError.TooDeep>()
-            assertIs<TomlEncodeError.TooDeep>(error)
+            toml.encodeToString(nested(TomlDocument.NESTING_LIMIT + 20)).assertError<TomlEncodeError.TooDeep>()
         }
     }
 
     @Test
     fun `a model nested thousands deep is TooDeep instead of overflowing the stack`() {
-        assertIs<TomlEncodeError.TooDeep>(Toml.encodeToString(nested(6000)).assertError<TomlEncodeError.TooDeep>())
+        Toml.encodeToString(nested(6000)).assertError<TomlEncodeError.TooDeep>()
     }
 
     @Test
     fun `encodeInto refuses a model nested past the limit and leaves the document as it was`() {
         val document = TomlDocument.parse("n = 1\n").assertSuccess()
-        val error = Toml.encodeInto(document, Node.serializer(), nested(TomlDocument.NESTING_LIMIT + 20)).assertError<TomlEncodeError.TooDeep>()
-        assertIs<TomlEncodeError.TooDeep>(error)
+        Toml.encodeInto(document, Node.serializer(), nested(TomlDocument.NESTING_LIMIT + 20))
+            .assertError<TomlEncodeError.TooDeep>()
         assertEquals("n = 1\n", document.toString())
     }
 }

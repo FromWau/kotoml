@@ -1,16 +1,14 @@
 package com.fromwau.kotoml
 
-import com.fromwau.kern.result.Result
 import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
-import kotlin.test.assertIs
 
 class DatetimeDisplayTest {
 
     private fun assertPrintsAndParsesBack(input: Datetime, expected: String) {
         val actual = input.toString()
         assertDebugSnapshot(expected, str(actual))
-        assertIs<Result.Success<Datetime>>(Datetime.parse(actual))
+        Datetime.parse(actual).assertSuccess()
     }
 
     @Test

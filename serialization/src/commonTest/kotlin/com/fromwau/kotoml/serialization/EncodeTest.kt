@@ -6,7 +6,6 @@ import com.fromwau.kotoml.TomlDocument
 import com.fromwau.kotoml.Value
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertIs
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
@@ -179,7 +178,7 @@ class EncodeTest {
 
     @Test
     fun `a type without a serializer is a typed error`() {
-        assertIs<TomlEncodeError.NoSerializer>(Toml.encodeToString(Any()).assertError<TomlEncodeError.NoSerializer>())
+        Toml.encodeToString(Any()).assertError<TomlEncodeError.NoSerializer>()
     }
 
     @Test

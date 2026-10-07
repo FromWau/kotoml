@@ -1,5 +1,5 @@
-"""Turns qa/comment-scenarios/*.md into a JVM test that runs every scenario and writes a result report."""
-import re, glob, json, sys, os
+"""Turns qa/comment-scenarios/*.md into CommentScenariosTest, which runs every scenario and prints its output."""
+import re, glob, sys, os
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(os.path.dirname(ROOT), "core/src/commonTest/kotlin/com/fromwau/kotoml/CommentScenariosTest.kt")
@@ -115,5 +115,4 @@ for sid, title, version, inp, edit, exp, is_open in scenarios:
 lines.append("}")
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 open(OUT, "w", encoding="utf-8").write("\n".join(lines) + "\n")
-json.dump([s[0] for s in scenarios], open("/tmp/claude-1000/qa-ids.json", "w"))
 print(len(scenarios), "scenarios ->", OUT)

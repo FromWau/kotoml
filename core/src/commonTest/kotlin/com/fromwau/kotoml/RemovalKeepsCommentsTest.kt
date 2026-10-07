@@ -240,7 +240,7 @@ class RemovalKeepsCommentsTest {
     }
 
     @Test
-    fun `an inline table on one line prints as before`() {
+    fun `an entry removed from an inline table on one line leaves it on one line`() {
         assertEquals(
             "t = { b = 2 }\n",
             removing("t = { a = 1, b = 2 }\n") { it["t"].assertSuccess().inlineTableOrNull!!.remove("a") },

@@ -1,7 +1,6 @@
 package com.fromwau.kotoml
 
 import com.fromwau.kern.result.assertSuccess
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

@@ -1,12 +1,10 @@
 package com.fromwau.kotoml
 
-import com.fromwau.kern.result.Result
 import com.fromwau.kern.result.assertError
 import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /** Where upstream misplaces, misnames or accepts a problem, and how kotoml reports it instead. */
@@ -195,14 +193,14 @@ bytes that are not UTF-8
 
     @Test
     fun `a date that does not exist cannot be constructed`() {
-        assertIs<Result.Error<*>>(Date.of(year = 2021, month = 2, day = 29))
-        assertIs<Result.Error<*>>(Date.of(year = 1900, month = 2, day = 29))
-        assertIs<Result.Error<*>>(Date.of(year = 2021, month = 4, day = 31))
-        assertIs<Result.Error<*>>(Date.of(year = 2021, month = 1, day = 0))
-        assertIs<Result.Error<*>>(Date.of(year = 2021, month = 13, day = 1))
-        assertIs<Result.Error<*>>(Date.of(year = 2021, month = 0, day = 1))
-        assertIs<Result.Error<*>>(Date.of(year = 10000, month = 1, day = 1))
-        assertIs<Result.Error<*>>(Date.of(year = -1, month = 1, day = 1))
+        Date.of(year = 2021, month = 2, day = 29).assertError<DatetimeParseError>()
+        Date.of(year = 1900, month = 2, day = 29).assertError<DatetimeParseError>()
+        Date.of(year = 2021, month = 4, day = 31).assertError<DatetimeParseError>()
+        Date.of(year = 2021, month = 1, day = 0).assertError<DatetimeParseError>()
+        Date.of(year = 2021, month = 13, day = 1).assertError<DatetimeParseError>()
+        Date.of(year = 2021, month = 0, day = 1).assertError<DatetimeParseError>()
+        Date.of(year = 10000, month = 1, day = 1).assertError<DatetimeParseError>()
+        Date.of(year = -1, month = 1, day = 1).assertError<DatetimeParseError>()
     }
 
     @Test
@@ -217,7 +215,6 @@ bytes that are not UTF-8
         )
         assertEquals(
             DatetimeParseError(DatetimePart.Time, DatetimeExpected.SecondBeforeFraction),
-
             Time.of(13, 37, nanosecond = 5).assertError<DatetimeParseError>(),
         )
         assertEquals(
@@ -236,18 +233,13 @@ bytes that are not UTF-8
 
     @Test
     fun `a time with a field out of range cannot be constructed`() {
-        assertIs<Result.Error<*>>(Time.of(hour = 24, minute = 0, second = null, nanosecond = null))
-        assertIs<Result.Error<*>>(Time.of(hour = -1, minute = 0, second = null, nanosecond = null))
-        assertIs<Result.Error<*>>(Time.of(hour = 0, minute = 60, second = null, nanosecond = null))
-        assertIs<Result.Error<*>>(Time.of(hour = 0, minute = 0, second = 61, nanosecond = null))
-        assertIs<Result.Error<*>>(Time.of(hour = 0, minute = 0, second = -1, nanosecond = null))
-        assertIs<Result.Error<*>>(Time.of(hour = 0, minute = 0, second = 0, nanosecond = 1_000_000_000))
-        assertIs<Result.Error<*>>(Time.of(hour = 0, minute = 0, second = 0, nanosecond = -1))
-    }
-
-    @Test
-    fun `a time with a nanosecond but no second cannot be constructed`() {
-        assertIs<Result.Error<*>>(Time.of(hour = 13, minute = 37, second = null, nanosecond = 5))
+        Time.of(hour = 24, minute = 0, second = null, nanosecond = null).assertError<DatetimeParseError>()
+        Time.of(hour = -1, minute = 0, second = null, nanosecond = null).assertError<DatetimeParseError>()
+        Time.of(hour = 0, minute = 60, second = null, nanosecond = null).assertError<DatetimeParseError>()
+        Time.of(hour = 0, minute = 0, second = 61, nanosecond = null).assertError<DatetimeParseError>()
+        Time.of(hour = 0, minute = 0, second = -1, nanosecond = null).assertError<DatetimeParseError>()
+        Time.of(hour = 0, minute = 0, second = 0, nanosecond = 1_000_000_000).assertError<DatetimeParseError>()
+        Time.of(hour = 0, minute = 0, second = 0, nanosecond = -1).assertError<DatetimeParseError>()
     }
 
     @Test
@@ -258,8 +250,8 @@ bytes that are not UTF-8
 
     @Test
     fun `an offset of a day or more cannot be constructed`() {
-        assertIs<Result.Error<*>>(Offset.Custom.of(1440))
-        assertIs<Result.Error<*>>(Offset.Custom.of(-1440))
+        Offset.Custom.of(1440).assertError<DatetimeParseError>()
+        Offset.Custom.of(-1440).assertError<DatetimeParseError>()
     }
 
     @Test

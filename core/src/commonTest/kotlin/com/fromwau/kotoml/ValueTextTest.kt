@@ -2,12 +2,10 @@ package com.fromwau.kotoml
 
 import com.fromwau.kern.result.assertError
 import com.fromwau.kern.result.assertSuccess
-import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
-import kotlinx.io.Buffer
 
 /** The text a value prints as, and what a value's text reads as. */
 class ValueTextTest {

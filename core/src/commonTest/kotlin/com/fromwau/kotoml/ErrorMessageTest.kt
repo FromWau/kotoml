@@ -5,7 +5,6 @@ import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import kotlinx.io.Buffer
 
 /** Every edit, write and date-time error reads as a sentence, led by its key path when it has one. */
 class ErrorMessageTest {

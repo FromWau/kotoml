@@ -1,7 +1,6 @@
 package com.fromwau.kotoml.serialization
 
 import com.fromwau.kern.result.assertError
-import com.fromwau.kotoml.TextPosition
 import com.fromwau.kotoml.TomlType
 import kotlin.test.Test
 import kotlin.test.assertEquals

@@ -160,11 +160,11 @@ times need seconds in TOML 1.0
 
     @Test
     fun `parsing a value or key under V1_0 refuses what V1_1 added`() {
-        assertIs<Result.Success<*>>(Value.parse("{ a = 1, }"))
-        assertIs<Result.Error<*>>(Value.parse("{ a = 1, }", TomlVersion.V1_0))
-        assertIs<Result.Success<*>>(Key.parse("\"\\x41\""))
-        assertIs<Result.Error<*>>(Key.parse("\"\\x41\"", TomlVersion.V1_0))
-        assertIs<Result.Error<*>>(Key.parsePath("a.\"\\e\"", TomlVersion.V1_0))
-        assertIs<Result.Error<*>>(Value.parse("07:32", TomlVersion.V1_0))
+        Value.parse("{ a = 1, }").assertSuccess()
+        Value.parse("{ a = 1, }", TomlVersion.V1_0).assertError<TomlParseError>()
+        Key.parse("\"\\x41\"").assertSuccess()
+        Key.parse("\"\\x41\"", TomlVersion.V1_0).assertError<TomlParseError>()
+        Key.parsePath("a.\"\\e\"", TomlVersion.V1_0).assertError<TomlParseError>()
+        Value.parse("07:32", TomlVersion.V1_0).assertError<TomlParseError>()
     }
 }

@@ -4,7 +4,6 @@ import com.fromwau.kern.result.assertError
 import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlinx.io.Buffer
 
 /** [TableLayout.MultilineInline] against [TableLayout.Inline]: how each reads, and the changes between them. */
 class MultilineInlineTableTest {
