@@ -73,7 +73,7 @@ val spelled = TomlDocument.parse("n = 0x10\n").getOrElse { error(it) }["n"].getO
 
 Each kind of value has a constructor, and an optional `Decor` sets the text before and after it; a side left
 `null` prints the default spacing for where the value stands. A parsed value keeps the text it was written as
-in `spelling`, and `resetFormatting()` drops it. `toString()` gives the value's text alone, without its decor, and
+in `spelling`, which `format()` keeps. `toString()` gives the value's text alone, without its decor, and
 `Value.parse` reads such text back, ignoring whitespace and line breaks around it. A float without a spelling of its
 own prints in the shortest digits that read back as it, in exponent form such as `1e300` at 1e16 and above or below
 1e-5. The `OrNull` properties read a value of one kind, or `null` for any other kind. Every call that stores an
@@ -182,6 +182,37 @@ A document's top-level keys live in its `root` table. The document itself offers
 `sortBy { (key, _) -> key }` or `keyOrNull(name)`, goes through `doc.root`. A key read from text knows its
 `position`, the line and column it
 was written at, so a program checking a parsed document can point at the line it complains about.
+
+## Format
+
+```kotlin
+val doc = TomlDocument.parse("#top\n  name   =   'kotoml'    #the name\nlist = [ 1 ,2, ]\n\n\n[ server ]\n").getOrElse {
+    error(it)
+}
+doc.format()
+// # top
+// name = 'kotoml' # the name
+// list = [1, 2]
+//
+// [server]
+```
+
+`format()` tidies a document in place, or the part of it under a `StandardTable`, an `InlineTable`, a `TomlArray`,
+an `ArrayOfTables`, an `Item` or an array or inline table `Value`, leaving the rest of the document as it is. A key
+prints bare when it can, `'q'` as `q`; `=` takes one space each side, a comma one space after it and none before,
+a header no space inside its brackets, and an inline table on one line one space inside its braces. A comment takes
+one space after `#` and one before it on a line with a value. Each header has one blank line above it and the comment
+lines right above it, unless it opens the file; a run of blank lines becomes one, and none open or end the file.
+Indentation goes, but inside an array or inline table across lines, whose lines are indented two spaces more than
+the line holding `[` or `{`, with the closing bracket on a line of its own. An array or inline table on one line drops
+the comma after its last element, and one across lines ends in one: an array always, an inline table in TOML 1.1.
+
+It keeps every comment, how each line ends, and the spelling of every value, such as `'lit'`, `0x1F90` or `1e0`.
+Layouts stay: a header stays a header, dotted keys stay dotted, and an array or inline table stays on one line or
+across lines. Every table and value stays the same object, but for a slot whose text reads back as another kind,
+such as an empty dotted table printing `key = {}` or a dotted inline table printing on a table's lines, which then
+holds what reading its text gives. `format()` cannot fail. On a `Key` it makes the key bare when it can be and
+drops the spacing around its dots and before `=`.
 
 ## Items and their comments
 
@@ -336,6 +367,8 @@ The types keep upstream's names (`Array` is `TomlArray`), and their members read
 `TomlDocument` whose `root` is its top-level table. Unchanged text prints back byte for byte, which goes past
 upstream: line endings are kept per
 line, each dotted key and header keeps its own spelling, and dotted keys keep the order they were read in.
+`format()` replaces upstream's `fmt()`: it reaches everything under what it is called on, keeps comments, layouts and
+spellings, and fixes blank lines, indentation and key quoting as well as spacing.
 
 The command-line tool [kotoml](../app/README.md) queries TOML files with this module, and runs the official
 toml-test suite against it.

@@ -164,7 +164,8 @@ internal class Edits(
             add("table set $key to $spelled" to { table.set(key, Value.parse(spelled).assertSuccess()) })
             val version = TomlVersion.entries.random(random)
             add("doc setVersion $version force $force" to { doc.setVersion(version, force) })
-            add("table resetFormatting" to { table.resetFormatting() })
+            add("table format" to { table.format() })
+            add("doc format" to { doc.format() })
             if (table !== doc.root) add("table setImplicit" to { table.setImplicit(!table.isImplicit) })
             inlines.randomOrNull(random)?.let { inline ->
                 val inlineKey = keyFor(inline.keys)
@@ -174,7 +175,7 @@ internal class Edits(
                 inline.keys.randomOrNull(random)?.let { old ->
                     add("inline rename $old to $inlineKey" to { inline.rename(old, inlineKey) })
                 }
-                add("inline resetFormatting" to { inline.resetFormatting() })
+                add("inline format" to { inline.format() })
             }
             arrays.randomOrNull(random)?.let { array ->
                 val index = random.nextInt(array.size + 1)
@@ -183,7 +184,7 @@ internal class Edits(
                 add("array replace $index" to { array.replace(index, value(), random.nextBoolean()) })
                 add("array removeAt $index" to { array.removeAt(index) })
                 add("array clear" to { array.clear() })
-                add("array resetFormatting" to { array.resetFormatting() })
+                add("array format" to { array.format() })
             }
             tableArrays.randomOrNull(random)?.let { tables ->
                 val index = random.nextInt(tables.size + 1)
@@ -195,6 +196,7 @@ internal class Edits(
             }
             slots.randomOrNull(random)?.let { slot ->
                 add("slot assign" to { slot.assign(item()) })
+                add("slot format" to { slot.format() })
                 val layout = layout()
                 add("slot setLayout $layout force $force" to { slot.setLayout(layout, force) })
                 add("slot index set" to { slot.set(keyFor(emptySet()), item()) })

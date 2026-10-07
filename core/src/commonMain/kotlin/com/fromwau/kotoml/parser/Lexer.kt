@@ -229,7 +229,9 @@ private fun LexStream.wordsEndingInQuote(start: Int): Int? {
         if (byte == QUOTATION_MARK || byte == APOSTROPHE) {
             var after = index + 1
             while (after < bytes.size && isWsChar(byteAt(after))) after++
-            if (!isWsChar(byteAt(index - 1)) && (after == bytes.size || isAtomEnd(byteAt(after)))) return index + 1
+            // A quote right after a space or a dot opens a quoted key, as in `a ."#"`, rather than ending a word.
+            val opens = isWsChar(byteAt(index - 1)) || byteAt(index - 1) == '.'.code
+            if (!opens && (after == bytes.size || isAtomEnd(byteAt(after)))) return index + 1
             break
         }
         if (byte != '.'.code && isAtomEnd(byte) && !isWsChar(byte)) break

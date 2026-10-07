@@ -900,7 +900,7 @@ edition = "2024"
                     assertNotNull(a.get(2))
                     a.add(4L)
                     assertEquals(4, a.size)
-                    a.resetFormatting()
+                    a.format()
                 }
                 val b = root.getOrNull("b")!!.arrayOrNull!!
                 assertTrue(b.isEmpty())
@@ -955,7 +955,7 @@ edition = "2024"
     }
 
     @Test
-    fun `resetting an array's formatting prints it on one line with default spacing`() {
+    fun `formatting an array across lines indents its elements from the line holding it`() {
         given("""
     a = [
       1,
@@ -965,17 +965,21 @@ edition = "2024"
     """)
             .running { root ->
                 for ((_, v) in root) {
-                    v.arrayOrNull?.resetFormatting()
+                    v.arrayOrNull?.format()
                 }
             }
             .prints("""
 
-    a = [1, "2", 3.0]
+    a = [
+      1,
+      "2",
+      3.0,
+    ]
     """)
     }
 
     @Test
-    fun `getOrPut adds a key to an inline table and resetting prints default spacing`() {
+    fun `getOrPut adds a key to an inline table and formatting prints default spacing`() {
         given("""
         a = {a=2,  c = 3}
         b = {}""")
@@ -988,13 +992,13 @@ edition = "2024"
                     a["c"].assertSuccess()
                     a.getOrPut("b") { Value.Integer(42L) }
                     assertEquals(3, a.size)
-                    a.resetFormatting()
+                    a.format()
                 }
                 val b = root.getOrNull("b")!!.inlineTableOrNull!!
                 assertTrue(b.isEmpty())
                 b.getOrPut("hello") { Value.String("world") }
                 assertEquals(1, b.size)
-                b.resetFormatting()
+                b.format()
             }
             .prints("""
 

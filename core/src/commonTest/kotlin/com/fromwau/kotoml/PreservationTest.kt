@@ -43,9 +43,9 @@ class PreservationTest {
     }
 
     @Test
-    fun `resetting the key of an array of tables resets every element's header`() {
+    fun `formatting the key of an array of tables formats every element's header`() {
         val doc = parse("[[ 'x' ]]\nn = 1\n[[x]]\nn = 2\n")
-        doc.root.keyOrNull("x")!!.resetFormatting()
+        doc.root.keyOrNull("x")!!.format()
         assertEquals("[[x]]\nn = 1\n[[x]]\nn = 2\n", doc.toString())
     }
 
@@ -72,9 +72,9 @@ class PreservationTest {
     }
 
     @Test
-    fun `resetting a shared key's formatting applies to every line`() {
+    fun `formatting a shared key applies to every line`() {
         val doc = parse("name.first = \"Arthur\"\n\"name\" . 'last' = \"Dent\"\n")
-        doc.root.keyOrNull("name")!!.resetFormatting()
+        doc.root.keyOrNull("name")!!.format()
         // The leaf key `'last'` is the line's own and keeps its spelling and the space before it.
         assertEquals("name.first = \"Arthur\"\nname. 'last' = \"Dent\"\n", doc.toString())
     }

@@ -13,12 +13,13 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Edits keep every comment they do not own. Adding, replacing a value with a value, renaming, sorting and changing how
- * a table prints keep them all; removing a value takes only the comment on its own line, and giving a table a new
- * layout with `setLayout(force = true)` may take its comments, all but the lines above its key, as
- * `setVersion(force = true)` may take those of inline tables across lines. Without force a layout or version change keeps every comment or is
- * refused and changes nothing. Removing or replacing whole tables is covered by
- * `RemovalPropertyTest` and the comment scope tests, which state what those take.
+ * Edits keep every comment they do not own. Adding, replacing a value with a value, renaming, sorting, formatting and
+ * changing how a table prints keep them all; removing a value takes only the comment on its own line, and giving a
+ * table a new layout with `setLayout(force = true)` may take its comments, all but the lines above its key, as
+ * `setVersion(force = true)` may take those of inline tables across lines. Without force a layout or version change
+ * keeps every comment or is refused and changes nothing. Removing or replacing whole tables is covered by
+ * `RemovalPropertyTest` and the comment scope tests, which state what those take. Comments compare as `format()`
+ * spells them.
  */
 class CommentPropertyTest {
 
@@ -112,6 +113,11 @@ class CommentPropertyTest {
                 add(Edit("inline rename $old to $to") { inline.rename(old, to).let { emptyList() } })
             }
             add(Edit("table sort") { table.sortWith(compareBy { it.first.name }).let { emptyList() } })
+            add(Edit("table format") { table.format().let { emptyList() } })
+            edits.slots.randomOrNull(random)?.let { slot ->
+                add(Edit("slot format") { slot.format().let { emptyList() } })
+            }
+            add(Edit("doc format") { doc.format().let { emptyList() } })
             if (table !== edits.tables.first()) {
                 add(Edit("table setImplicit") { table.setImplicit(!table.isImplicit).let { emptyList() } })
             }
@@ -258,15 +264,8 @@ class CommentPropertyTest {
         return owned
     }
 
-    /** The comments in [text], in order, each from `#` to the end of its line. */
-    private fun comments(text: String): List<String> {
-        val source = TomlSource(text)
-        val events = mutableListOf<Event>()
-        parseDocument(source.lex().toList(), eventReceiver { events += it }, ErrorSink.IGNORE)
-        return events
-            .filter { it.kind == EventKind.Comment }
-            .map { source.bytes.decodeToString(it.span.start, it.span.end).trimEnd('\r') }
-    }
+    /** The comments in [text], in order, each as [commentsIn] gives it. */
+    private fun comments(text: String): List<String> = commentsIn(text)
 
     /** These elements without one occurrence of each of [others]. */
     private fun List<String>.minusAll(others: List<String>): List<String> {
@@ -279,4 +278,23 @@ class CommentPropertyTest {
     }
 
     private operator fun List<String>.minus(owned: List<String>): List<String> = minusAll(owned)
+}
+
+/**
+ * The comments in [text], in order, each from `#` to the end of its line as `format()` spells it: one space after its
+ * `#`s unless a space or tab follows them, and none at its end.
+ */
+internal fun commentsIn(text: String): List<String> {
+    val source = TomlSource(text)
+    val events = mutableListOf<Event>()
+    parseDocument(source.lex().toList(), eventReceiver { events += it }, ErrorSink.IGNORE)
+    return events
+        .filter { it.kind == EventKind.Comment }
+        .map { source.bytes.decodeToString(it.span.start, it.span.end).trimEnd('\r', ' ', '\t') }
+        .map { comment ->
+            val marks = comment.takeWhile { it == '#' }.length
+            val first = comment.getOrNull(marks)
+            val spaced = first == null || first == ' ' || first == '\t'
+            if (spaced) comment else "${comment.take(marks)} ${comment.drop(marks)}"
+        }
 }

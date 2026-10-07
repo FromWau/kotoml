@@ -649,6 +649,22 @@ public class Item private constructor(
         entry?.keepLinesAbove(linesAbove + alsoAbove)
     }
 
+    /**
+     * Makes a dotted inline table printing on a table's lines the dotted table holding its entries that reading its
+     * text gives, nothing else changing; null when this holds no such table.
+     */
+    internal fun takeReadDottedTable(): StandardTable? {
+        val inline = inlineTableOrNull?.takeIf { it.isDotted && owner is StandardTable } ?: return null
+        val table = StandardTable(inline.items.takeAll()).also { it.markDotted(true) }
+        content = Content.TableContent(table)
+        return table
+    }
+
+    /** Holds [value], what reading this slot's text gives, such as `{}` for an empty dotted table, and nothing else. */
+    internal fun takeReadValue(value: Value) {
+        content = Content.ValueContent(value)
+    }
+
     /** This item as a table, moving an inline table's entries into one; null for anything else. */
     internal fun moveToStandardTable(): StandardTable? = when (val content = content) {
         is Content.TableContent -> content.table
@@ -716,6 +732,21 @@ public class Item private constructor(
             is Content.TableContent -> content.table.resolveSpans(input)
             is Content.ArrayOfTablesContent -> content.array.resolveSpans(input)
         }
+    }
+
+    /**
+     * Formats this slot's line and what it holds as [TomlDocument.format] formats a document: in a table its key, the
+     * text around its value and the value, or its table's header and everything under it; in an array the text around
+     * its value too. The rest of the document stays as it is. A slot stored nowhere formats what it holds.
+     *
+     * ```kotlin
+     * val doc = TomlDocument.parse("a   =   [ 1 ,2 ]   #c\nb=2\n").getOrElse { error(it) }
+     * doc["a"].getOrNull()?.format()
+     * doc.toString() // "a = [1, 2] # c\nb=2\n"
+     * ```
+     */
+    public fun format() {
+        formatInPlace(this)
     }
 
     /**

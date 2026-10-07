@@ -40,6 +40,7 @@ public class TomlDocument internal constructor(
         root.markDotted(false)
         root.isDocumentRoot = true
         root.lineEnding = lineEnding
+        root.document = this
     }
 
     // The parser skips a byte order mark at the start of the text, so the document prints it back itself.
@@ -53,6 +54,12 @@ public class TomlDocument internal constructor(
         ?.removePrefix(BYTE_ORDER_MARK.toString())
         ?.let { text -> '\n' in text && text.substringBefore('\n').isBlank() } == true
         private set
+
+    /** Takes the text after the last item and the blank start from [formatted], this document formatted and read. */
+    internal fun takeEndsOf(formatted: TomlDocument) {
+        rawTrailing = formatted.rawTrailing
+        readStartingBlank = formatted.readStartingBlank
+    }
 
     /** An empty document. */
     public constructor() : this(StandardTable.withPosition(0), KeptText(), "\n", null)
@@ -242,6 +249,37 @@ public class TomlDocument internal constructor(
         set(value) {
             root.decor = value
         }
+
+    /**
+     * Formats the whole document in place. It keeps every comment, the spelling of every value, such as `'lit'`,
+     * `0x1F90`, `1e0` or `07:32`, how each line ends, and how each table and array prints: a header stays a header,
+     * dotted keys stay dotted, and an inline table or array stays on one line or across lines. It fixes the rest:
+     * - a key prints bare when it can, `'q'` as `q`, while `"a b"` stays quoted;
+     * - one space each side of `=`, none inside a header's brackets or around a key's dots, one after a comma and none
+     *   before it, and one inside the braces of an inline table on one line, `{ a = 1 }`;
+     * - one space after `#`, `#c` as `# c`, and one between a value and the comment after it, `a = 1 # c`;
+     * - one blank line before each header and the comment lines right above it, unless it opens the file, a run of
+     *   blank lines as one, and none at the start or end of the file;
+     * - no indentation, but inside an array or inline table across lines, whose lines are indented two spaces more
+     *   than the line holding `[` or `{`, with `]` or `}` on a line of its own;
+     * - an array or inline table on one line loses the comma after its last element, and one across lines ends in one,
+     *   as kotoml prints them: an array always, an inline table in TOML 1.1.
+     *
+     * Every table and value stays the same object, and the document holds the same data. Only a slot whose text
+     * reads back as another kind takes what reading it gives: an empty dotted table printing `key = {}` holds an
+     * empty inline table, an empty array of tables printing `key = []` an empty array, and a dotted inline table on
+     * a table's lines a dotted table holding its entries.
+     *
+     * ```kotlin
+     * val doc = TomlDocument.parse("#top\n  name   =   'kotoml'    #the name\n[ server ]\nlist = [ 1 ,2, ]\n")
+     *     .getOrElse { error(it) }
+     * doc.format()
+     * doc.toString() // "# top\nname = 'kotoml' # the name\n\n[server]\nlist = [1, 2]\n"
+     * ```
+     */
+    public fun format() {
+        formatInPlace(this)
+    }
 
     /** A deep copy of the whole document, which keeps every comment, its version and its line ending. */
     public fun copy(): TomlDocument {

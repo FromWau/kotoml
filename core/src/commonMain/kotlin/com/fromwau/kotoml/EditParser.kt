@@ -33,6 +33,10 @@ private fun collectEvents(
     return events
 }
 
+/** The events of [source], a whole document that reads without errors. */
+internal fun documentEvents(source: TomlSource): List<Event> =
+    collectEvents(source, TomlSink(source.input), ::parseDocumentEvents)
+
 /** What one parse shares: its input, where errors go, the TOML version, and the order lines are read in. */
 internal class ParseContext(val source: TomlSource, val errors: TomlSink, val version: TomlVersion) {
     private var nextOrder = 0L

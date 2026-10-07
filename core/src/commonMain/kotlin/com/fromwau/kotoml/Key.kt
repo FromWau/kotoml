@@ -87,11 +87,16 @@ public class Key(
         written = written?.resolveSpans(input)
     }
 
-    /** Drops the key's spelling and decor so it prints in its default form. */
-    public fun resetFormatting() {
-        written = null
-        rawLeafDecor.clear()
+    /**
+     * Formats the key as [TomlDocument.format] formats keys: bare when it can be, `'q'` as `q`, while `"a b"` stays
+     * quoted; no space around its dots or before `=`; and no spacing before it but the lines above it. Every line
+     * spelling a shared key, such as `a` of `a.b = 1`, prints it so.
+     */
+    public fun format() {
+        if (TomlKeyBuilder(name).asUnquoted() != null) written = null
         rawDottedDecor.clear()
+        rawLeafDecor.suffix = null
+        if ('\n' !in rawLeafDecor.prefix?.textOrNull.orEmpty()) rawLeafDecor.prefix = null
     }
 
     /** A copy of this key with its spelling and decor. */

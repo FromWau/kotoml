@@ -101,6 +101,9 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     /** Whether this table is a document's root, whose prefix prints as the document's head. */
     internal var isDocumentRoot: Boolean = false
 
+    /** For a document's root, the document holding it. */
+    internal var document: TomlDocument? = null
+
     /** Whether this root's head ends in the lines kept from a removed table, after the last table was removed. */
     internal var headEndsInRemovedTable: Boolean = false
 
@@ -312,7 +315,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     internal fun moveToInlineTable(): InlineTable {
         for (entry in items.entries) entry.item.holdValue(entry.item.copyWithComments().moveToValue())
         val table = InlineTable(items.takeAll())
-        table.resetFormatting()
+        table.useDefaultSpacing()
         return table
     }
 
@@ -441,8 +444,23 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         }
     }
 
+    /**
+     * Formats this table's header and everything under it as [TomlDocument.format] formats a document: the comment and
+     * blank lines above its header, the header, its lines, and the tables under it with theirs. The rest of the
+     * document stays as it is. A document's root formats the whole document.
+     *
+     * ```kotlin
+     * val doc = TomlDocument.parse("a=1\n[ t ]\n  b=2\n").getOrElse { error(it) }
+     * doc["t"].getOrNull()?.standardTableOrNull?.format()
+     * doc.toString() // "a=1\n\n[t]\nb = 2\n"
+     * ```
+     */
+    override fun format() {
+        formatInPlace(this)
+    }
+
     /** Drops the formatting of the keys and values directly in this table. */
-    override fun resetFormatting() {
+    internal fun useDefaultSpacing() {
         for (entry in items.entries) {
             val value = entry.item.valueOrNull ?: continue
             entry.key.rawLeafDecor.clear()

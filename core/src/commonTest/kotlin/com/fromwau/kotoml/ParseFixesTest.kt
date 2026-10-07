@@ -17,6 +17,12 @@ class ParseFixesTest {
     private val invalidDecimal = syntax(ParseErrorReason.InvalidScalar(ScalarKind.Integer(IntegerRadix.Dec)))
 
     @Test
+    fun `a quoted key after a spaced dot may hold a hash`() {
+        val text = "[[j .\"#\"]]\na .'#' = 1\n"
+        assertEquals(text, TomlDocument.parse(text).assertSuccess().toString())
+    }
+
+    @Test
     fun `half of a surrogate pair in the text is refused where it stands`() {
         val error = TomlDocument.parse("a = 1\ns = \"x\uD800\"\n").assertError<TomlParseError>()
         assertEquals(TomlParseError.Reason.NotUnicode, error.reason)

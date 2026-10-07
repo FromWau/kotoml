@@ -32,13 +32,13 @@ class ValueTest {
     }
 
     @Test
-    fun `a parsed scalar keeps its spelling until its formatting is reset`() {
+    fun `a parsed scalar keeps its spelling when formatted`() {
         val value = Value.parse("'literal'").assertSuccess() as Value.String
         assertEquals("literal", value.value)
         assertEquals("'literal'", value.spelling)
-        value.resetFormatting()
-        assertNull(value.spelling)
-        assertEquals("\"literal\"", value.toString())
+        value.format()
+        assertEquals("'literal'", value.spelling)
+        assertEquals("'literal'", value.toString())
     }
 
     @Test

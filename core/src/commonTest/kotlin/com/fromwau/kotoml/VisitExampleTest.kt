@@ -99,7 +99,7 @@ class VisitExampleTest {
                 val inlineTable = item.inlineTableOrNull
                 if (inlineTable != null) {
                     val table = inlineTable.toStandardTable()
-                    key.resetFormatting()
+                    key.format()
                     item.assign(Item(table))
                 }
             }
@@ -108,7 +108,7 @@ class VisitExampleTest {
                 val table = item.standardTableOrNull
                 if (table != null) {
                     val inlineTable = table.toInlineTable().assertSuccess()
-                    key.resetFormatting()
+                    key.format()
                     item.assign(Item(Value.InlineTable(inlineTable)))
                 }
             }
@@ -128,7 +128,10 @@ class VisitExampleTest {
             is Value.Array -> {
                 // Arrays within dependencies go on one line.
                 if (state == VisitState.Dependencies || state == VisitState.SubDependencies) {
-                    value.value.resetFormatting()
+                    val array = value.value
+                    for (element in array) element.decor = Decor()
+                    array.trailingComma = false
+                    array.trailing = ""
                 }
             }
             is Value.InlineTable -> normalizeDependencyEntries(value.value, state)

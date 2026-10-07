@@ -51,7 +51,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
             slot.arrayOwner = null
         }
         values.clear()
-        array.resetFormatting()
+        array.useDefaultSpacing()
         return array
     }
 
@@ -269,6 +269,14 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         for (table in added) storeError(this, null, Item(table))?.let { return Err(it) }
         for (table in added) append(table.deepCopy().also { giveSecondsInToml10(this, Item(it)) })
         return Ok(Unit)
+    }
+
+    /**
+     * Formats every table of the array, each with its header and everything under it, as [StandardTable.format]
+     * does; the rest of the document stays as it is.
+     */
+    public fun format() {
+        formatInPlace(this)
     }
 
     /**

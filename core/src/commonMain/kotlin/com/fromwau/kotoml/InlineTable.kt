@@ -245,7 +245,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     internal fun moveToStandardTable(): StandardTable {
         val comments = if (isDotted) null else commentsOnTableLines()
         val table = StandardTable(items.takeAll())
-        table.resetFormatting()
+        table.useDefaultSpacing()
         comments?.applyTo(table)
         return table
     }
@@ -344,8 +344,24 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         }
     }
 
+    /**
+     * Formats what is between the braces as [TomlDocument.format] formats a document: `{ a = 1, b = 2 }` on one line,
+     * and across lines each line indented two spaces more than the line holding `{` and a comma after the last entry
+     * in TOML 1.1. The text around the table, before `{` and after `}`, belongs to the line holding it: format the
+     * [Item] holding it for that.
+     *
+     * ```kotlin
+     * val doc = TomlDocument.parse("t = {a=1,b=2,}\n").getOrElse { error(it) }
+     * doc["t"].getOrNull()?.inlineTableOrNull?.format()
+     * doc.toString() // "t = { a = 1, b = 2 }\n"
+     * ```
+     */
+    override fun format() {
+        formatInPlace(this)
+    }
+
     /** Drops the formatting of every key and value, for the default `{ a = 1, b = 2 }` layout. */
-    override fun resetFormatting() {
+    internal fun useDefaultSpacing() {
         for (entry in items.entries) {
             val value = entry.item.valueOrNull ?: continue
             entry.key.rawLeafDecor.clear()

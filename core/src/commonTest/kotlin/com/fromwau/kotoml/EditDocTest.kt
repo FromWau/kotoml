@@ -29,7 +29,7 @@ class EditDocTest {
         doc["a"]["b"]["c"] = Value.InlineTable(InlineTable())
         doc["a"]["b"]["c"]["d"] = "hello"
         // Autoformat inline table a.b.c: { d = "hello" }
-        doc["a"]["b"]["c"].assertSuccess().inlineTableOrNull?.resetFormatting()
+        doc["a"]["b"]["c"].assertSuccess().inlineTableOrNull?.format()
         val expected = """
 "hello" = 'toml!' # comment
 ['a'.b]
@@ -47,7 +47,7 @@ c = { d = "hello" }
         doc["a"]["b"]["c"] = Value.InlineTable(InlineTable())
         doc["a"]["b"]["c"]["d"] = "hello"
         // Autoformat inline table a.b.c: { d = "hello" }
-        doc["a"]["b"]["c"].assertSuccess().inlineTableOrNull?.resetFormatting()
+        doc["a"]["b"]["c"].assertSuccess().inlineTableOrNull?.format()
         val expected = "\n\"hello\" = 'toml!' # comment\n['a'.b]\nc = { d = \"hello\" }\n    "
         assertEquals(expected, doc.toString())
     }
@@ -70,6 +70,34 @@ c = { d = "hello" }
     }
 
     @Test
+    fun `the module README format example tidies a document`() {
+        val doc = TomlDocument.parse("#top\n  name   =   'kotoml'    #the name\nlist = [ 1 ,2, ]\n\n\n[ server ]\n")
+            .assertSuccess()
+        doc.format()
+        assertEquals("# top\nname = 'kotoml' # the name\nlist = [1, 2]\n\n[server]\n", doc.toString())
+    }
+
+    @Test
+    fun `the format examples in the KDoc print as they say`() {
+        val doc = TomlDocument.parse("#top\n  name   =   'kotoml'    #the name\n[ server ]\nlist = [ 1 ,2, ]\n")
+            .assertSuccess()
+        doc.format()
+        assertEquals("# top\nname = 'kotoml' # the name\n\n[server]\nlist = [1, 2]\n", doc.toString())
+        val tables = TomlDocument.parse("a=1\n[ t ]\n  b=2\n").assertSuccess()
+        tables["t"].assertSuccess().standardTableOrNull?.format()
+        assertEquals("a=1\n\n[t]\nb = 2\n", tables.toString())
+        val inline = TomlDocument.parse("t = {a=1,b=2,}\n").assertSuccess()
+        inline["t"].assertSuccess().inlineTableOrNull?.format()
+        assertEquals("t = { a = 1, b = 2 }\n", inline.toString())
+        val array = TomlDocument.parse("a = [ 1 ,2, ]\n").assertSuccess()
+        array["a"].assertSuccess().arrayOrNull?.format()
+        assertEquals("a = [1, 2]\n", array.toString())
+        val slot = TomlDocument.parse("a   =   [ 1 ,2 ]   #c\nb=2\n").assertSuccess()
+        slot["a"].assertSuccess().format()
+        assertEquals("a = [1, 2] # c\nb=2\n", slot.toString())
+    }
+
+    @Test
     fun `the module README values example builds decorated values and reads their spelling`() {
         val doc = TomlDocument()
         doc["port"] = Value.Integer(8080L, Decor(prefix = " ", suffix = " # default"))
@@ -81,8 +109,8 @@ c = { d = "hello" }
         val spelled = parsed["n"].assertSuccess().valueOrNull as Value.Integer
         assertEquals(16L, spelled.value)
         assertEquals("0x10", spelled.spelling)
-        spelled.resetFormatting()
-        assertEquals("16", spelled.displaySpelling)
+        spelled.format()
+        assertEquals("0x10", spelled.displaySpelling)
     }
 
     @Test

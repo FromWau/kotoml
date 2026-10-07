@@ -40,8 +40,24 @@ public class TomlArray() : Iterable<Value> {
     // Slots that refuse anything but a value; held as items so indexing an item hands out the same slots.
     internal val values: MutableList<Item> = mutableListOf()
 
+    /**
+     * Formats what is between the brackets as [TomlDocument.format] formats a document: `[1, 2, 3]` on one line, and
+     * across lines each line indented two spaces more than the line holding `[` and a comma after the last element.
+     * An array across lines stays across lines. The text around the array, before `[` and after `]`, belongs to where
+     * it is stored: format the [Item] holding it for that.
+     *
+     * ```kotlin
+     * val doc = TomlDocument.parse("a = [ 1 ,2, ]\n").getOrElse { error(it) }
+     * doc["a"].getOrNull()?.arrayOrNull?.format()
+     * doc.toString() // "a = [1, 2]\n"
+     * ```
+     */
+    public fun format() {
+        formatInPlace(this)
+    }
+
     /** Drops the formatting of every element and of the end, putting the array on one line. */
-    public fun resetFormatting() {
+    internal fun useDefaultSpacing() {
         var index = 0
         for (item in values) {
             val value = item.valueOrNull ?: continue

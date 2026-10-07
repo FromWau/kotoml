@@ -285,18 +285,15 @@ public sealed interface Value {
         }
 
     /**
-     * Drops the value's own spelling so it prints in the default one. An array or inline table instead drops
-     * the formatting of its elements, as [TomlArray.resetFormatting] and [TomlInlineTable.resetFormatting] do.
+     * Formats what is inside an array or inline table, as [TomlArray.format] and [TomlInlineTable.format] do. A
+     * scalar holds nothing to format: its spelling stays, and the text around it belongs to where it is stored, which
+     * [Item.format] formats.
      */
-    public fun resetFormatting() {
+    public fun format() {
         when (this) {
-            is String -> formatted.written = null
-            is Integer -> formatted.written = null
-            is Float -> formatted.written = null
-            is Boolean -> formatted.written = null
-            is Datetime -> formatted.written = null
-            is Array -> value.resetFormatting()
-            is InlineTable -> value.resetFormatting()
+            is Array -> value.format()
+            is InlineTable -> value.format()
+            is String, is Integer, is Float, is Boolean, is Datetime -> Unit
         }
     }
 

@@ -63,32 +63,13 @@ private class Trial<T : Any>(val top: Any, val target: T) {
             val top = copyOfTop(current)
             var node: Any = top
             for ((index, step) in steps.withIndex()) {
-                val slot = slotAt(node, step)
+                val slot = slotAt(node, step) ?: error("a copy holds what its source holds")
                 node = if (index == steps.lastIndex && target is Item) slot else checkNotNull(slot.container)
             }
             @Suppress("UNCHECKED_CAST")
             return Trial(top, node as T)
         }
 
-        private fun stepTo(slot: Item): Any {
-            slot.entry?.takeIf { it.isStored }?.let { return it.key.name }
-            return when (val owner = slot.owner) {
-                is TomlArray -> owner.values.indexOfFirst { it === slot }
-                is ArrayOfTables -> owner.values.indexOfFirst { it === slot }
-                else -> error("a slot stored in a table has a key")
-            }
-        }
-
-        private fun slotAt(
-            container: Any,
-            step: Any,
-        ): Item = when (container) {
-            is StandardTable -> container.items.getEntry(step as String)?.item
-            is InlineTable -> container.items.getEntry(step as String)?.item
-            is TomlArray -> container.values[step as Int]
-            is ArrayOfTables -> container.values[step as Int]
-            else -> null
-        } ?: error("a copy holds what its source holds")
 
         private fun copyOfTop(top: Any): Any = when (top) {
             is StandardTable -> top.deepCopy().also { copy ->
@@ -101,6 +82,28 @@ private class Trial<T : Any>(val top: Any, val target: T) {
             else -> error("only a table or an array holds slots")
         }
     }
+}
+
+/** The key or index [slot] is stored at in its owner. */
+internal fun stepTo(slot: Item): Any {
+    slot.entry?.takeIf { it.isStored }?.let { return it.key.name }
+    return when (val owner = slot.owner) {
+        is TomlArray -> owner.values.indexOfFirst { it === slot }
+        is ArrayOfTables -> owner.values.indexOfFirst { it === slot }
+        else -> error("a slot stored in a table has a key")
+    }
+}
+
+/** The slot [stepTo] names in [container], or null when it holds none there. */
+internal fun slotAt(
+    container: Any,
+    step: Any,
+): Item? = when (container) {
+    is StandardTable -> container.items.getEntry(step as String)?.item
+    is InlineTable -> container.items.getEntry(step as String)?.item
+    is TomlArray -> container.values.getOrNull(step as Int)
+    is ArrayOfTables -> container.values.getOrNull(step as Int)
+    else -> null
 }
 
 /**

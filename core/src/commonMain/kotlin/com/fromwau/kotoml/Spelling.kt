@@ -51,6 +51,13 @@ internal class KeptText private constructor(private val state: State) {
         is State.Spanned -> default
     }
 
+    /** This text changed by [transform], read or given as this one was. */
+    fun mapText(transform: (String) -> String): KeptText = when (state) {
+        State.Empty, is State.Spanned -> this
+        is State.Explicit -> from(transform(state.text))
+        is State.Read -> transform(state.text).let { if (it.isEmpty()) KeptText() else KeptText(State.Read(it)) }
+    }
+
     fun resolveSpans(input: SourceText): KeptText = when (state) {
         is State.Spanned -> if (state.span.length <= 0) KeptText() else KeptText(State.Read(input.slice(state.span)))
         else -> this

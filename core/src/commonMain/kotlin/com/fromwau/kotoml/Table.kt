@@ -71,8 +71,11 @@ public sealed interface Table {
     /** The values visually under this table, with the key path that reaches each. */
     public fun valuesWithPaths(): List<Pair<List<Key>, Value>>
 
-    /** Drops the formatting of the keys and values in this table. */
-    public fun resetFormatting()
+    /**
+     * Formats this table and everything under it, as [StandardTable.format] and [InlineTable.format] say; the rest of
+     * the document stays as it is.
+     */
+    public fun format()
 
     /**
      * How the table prints: [TableLayout.Header] or [TableLayout.Dotted] for a [StandardTable], and
