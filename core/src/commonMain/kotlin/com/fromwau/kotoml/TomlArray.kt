@@ -96,7 +96,7 @@ public class TomlArray() : Iterable<Value> {
     ): EmptyResult<TomlEditError> {
         if (isMultiline == value) return Ok(Unit)
         return changeLayout(this, force) { array ->
-            if (value) array.spreadOverLines(lineEndingOf(array), lineIndentOf(array)) else array.useDefaultSpacing()
+            if (value) array.spreadOverLines() else array.useDefaultSpacing()
             Ok(Unit)
         }
     }
@@ -197,9 +197,8 @@ public class TomlArray() : Iterable<Value> {
     // A comment after an element needs one element per line; [value], going in, starts a line when it has no prefix.
     private fun spreadForComment(value: Value) {
         if (!printsOnOneLine()) return
-        val lineBreak = lineEndingOf(this)
-        spreadOverLines(lineBreak)
-        if (value.decor.prefix == null) value.rawDecor.prefix = KeptText.from(lineBreak + INDENT)
+        val elementStart = spreadOverLines()
+        if (value.decor.prefix == null) value.rawDecor.prefix = KeptText.from(elementStart)
     }
 
     // A comment after an element ends its line after the comma, so it starts the next element's prefix or the text
@@ -217,7 +216,8 @@ public class TomlArray() : Iterable<Value> {
             return
         }
         val start = next.rawDecor.prefix?.textOrNull.orEmpty()
-        next.rawDecor.prefix = KeptText.from(start.withCommentEndingLine(comment, lineBreak, INDENT))
+        val lineStart = lineIndentOf(this) + INDENT
+        next.rawDecor.prefix = KeptText.from(start.withCommentEndingLine(comment, lineBreak, lineStart))
     }
 
     /**
@@ -267,17 +267,18 @@ public class TomlArray() : Iterable<Value> {
         }
     }
 
-    // One element per line, indented two spaces more than [indent], with a comma after each and `]` at [indent].
-    private fun spreadOverLines(
-        lineBreak: String,
-        indent: String = "",
-    ) {
+    // One element per line with a comma, two spaces in from the line holding `[` and `]`; returns an element's start.
+    private fun spreadOverLines(): String {
+        val lineBreak = lineEndingOf(this)
+        val indent = lineIndentOf(this)
+        val elementStart = lineBreak + indent + INDENT
         for (element in printedValues()) {
-            element.rawDecor.prefix = KeptText.from(lineBreak + indent + INDENT)
+            element.rawDecor.prefix = KeptText.from(elementStart)
             element.rawDecor.suffix = KeptText.from("")
         }
         trailingComma = isNotEmpty()
         trailing = lineBreak + indent
+        return elementStart
     }
 
     // A last element without a comma after it holds the rest of its line, its comment included; a comma after it
@@ -569,7 +570,9 @@ public class TomlArray() : Iterable<Value> {
 
     private fun printedValues(): List<Value> = values.mapNotNull { it.valueOrNull }
 
-    private fun printsOnOneLine(): Boolean = '\n' !in StringBuilder().also { encodeArray(it, this, "", "") }
+    // The array's own decor belongs to the line it stands on, which an element of an array across lines starts.
+    private fun printsOnOneLine(): Boolean =
+        '\n' !in StringBuilder().also { encodeArray(it, this, "", "", decor = RawDecor()) }
 
     private fun sortItemsWith(comparator: Comparator<Item>) {
         // On one line the spacing belongs to the position, not to the value, so it stays where it was.

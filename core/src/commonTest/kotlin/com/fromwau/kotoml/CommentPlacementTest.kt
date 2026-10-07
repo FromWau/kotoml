@@ -268,6 +268,55 @@ class CommentPlacementTest {
     }
 
     @Test
+    fun `a comment given to an element of an array on an indented line indents the new lines from that line`() {
+        val doc = parse("[t]\n    a = [1, 2]\n")
+        doc["t"]["a"].assertSuccess().arrayOrNull!!.add(commented(3L)).assertSuccess()
+        assertEquals("[t]\n    a = [\n      1,\n      2,\n      3, # c\n    ]\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given to an element added at an index on an indented line indents the new lines from that line`() {
+        val doc = parse("[t]\n    a = [1, 2]\n")
+        doc["t"]["a"].assertSuccess().arrayOrNull!!.add(1, commented(5L)).assertSuccess()
+        assertEquals("[t]\n    a = [\n      1,\n      5, # c\n      2,\n    ]\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given to a replacing element on an indented line indents the new lines from that line`() {
+        val doc = parse("[t]\n    a = [1, 2]\n")
+        doc["t"]["a"].assertSuccess().arrayOrNull!!.replace(0, commented(9L)).assertSuccess()
+        assertEquals("[t]\n    a = [\n      9, # c\n      2,\n    ]\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given to an element of an array in an inline table across lines indents from the key's line`() {
+        val doc = parse("t = {\n  a = [1, 2],\n}\n")
+        doc["t"]["a"].assertSuccess().arrayOrNull!!.add(commented(3L)).assertSuccess()
+        assertEquals("t = {\n  a = [\n    1,\n    2,\n    3, # c\n  ],\n}\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given to an element of a nested array indents the new lines from the element's line`() {
+        val doc = parse("a = [\n  [1, 2],\n]\n")
+        doc["a"][0].assertSuccess().arrayOrNull!!.add(0, commented(0L)).assertSuccess()
+        assertEquals("a = [\n  [\n    0, # c\n    1,\n    2,\n  ],\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given to a replacing element of a nested array in a CRLF document indents from its line`() {
+        val doc = parse("a = [\r\n  [1, 2],\r\n]\r\n")
+        doc["a"][0].assertSuccess().arrayOrNull!!.replace(1, commented(9L)).assertSuccess()
+        assertEquals("a = [\r\n  [\r\n    1,\r\n    9, # c\r\n  ],\r\n]\r\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given to an element amid others on one line starts the next on an indented line`() {
+        val doc = parse("[t]\n  a = [\n    1, 2,\n  ]\n")
+        doc["t"]["a"].assertSuccess().arrayOrNull!!.add(1, commented(5L)).assertSuccess()
+        assertEquals("[t]\n  a = [\n    1, 5, # c\n    2,\n  ]\n", doc.toString())
+    }
+
+    @Test
     fun `an inline table made a standard table keeps its comments`() {
         val doc = parse("srv = {\n  host = \"h\", # host c\n  # above port\n  port = 1,\n}\n")
         doc.set("srv", doc["srv"].assertSuccess().valueOrNull!!.inlineTableOrNull!!.toStandardTable()).assertSuccess()
