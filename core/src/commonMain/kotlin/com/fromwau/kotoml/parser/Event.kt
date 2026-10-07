@@ -124,9 +124,9 @@ internal fun eventReceiver(push: (Event) -> Unit): EventReceiver = object : Even
  * Validates whitespace, comments and newlines as they pass, reporting what TOML forbids in them, and
  * forwards every event to [receiver] unchanged.
  *
- * Unquoted values, and one-line strings a line break cut off, are checked as they pass too: values are decoded only
- * once the whole text is parsed, and the parser's errors for the text after such a value, such as the rest of a line
- * the cut string leaves to be read as keys, would otherwise come first.
+ * Unquoted values, and one-line strings a line break cut off, are checked as they pass too. Values are otherwise
+ * decoded only once the whole text is parsed, so the parser's errors for the text after such a value, such as the
+ * rest of a line a cut string leaves to be read as keys, would come first.
  */
 internal class ValidateWhitespace(
     private val receiver: EventReceiver,

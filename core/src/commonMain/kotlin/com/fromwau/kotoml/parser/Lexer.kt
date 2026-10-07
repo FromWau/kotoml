@@ -257,7 +257,7 @@ private fun LexStream.isDate(start: Int, end: Int): Boolean {
     return runs == 3
 }
 
-private fun isDigit(byte: Int): Boolean = byte in '0'.code..'9'.code
+internal fun isDigit(byte: Int): Boolean = byte in '0'.code..'9'.code
 
 private fun isAtomEnd(byte: Int): Boolean = when (byte) {
     '.'.code, '='.code, ','.code, '['.code, ']'.code, '{'.code, '}'.code, ' '.code, '\t'.code, '#'.code,

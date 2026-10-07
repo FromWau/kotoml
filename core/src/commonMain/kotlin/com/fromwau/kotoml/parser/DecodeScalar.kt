@@ -12,10 +12,7 @@ import com.fromwau.kotoml.Span
 // Every offset in this file is a byte offset relative to the start of the Raw being decoded. The text being
 // examined is always a suffix of the raw value, so a single start offset stands for it.
 
-
 private val EXPECTED_NOTHING = emptyList<Expected>()
-
-private fun isDigit(byte: Int): Boolean = byte in '0'.code..'9'.code
 
 private fun Raw.containsByte(from: Int, byte: Int): Boolean {
     for (offset in from until length) {
