@@ -114,8 +114,8 @@ already there"); a moved table gets the default blank line (spacing is not kept 
 same-line comment travels with it; `makeValue` on a 1.0 array of tables keeps header comments and comment lines
 between elements; `sort()` stays on inline tables; the wave 1 wire changes stay (kotoml is unreleased).
 
-Reported as friction but documented by design, not filed: `doc["typo"]["k"] = v` is a silent no-op; nullable types
-are refused; `Map<Int, V>` is refused.
+Reported as friction but documented by design, not filed: nullable types are refused; `Map<Int, V>` is refused.
+(`doc["typo"]["k"] = v` was a silent no-op; since todo 123 it throws `NotFound`.)
 
 ## Not in scope (owner, 2026-10-05)
 
