@@ -108,7 +108,6 @@ internal fun TomlDocument.encodedText(path: String = "-"): Result<String, AppErr
                 Err(AppError.NotTaggedJson(path, "$$at", TaggedJsonProblem.NotUnicode))
             }
             is TomlWriteError.TooDeep -> Err(AppError.JsonTooDeep(path, MAX_JSON_NESTING))
-            is TomlWriteError.NotInToml10 -> error("a document built from JSON writes TOML 1.1")
             is TomlIoError -> error("a Buffer accepts every write")
         }
     }

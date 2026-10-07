@@ -291,6 +291,12 @@ internal class Formatted<T : Any> private constructor(
 
     fun copy(): Formatted<T> = Formatted(value, written, decor.copy(), toSpelling)
 
+    /** This value replaced by [value], spelled [written], with the same decor. */
+    fun withValue(
+        value: T,
+        written: Spelling?,
+    ): Formatted<T> = Formatted(value, written, decor, toSpelling)
+
     override fun equals(other: Any?): Boolean {
         if (other !is Formatted<*>) return false
         return sameValue(value, other.value) && written == other.written && decor == other.decor

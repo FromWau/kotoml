@@ -28,7 +28,7 @@ internal fun <T : Any> changeLayout(
 }
 
 /** The keys to [target], a table or a slot, as [TomlEditError.CommentsWouldBeLost] names them. */
-private fun layoutKeyPathOf(target: Any): List<String> {
+internal fun layoutKeyPathOf(target: Any): List<String> {
     if (target !is Item) return keyPathOf(target)
     val owner = target.owner ?: return emptyList()
     val key = target.entry?.takeIf { it.isStored }?.key?.name
@@ -107,7 +107,7 @@ private class Trial<T : Any>(val top: Any, val target: T) {
  * The comments [node] prints with its decor, each from `#` to the end of its line: a table as a document of its own,
  * so the tables under it print under their headers, without changing it.
  */
-private fun commentsPrinted(node: Any): List<String> = when (node) {
+internal fun commentsPrinted(node: Any): List<String> = when (node) {
     is StandardTable -> commentsIn(TomlDocument(node.deepCopy(), KeptText(), node.lineEnding, null).toString())
     is ArrayOfTables -> node.values.flatMap { slot -> slot.standardTableOrNull?.let(::commentsPrinted).orEmpty() }
     is Item -> node.standardTableOrNull?.let(::commentsPrinted)
@@ -135,7 +135,7 @@ private fun commentsIn(text: String): List<String> {
 }
 
 /** How many of [before] are missing from [after], each comment matched once. */
-private fun missing(
+internal fun missing(
     before: List<String>,
     after: List<String>,
 ): Int {

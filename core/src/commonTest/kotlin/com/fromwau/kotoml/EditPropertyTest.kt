@@ -8,8 +8,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Any sequence of public edits leaves a document that writes TOML reading back as the data the document holds, or
- * refuses to write it with a typed error.
+ * Any sequence of public edits leaves a document that writes TOML of its version reading back as the data the document
+ * holds, or refuses to write it with a typed error.
  */
 class EditPropertyTest {
 
@@ -88,7 +88,7 @@ class EditPropertyTest {
             if (doc.writeTo(written) is Result.Error) return@repeat
             val printed = written.readString()
             val where = "$name seed $seed after ${log.joinToString(" ; ")}"
-            val problem = when (val reparsed = TomlDocument.parse(printed)) {
+            val problem = when (val reparsed = TomlDocument.parse(printed, doc.version)) {
                 is Result.Error -> "does not parse: ${reparsed.error}"
                 is Result.Success -> {
                     val same = reparsed.value.toTagged().sameAs(doc.toTagged())
@@ -156,6 +156,10 @@ internal class Edits(
             add("table sort" to { table.sortWith(compareBy { it.first.name }) })
             add("table retainAll" to { table.retainAll { random.nextBoolean() } })
             add("table clear" to { table.clear() })
+            val spelled = toml11Spellings.random(random)
+            add("table set $key to $spelled" to { table.set(key, Value.parse(spelled).getOrFail()) })
+            val version = TomlVersion.entries.random(random)
+            add("doc setVersion $version force $force" to { doc.setVersion(version, force) })
             add("table resetFormatting" to { table.resetFormatting() })
             if (table !== doc.root) add("table setImplicit" to { table.setImplicit(!table.isImplicit) })
             inlines.randomOrNull(random)?.let { inline ->
@@ -218,6 +222,12 @@ internal class Edits(
     private val strings = listOf(
         "", "plain", "it's", "say \"hi\"", "back\\slash", "line\nbreak", "cr\r\nlf", "tab\tstop", "\u0001ctl",
         "del\u007f", "'''", "\"\"\"", "ü € 😀", "# not a comment", "a\\nb",
+    )
+
+    // Values spelled as only TOML 1.1 reads them, or with a TOML 1.0 form that differs.
+    private val toml11Spellings = listOf(
+        "\"\\e\\x41\"", "\"\"\"a\\e\"\"\"", "07:32", "1979-05-27T07:32Z", "{ a = 1, }", "{\n  a = 1, # a\n}",
+        "[{ \"\\x41\" = { b = 07:32 } }]",
     )
 
     private val datetimes = listOf(

@@ -41,9 +41,6 @@ public sealed interface Value {
             formatted.decor.set(decor)
         }
 
-        // The slot holding this value, whose document's version its spelling can depend on.
-        internal var holder: Item? = null
-
         /** The string. */
         public val value: kotlin.String
             get() = formatted.value
@@ -165,7 +162,7 @@ public sealed interface Value {
      * @param value the date-time.
      * @param decor the text around the value; by default the usual spacing for where it stands.
      */
-    public class Datetime internal constructor(internal val formatted: Formatted<TomlDatetime>) : Value {
+    public class Datetime internal constructor(internal var formatted: Formatted<TomlDatetime>) : Value {
         /** A value with no spelling of its own, which prints in the default one, surrounded by [decor]. */
         public constructor(
             value: TomlDatetime,
@@ -389,7 +386,7 @@ internal fun Value.display(): String {
         is Value.InlineTable -> documentVersionOf(value)
         else -> documentVersionOf(this)
     }
-    return buildString { encodeValue(this, this@display, "", "", RawDecor.EMPTY, PrintVersion(version)) }
+    return buildString { encodeValue(this, this@display, "", "", RawDecor.EMPTY, version) }
 }
 
 // `key1 = value1`

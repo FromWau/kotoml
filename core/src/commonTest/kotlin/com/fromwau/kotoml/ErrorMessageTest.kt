@@ -30,6 +30,8 @@ class ErrorMessageTest {
                 "t.sub: the new layout would drop 2 comments; pass force = true to drop them",
             TomlEditError.CommentsWouldBeLost(emptyList(), 1) to
                 "the new layout would drop 1 comment; pass force = true to drop it",
+            TomlEditError.NotInToml10(listOf("point"), Toml11Feature.InlineTableTrailingComma) to
+                "point: inline tables cannot end with a comma in TOML 1.0",
         )
         for ((error, message) in cases) assertEquals(message, error.message, "$error")
     }
@@ -41,8 +43,6 @@ class ErrorMessageTest {
                 "server.name: half of a surrogate pair, which is not Unicode text",
             TomlWriteError.NotUnicode(null) to "half of a surrogate pair, which is not Unicode text",
             TomlWriteError.TooDeep(listOf("a")) to "a: nests deeper than 80 levels, so it would not parse back",
-            TomlWriteError.NotInToml10(listOf("point"), Toml11Feature.InlineTableTrailingComma) to
-                "point: inline tables cannot end with a comma in TOML 1.0",
             TomlIoError("disk full") to "reading or writing failed: disk full",
             TomlIoError(null) to "reading or writing failed",
         )
@@ -80,11 +80,10 @@ class ErrorMessageTest {
     }
 
     @Test
-    fun `a document that holds what TOML 1_0 lacks names the key when written`() {
-        val doc = TomlDocument.parse("point = { x = 1, }\n").getOrFail()
-        doc.version = TomlVersion.V1_0
-        val written = doc.writeTo(Buffer()).errorOrFail()
-        assertEquals("point: inline tables cannot end with a comma in TOML 1.0", written.message)
+    fun `an edit adding what TOML 1_0 lacks names the key`() {
+        val doc = TomlDocument.parse("point = { x = 1 }\n", TomlVersion.V1_0).getOrFail()
+        val refused = doc["point"].getOrFail().valueOrNull!!.inlineTableOrNull!!.setTrailingComma(true).errorOrFail()
+        assertEquals("point: inline tables cannot end with a comma in TOML 1.0", refused.message)
     }
 
     @Test

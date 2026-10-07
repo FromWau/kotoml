@@ -57,11 +57,11 @@ class ErrorJsonTest {
     }
 
     @Test
-    fun `a write error names the key and the TOML 1_1 feature`() {
-        val error = TomlWriteError.NotInToml10(listOf("t"), Toml11Feature.InlineTableTrailingComma)
+    fun `an edit refused in a TOML 1_0 document names the key and the TOML 1_1 feature`() {
+        val error = TomlEditError.NotInToml10(listOf("t"), Toml11Feature.InlineTableTrailingComma)
         assertEquals(
             """{"type":"NotInToml10","keyPath":["t"],"feature":"InlineTableTrailingComma"}""",
-            Json.encodeToString(TomlWriteError.serializer(), error),
+            Json.encodeToString(TomlEditError.serializer(), error),
         )
     }
 }

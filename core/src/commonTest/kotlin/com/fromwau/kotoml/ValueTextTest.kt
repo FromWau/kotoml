@@ -58,10 +58,10 @@ class ValueTextTest {
     }
 
     @Test
-    fun `a trailing comma in a TOML 1_0 document is refused when writing`() {
+    fun `a trailing comma in a TOML 1_0 document is refused`() {
         val doc = TomlDocument.parse("t = { x = 1 }\n", TomlVersion.V1_0).getOrFail()
-        doc["t"].getOrFail().valueOrNull!!.inlineTableOrNull!!.trailingComma = true
-        doc.writeTo(Buffer()).errorOrFail()
+        doc["t"].getOrFail().valueOrNull!!.inlineTableOrNull!!.setTrailingComma(true).errorOrFail()
+        assertEquals("t = { x = 1 }\n", doc.toString())
     }
 
     @Test

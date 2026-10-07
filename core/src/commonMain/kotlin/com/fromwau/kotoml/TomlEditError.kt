@@ -76,4 +76,17 @@ public sealed interface TomlEditError : IError {
     @Serializable
     @SerialName("CommentsWouldBeLost")
     public data class CommentsWouldBeLost(val keyPath: List<String>, val count: Int) : TomlEditError
+
+    /**
+     * The document's [TomlDocument.version] is TOML 1.0, and the edit would add [feature], which only TOML 1.1 reads,
+     * so nothing changed: a key or string spelled with a `\e` or `\x` escape, an inline table across lines or one
+     * ending in a comma. [keyPath] leads from the document's root to the key spelled so, or to the key whose value
+     * holds it; an element of an array adds no part.
+     */
+    @Serializable
+    @SerialName("NotInToml10")
+    public data class NotInToml10(
+        val keyPath: List<String>,
+        val feature: Toml11Feature,
+    ) : TomlEditError
 }

@@ -214,6 +214,7 @@ internal fun TomlEditError.describe(): String = when (this) {
         "${itemType.describe().withArticle()} cannot take that table layout"
     is TomlEditError.TooDeep -> at(keyPath, TOO_DEEP)
     is TomlEditError.CommentsWouldBeLost -> at(keyPath, commentsWouldBeLost(count))
+    is TomlEditError.NotInToml10 -> at(keyPath, feature.describe())
 }
 
 private fun commentsWouldBeLost(count: Int): String {
@@ -225,7 +226,6 @@ private fun commentsWouldBeLost(count: Int): String {
 internal fun TomlWriteError.describe(): String = when (this) {
     is TomlWriteError.NotUnicode -> at(keyPath.orEmpty(), NOT_UNICODE)
     is TomlWriteError.TooDeep -> at(keyPath, TOO_DEEP)
-    is TomlWriteError.NotInToml10 -> at(keyPath, feature.describe())
     is TomlIoError -> "reading or writing failed" + detail?.let { ": $it" }.orEmpty()
 }
 

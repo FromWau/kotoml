@@ -14,8 +14,9 @@ import kotlin.test.assertEquals
 /**
  * Edits keep every comment they do not own. Adding, replacing a value with a value, sorting and changing how a table
  * prints keep them all; removing a value takes only the comment on its own line, and giving a table a new layout with
- * `setLayout(force = true)` may take its comments, all but the lines above its key. Without force a layout change
- * keeps every comment or is refused and changes nothing. Removing or replacing whole tables is covered by
+ * `setLayout(force = true)` may take its comments, all but the lines above its key, as `setVersion(force = true)` may
+ * take those of inline tables across lines. Without force a layout or version change keeps every comment or is
+ * refused and changes nothing. Removing or replacing whole tables is covered by
  * `RemovalPropertyTest` and the comment scope tests, which state what those take.
  */
 class CommentPropertyTest {
@@ -133,6 +134,20 @@ class CommentPropertyTest {
                     }
                 })
             }
+            val version = TomlVersion.entries.random(random)
+            val force = random.nextBoolean()
+            add(Edit("doc setVersion $version force $force") {
+                if (force) {
+                    // Inline tables across lines go on one line in TOML 1.0, and their comments may go with them.
+                    val owned = edits.slots
+                        .filter { it.inlineTableOrNull?.layout == TableLayout.MultilineInline }
+                        .flatMap { commentsOf(doc, it) }
+                    doc.setVersion(version, force = true)
+                    owned
+                } else {
+                    keptOrRefused(doc) { doc.setVersion(version) }
+                }
+            })
         }
         return options.random(random)
     }

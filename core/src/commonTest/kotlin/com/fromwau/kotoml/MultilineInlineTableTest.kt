@@ -146,19 +146,11 @@ class MultilineInlineTableTest {
     }
 
     @Test
-    fun `a table across lines in a TOML 1_0 document is refused when written`() {
+    fun `a table set across lines in a TOML 1_0 document is refused`() {
         val doc = parse("t = { a = 1 }\n", TomlVersion.V1_0)
-        doc.slotAt("t").setLayout(TableLayout.MultilineInline).getOrFail()
-        val error = doc.writeTo(Buffer()).errorOrFail()
-        assertEquals(TomlWriteError.NotInToml10(listOf("t"), Toml11Feature.MultilineInlineTable), error)
-    }
-
-    @Test
-    fun `a table across lines set back on one line in a TOML 1_0 document is written`() {
-        val doc = parse("t = { a = 1 }\n", TomlVersion.V1_0)
-        doc.slotAt("t").setLayout(TableLayout.MultilineInline).getOrFail()
-        doc.slotAt("t").setLayout(TableLayout.Inline).getOrFail()
-        doc.writeTo(Buffer()).getOrFail()
+        val error = doc.slotAt("t").setLayout(TableLayout.MultilineInline).errorOrFail()
+        assertEquals(TomlEditError.NotInToml10(listOf("t"), Toml11Feature.MultilineInlineTable), error)
+        assertEquals("t = { a = 1 }\n", doc.toString())
     }
 
     @Test
@@ -185,13 +177,12 @@ class MultilineInlineTableTest {
     }
 
     @Test
-    fun `an inline table set across lines in a TOML 1_0 document is refused when written`() {
+    fun `an inline table made from a table in a TOML 1_0 document is refused across lines`() {
         val doc = parse("[t]\na = 1\n", TomlVersion.V1_0)
         doc["t"].getOrFail().setLayout(TableLayout.Inline).getOrFail()
-        doc.slotAt("t").setLayout(TableLayout.MultilineInline).getOrFail()
-        assertEquals("t = {\n  a = 1\n}\n", doc.toString())
-        val error = doc.writeTo(Buffer()).errorOrFail()
-        assertEquals(TomlWriteError.NotInToml10(listOf("t"), Toml11Feature.MultilineInlineTable), error)
+        val error = doc.slotAt("t").setLayout(TableLayout.MultilineInline).errorOrFail()
+        assertEquals(TomlEditError.NotInToml10(listOf("t"), Toml11Feature.MultilineInlineTable), error)
+        assertEquals("t = { a = 1 }\n", doc.toString())
     }
 
     @Test

@@ -20,12 +20,31 @@ import com.fromwau.kern.result.map
  * table["b"] = "two"
  * table.toString() // "{ a = 1, b = \"two\" }"
  * ```
+ *
+ * In a document whose [TomlDocument.version] is TOML 1.0, a store that would add what only TOML 1.1 reads, such as a
+ * string spelled with a `\e` escape, fails with [TomlEditError.NotInToml10] and stores nothing.
  */
 public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     internal var rawTrailing: KeptText = KeptText()
 
-    /** Whether the table ends with a comma after its last entry. */
+    /** Whether the table ends with a comma after its last entry; [setTrailingComma] changes it. */
     public var trailingComma: Boolean = false
+        internal set
+
+    /**
+     * Ends the table with a comma after its last entry when [value] is true, and without one otherwise. TOML 1.0 reads
+     * no such comma.
+     *
+     * @return [TomlEditError.NotInToml10], changing nothing, when [value] is true and the table is in a document whose
+     *   [TomlDocument.version] is 1.0.
+     */
+    public fun setTrailingComma(value: Boolean): EmptyResult<TomlEditError> {
+        if (value && documentVersionOf(this) == TomlVersion.V1_0) {
+            return Err(TomlEditError.NotInToml10(keyPathOf(this), Toml11Feature.InlineTableTrailingComma))
+        }
+        trailingComma = value
+        return Ok(Unit)
+    }
 
     internal var isImplicit: Boolean = false
     internal val rawDecor: RawDecor = RawDecor()
@@ -464,7 +483,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         getOrNull(key.name)?.let { return Ok(it) }
         val made = default()
         val value = made.copyFor(ValuePlace.InlineTable)
-        tooDeepError(this, key.name, Item(value))?.let { return Err(it) }
+        storeError(this, key.name, Item(value), key)?.let { return Err(it) }
         putEntry(key.copy(), value, commentToKeep(made))
         return Ok(value)
     }
@@ -497,7 +516,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         key: Key,
         value: Value,
     ): Result<Value?, TomlEditError> {
-        tooDeepError(this, key.name, Item(value))?.let { return Err(it) }
+        storeError(this, key.name, Item(value), key)?.let { return Err(it) }
         items.getEntry(key.name)?.key = key.copy()
         return Ok(putEntry(key.copy(), value.copyFor(ValuePlace.InlineTable), commentToKeep(value)))
     }
@@ -517,7 +536,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         value: Value,
         comment: String = "",
     ): Result<Value?, TomlEditError> {
-        tooDeepError(this, key, Item(value))?.let { return Err(it) }
+        storeError(this, key, Item(value))?.let { return Err(it) }
         return Ok(putEntry(Key(key), value, comment))
     }
 
@@ -753,7 +772,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
      */
     public fun putAll(pairs: Iterable<Pair<String, Value>>): EmptyResult<TomlEditError> {
         val stored = pairs.toList()
-        for ((key, value) in stored) tooDeepError(this, key, Item(value))?.let { return Err(it) }
+        for ((key, value) in stored) storeError(this, key, Item(value))?.let { return Err(it) }
         for ((key, value) in stored) put(key, value)
         return Ok(Unit)
     }
@@ -782,7 +801,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
 
     /** The table as TOML, without its own decor, in its document's [TomlDocument.version] or else TOML 1.1. */
     override fun toString(): String = buildString {
-        val version = PrintVersion(documentVersionOf(this@InlineTable))
+        val version = documentVersionOf(this@InlineTable)
         encodeInlineTable(this, this@InlineTable, "", "", RawDecor.EMPTY, version)
     }
 }

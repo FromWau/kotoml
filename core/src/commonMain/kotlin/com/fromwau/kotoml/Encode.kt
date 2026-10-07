@@ -7,12 +7,8 @@ package com.fromwau.kotoml
 internal fun encodeKey(
     buf: StringBuilder,
     key: Key,
-    version: PrintVersion = PrintVersion(TomlVersion.V1_1),
 ) {
-    val spelling = key.displaySpelling
-    // TOML 1.0 has no `\e` or `\x` escape, so a key spelled with one prints in the default spelling.
-    val printed = if (version.respells(spelling)) key.defaultSpelling().raw.textOrNull.orEmpty() else spelling
-    buf.append(printed)
+    buf.append(key.displaySpelling)
 }
 
 internal fun encodeKeyPath(
@@ -21,7 +17,6 @@ internal fun encodeKeyPath(
     defaultPrefix: String,
     defaultSuffix: String,
     leafDecor: RawDecor,
-    version: PrintVersion = PrintVersion(TomlVersion.V1_1),
 ) {
     for ((index, key) in path.withIndex()) {
         val dottedDecor = key.rawDottedDecor
@@ -35,7 +30,7 @@ internal fun encodeKeyPath(
             dottedDecor.prefixEncode(buf, DEFAULT_KEY_PATH_DECOR.first)
         }
 
-        encodeKey(buf, key, version)
+        encodeKey(buf, key)
 
         if (last) {
             leafDecor.suffixEncode(buf, defaultSuffix)
@@ -64,7 +59,7 @@ internal fun encodeArray(
     defaultPrefix: String,
     defaultSuffix: String,
     decor: RawDecor = array.rawDecor,
-    version: PrintVersion = PrintVersion(TomlVersion.V1_1),
+    version: TomlVersion = TomlVersion.V1_1,
 ) {
     decor.prefixEncode(buf, defaultPrefix)
     buf.append('[')
@@ -94,7 +89,7 @@ internal fun encodeInlineTable(
     defaultPrefix: String,
     defaultSuffix: String,
     decor: RawDecor = table.rawDecor,
-    version: PrintVersion = PrintVersion(TomlVersion.V1_1),
+    version: TomlVersion = TomlVersion.V1_1,
 ) {
     decor.prefixEncode(buf, defaultPrefix)
     buf.append('{')
@@ -122,7 +117,7 @@ internal fun encodeInlineTable(
         val keyDecor = keyPath.last().rawLeafDecor
         val leafDecor = child.lineStart?.let { RawDecor(it, keyDecor.suffix) } ?: keyDecor
         val (keyPrefix, keySuffix) = DEFAULT_INLINE_KEY_DECOR
-        encodeKeyPath(buf, keyPath, keyPrefix, keySuffix, leafDecor, version)
+        encodeKeyPath(buf, keyPath, keyPrefix, keySuffix, leafDecor)
         buf.append('=')
         encodeValue(buf, value, inner.first, inner.second, version = version)
     }
@@ -140,13 +135,10 @@ internal fun encodeValue(
     defaultPrefix: String,
     defaultSuffix: String,
     decor: RawDecor = value.rawDecor,
-    version: PrintVersion = PrintVersion(TomlVersion.V1_1),
+    version: TomlVersion = TomlVersion.V1_1,
 ) {
     when (value) {
-        is Value.String -> {
-            val spelling = value.formatted.stringSpellingIn(version)
-            encodeFormatted(buf, value.formatted, defaultPrefix, defaultSuffix, decor, spelling)
-        }
+        is Value.String -> encodeFormatted(buf, value.formatted, defaultPrefix, defaultSuffix, decor)
         is Value.Integer -> encodeFormatted(buf, value.formatted, defaultPrefix, defaultSuffix, decor)
         is Value.Float -> encodeFormatted(buf, value.formatted, defaultPrefix, defaultSuffix, decor)
         is Value.Boolean -> encodeFormatted(buf, value.formatted, defaultPrefix, defaultSuffix, decor)
@@ -159,62 +151,15 @@ internal fun encodeValue(
     }
 }
 
-// TOML 1.0 has no `\e` or `\x` escape, so a string spelled with one prints in the default spelling.
-private fun Formatted<String>.stringSpellingIn(version: PrintVersion): String {
-    val spelling = displaySpelling
-    return if (version.respells(spelling)) defaultSpelling().raw.textOrNull.orEmpty() else spelling
-}
-
 // TOML 1.0 has no time without seconds, so one prints with `:00` after its minutes.
-private fun Formatted<Datetime>.datetimeSpellingIn(version: PrintVersion): String {
-    val spelling = displaySpelling
-    val time = value.time
-    if (version.version == TomlVersion.V1_1 || time == null || time.second != null) return spelling
-    // `HH:MM` follows a date's 10 characters and the separator, or opens a time alone.
-    val minutesEnd = if (value.date == null) 5 else 16
-    return spelling.substring(0, minutesEnd) + ":00" + spelling.substring(minutesEnd)
-}
-
-/**
- * The TOML [version] text prints in. Printing TOML 1.0 notes the first key or string it [respelled] because its own
- * spelling uses an escape only TOML 1.1 reads, so writing can refuse what printing gets away with.
- */
-internal class PrintVersion(val version: TomlVersion) {
-    var respelled: Toml11Feature? = null
-        private set
-
-    /** Whether [spelling] prints in its default spelling instead, noting the escape that makes it so. */
-    fun respells(spelling: String): Boolean {
-        if (version == TomlVersion.V1_1) return false
-        val escape = spelling.toml11Escape() ?: return false
-        if (respelled == null) respelled = escape
-        return true
-    }
-}
-
-/** The first escape only TOML 1.1 reads, `\e` or `\x`, this basic string or key spelling uses, or null. */
-private fun String.toml11Escape(): Toml11Feature? {
-    if (!startsWith('"')) return null
-    var index = 0
-    while (index < length) {
-        if (this[index] != '\\') {
-            index++
-            continue
-        }
-        when (getOrNull(index + 1)) {
-            'e' -> return Toml11Feature.EscapeEscape
-            'x' -> return Toml11Feature.HexEscape
-        }
-        index += 2
-    }
-    return null
-}
+private fun Formatted<Datetime>.datetimeSpellingIn(version: TomlVersion): String =
+    if (version == TomlVersion.V1_0) spellingWithSeconds(displaySpelling, value) else displaySpelling
 
 /** Writes lines, each ending as it ended in the text it came from; a line made by hand ends like the one before. */
 internal class LineWriter(
     val buf: StringBuilder,
     private var lastEnding: String,
-    val version: PrintVersion,
+    val version: TomlVersion,
 ) {
     /** How the line before ended, which a line made by hand ends with too. */
     val ending: String
@@ -224,21 +169,10 @@ internal class LineWriter(
         if (ending != null) lastEnding = ending
         buf.append(lastEnding)
     }
-
-    /** The first line or header holding a key or string [version] respelled, named by its keys, or null. */
-    var respelledAt: TomlWriteError.NotInToml10? = null
-        private set
-
-    /** Notes the line or header at [path], just printed, when it holds the first key or string [version] respelled. */
-    fun notePrinted(path: List<Key>) {
-        val feature = version.respelled ?: return
-        if (respelledAt == null) respelledAt = TomlWriteError.NotInToml10(path.map { it.name }, feature)
-    }
 }
 
 private fun encodeKeyValueLine(
     writer: LineWriter,
-    tablePath: List<Key>,
     visual: VisualValue,
 ) {
     val buf = writer.buf
@@ -254,18 +188,16 @@ private fun encodeKeyValueLine(
         val comment = valueDecor.suffix?.textOrNull?.takeIf { '#' in it }?.substringBefore('\n')?.trimEnd('\r')
         valueDecor = RawDecor(valueDecor.prefix, comment?.let(KeptText::from))
     }
-    encodeKeyPath(buf, keyPath, DEFAULT_KEY_DECOR.first, DEFAULT_KEY_DECOR.second, leafDecor, writer.version)
+    encodeKeyPath(buf, keyPath, DEFAULT_KEY_DECOR.first, DEFAULT_KEY_DECOR.second, leafDecor)
     buf.append('=')
     encodeValue(buf, value, DEFAULT_VALUE_DECOR.first, DEFAULT_VALUE_DECOR.second, valueDecor, writer.version)
     buf.append(visual.lineEnd)
     writer.endLine(visual.entry.lineEnding)
-    writer.notePrinted(tablePath + visual.path)
 }
 
 private fun encodeBodyLines(
     writer: LineWriter,
     table: StandardTable,
-    path: List<Key>,
 ) {
     var indent = ""
     for (line in table.bodyLines()) {
@@ -275,10 +207,10 @@ private fun encodeBodyLines(
                 if (start == null) {
                     // A line made by hand is indented like the line above it.
                     val indented = if (indent.isEmpty()) line else line.startingWith(KeptText.from(indent))
-                    encodeKeyValueLine(writer, path, indented)
+                    encodeKeyValueLine(writer, indented)
                 } else {
                     start.textOrNull?.let { indent = it.substringAfterLast('\n') }
-                    encodeKeyValueLine(writer, path, line)
+                    encodeKeyValueLine(writer, line)
                 }
             }
             is KeptLines -> writer.buf.append(line.text)
@@ -293,7 +225,7 @@ internal fun encodeTableBody(
     version: TomlVersion,
 ) {
     settleHeadersForDepth(table)
-    encodeBodyLines(LineWriter(buf, "\n", PrintVersion(version)), table, emptyList())
+    encodeBodyLines(LineWriter(buf, "\n", version), table)
 }
 
 /** What prints among a document's tables, in the order of [position]. */
@@ -348,18 +280,15 @@ private class KeptHeaderLines(
     val text: String,
 ) : DocumentPart(slot)
 
-/**
- * A whole document, tables in their original order: upstream's `Display for DocumentMut`. Returns where it printed
- * the first key or string in its TOML 1.0 spelling instead of its own, or null when it printed none so.
- */
-internal fun encodeDocument(buf: StringBuilder, document: TomlDocument): TomlWriteError.NotInToml10? {
+/** A whole document, tables in their original order: upstream's `Display for DocumentMut`. */
+internal fun encodeDocument(buf: StringBuilder, document: TomlDocument) {
     val root = document.root
     settleHeadersForDepth(root)
     val decor = root.rawDecor
     val headStart = buf.length
     decor.prefixEncode(buf, DEFAULT_ROOT_DECOR.first)
     val headEnd = buf.length
-    val writer = LineWriter(buf, document.lineEnding, PrintVersion(document.version))
+    val writer = LineWriter(buf, document.lineEnding, document.version)
 
     val collected = DocumentParts()
     collected.visitTable(root, mutableListOf(), isArrayOfTables = false)
@@ -398,7 +327,6 @@ internal fun encodeDocument(buf: StringBuilder, document: TomlDocument): TomlWri
     if (buf.length > headEnd && head.isNotEmpty() && !head.endsWith('\n')) buf.insert(headEnd, writer.ending)
     // A head ending in the lines of the last removed table ends the file while nothing prints below it.
     if (root.headEndsInRemovedTable && !printedBelowHead) dropBlankLinesMeeting(buf, headStart until headEnd)
-    return writer.respelledAt
 }
 
 /**
@@ -596,11 +524,10 @@ private fun visitTable(
         }
         buf.append(if (isArrayOfTables) "[[" else "[")
         val (keyPrefix, keySuffix) = DEFAULT_KEY_PATH_DECOR
-        encodeKeyPath(buf, spelledPath, keyPrefix, keySuffix, keyDecor, writer.version)
+        encodeKeyPath(buf, spelledPath, keyPrefix, keySuffix, keyDecor)
         buf.append(if (isArrayOfTables) "]]" else "]")
         table.rawDecor.suffixEncode(buf, defaultDecor.second)
         writer.endLine(table.headerLineEnding)
-        writer.notePrinted(path)
     } else {
         // A header that does not print leaves its comments where it stood.
         buf.append(table.headerLinesAbove(path.last()))
@@ -611,6 +538,6 @@ private fun visitTable(
         }
     }
     // A dotted table's lines print among its parent's.
-    if (!dotted) encodeBodyLines(writer, table, path)
+    if (!dotted) encodeBodyLines(writer, table)
     return first
 }

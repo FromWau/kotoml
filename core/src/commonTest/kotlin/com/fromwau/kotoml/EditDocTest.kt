@@ -155,6 +155,13 @@ c = { d = "hello" }
     }
 
     @Test
+    fun `the module README versions example converts a document to TOML 1_0`() {
+        val doc = TomlDocument.parse("t = 07:32\ns = \"\\e\"\n").getOrFail()
+        doc.setVersion(TomlVersion.V1_0).getOrFail()
+        assertEquals("t = 07:32:00\ns = \"\\u001B\"\n", doc.toString())
+    }
+
+    @Test
     fun `the module README example of writing a key into a string fails with NotATable`() {
         val doc = TomlDocument.parse("a = 'text'\n").getOrFail()
         assertTrue(doc["a"].set("key", 1L).errorOrFail() is TomlEditError.NotATable)

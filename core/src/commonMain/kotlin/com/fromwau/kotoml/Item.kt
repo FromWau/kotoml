@@ -89,11 +89,10 @@ public class Item private constructor(
         fun adoptedBy(slot: Item) {
             when (this) {
                 is ValueContent -> when (value) {
-                    is Value.String -> value.holder = slot
                     is Value.Datetime -> value.holder = slot
                     is Value.Array -> value.value.holder = slot
                     is Value.InlineTable -> value.value.holder = slot
-                    is Value.Integer, is Value.Float, is Value.Boolean -> Unit
+                    is Value.String, is Value.Integer, is Value.Float, is Value.Boolean -> Unit
                 }
                 is TableContent -> table.holder = slot
                 is ArrayOfTablesContent -> array.holder = slot
@@ -160,8 +159,9 @@ public class Item private constructor(
     /**
      * Replaces this slot's content with a copy of [item]'s; a key keeps the lines above it, as [StandardTable.put]
      * says. Fails when this slot is in an array or an inline table and [item] holds no value, or in an array of
-     * tables and [item] holds no table, and with [TomlEditError.TooDeep] when [item] would nest deeper than the
-     * parser reads.
+     * tables and [item] holds no table, with [TomlEditError.TooDeep] when [item] would nest deeper than the parser
+     * reads, and with [TomlEditError.NotInToml10] when it holds what only TOML 1.1 reads and this slot is in a document
+     * whose [TomlDocument.version] is 1.0.
      */
     public fun assign(item: Item): EmptyResult<TomlEditError> {
         val within = owner?.let { copiesWithinDocument(item, it) } ?: false
@@ -169,6 +169,7 @@ public class Item private constructor(
         owner?.let { placeStored(Item(next, Holds.Anything), within, it) }
         refusal(next)?.let { return Err(it) }
         tooDeepToHold(item)?.let { return Err(it) }
+        owner?.let { notInToml10Error(it, storedKey, item) }?.let { return Err(it) }
         valuePlace?.let { place -> (next as? Content.ValueContent)?.value?.fitFor(place) }
         val entry = entry
         if (entry == null) {
@@ -208,8 +209,12 @@ public class Item private constructor(
     /** Why this slot cannot hold [item] for nesting too deep, or null when it can. */
     private fun tooDeepToHold(item: Item): TomlEditError.TooDeep? {
         val owner = owner ?: return tooDeepAtTop(item)
-        return tooDeepError(owner, entry?.takeIf { it.isStored }?.key?.name, item)
+        return tooDeepError(owner, storedKey, item)
     }
+
+    // The key this slot is stored at, or null for an element of an array or a slot stored nowhere.
+    private val storedKey: String?
+        get() = entry?.takeIf { it.isStored }?.key?.name
 
     /** The kind of item. */
     public val type: TomlType
@@ -370,9 +375,8 @@ public class Item private constructor(
      * the comment lines above a key or above a header inside above the key, and the comment lines above the header or
      * above dotted keys' first line above the key; keys written dotted stay dotted. An array of tables becomes an array
      * across lines, a table a line, each header comment after `{`, and the comment lines above a later header above
-     * its table. In TOML 1.1 the last entry of each table takes a comma. Only TOML 1.1 reads an inline table across
-     * lines, so in a document whose [TomlDocument.version] is 1.0 [TomlDocument.writeTo] refuses one with
-     * [TomlWriteError.NotInToml10].
+     * its table. The last entry of each table takes a comma. Only TOML 1.1 reads an inline table across lines, so a
+     * document whose [TomlDocument.version] is 1.0 refuses this layout.
      *
      * [TableLayout.Inline] puts the table in braces on one line, formatted anew, and every table inside with it: the
      * comments inside the braces go, while the comment lines above the key stay and the header comment, or the comment
@@ -404,7 +408,9 @@ public class Item private constructor(
      *   [TomlEditError.NotATableElement] when this is a table in an array of tables and [layout] is an inline one;
      *   [TomlEditError.NotAValue] when this is a slot in an array or an inline table, which holds only values, and
      *   [layout] is [TableLayout.Header]; [TomlEditError.TooDeep] when the result would nest deeper than the parser
-     *   reads, as headers with too many parts though the inline tables fit on their line. Each changes nothing.
+     *   reads, as headers with too many parts though the inline tables fit on their line;
+     *   [TomlEditError.NotInToml10] when [layout] is [TableLayout.MultilineInline] and this slot is in a document whose
+     *   [TomlDocument.version] is 1.0. Each changes nothing.
      */
     public fun setLayout(
         layout: TableLayout,
@@ -413,6 +419,9 @@ public class Item private constructor(
         if (this.layout == null) return Err(TomlEditError.NotExpandable(type))
         if (!changesLayout(layout)) return Ok(Unit)
         layoutRefusal(layout)?.let { return Err(it) }
+        if (layout == TableLayout.MultilineInline && owner?.let(::documentVersionOf) == TomlVersion.V1_0) {
+            return Err(TomlEditError.NotInToml10(layoutKeyPathOf(this), Toml11Feature.MultilineInlineTable))
+        }
         return changeLayout(this, force) { slot -> slot.layOut(layout) }
     }
 

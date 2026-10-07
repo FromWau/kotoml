@@ -227,12 +227,11 @@ class LayoutTest {
     }
 
     @Test
-    fun `a table made inline across lines in a TOML 1_0 document keeps its comments and is refused when written`() {
+    fun `a table made inline across lines in a TOML 1_0 document is refused`() {
         val doc = parse("[t] # t\na = 1 # a\n", TomlVersion.V1_0)
-        doc["t"].getOrFail().setLayout(TableLayout.MultilineInline).getOrFail()
-        assertEquals("t = { # t\n  a = 1 # a\n}\n", doc.toString())
-        val error = doc.writeTo(Buffer()).errorOrFail()
-        assertEquals(TomlWriteError.NotInToml10(listOf("t"), Toml11Feature.MultilineInlineTable), error)
+        val error = doc["t"].getOrFail().setLayout(TableLayout.MultilineInline).errorOrFail()
+        assertEquals(TomlEditError.NotInToml10(listOf("t"), Toml11Feature.MultilineInlineTable), error)
+        assertEquals("[t] # t\na = 1 # a\n", doc.toString())
     }
 
     @Test

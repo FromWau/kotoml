@@ -99,6 +99,7 @@ class WireSchemaTest {
                 NotAnArray(index, itemType)
                 NotExpandable(itemType)
                 NotFound(key)
+                NotInToml10(keyPath, feature)
                 TooDeep(keyPath)
                 TypeMismatch(key, expected, found)
             """.trimIndent(),
@@ -108,7 +109,6 @@ class WireSchemaTest {
             """.trimIndent(),
             TomlWriteError.serializer().descriptor to """
                 Io(detail)
-                NotInToml10(keyPath, feature)
                 NotUnicode(keyPath)
                 TooDeep(keyPath)
             """.trimIndent(),

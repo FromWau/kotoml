@@ -21,6 +21,9 @@ import com.fromwau.kern.result.map
  * array.add("two")
  * array.toString() // "[1, \"two\"]"
  * ```
+ *
+ * In a document whose [TomlDocument.version] is TOML 1.0, a store that would add what only TOML 1.1 reads, such as a
+ * string spelled with a `\e` escape, fails with [TomlEditError.NotInToml10] and stores nothing.
  */
 public class TomlArray() : Iterable<Value> {
     internal var rawTrailing: KeptText = KeptText()
@@ -108,7 +111,7 @@ public class TomlArray() : Iterable<Value> {
      * @return [TomlEditError.TooDeep], storing nothing, when [value] would nest deeper than the parser reads.
      */
     public fun add(value: Value): EmptyResult<TomlEditError> {
-        tooDeepError(this, null, Item(value))?.let { return Err(it) }
+        storeError(this, null, Item(value))?.let { return Err(it) }
         val comment = value.callerComment()
         val stored = value.copyFor(ValuePlace.Array)
         if (comment.isNotEmpty()) spreadForComment(stored)
@@ -332,7 +335,7 @@ public class TomlArray() : Iterable<Value> {
         value: Value,
     ): EmptyResult<TomlEditError> {
         if (index < 0 || index > values.size) return Err(TomlEditError.IndexOutOfBounds(index, values.size))
-        tooDeepError(this, null, Item(value))?.let { return Err(it) }
+        storeError(this, null, Item(value))?.let { return Err(it) }
         if (index == values.size) return add(value)
         val comment = value.callerComment()
         val stored = value.copyFor(ValuePlace.Array)
@@ -370,7 +373,7 @@ public class TomlArray() : Iterable<Value> {
         keepDecor: Boolean = true,
     ): Result<Value, TomlEditError> {
         val old = getOrNull(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
-        tooDeepError(this, null, Item(value))?.let { return Err(it) }
+        storeError(this, null, Item(value))?.let { return Err(it) }
         val comment = value.callerComment()
         val stored = value.copyFor(ValuePlace.Array)
         if (comment.isNotEmpty()) {
@@ -511,7 +514,7 @@ public class TomlArray() : Iterable<Value> {
      */
     public fun addAll(values: Iterable<Value>): EmptyResult<TomlEditError> {
         val added = values.toList()
-        for (value in added) tooDeepError(this, null, Item(value))?.let { return Err(it) }
+        for (value in added) storeError(this, null, Item(value))?.let { return Err(it) }
         for (value in added) add(value)
         return Ok(Unit)
     }
@@ -539,7 +542,7 @@ public class TomlArray() : Iterable<Value> {
 
     /** The array as TOML, without its own decor, in its document's [TomlDocument.version] or else TOML 1.1. */
     override fun toString(): String = buildString {
-        encodeArray(this, this@TomlArray, "", "", RawDecor.EMPTY, PrintVersion(documentVersionOf(this@TomlArray)))
+        encodeArray(this, this@TomlArray, "", "", RawDecor.EMPTY, documentVersionOf(this@TomlArray))
     }
 }
 

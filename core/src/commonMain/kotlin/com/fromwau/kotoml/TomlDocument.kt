@@ -61,26 +61,47 @@ public class TomlDocument internal constructor(
     public constructor(root: StandardTable) : this(root, KeptText(), "\n", null)
 
     /**
-     * The version of TOML the document is printed and written as: the one it was parsed as, or [TomlVersion.V1_1] for
-     * a new document. A document made from a root takes the version of the document that root came from.
+     * The version of TOML the document holds and prints: the one it was parsed as, or [TomlVersion.V1_1] for a new
+     * document. A document made from a root takes the version of the document that root came from, and a copy the
+     * version of its source. [setVersion] changes it.
      *
-     * Under [TomlVersion.V1_0] what TOML 1.1 added prints in its TOML 1.0 form where it has one: a time written without
-     * seconds, such as `07:32`, prints as `07:32:00`, and a string or key spelled with a `\e` or `\x` escape prints
-     * in its default spelling, such as `\u001B` for `\e`. [writeTo] writes the time but refuses the escape, as it
-     * refuses an inline table across lines, with a comment or with a trailing comma, which has no TOML 1.0 form.
-     * The tables, arrays and values stored in the document print in its version in their own `toString()` too.
+     * A TOML 1.0 document prints only what TOML 1.0 reads: an edit that would add what only TOML 1.1 reads is refused
+     * with [TomlEditError.NotInToml10] and changes nothing. That is a key or string spelled with a `\e` or `\x`
+     * escape, an inline table across lines, and a trailing comma in an inline table. A time without seconds, such as
+     * `07:32`, is stored as it is and prints with `:00` after its minutes, which TOML 1.0 reads.
+     */
+    public val version: TomlVersion
+        get() = root.version
+
+    /**
+     * Makes the document TOML of [version]. To [TomlVersion.V1_0] it changes what only TOML 1.1 reads into what TOML
+     * 1.0 reads: a time without seconds takes `:00` after its minutes, a key or string spelled with a `\e` or `\x`
+     * escape takes the `\u` escape for it, such as `\u001B` for `\e`, keeping the rest of its spelling, an inline
+     * table across lines goes on one line, as [Item.setLayout] puts one with [TableLayout.Inline], and an inline table
+     * loses the comma after its last entry. Tables and values stay the same objects. To [TomlVersion.V1_1] nothing
+     * changes but the version, since TOML 1.1 reads all of TOML 1.0.
      *
      * ```kotlin
-     * val doc = TomlDocument.parse("t = 07:32\n").getOrElse { error(it) }
-     * doc.version = TomlVersion.V1_0
-     * doc.toString() // "t = 07:32:00\n"
+     * val doc = TomlDocument.parse("t = 07:32\ns = \"\\e\"\n").getOrElse { error(it) }
+     * doc.setVersion(TomlVersion.V1_0)
+     * doc.toString() // "t = 07:32:00\ns = \"\\u001B\"\n"
      * ```
+     *
+     * @return [TomlEditError.CommentsWouldBeLost] when putting an inline table on one line would drop a comment and
+     *   [force] is false, changing nothing: it names the first inline table that would drop one and counts every
+     *   comment the change would drop. With [force] true the comments go.
      */
-    public var version: TomlVersion
-        get() = root.version
-        set(value) {
-            root.version = value
+    public fun setVersion(
+        version: TomlVersion,
+        force: Boolean = false,
+    ): EmptyResult<TomlEditError> {
+        if (version == TomlVersion.V1_0 && this.version == TomlVersion.V1_1) {
+            if (!force) toml10Conversion(copy().root).lostComments()?.let { return Err(it) }
+            toml10Conversion(root)
         }
+        root.version = version
+        return Ok(Unit)
+    }
 
     /** The root table's key/item pairs, in order. */
     override fun iterator(): Iterator<Pair<String, Item>> = root.iterator()
@@ -226,17 +247,14 @@ public class TomlDocument internal constructor(
      * SystemFileSystem.sink(Path("config.toml")).buffered().use { document.writeTo(it) }
      * ```
      *
-     * @return [TomlWriteError.NotInToml10], with nothing written, when the document's [version] is TOML 1.0 and it
-     *   holds what only TOML 1.1 reads, a key or string spelled with a `\e` or `\x` escape among it;
-     *   [TomlWriteError.NotUnicode] when the text holds half of a surrogate pair, which UTF-8 cannot encode;
-     *   or [TomlIoError] when the sink fails to take the text or is closed.
+     * @return [TomlWriteError.NotUnicode] when the text holds half of a surrogate pair, which UTF-8 cannot encode;
+     *   [TomlWriteError.TooDeep] when the document nests deeper than the parser reads; or [TomlIoError] when the sink
+     *   fails to take the text or is closed. Nothing is written on the first two.
      */
     public fun writeTo(sink: Sink): EmptyResult<TomlWriteError> {
         settleHeadersForDepth(root)
         tooDeepPathAtTop(root)?.let { return Err(TomlWriteError.TooDeep(it)) }
-        if (version == TomlVersion.V1_0) root.toml11Only()?.let { return Err(it) }
-        val (text, respelled) = printed()
-        respelled?.let { return Err(it) }
+        val text = toString()
         if (text.hasLoneSurrogate()) return Err(TomlWriteError.NotUnicode(root.loneSurrogatePath()))
         return try {
             sink.write(text.encodeToByteArray())
@@ -249,18 +267,14 @@ public class TomlDocument internal constructor(
         }
     }
 
-    /** The document as TOML text. */
-    override fun toString(): String = printed().first
-
-    // The text, and where it printed a key or string in its TOML 1.0 spelling, which writing refuses.
-    private fun printed(): Pair<String, TomlWriteError.NotInToml10?> {
+    /** The document as TOML text, in its [version]. */
+    override fun toString(): String {
         val buf = StringBuilder()
         if (byteOrderMark) buf.append(BYTE_ORDER_MARK)
-        val respelled = encodeDocument(buf, this)
+        encodeDocument(buf, this)
         val text = buf.toString()
-        if (!withoutFinalNewline) return text to respelled
-        val trimmed = text.removeSuffix("\n").let { if (it.length < text.length) it.removeSuffix("\r") else it }
-        return trimmed to respelled
+        if (!withoutFinalNewline) return text
+        return text.removeSuffix("\n").let { if (it.length < text.length) it.removeSuffix("\r") else it }
     }
 
     public companion object {
@@ -369,31 +383,4 @@ private fun Value.loneSurrogatePath(): List<String>? = when (this) {
     is Value.Array -> value.firstNotNullOfOrNull { it.loneSurrogatePath() }
     is Value.InlineTable -> value.loneSurrogatePath()
     is Value.Integer, is Value.Float, is Value.Boolean, is Value.Datetime -> null
-}
-
-/**
- * [TomlWriteError.NotInToml10] for the first value under this table, in the order the tables hold them, whose TOML
- * 1.0 text a TOML 1.0 parse refuses; or null when there is none.
- */
-private fun Table.toml11Only(path: List<String> = emptyList()): TomlWriteError.NotInToml10? {
-    for ((key, item) in entries) {
-        val keyPath = path + key
-        val found = item.standardTableOrNull?.toml11Only(keyPath)
-            ?: item.arrayOfTablesOrNull?.firstNotNullOfOrNull { it.toml11Only(keyPath) }
-            ?: item.valueOrNull?.toml11Only(keyPath)
-        if (found != null) return found
-    }
-    return null
-}
-
-private fun Value.toml11Only(path: List<String>): TomlWriteError.NotInToml10? {
-    // A dotted inline table prints as the parts of dotted keys, not in braces.
-    if (this is Value.InlineTable && value.isDotted) return value.toml11Only(path)
-    if (this !is Value.Array && this !is Value.InlineTable) return null
-    val text = buildString {
-        encodeValue(this, this@toml11Only, "", "", RawDecor.EMPTY, PrintVersion(TomlVersion.V1_0))
-    }
-    val parsed = Value.parse(text, TomlVersion.V1_0) as? Result.Error ?: return null
-    val reason = parsed.error.reason as? TomlParseError.Reason.NotInToml10 ?: return null
-    return TomlWriteError.NotInToml10(path, reason.feature)
 }

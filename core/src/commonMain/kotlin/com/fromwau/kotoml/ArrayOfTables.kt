@@ -17,6 +17,9 @@ import com.fromwau.kern.result.map
  * A [StandardTable] has no content equality, so `contains(table)` and `indexOf(table)` find only that same table
  * object. Compare what the tables hold instead, as in
  * `tables.indexOfFirst { it.getOrNull("name")?.stringOrNull == "a" }`.
+ *
+ * In a document whose [TomlDocument.version] is TOML 1.0, a store that would add what only TOML 1.1 reads, such as a
+ * string spelled with a `\e` escape, fails with [TomlEditError.NotInToml10] and stores nothing.
  */
 public class ArrayOfTables() : Iterable<StandardTable> {
     internal var span: Span? = null
@@ -133,7 +136,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
      * @return [TomlEditError.TooDeep], storing nothing, when [table] would nest deeper than the parser reads.
      */
     public fun add(table: StandardTable): EmptyResult<TomlEditError> {
-        tooDeepError(this, null, Item(table))?.let { return Err(it) }
+        storeError(this, null, Item(table))?.let { return Err(it) }
         append(copyToStore(table))
         return Ok(Unit)
     }
@@ -163,7 +166,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         table: StandardTable,
     ): EmptyResult<TomlEditError> {
         if (index < 0 || index > values.size) return Err(TomlEditError.IndexOutOfBounds(index, values.size))
-        tooDeepError(this, null, Item(table))?.let { return Err(it) }
+        storeError(this, null, Item(table))?.let { return Err(it) }
         values.add(index, Item.inArrayOfTables(copyToStore(table), this))
         return Ok(Unit)
     }
@@ -197,7 +200,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         keepDecor: Boolean = true,
     ): Result<StandardTable, TomlEditError> {
         val old = getOrNull(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
-        tooDeepError(this, null, Item(table))?.let { return Err(it) }
+        storeError(this, null, Item(table))?.let { return Err(it) }
         val stored = copyToStore(table)
         if (keepDecor) {
             stored.rawDecor.assign(old.rawDecor)
@@ -262,7 +265,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
      */
     public fun addAll(tables: Iterable<StandardTable>): EmptyResult<TomlEditError> {
         val added = tables.toList()
-        for (table in added) tooDeepError(this, null, Item(table))?.let { return Err(it) }
+        for (table in added) storeError(this, null, Item(table))?.let { return Err(it) }
         for (table in added) append(table.deepCopy())
         return Ok(Unit)
     }

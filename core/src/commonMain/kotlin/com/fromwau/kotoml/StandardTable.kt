@@ -22,6 +22,9 @@ import com.fromwau.kern.result.map
  * table["version"] = "0.1.0"
  * table.toString() // "name = \"kotoml\"\nversion = \"0.1.0\"\n"
  * ```
+ *
+ * In a document whose [TomlDocument.version] is TOML 1.0, a store that would add what only TOML 1.1 reads, such as a
+ * string spelled with a `\e` escape, fails with [TomlEditError.NotInToml10] and stores nothing.
  */
 public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     internal val rawDecor: RawDecor = RawDecor()
@@ -665,7 +668,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         key: String,
         item: Item,
     ): Result<Item?, TomlEditError> {
-        tooDeepError(this, key, item)?.let { return Err(it) }
+        storeError(this, key, item)?.let { return Err(it) }
         items.getEntry(key)?.prepareFor(item)
         return Ok(items.put(Key(key), copyToStore(item)))
     }
@@ -680,7 +683,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         key: Key,
         item: Item,
     ): Result<Item?, TomlEditError> {
-        tooDeepError(this, key.name, item)?.let { return Err(it) }
+        storeError(this, key.name, item, key)?.let { return Err(it) }
         items.getEntry(key.name)?.key = key.copy()
         return Ok(items.put(key.copy(), copyToStore(item)))
     }
@@ -716,7 +719,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     ): Result<Item, TomlEditError> {
         getOrNull(key.name)?.let { return Ok(it) }
         val stored = copyToStore(default())
-        tooDeepError(this, key.name, stored)?.let { return Err(it) }
+        storeError(this, key.name, stored, key)?.let { return Err(it) }
         items.put(key.copy(), stored)
         return Ok(stored)
     }
@@ -807,7 +810,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
      */
     public fun putAll(pairs: Iterable<Pair<String, Item>>): EmptyResult<TomlEditError> {
         val stored = pairs.toList()
-        for ((key, item) in stored) tooDeepError(this, key, item)?.let { return Err(it) }
+        for ((key, item) in stored) storeError(this, key, item)?.let { return Err(it) }
         for ((key, item) in stored) put(key, item)
         return Ok(Unit)
     }

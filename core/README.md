@@ -106,8 +106,8 @@ Replacing a value keeps its spacing and the comment after it. An array of tables
 inline table on one line takes the spacing already there. A comment a caller gives an element or an inline table's
 value in its decor, such as `Decor(suffix = " # note")`, puts a one-line array or inline table on lines of its own,
 one entry per line, whether the entry is added, inserted at an index or replaces another; its comment takes the place
-of the one that stood after the entry it replaces, and the new lines end as the document's do. In a document that
-writes TOML 1.0, which has no comments inside an inline table, an inline table's value drops it. Sorting, by key name
+of the one that stood after the entry it replaces, and the new lines end as the document's do. In a document of
+TOML 1.0, which has no comments inside an inline table, an inline table's value drops it. Sorting, by key name
 with `sort()` or by your own order with `sortBy` and `sortWith`, moves each key and each table header with the
 comment lines right above it and leaves blank lines in place.
 
@@ -281,21 +281,25 @@ by the key path when the error has one: `server: expected a table, found an inte
 Parsing follows TOML 1.1 by default. Pass `TomlVersion.V1_0` to `parse` to refuse what 1.1 added: newlines,
 comments and a trailing comma in inline tables, the `\x` and `\e` escapes, and times without seconds.
 
-A document is printed and written as the version it was parsed as, `doc.version`, and a new document as TOML 1.1.
-So a document parsed as 1.1 lets edits write 1.1-only syntax, such as a time without seconds or an inline table
-with a trailing comma, even when the file held none. Set `doc.version` to change what it writes:
+A document holds TOML of a version, `doc.version`: the one it was parsed as, and TOML 1.1 for a new document. So a
+document parsed as 1.1 lets edits add 1.1-only syntax, such as a string spelled with `\e` or an inline table with a
+trailing comma, even when the file held none. In a document of TOML 1.0 such an edit fails with
+`TomlEditError.NotInToml10`, naming the key and what only 1.1 reads, and changes nothing: storing a key or string
+spelled with `\e` or `\x` or an inline table across lines or with a trailing comma, `setLayout(MultilineInline)` and
+`setTrailingComma(true)`. A time without seconds is stored and prints with `:00`, which TOML 1.0 reads. So a 1.0
+document's `toString()` and `writeTo` always read back as TOML 1.0.
+
+`doc.setVersion(version)` changes the version. To TOML 1.0 it converts the document: a time without seconds takes
+`:00`, a `\e` or `\x` escape in a key or string becomes the `\u` escape for it, an inline table across lines goes on
+one line and an inline table's trailing comma goes. Tables and values stay the same objects. Putting an inline table
+on one line drops the comments inside it, so then `setVersion` fails with `TomlEditError.CommentsWouldBeLost` and
+changes nothing, unless called with `force = true`. To TOML 1.1 nothing changes but the version.
 
 ```kotlin
-val doc = TomlDocument.parse("t = 07:32\n").getOrElse { error(it) }
-doc.version = TomlVersion.V1_0
-doc.toString() // "t = 07:32:00\n"
+val doc = TomlDocument.parse("t = 07:32\ns = \"\\e\"\n").getOrElse { error(it) }
+doc.setVersion(TomlVersion.V1_0)
+doc.toString() // "t = 07:32:00\ns = \"\\u001B\"\n"
 ```
-
-Under TOML 1.0 a time without seconds prints with `:00`, in `toString()` as in `writeTo`. A string or key spelled
-with `\e` or `\x` prints in its default spelling, such as `\u001B` for `\e`, so `toString()` reads back as TOML 1.0,
-but `writeTo` refuses it with `TomlWriteError.NotInToml10`, naming the key and the escape. It refuses what has no 1.0
-form too, an inline table across lines, with a comment or with a trailing comma, which stays in the document and
-prints in `toString()` as it is.
 
 A table, array, inline table or value prints in its own `toString()` as its document prints it, in the document's
 version, and in TOML 1.1 when it is stored in no document, such as a value removed from one.

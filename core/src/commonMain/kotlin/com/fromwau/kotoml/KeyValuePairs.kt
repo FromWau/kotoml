@@ -169,7 +169,7 @@ internal val Item.headerTable: StandardTable?
 internal class PathSpelling private constructor(
     private val keys: List<Key>,
     private var shared: List<Key>?,
-    private var sharedLooks: List<String>,
+    private var sharedLooks: List<KeyLooks>,
     private val isHeader: Boolean,
 ) {
 
@@ -198,14 +198,26 @@ internal class PathSpelling private constructor(
 
     fun copy(): PathSpelling = PathSpelling(keys.map { it.copy() }, shared, sharedLooks, isHeader)
 
-    /** Everything about the key at [index] of [path] that printing the path uses. */
-    private fun looks(path: List<Key>, index: Int): String {
-        val key = path[index]
-        val dotted = "${key.written?.raw}|${key.rawDottedDecor.prefix}|${key.rawDottedDecor.suffix}"
-        // A header prints its last key with that key's own decor, inside the brackets.
-        if (!isHeader || index != path.lastIndex) return dotted
-        return "$dotted|${key.rawLeafDecor.prefix}|${key.rawLeafDecor.suffix}"
+    /**
+     * Gives each key spelled here the spelling [respelled] makes of its own, expecting the keys of the path this
+     * stands for to take theirs the same way, so it keeps standing for them.
+     */
+    fun respellKeys(respelled: (String) -> String) {
+        for (key in keys) key.spelling?.let { key.written = Spelling(respelled(it)) }
+        sharedLooks = sharedLooks.map { looks -> looks.copy(spelling = looks.spelling?.let(respelled)) }
     }
+
+    /** Everything about the key at [index] of [path] that printing the path uses. */
+    private fun looks(path: List<Key>, index: Int): KeyLooks {
+        val key = path[index]
+        val dotted = "${key.rawDottedDecor.prefix}|${key.rawDottedDecor.suffix}"
+        val spelling = key.written?.raw?.toString()
+        // A header prints its last key with that key's own decor, inside the brackets.
+        if (!isHeader || index != path.lastIndex) return KeyLooks(spelling, dotted)
+        return KeyLooks(spelling, "$dotted|${key.rawLeafDecor.prefix}|${key.rawLeafDecor.suffix}")
+    }
+
+    private data class KeyLooks(val spelling: String?, val decor: String)
 
     companion object {
         fun of(spelled: List<Key>, shared: List<Key>): PathSpelling =

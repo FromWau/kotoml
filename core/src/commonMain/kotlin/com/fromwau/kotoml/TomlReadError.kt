@@ -25,7 +25,7 @@ public sealed interface TomlReadError : IError {
 public sealed interface TomlWriteError : IError {
     /**
      * The error as a person reads it, led by the key path when it has one, such as
-     * `server.ports: inline tables cannot end with a comma in TOML 1.0`.
+     * `server.name: half of a surrogate pair, which is not Unicode text`.
      */
     public val message: String
         get() = describe()
@@ -48,19 +48,6 @@ public sealed interface TomlWriteError : IError {
     @Serializable
     @SerialName("TooDeep")
     public data class TooDeep(val keyPath: List<String>) : TomlWriteError
-
-    /**
-     * The document's [TomlDocument.version] is TOML 1.0, and it holds [feature], which only TOML 1.1 reads: one with no
-     * TOML 1.0 form, such as an inline table with a trailing comma, which `toString()` prints as is, or a key or string
-     * spelled with a `\e` or `\x` escape, which `toString()` prints in its default spelling. It stays in the document.
-     * [keyPath] names the key whose value holds it, or the key spelled so, array indices left out.
-     */
-    @Serializable
-    @SerialName("NotInToml10")
-    public data class NotInToml10(
-        val keyPath: List<String>,
-        val feature: Toml11Feature,
-    ) : TomlWriteError
 }
 
 /**
