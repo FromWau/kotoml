@@ -1,11 +1,12 @@
 package com.fromwau.kotoml
 
 import com.fromwau.kern.result.Result
-import kotlinx.io.Buffer
-import kotlinx.io.readString
+import com.fromwau.kern.result.assertSuccess
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.io.Buffer
+import kotlinx.io.readString
 
 /**
  * Any sequence of public edits leaves a document that writes TOML of its version reading back as the data the document
@@ -78,7 +79,7 @@ class EditPropertyTest {
         steps: Int = this.steps,
     ): String? {
         val version = TomlVersion.entries.lastOrNull { TomlDocument.parse(text, it) is Result.Success } ?: return null
-        val doc = TomlDocument.parse(text, version).getOrFail()
+        val doc = TomlDocument.parse(text, version).assertSuccess()
         val random = Random(seed)
         val log = mutableListOf<String>()
         var before = doc.toString()
@@ -160,7 +161,7 @@ internal class Edits(
             add("table retainAll" to { table.retainAll { random.nextBoolean() } })
             add("table clear" to { table.clear() })
             val spelled = toml11Spellings.random(random)
-            add("table set $key to $spelled" to { table.set(key, Value.parse(spelled).getOrFail()) })
+            add("table set $key to $spelled" to { table.set(key, Value.parse(spelled).assertSuccess()) })
             val version = TomlVersion.entries.random(random)
             add("doc setVersion $version force $force" to { doc.setVersion(version, force) })
             add("table resetFormatting" to { table.resetFormatting() })
@@ -249,11 +250,11 @@ internal class Edits(
                 .random(random),
         )
         3 -> Value.Boolean(random.nextBoolean())
-        4 -> Value.Datetime(Datetime.parse(datetimes.random(random)).getOrFail())
+        4 -> Value.Datetime(Datetime.parse(datetimes.random(random)).assertSuccess())
         5 -> Value.String(strings.random(random))
-        6 -> Value.Array(List(random.nextInt(4)) { value(depth + 1) }.toTomlArray().getOrFail())
+        6 -> Value.Array(List(random.nextInt(4)) { value(depth + 1) }.toTomlArray().assertSuccess())
         else -> Value.InlineTable(
-            List(random.nextInt(4)) { newKeys.random(random) to value(depth + 1) }.toInlineTable().getOrFail(),
+            List(random.nextInt(4)) { newKeys.random(random) to value(depth + 1) }.toInlineTable().assertSuccess(),
         )
     }
 
@@ -268,7 +269,7 @@ internal class Edits(
 
     fun item(): Item = when (random.nextInt(6)) {
         0 -> Item(table())
-        1 -> Item(List(1 + random.nextInt(2)) { table() }.toArrayOfTables().getOrFail())
+        1 -> Item(List(1 + random.nextInt(2)) { table() }.toArrayOfTables().assertSuccess())
         2 -> slots.randomOrNull(random)?.copy() ?: Item(value())
         else -> Item(value())
     }

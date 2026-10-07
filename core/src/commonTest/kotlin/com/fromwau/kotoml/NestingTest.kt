@@ -1,15 +1,16 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /** Every table and array knows where it stands in the text it prints, counted as the parser counts nesting. */
 class NestingTest {
 
-    private fun parse(text: String): TomlDocument = TomlDocument.parse(text).getOrFail()
+    private fun parse(text: String): TomlDocument = TomlDocument.parse(text).assertSuccess()
 
     private fun TomlDocument.item(vararg keys: String): Item =
-        keys.drop(1).fold(this[keys.first()]) { item, key -> item[key] }.getOrFail()
+        keys.drop(1).fold(this[keys.first()]) { item, key -> item[key] }.assertSuccess()
 
     @Test
     fun `the root stands as a header with no parts`() {
@@ -33,7 +34,7 @@ class NestingTest {
         val doc = parse("x.y = [[1]]\n")
         val outer = doc.item("x", "y").arrayOrNull!!
         assertEquals(Nesting.InLine(level = 2), nestingOf(outer))
-        assertEquals(Nesting.InLine(level = 3), nestingOf(outer[0].getOrFail().arrayOrNull!!))
+        assertEquals(Nesting.InLine(level = 3), nestingOf(outer[0].assertSuccess().arrayOrNull!!))
     }
 
     @Test
@@ -47,7 +48,7 @@ class NestingTest {
         val doc = parse("[[s.t]]\nx = 1\n")
         val tables = doc.item("s", "t").arrayOfTablesOrNull!!
         assertEquals(Nesting.InTables(parts = 2), nestingOf(tables))
-        assertEquals(Nesting.InTable(parts = 2, dots = 0), nestingOf(tables[0].getOrFail()))
+        assertEquals(Nesting.InTable(parts = 2, dots = 0), nestingOf(tables[0].assertSuccess()))
     }
 
     @Test
@@ -87,17 +88,17 @@ class NestingTest {
     fun `a removed array element stands at the top`() {
         val doc = parse("a = [[1], [2]]\n")
         val array = doc.item("a").arrayOrNull!!
-        val first = array[0].getOrFail().arrayOrNull!!
+        val first = array[0].assertSuccess().arrayOrNull!!
         array.removeAt(0)
         assertEquals(Nesting.InLine(level = 1), nestingOf(first))
-        assertEquals(Nesting.InLine(level = 2), nestingOf(array[0].getOrFail().arrayOrNull!!))
+        assertEquals(Nesting.InLine(level = 2), nestingOf(array[0].assertSuccess().arrayOrNull!!))
     }
 
     @Test
     fun `a table made a value stands as an inline table on its line`() {
         val doc = parse("[a.b]\nx = 1\n")
         val item = doc.item("a", "b")
-        item.setLayout(TableLayout.Inline).getOrFail()
+        item.setLayout(TableLayout.Inline).assertSuccess()
         assertEquals(Nesting.InLine(level = 1), nestingOf(item.inlineTableOrNull!!))
     }
 

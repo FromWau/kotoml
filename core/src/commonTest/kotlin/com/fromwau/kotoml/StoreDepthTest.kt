@@ -1,9 +1,11 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.assertError
+import com.fromwau.kern.result.assertSuccess
 import com.fromwau.kern.result.getOrNull
-import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.serialization.json.Json
 
 /** A store that would nest deeper than the parser reads is TooDeep and changes nothing, wherever it stores. */
 class StoreDepthTest {
@@ -21,11 +23,11 @@ class StoreDepthTest {
         doc: TomlDocument,
         depth: Int,
     ): TomlArray {
-        doc.set("a", Value.Array(TomlArray())).getOrFail()
-        var array = doc["a"].getOrFail().arrayOrNull!!
+        doc.set("a", Value.Array(TomlArray())).assertSuccess()
+        var array = doc["a"].assertSuccess().arrayOrNull!!
         repeat(depth - 1) {
-            array.add(Value.Array(TomlArray())).getOrFail()
-            array = array[0].getOrFail().arrayOrNull!!
+            array.add(Value.Array(TomlArray())).assertSuccess()
+            array = array[0].assertSuccess().arrayOrNull!!
         }
         return array
     }
@@ -36,7 +38,7 @@ class StoreDepthTest {
         depth: Int,
     ): StandardTable {
         var table = doc.root
-        repeat(depth) { table = table.getOrPut("t") { Item(StandardTable()) }.getOrFail().standardTableOrNull!! }
+        repeat(depth) { table = table.getOrPut("t") { Item(StandardTable()) }.assertSuccess().standardTableOrNull!! }
         return table
     }
 
@@ -54,46 +56,46 @@ class StoreDepthTest {
     fun `an array in the deepest array is TooDeep and a scalar is not`() {
         val doc = TomlDocument()
         val deepest = innermostArray(doc, limit)
-        assertUnchanged(doc, { deepest.add(Value.Array(TomlArray())).errorOrFail() }, tooDeep("a"))
+        assertUnchanged(doc, { deepest.add(Value.Array(TomlArray())).assertError<TomlEditError.TooDeep>() }, tooDeep("a"))
         deepest.add(1L)
-        TomlDocument.parse(doc.toString()).getOrFail()
+        TomlDocument.parse(doc.toString()).assertSuccess()
     }
 
     @Test
     fun `a key in an inline table as deep as the limit is TooDeep`() {
         val doc = TomlDocument()
         val holder = innermostArray(doc, limit - 1)
-        holder.add(Value.InlineTable(InlineTable())).getOrFail()
-        val table = holder[0].getOrFail().inlineTableOrNull!!
-        assertUnchanged(doc, { table.set("k", 1L).errorOrFail() }, tooDeep("a", "k"))
+        holder.add(Value.InlineTable(InlineTable())).assertSuccess()
+        val table = holder[0].assertSuccess().inlineTableOrNull!!
+        assertUnchanged(doc, { table.set("k", 1L).assertError<TomlEditError.TooDeep>() }, tooDeep("a", "k"))
     }
 
     @Test
     fun `a table under a header with as many parts as the limit is TooDeep`() {
         val doc = TomlDocument()
         val deepest = innermostTable(doc, limit)
-        assertUnchanged(doc, { deepest.set("t", StandardTable()).errorOrFail() }, tooDeep(repeated("t", limit + 1)))
-        deepest.set("x", 1L).getOrFail()
-        TomlDocument.parse(doc.toString()).getOrFail()
+        assertUnchanged(doc, { deepest.set("t", StandardTable()).assertError<TomlEditError.TooDeep>() }, tooDeep(repeated("t", limit + 1)))
+        deepest.set("x", 1L).assertSuccess()
+        TomlDocument.parse(doc.toString()).assertSuccess()
     }
 
     @Test
     fun `a table in an array of tables whose header has as many parts as the limit is TooDeep`() {
         val doc = TomlDocument()
         val holder = innermostTable(doc, limit - 1)
-        holder.set("aot", ArrayOfTables()).getOrFail()
+        holder.set("aot", ArrayOfTables()).assertSuccess()
         val tables = holder.getOrNull("aot")!!.arrayOfTablesOrNull!!
-        tables.add(StandardTable()).getOrFail()
+        tables.add(StandardTable()).assertSuccess()
         val path = repeated("t", limit - 1) + "aot" + "t"
-        assertUnchanged(doc, { tables[0].getOrFail().set("t", StandardTable()).errorOrFail() }, tooDeep(path))
+        assertUnchanged(doc, { tables[0].assertSuccess().set("t", StandardTable()).assertError<TomlEditError.TooDeep>() }, tooDeep(path))
     }
 
     @Test
     fun `an array of tables past the limit is TooDeep and stores none of its tables`() {
         val doc = TomlDocument()
         val deepest = innermostTable(doc, limit)
-        val tables = arrayOfTablesOf(StandardTable()).getOrFail()
-        assertUnchanged(doc, { deepest.set("aot", tables).errorOrFail() }, tooDeep(repeated("t", limit) + "aot"))
+        val tables = arrayOfTablesOf(StandardTable()).assertSuccess()
+        assertUnchanged(doc, { deepest.set("aot", tables).assertError<TomlEditError.TooDeep>() }, tooDeep(repeated("t", limit) + "aot"))
     }
 
     @Test
@@ -102,29 +104,29 @@ class StoreDepthTest {
         var table = innermostTable(doc, limit)
         val dotted = mutableListOf<StandardTable>()
         repeat(limit - 1) {
-            table = table.getOrPut("d") { Item(StandardTable()).also { it.setLayout(TableLayout.Dotted).getOrFail() } }
-                .getOrFail()
+            table = table.getOrPut("d") { Item(StandardTable()).also { it.setLayout(TableLayout.Dotted).assertSuccess() } }
+                .assertSuccess()
                 .standardTableOrNull!!
             dotted += table
         }
-        for (each in dotted) slotOf(each)!!.setLayout(TableLayout.Header).getOrFail()
+        for (each in dotted) slotOf(each)!!.setLayout(TableLayout.Header).assertSuccess()
         val child = StandardTable()
-        Item(child).setLayout(TableLayout.Dotted).getOrFail()
-        child.set("x", 1L).getOrFail()
+        Item(child).setLayout(TableLayout.Dotted).assertSuccess()
+        child.set("x", 1L).assertSuccess()
         val path = repeated("t", limit) + repeated("d", limit)
-        assertUnchanged(doc, { table.set("d", child).errorOrFail() }, tooDeep(path))
+        assertUnchanged(doc, { table.set("d", child).assertError<TomlEditError.TooDeep>() }, tooDeep(path))
     }
 
     @Test
     fun `the dots of a line count toward the limit with the brackets of its value`() {
         val keys = List(limit) { "k$it" }
-        val doc = TomlDocument.parse(keys.joinToString(".") + " = 1\n").getOrFail()
+        val doc = TomlDocument.parse(keys.joinToString(".") + " = 1\n").assertSuccess()
         var table = doc.root
         for (key in keys.dropLast(1)) table = table.getOrNull(key)!!.standardTableOrNull!!
-        table.set("array", Value.Array(TomlArray())).getOrFail()
-        val inline = Value.InlineTable(inlineTableOf("x" to Value.Integer(1L)).getOrFail())
-        assertUnchanged(doc, { table.set("inline", inline).errorOrFail() }, tooDeep(keys.dropLast(1) + "inline" + "x"))
-        TomlDocument.parse(doc.toString()).getOrFail()
+        table.set("array", Value.Array(TomlArray())).assertSuccess()
+        val inline = Value.InlineTable(inlineTableOf("x" to Value.Integer(1L)).assertSuccess())
+        assertUnchanged(doc, { table.set("inline", inline).assertError<TomlEditError.TooDeep>() }, tooDeep(keys.dropLast(1) + "inline" + "x"))
+        TomlDocument.parse(doc.toString()).assertSuccess()
     }
 
     @Test
@@ -133,55 +135,55 @@ class StoreDepthTest {
         innermostArray(doc, limit).add(1L)
         var slot = doc["a"]
         repeat(limit) { slot = slot[0] }
-        assertUnchanged(doc, { slot.getOrFail().assign(Item(Value.Array(TomlArray()))).errorOrFail() }, tooDeep("a"))
+        assertUnchanged(doc, { slot.assertSuccess().assign(Item(Value.Array(TomlArray()))).assertError<TomlEditError.TooDeep>() }, tooDeep("a"))
     }
 
     @Test
     fun `a table made a value too deep for its line is TooDeep`() {
         val doc = TomlDocument()
-        innermostTable(doc, limit).set("x", 1L).getOrFail()
-        val error = doc["t"].getOrFail().setLayout(TableLayout.Inline).errorOrFail()
+        innermostTable(doc, limit).set("x", 1L).assertSuccess()
+        val error = doc["t"].assertSuccess().setLayout(TableLayout.Inline).assertError<TomlEditError.TooDeep>()
         assertEquals(tooDeep(repeated("t", limit) + "x"), error)
-        assertEquals(TomlType.Table, doc["t"].getOrFail().type)
+        assertEquals(TomlType.Table, doc["t"].assertSuccess().type)
     }
 
     @Test
     fun `converting tables nested to the limit into inline tables is TooDeep`() {
         val doc = TomlDocument()
-        innermostTable(doc, limit).set("x", 1L).getOrFail()
-        val error = doc.root.getOrNull("t")!!.standardTableOrNull!!.toInlineTable().errorOrFail()
+        innermostTable(doc, limit).set("x", 1L).assertSuccess()
+        val error = doc.root.getOrNull("t")!!.standardTableOrNull!!.toInlineTable().assertError<TomlEditError.TooDeep>()
         assertEquals(tooDeep(repeated("t", limit - 1) + "x"), error)
     }
 
     @Test
     fun `an array built bottom up is TooDeep at the level past the limit`() {
         var value: Value = Value.Integer(1L)
-        repeat(limit) { value = Value.Array(tomlArrayOf(value).getOrFail()) }
-        assertEquals(tooDeep(), tomlArrayOf(value).errorOrFail())
+        repeat(limit) { value = Value.Array(tomlArrayOf(value).assertSuccess()) }
+        assertEquals(tooDeep(), tomlArrayOf(value).assertError<TomlEditError.TooDeep>())
     }
 
     @Test
     fun `content built to the limit is TooDeep when stored where its line has dots`() {
         var value: Value = Value.Integer(1L)
-        repeat(limit) { value = Value.Array(tomlArrayOf(value).getOrFail()) }
-        val doc = TomlDocument.parse("a.b = 1\n").getOrFail()
-        val dotted = doc["a"].getOrFail().standardTableOrNull!!
-        assertUnchanged(doc, { dotted.set("c", value).errorOrFail() }, tooDeep("a", "c"))
-        doc.set("c", value).getOrFail()
+        repeat(limit) { value = Value.Array(tomlArrayOf(value).assertSuccess()) }
+        val doc = TomlDocument.parse("a.b = 1\n").assertSuccess()
+        val dotted = doc["a"].assertSuccess().standardTableOrNull!!
+        assertUnchanged(doc, { dotted.set("c", value).assertError<TomlEditError.TooDeep>() }, tooDeep("a", "c"))
+        doc.set("c", value).assertSuccess()
     }
 
     @Test
     fun `a document at the parser's limits still takes edits within them`() {
         val header = List(limit) { "h" }.joinToString(".")
         val brackets = "[".repeat(limit) + "]".repeat(limit)
-        val doc = TomlDocument.parse("[$header]\nk = $brackets\n").getOrFail()
+        val doc = TomlDocument.parse("[$header]\nk = $brackets\n").assertSuccess()
         var table = doc.root
         repeat(limit) { table = table.getOrNull("h")!!.standardTableOrNull!! }
-        table.set("x", 1L).getOrFail()
+        table.set("x", 1L).assertSuccess()
         var array = table.getOrNull("k")!!.arrayOrNull!!
-        repeat(limit - 1) { array = array[0].getOrFail().arrayOrNull!! }
+        repeat(limit - 1) { array = array[0].assertSuccess().arrayOrNull!! }
         array.add(2L)
-        TomlDocument.parse(doc.toString()).getOrFail()
+        TomlDocument.parse(doc.toString()).assertSuccess()
     }
 
     @Test
@@ -208,7 +210,7 @@ class StoreDepthTest {
         val doc = TomlDocument()
         val deepest = innermostTable(doc, limit)
         val pairs = listOf("x" to Item(Value.Integer(1L)), "t" to Item(StandardTable()))
-        assertUnchanged(doc, { deepest.putAll(pairs).errorOrFail() }, tooDeep(repeated("t", limit + 1)))
+        assertUnchanged(doc, { deepest.putAll(pairs).assertError<TomlEditError.TooDeep>() }, tooDeep(repeated("t", limit + 1)))
     }
 
     @Test
@@ -216,10 +218,10 @@ class StoreDepthTest {
         fun TableScope.nest(levels: Int) {
             if (levels == 0) "x" to 1 else table("t") { nest(levels - 1) }
         }
-        assertEquals(tooDeep(repeated("t", limit + 1)), buildTomlDocument { nest(limit + 1) }.errorOrFail())
+        assertEquals(tooDeep(repeated("t", limit + 1)), buildTomlDocument { nest(limit + 1) }.assertError<TomlEditError.TooDeep>())
         val text = "a = 1\n"
-        val doc = TomlDocument.parse(text).getOrFail()
-        assertEquals(tooDeep(repeated("t", limit + 1)), doc.edit { nest(limit + 1) }.errorOrFail())
+        val doc = TomlDocument.parse(text).assertSuccess()
+        assertEquals(tooDeep(repeated("t", limit + 1)), doc.edit { nest(limit + 1) }.assertError<TomlEditError.TooDeep>())
         assertEquals(text, doc.toString())
     }
 

@@ -1,5 +1,6 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.assertError
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -12,7 +13,7 @@ class ParseMessageTest {
     private fun errorOf(
         text: String,
         version: TomlVersion = TomlVersion.V1_1,
-    ): TomlParseError = TomlDocument.parse(text, version).errorOrFail()
+    ): TomlParseError = TomlDocument.parse(text, version).assertError<TomlParseError>()
 
     private fun syntax(reason: ParseErrorReason) = TomlParseError.Reason.Syntax(reason)
 

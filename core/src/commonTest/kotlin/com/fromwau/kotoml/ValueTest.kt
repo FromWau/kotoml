@@ -1,5 +1,6 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -32,7 +33,7 @@ class ValueTest {
 
     @Test
     fun `a parsed scalar keeps its spelling until its formatting is reset`() {
-        val value = Value.parse("'literal'").getOrFail() as Value.String
+        val value = Value.parse("'literal'").assertSuccess() as Value.String
         assertEquals("literal", value.value)
         assertEquals("'literal'", value.spelling)
         value.resetFormatting()
@@ -42,7 +43,7 @@ class ValueTest {
 
     @Test
     fun `a copy keeps spelling and decor and changes apart from the original`() {
-        val original = Value.parse("0x10").getOrFail()
+        val original = Value.parse("0x10").assertSuccess()
         original.decor = Decor(" ", " ")
         val copy = original.copy()
         original.decor = Decor()
@@ -66,7 +67,7 @@ class ValueTest {
 
     @Test
     fun `a date-time made from a time alone is a local time`() {
-        val time = Datetime.LocalTime(Time.of(hour = 7, minute = 32, second = 0, nanosecond = null).getOrFail())
+        val time = Datetime.LocalTime(Time.of(hour = 7, minute = 32, second = 0, nanosecond = null).assertSuccess())
         assertEquals("07:32:00", Value.Datetime(time).toString())
     }
 

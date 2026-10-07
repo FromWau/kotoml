@@ -118,7 +118,7 @@ y = 2 # why
 z = 3
 ```
 ```kotlin edit
-doc["a"].getOrFail().standardTableOrNull!!.remove("y")
+doc["a"].assertSuccess().standardTableOrNull!!.remove("y")
 ```
 ```toml expected
 [a]
@@ -138,7 +138,7 @@ rule: 2   version: 1.0
 k = 1 # kay
 ```
 ```kotlin edit
-doc["a"].getOrFail().standardTableOrNull!!.remove("k")
+doc["a"].assertSuccess().standardTableOrNull!!.remove("k")
 ```
 ```toml expected
 [a] # hdr
@@ -154,7 +154,7 @@ rule: 2   version: 1.0
   b = 2
 ```
 ```kotlin edit
-doc["t"].getOrFail().standardTableOrNull!!.remove("a")
+doc["t"].assertSuccess().standardTableOrNull!!.remove("a")
 ```
 ```toml expected
 [t]
@@ -171,7 +171,7 @@ a = 1
 b = 2
 ```
 ```kotlin edit
-doc["t"].getOrFail().standardTableOrNull!!.remove("a")
+doc["t"].assertSuccess().standardTableOrNull!!.remove("a")
 ```
 ```toml expected
 [t]
@@ -286,7 +286,7 @@ a.b = 1 # bee
 a.c = 2 # cee
 ```
 ```kotlin edit
-doc["a"].getOrFail().tableOrNull!!.remove("b")
+doc["a"].assertSuccess().tableOrNull!!.remove("b")
 ```
 ```toml expected
 # about b
@@ -324,7 +324,7 @@ x.z = 2
 w = 3
 ```
 ```kotlin edit
-doc["t"].getOrFail().standardTableOrNull!!.remove("x")
+doc["t"].assertSuccess().standardTableOrNull!!.remove("x")
 ```
 ```toml expected
 [t]
@@ -341,7 +341,7 @@ k = 1 # kay
 m = 2
 ```
 ```kotlin edit
-doc["a"]["b"]["c"].getOrFail().standardTableOrNull!!.remove("k")
+doc["a"]["b"]["c"].assertSuccess().standardTableOrNull!!.remove("k")
 ```
 ```toml expected
 [a.b.c]
@@ -432,7 +432,7 @@ y = 2
 z = 3
 ```
 ```kotlin edit
-doc["a"].getOrFail().standardTableOrNull!!.remove("b")
+doc["a"].assertSuccess().standardTableOrNull!!.remove("b")
 ```
 ```toml expected
 [a]
@@ -549,7 +549,7 @@ n = 1
 m = 1
 ```
 ```kotlin edit
-doc["p"].getOrFail().arrayOfTablesOrNull!![0].getOrFail().remove("q")
+doc["p"].assertSuccess().arrayOfTablesOrNull!![0].assertSuccess().remove("q")
 ```
 ```toml expected
 [[p]]
@@ -624,7 +624,7 @@ name = "apple" # a
 name = "banana"
 ```
 ```kotlin edit
-doc["fruit"].getOrFail().arrayOfTablesOrNull!!.removeAt(0)
+doc["fruit"].assertSuccess().arrayOfTablesOrNull!!.removeAt(0)
 ```
 ```toml expected
 # fruits
@@ -646,7 +646,7 @@ name = "apple"
 name = "banana" # b
 ```
 ```kotlin edit
-doc["fruit"].getOrFail().arrayOfTablesOrNull!!.removeAt(1)
+doc["fruit"].assertSuccess().arrayOfTablesOrNull!!.removeAt(1)
 ```
 ```toml expected
 [[fruit]]
@@ -671,7 +671,7 @@ n = 2 # two
 n = 3
 ```
 ```kotlin edit
-doc["p"].getOrFail().arrayOfTablesOrNull!!.removeAt(1)
+doc["p"].assertSuccess().arrayOfTablesOrNull!!.removeAt(1)
 ```
 ```toml expected
 [[p]]
@@ -703,7 +703,7 @@ n = 3
 [q]
 ```
 ```kotlin edit
-doc["p"].getOrFail().arrayOfTablesOrNull!!.removeAll { it["n"].getOrNull()?.longOrNull != 1L }
+doc["p"].assertSuccess().arrayOfTablesOrNull!!.removeAll { it["n"].getOrNull()?.longOrNull != 1L }
 ```
 ```toml expected
 [[p]]
@@ -727,7 +727,7 @@ name = "b"
 # after
 ```
 ```kotlin edit
-doc["fruit"].getOrFail().arrayOfTablesOrNull!!.clear()
+doc["fruit"].assertSuccess().arrayOfTablesOrNull!!.clear()
 ```
 ```toml expected
 # fruits
@@ -744,7 +744,7 @@ a = 1
 name = "x"
 ```
 ```kotlin edit
-doc["bin"].getOrFail().arrayOfTablesOrNull!!.removeAt(0)
+doc["bin"].assertSuccess().arrayOfTablesOrNull!!.removeAt(0)
 ```
 ```toml expected
 a = 1
@@ -764,7 +764,7 @@ x = 1
 name = "x"
 ```
 ```kotlin edit
-doc["bin"].getOrFail().arrayOfTablesOrNull!!.clear()
+doc["bin"].assertSuccess().arrayOfTablesOrNull!!.clear()
 ```
 ```toml expected
 
@@ -786,7 +786,7 @@ m = 2
 n = 3
 ```
 ```kotlin edit
-doc["p"].getOrFail().arrayOfTablesOrNull!![0].getOrFail().remove("n")
+doc["p"].assertSuccess().arrayOfTablesOrNull!![0].assertSuccess().remove("n")
 ```
 ```toml expected
 [[p]]
@@ -814,7 +814,7 @@ y = 2
 [c]
 ```
 ```kotlin edit
-doc["a"].getOrFail().standardTableOrNull!!.remove("b")
+doc["a"].assertSuccess().standardTableOrNull!!.remove("b")
 ```
 ```toml expected
 [a]
@@ -834,7 +834,7 @@ rule: 3, 6   version: 1.0
 a = [1, 2, 3] # nums
 ```
 ```kotlin edit
-doc["a"].getOrFail().arrayOrNull!!.removeAt(1)
+doc["a"].assertSuccess().arrayOrNull!!.removeAt(1)
 ```
 ```toml expected
 a = [1, 3] # nums
@@ -847,7 +847,7 @@ settled: owner confirmed 2026-10-05: as kotoml prints it.
 a = [1, 2, 3] # nums
 ```
 ```kotlin edit
-doc["a"].getOrFail().arrayOrNull!!.removeAt(0)
+doc["a"].assertSuccess().arrayOrNull!!.removeAt(0)
 ```
 ```toml expected
 a = [2, 3] # nums
@@ -860,7 +860,7 @@ settled: fixed 2026-10-05: the spacing before the closing bracket and an element
 a = [ 1, 2, 3 ] # nums
 ```
 ```kotlin edit
-doc["a"].getOrFail().arrayOrNull!!.removeAt(2)
+doc["a"].assertSuccess().arrayOrNull!!.removeAt(2)
 ```
 ```toml expected
 a = [ 1, 2 ] # nums
@@ -876,7 +876,7 @@ ports = [
 ]
 ```
 ```kotlin edit
-doc["ports"].getOrFail().arrayOrNull!!.removeAt(0)
+doc["ports"].assertSuccess().arrayOrNull!!.removeAt(0)
 ```
 ```toml expected
 ports = [
@@ -894,7 +894,7 @@ ports = [
 ]
 ```
 ```kotlin edit
-doc["ports"].getOrFail().arrayOrNull!!.removeAt(1)
+doc["ports"].assertSuccess().arrayOrNull!!.removeAt(1)
 ```
 ```toml expected
 ports = [
@@ -913,7 +913,7 @@ a = [
 ]
 ```
 ```kotlin edit
-doc["a"].getOrFail().arrayOrNull!!.removeAt(1)
+doc["a"].assertSuccess().arrayOrNull!!.removeAt(1)
 ```
 ```toml expected
 a = [
@@ -933,7 +933,7 @@ a = [
 ]
 ```
 ```kotlin edit
-doc["a"].getOrFail().arrayOrNull!!.removeAt(1)
+doc["a"].assertSuccess().arrayOrNull!!.removeAt(1)
 ```
 ```toml expected
 a = [
@@ -950,7 +950,7 @@ a = [
 ]
 ```
 ```kotlin edit
-doc["a"].getOrFail().arrayOrNull!!.removeAt(0)
+doc["a"].assertSuccess().arrayOrNull!!.removeAt(0)
 ```
 ```toml expected
 a = [
@@ -968,7 +968,7 @@ a = [
 ]
 ```
 ```kotlin edit
-doc["a"].getOrFail().arrayOrNull!!.removeAt(1)
+doc["a"].assertSuccess().arrayOrNull!!.removeAt(1)
 ```
 ```toml expected
 a = [
@@ -986,7 +986,7 @@ a = [
 ]
 ```
 ```kotlin edit
-doc["a"].getOrFail().arrayOrNull!!.removeAt(1)
+doc["a"].assertSuccess().arrayOrNull!!.removeAt(1)
 ```
 ```toml expected
 a = [
@@ -1005,7 +1005,7 @@ a = [
 ]
 ```
 ```kotlin edit
-doc["a"].getOrFail().arrayOrNull!!.removeAt(0)
+doc["a"].assertSuccess().arrayOrNull!!.removeAt(0)
 ```
 ```toml expected
 a = [
@@ -1022,7 +1022,7 @@ a = [1 # c
 ]
 ```
 ```kotlin edit
-doc["a"].getOrFail().arrayOrNull!!.removeAt(0)
+doc["a"].assertSuccess().arrayOrNull!!.removeAt(0)
 ```
 ```toml expected
 a = []
@@ -1038,7 +1038,7 @@ a = [
 ] # tail
 ```
 ```kotlin edit
-doc["a"].getOrFail().arrayOrNull!!.clear()
+doc["a"].assertSuccess().arrayOrNull!!.clear()
 ```
 ```toml expected
 a = [
@@ -1052,7 +1052,7 @@ rule: 3, 6   version: 1.0
 a = [1, 2] # c
 ```
 ```kotlin edit
-doc["a"].getOrFail().arrayOrNull!!.clear()
+doc["a"].assertSuccess().arrayOrNull!!.clear()
 ```
 ```toml expected
 a = [] # c
@@ -1072,7 +1072,7 @@ a = [
 ]
 ```
 ```kotlin edit
-doc["a"].getOrFail().arrayOrNull!!.removeAll { (it as? Value.Integer)?.value != 3L }
+doc["a"].assertSuccess().arrayOrNull!!.removeAll { (it as? Value.Integer)?.value != 3L }
 ```
 ```toml expected
 a = [
@@ -1089,7 +1089,7 @@ rule: 6   version: 1.0
 pts = [ { x = 1 }, { x = 2 } ] # p
 ```
 ```kotlin edit
-doc["pts"].getOrFail().arrayOrNull!!.removeAt(0)
+doc["pts"].assertSuccess().arrayOrNull!!.removeAt(0)
 ```
 ```toml expected
 pts = [ { x = 2 } ] # p
@@ -1104,7 +1104,7 @@ m = [
 ]
 ```
 ```kotlin edit
-doc["m"].getOrFail().arrayOrNull!![0].getOrFail().arrayOrNull!!.removeAt(1)
+doc["m"].assertSuccess().arrayOrNull!![0].assertSuccess().arrayOrNull!!.removeAt(1)
 ```
 ```toml expected
 m = [
@@ -1121,7 +1121,7 @@ rule: 2, 3   version: 1.0
 t = { a = 1, b = 2, c = 3 } # t
 ```
 ```kotlin edit
-doc["t"].getOrFail().inlineTableOrNull!!.remove("b")
+doc["t"].assertSuccess().inlineTableOrNull!!.remove("b")
 ```
 ```toml expected
 t = { a = 1, c = 3 } # t
@@ -1133,7 +1133,7 @@ rule: 2   version: 1.0
 t = { a = 1, b = 2, c = 3 } # t
 ```
 ```kotlin edit
-doc["t"].getOrFail().inlineTableOrNull!!.remove("a")
+doc["t"].assertSuccess().inlineTableOrNull!!.remove("a")
 ```
 ```toml expected
 t = { b = 2, c = 3 } # t
@@ -1146,7 +1146,7 @@ settled: fixed 2026-10-05: the spacing before the closing bracket and an element
 t = { a = 1, b = 2, c = 3 } # t
 ```
 ```kotlin edit
-doc["t"].getOrFail().inlineTableOrNull!!.remove("c")
+doc["t"].assertSuccess().inlineTableOrNull!!.remove("c")
 ```
 ```toml expected
 t = { a = 1, b = 2 } # t
@@ -1162,7 +1162,7 @@ t = {
 }
 ```
 ```kotlin edit
-doc["t"].getOrFail().inlineTableOrNull!!.remove("a")
+doc["t"].assertSuccess().inlineTableOrNull!!.remove("a")
 ```
 ```toml expected
 t = {
@@ -1180,7 +1180,7 @@ t = {
 }
 ```
 ```kotlin edit
-doc["t"].getOrFail().inlineTableOrNull!!.remove("b")
+doc["t"].assertSuccess().inlineTableOrNull!!.remove("b")
 ```
 ```toml expected
 t = {
@@ -1197,7 +1197,7 @@ t = {
 }
 ```
 ```kotlin edit
-doc["t"].getOrFail().inlineTableOrNull!!.remove("b")
+doc["t"].assertSuccess().inlineTableOrNull!!.remove("b")
 ```
 ```toml expected
 t = {
@@ -1211,7 +1211,7 @@ rule: 2, 3   version: 1.0
 t = { a = { x = 1, y = 2 }, b = 3 } # tee
 ```
 ```kotlin edit
-doc["t"]["a"].getOrFail().inlineTableOrNull!!.remove("x")
+doc["t"]["a"].assertSuccess().inlineTableOrNull!!.remove("x")
 ```
 ```toml expected
 t = { a = { y = 2 }, b = 3 } # tee
@@ -1227,7 +1227,7 @@ t = {
 } # tee
 ```
 ```kotlin edit
-doc["t"].getOrFail().inlineTableOrNull!!.clear()
+doc["t"].assertSuccess().inlineTableOrNull!!.clear()
 ```
 ```toml expected
 t = {
@@ -1247,7 +1247,7 @@ b = 2 # two
 c = 3 # three
 ```
 ```kotlin edit
-doc["t"].getOrFail().standardTableOrNull!!.retainAll { (k, _) -> k.name == "b" }
+doc["t"].assertSuccess().standardTableOrNull!!.retainAll { (k, _) -> k.name == "b" }
 ```
 ```toml expected
 [t]
@@ -1269,7 +1269,7 @@ a = 1 # one
 b = 2
 ```
 ```kotlin edit
-doc["t"].getOrFail().standardTableOrNull!!.clear()
+doc["t"].assertSuccess().standardTableOrNull!!.clear()
 ```
 ```toml expected
 # about t
@@ -1470,7 +1470,7 @@ settled: owner confirmed 2026-10-05: as kotoml prints it.
 x = 1 # one
 ```
 ```kotlin edit
-doc["x"] = Value.InlineTable(inlineTableOf("k" to Value.Integer(1L)).getOrFail())
+doc["x"] = Value.InlineTable(inlineTableOf("k" to Value.Integer(1L)).assertSuccess())
 ```
 ```toml expected
 x = { k = 1 } # one
@@ -1482,7 +1482,7 @@ rule: 3   version: 1.0
 x = 1 # one
 ```
 ```kotlin edit
-doc["x"] = Value.Array(tomlArrayOf(Value.Integer(1L), Value.Integer(2L)).getOrFail())
+doc["x"] = Value.Array(tomlArrayOf(Value.Integer(1L), Value.Integer(2L)).assertSuccess())
 ```
 ```toml expected
 x = [1, 2] # one
@@ -1530,7 +1530,7 @@ rule: 3   version: 1.0
 k = 1 # kay
 ```
 ```kotlin edit
-doc["t"].getOrFail().standardTableOrNull!!.put("k", Item(Value.Integer(2L)))
+doc["t"].assertSuccess().standardTableOrNull!!.put("k", Item(Value.Integer(2L)))
 ```
 ```toml expected
 [t]
@@ -1543,7 +1543,7 @@ rule: 3   version: 1.0
 k = 1 # kay
 ```
 ```kotlin edit
-doc["k"].getOrFail().assign(Item(Value.Integer(7L)))
+doc["k"].assertSuccess().assign(Item(Value.Integer(7L)))
 ```
 ```toml expected
 k = 7 # kay
@@ -1571,7 +1571,7 @@ rule: 3, 6   version: 1.0
 a = [1, 2, 3] # c
 ```
 ```kotlin edit
-doc["a"].getOrFail().arrayOrNull!!.replace(1, Value.Integer(9L))
+doc["a"].assertSuccess().arrayOrNull!!.replace(1, Value.Integer(9L))
 ```
 ```toml expected
 a = [1, 9, 3] # c
@@ -1588,7 +1588,7 @@ a = [
 ]
 ```
 ```kotlin edit
-doc["a"].getOrFail().arrayOrNull!!.replace(0, Value.Integer(10L))
+doc["a"].assertSuccess().arrayOrNull!!.replace(0, Value.Integer(10L))
 ```
 ```toml expected
 a = [
@@ -1607,7 +1607,7 @@ a = [
 ]
 ```
 ```kotlin edit
-doc["a"].getOrFail().arrayOrNull!!.replace(1, Value.String("x"))
+doc["a"].assertSuccess().arrayOrNull!!.replace(1, Value.String("x"))
 ```
 ```toml expected
 a = [
@@ -1627,7 +1627,7 @@ a = [
 ]
 ```
 ```kotlin edit
-doc["a"].getOrFail().arrayOrNull!!.replace(0, Value.Integer(0L))
+doc["a"].assertSuccess().arrayOrNull!!.replace(0, Value.Integer(0L))
 ```
 ```toml expected
 a = [
@@ -1767,7 +1767,7 @@ x = 1 # one
 y = 2
 ```
 ```kotlin edit
-doc["x"] = standardTableOf("k" to Item(Value.Integer(1L))).getOrFail()
+doc["x"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
 ```
 ```toml expected
 y = 2
@@ -1786,7 +1786,7 @@ a = 1
 x = 1 # one
 ```
 ```kotlin edit
-doc["x"] = standardTableOf("k" to Item(Value.Integer(1L))).getOrFail()
+doc["x"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
 ```
 ```toml expected
 a = 1
@@ -1804,7 +1804,7 @@ z = 0
 t = { a = 1 } # tee
 ```
 ```kotlin edit
-doc["t"] = standardTableOf("a" to Item(Value.Integer(1L))).getOrFail()
+doc["t"] = standardTableOf("a" to Item(Value.Integer(1L))).assertSuccess()
 ```
 ```toml expected
 z = 0
@@ -1824,7 +1824,7 @@ x = 1
 k = 1 # kay
 ```
 ```kotlin edit
-doc["t"] = Value.InlineTable(inlineTableOf("m" to Value.Integer(2L)).getOrFail())
+doc["t"] = Value.InlineTable(inlineTableOf("m" to Value.Integer(2L)).assertSuccess())
 ```
 ```toml expected
 x = 1
@@ -1845,7 +1845,7 @@ x = 1
 a = 1 # one
 ```
 ```kotlin edit
-doc["t"].getOrFail().setLayout(TableLayout.Inline, force = true)
+doc["t"].assertSuccess().setLayout(TableLayout.Inline, force = true)
 ```
 ```toml expected
 x = 1
@@ -1865,7 +1865,7 @@ k = 1 # kay
 [u]
 ```
 ```kotlin edit
-doc["t"] = standardTableOf("m" to Item(Value.Integer(2L))).getOrFail()
+doc["t"] = standardTableOf("m" to Item(Value.Integer(2L))).assertSuccess()
 ```
 ```toml expected
 # about t
@@ -1887,7 +1887,7 @@ n = 1 # en
 n = 2
 ```
 ```kotlin edit
-doc["p"].getOrFail().arrayOfTablesOrNull!!.replace(0, standardTableOf("n" to Item(Value.Integer(9L))).getOrFail())
+doc["p"].assertSuccess().arrayOfTablesOrNull!!.replace(0, standardTableOf("n" to Item(Value.Integer(9L))).assertSuccess())
 ```
 ```toml expected
 # first
@@ -1906,7 +1906,7 @@ settled: owner ruling 2026-10-05 (Q2): a new header after the root values gets i
 x = 1 # one
 ```
 ```kotlin edit
-doc["x"] = Item(ArrayOfTables().apply { add(standardTableOf("n" to Item(Value.Integer(1L))).getOrFail()) })
+doc["x"] = Item(ArrayOfTables().apply { add(standardTableOf("n" to Item(Value.Integer(1L))).assertSuccess()) })
 ```
 ```toml expected
 # about x
@@ -1924,7 +1924,7 @@ x = [
 ] # arr
 ```
 ```kotlin edit
-doc["x"] = Item(ArrayOfTables().apply { add(standardTableOf("n" to Item(Value.Integer(1L))).getOrFail()) })
+doc["x"] = Item(ArrayOfTables().apply { add(standardTableOf("n" to Item(Value.Integer(1L))).assertSuccess()) })
 ```
 ```toml expected
 a = 1
@@ -1947,7 +1947,7 @@ x = 1
 k = 1 # kay
 ```
 ```kotlin edit
-doc["t"].getOrFail().setLayout(TableLayout.Dotted, force = true)
+doc["t"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
 ```
 ```toml expected
 x = 1
@@ -1966,7 +1966,7 @@ t.a = 1 # one
 t.b = 2
 ```
 ```kotlin edit
-doc["t"].getOrFail().setLayout(TableLayout.Header)
+doc["t"].assertSuccess().setLayout(TableLayout.Header)
 ```
 ```toml expected
 x = 1
@@ -1986,7 +1986,7 @@ x = 1
 t = { a = 1, b = 2 } # tee
 ```
 ```kotlin edit
-doc["t"].getOrFail().setLayout(TableLayout.Dotted, force = true)
+doc["t"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
 ```
 note: corrected: kotoml keeps the comment after the closing brace on the last dotted line; the new-layout rule lets it go but does not require it.
 ```toml expected
@@ -2007,7 +2007,7 @@ settled: owner confirmed 2026-10-05: as kotoml prints it.
 x = 1
 ```
 ```kotlin edit
-doc["a"].getOrFail().standardTableOrNull!!.setImplicit(true)
+doc["a"].assertSuccess().standardTableOrNull!!.setImplicit(true)
 ```
 ```toml expected
 # about a

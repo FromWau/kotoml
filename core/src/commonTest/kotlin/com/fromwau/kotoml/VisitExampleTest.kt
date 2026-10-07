@@ -1,5 +1,6 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -106,7 +107,7 @@ class VisitExampleTest {
                 // A single dependency: regular tables become inline ones.
                 val table = item.standardTableOrNull
                 if (table != null) {
-                    val inlineTable = table.toInlineTable().getOrFail()
+                    val inlineTable = table.toInlineTable().assertSuccess()
                     key.resetFormatting()
                     item.assign(Item(Value.InlineTable(inlineTable)))
                 }
@@ -208,7 +209,7 @@ flate2 = { version = "0.4" }
 
     @Test
     fun `a recursive walk collects every dependency name of a Cargo manifest`() {
-        val document = TomlDocument.parse(input).getOrFail()
+        val document = TomlDocument.parse(input).assertSuccess()
 
         val names = dependencyNames(document)
         val expected = setOf(
@@ -226,7 +227,7 @@ flate2 = { version = "0.4" }
 
     @Test
     fun `a recursive edit makes dependency tables regular and each dependency inline`() {
-        val document = TomlDocument.parse(input).getOrFail()
+        val document = TomlDocument.parse(input).assertSuccess()
 
         normalizeDependencies(document)
         assertEquals(normalizedOutput, document.toString())

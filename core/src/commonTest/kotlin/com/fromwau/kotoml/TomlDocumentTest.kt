@@ -1,5 +1,7 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.assertError
+import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -37,7 +39,7 @@ class TomlDocumentTest {
 
     @Test
     fun `iterating a document visits the root table's pairs in order`() {
-        val document = TomlDocument.parse("b = 1\na = 2\n[t]\n").getOrFail()
+        val document = TomlDocument.parse("b = 1\na = 2\n[t]\n").assertSuccess()
 
         assertEquals(listOf("b", "a", "t"), document.map { it.first })
         assertEquals(document.root.entries, document.toList())
@@ -52,14 +54,14 @@ class TomlDocumentTest {
 
         assertTrue("a" in document)
         assertEquals(2, document.size)
-        assertEquals(1L, document.root["a"].getOrFail().longOrNull)
+        assertEquals(1L, document.root["a"].assertSuccess().longOrNull)
         assertEquals(2L, document.remove("b")?.longOrNull)
         assertEquals("a = 1\n", document.toString())
     }
 
     @Test
     fun `trailing text prints after the last item`() {
-        val document = TomlDocument.parse("a = 1\n# end\n").getOrFail()
+        val document = TomlDocument.parse("a = 1\n# end\n").assertSuccess()
         assertEquals("# end\n", document.trailing)
 
         document.trailing = "\n# footer\n"
@@ -69,7 +71,7 @@ class TomlDocumentTest {
 
     @Test
     fun `a copy is edited apart from its original`() {
-        val document = TomlDocument.parse("a = 1 # one\n").getOrFail()
+        val document = TomlDocument.parse("a = 1 # one\n").assertSuccess()
         val copy = document.copy()
 
         copy["a"] = 2L
@@ -83,15 +85,15 @@ class TomlDocumentTest {
         val text = "# config\n[server]\nhost = 'alpha' # primary\n"
         val source = Buffer().apply { writeString(text) }
 
-        val document = TomlDocument.read(source).getOrFail()
+        val document = TomlDocument.read(source).assertSuccess()
 
-        assertEquals("alpha", document["server"]["host"].getOrFail().stringOrNull)
+        assertEquals("alpha", document["server"]["host"].assertSuccess().stringOrNull)
         assertEquals(text, document.toString())
     }
 
     @Test
     fun `read reports a failing source as TomlIoError`() {
-        val error = TomlDocument.read(FailingSource().buffered()).errorOrFail()
+        val error = TomlDocument.read(FailingSource().buffered()).assertError<TomlIoError>()
 
         assertEquals(TomlIoError("disk gone"), error)
     }
@@ -100,7 +102,7 @@ class TomlDocumentTest {
     fun `read reports text that is not TOML as a parse error carrying the text`() {
         val text = "a = 1\na = 2\n"
 
-        val error = TomlDocument.read(Buffer().apply { writeString(text) }).errorOrFail()
+        val error = TomlDocument.read(Buffer().apply { writeString(text) }).assertError<TomlReadError.Parse>()
 
         assertIs<TomlReadError.Parse>(error)
         assertEquals(TomlParseError.Reason.DuplicateKey(listOf("a")), error.error.reason)
@@ -111,7 +113,7 @@ class TomlDocumentTest {
     fun `read reports bytes that are not UTF-8 as a parse error`() {
         val source = Buffer().apply { write(byteArrayOf('a'.code.toByte(), 0xFF.toByte())) }
 
-        val error = TomlDocument.read(source).errorOrFail()
+        val error = TomlDocument.read(source).assertError<TomlReadError.Parse>()
 
         assertIs<TomlReadError.Parse>(error)
         assertEquals(TomlParseError.Reason.InvalidUtf8(byteOffset = 1), error.error.reason)
@@ -121,7 +123,7 @@ class TomlDocumentTest {
     fun `read accepts only what the given TOML version accepts`() {
         val source = Buffer().apply { writeString("t = 07:32\n") }
 
-        val error = TomlDocument.read(source, TomlVersion.V1_0).errorOrFail()
+        val error = TomlDocument.read(source, TomlVersion.V1_0).assertError<TomlReadError.Parse>()
 
         assertIs<TomlReadError.Parse>(error)
         assertEquals(TomlParseError.Reason.NotInToml10(Toml11Feature.TimeWithoutSeconds), error.error.reason)
@@ -129,20 +131,20 @@ class TomlDocumentTest {
 
     @Test
     fun `writeTo writes the document as it prints`() {
-        val document = TomlDocument.parse("name = 'kotoml' # the name\n").getOrFail()
+        val document = TomlDocument.parse("name = 'kotoml' # the name\n").assertSuccess()
         document["version"] = "0.1.0"
         val sink = Buffer()
 
-        document.writeTo(sink).getOrFail()
+        document.writeTo(sink).assertSuccess()
 
         assertEquals(document.toString(), sink.readString())
     }
 
     @Test
     fun `writeTo flushes so a failing sink is reported as TomlIoError`() {
-        val document = TomlDocument.parse("a = 1\n").getOrFail()
+        val document = TomlDocument.parse("a = 1\n").assertSuccess()
 
-        val error = document.writeTo(FailingSink().buffered()).errorOrFail()
+        val error = document.writeTo(FailingSink().buffered()).assertError<TomlIoError>()
 
         assertEquals(TomlIoError("disk full"), error)
     }
@@ -150,7 +152,7 @@ class TomlDocumentTest {
     @Test
     fun `a read error serializes with its type and leaves the text out`() {
         val io: TomlReadError = TomlIoError("disk gone")
-        val parse: TomlReadError = TomlDocument.read(Buffer().apply { writeString("a = 1\na = 2\n") }).errorOrFail()
+        val parse: TomlReadError = TomlDocument.read(Buffer().apply { writeString("a = 1\na = 2\n") }).assertError<TomlReadError.Parse>()
 
         assertEquals(
             """{"type":"Io","detail":"disk gone"}""",

@@ -1,13 +1,14 @@
 package com.fromwau.kotoml
 
-import kotlinx.serialization.json.Json
+import com.fromwau.kern.result.assertError
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.serialization.json.Json
 
 /** A radix prefix with no digits after it is its own error, not an overflow. */
 class MissingDigitsTest {
 
-    private fun reason(text: String): TomlParseError.Reason = TomlDocument.parse(text).errorOrFail().reason
+    private fun reason(text: String): TomlParseError.Reason = TomlDocument.parse(text).assertError<TomlParseError>().reason
 
     @Test
     fun `each radix prefix with no digits reports missing digits in that radix`() {

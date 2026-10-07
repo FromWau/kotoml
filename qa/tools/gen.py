@@ -28,7 +28,7 @@ FIXES = {
     "R-035": [('it["n"].getOrNull()?.longOrNull', 'it.getOrNull("n")?.longOrNull')],
     "R-066": [("k.name ==", "k ==")],
     "R-070": [("k.name ==", "k ==")],
-    "S-058": [(".toInlineTable()", ".toInlineTable().getOrFail()")],
+    "S-058": [(".toInlineTable()", ".toInlineTable().assertSuccess()")],
 }
 
 scenarios = []
@@ -62,6 +62,7 @@ lines = [
     "package com.fromwau.kotoml",
     "",
     "import com.fromwau.kern.result.Result",
+    "import com.fromwau.kern.result.assertSuccess",
     "import kotlin.test.Test",
     "import kotlin.test.assertEquals",
     "",
@@ -81,7 +82,7 @@ lines = [
     "    fun `every firm scenario prints as expected and every scenario prints valid TOML`() {",
     "        val failures = mutableListOf<String>()",
     "        for (s in scenarios) {",
-    "            val doc = TomlDocument.parse(s.input, s.version).getOrFail()",
+    "            val doc = TomlDocument.parse(s.input, s.version).assertSuccess()",
     "            s.edit(doc)",
     "            val actual = doc.toString()",
     "            val valid = TomlDocument.parse(actual, TomlVersion.V1_1) is Result.Success",

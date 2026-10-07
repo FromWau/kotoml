@@ -1,5 +1,7 @@
 package com.fromwau.kotoml.serialization
 
+import com.fromwau.kern.result.assertError
+import com.fromwau.kern.result.assertSuccess
 import com.fromwau.kotoml.StandardTable
 import com.fromwau.kotoml.TextPosition
 import com.fromwau.kotoml.TomlDocument
@@ -19,7 +21,7 @@ class ErrorMessageTest {
     fun `a type mismatch names the path what it expected and the value it found`() {
         assertEquals(
             "database.pool.size: expected an integer, found the string \"ten\"",
-            Toml.decodeFromString<App>(app).errorOrFail().message,
+            Toml.decodeFromString<App>(app).assertError<TomlDecodeError.TypeMismatch>().message,
         )
     }
 
@@ -27,7 +29,7 @@ class ErrorMessageTest {
     fun `a type mismatch close to a value of the expected type suggests it`() {
         assertEquals(
             "enabled: expected a boolean, found the string \"ture\", did you mean true?",
-            Toml.decodeFromString<Switches>("enabled = \"ture\"\n").errorOrFail().message,
+            Toml.decodeFromString<Switches>("enabled = \"ture\"\n").assertError<TomlDecodeError.TypeMismatch>().message,
         )
     }
 
@@ -35,33 +37,33 @@ class ErrorMessageTest {
     fun `a mismatch on a table names its kind alone`() {
         assertEquals(
             "servers: expected an array, found a table",
-            Toml.decodeFromString<Fleet>("name = \"f\"\n[servers]\nhost = \"a\"\n").errorOrFail().message,
+            Toml.decodeFromString<Fleet>("name = \"f\"\n[servers]\nhost = \"a\"\n").assertError<TomlDecodeError.TypeMismatch>().message,
         )
     }
 
     @Test
     fun `an unknown key suggests the field it is closest to`() {
-        val error = Toml.decodeFromString<Fleet>("nmae = \"f\"\n").errorOrFail()
+        val error = Toml.decodeFromString<Fleet>("nmae = \"f\"\n").assertError<TomlDecodeError.UnknownKey>()
         assertEquals(TomlDecodeError.UnknownKey("nmae", "name", TextPosition(1, 1)), error)
         assertEquals("unknown key nmae, did you mean name?", error.message)
     }
 
     @Test
     fun `an unknown key close to no field suggests nothing`() {
-        assertEquals("unknown key zzz", Toml.decodeFromString<Server>("host = \"h\"\nzzz = 1\n").errorOrFail().message)
+        assertEquals("unknown key zzz", Toml.decodeFromString<Server>("host = \"h\"\nzzz = 1\n").assertError<TomlDecodeError.UnknownKey>().message)
     }
 
     @Test
     fun `a missing key and an unknown enum value read as sentences`() {
-        val missing = Toml.decodeFromString<App>("title = \"t\"\n[database]\n").errorOrFail()
+        val missing = Toml.decodeFromString<App>("title = \"t\"\n[database]\n").assertError<TomlDecodeError.MissingKey>()
         assertEquals("missing key database.url", missing.message)
         assertEquals(
             "mode: unknown value \"tcp\", did you mean TCP?",
-            Toml.decodeFromString<Config>("hostname = \"h\"\nport = 1\nmode = \"tcp\"\n").errorOrFail().message,
+            Toml.decodeFromString<Config>("hostname = \"h\"\nport = 1\nmode = \"tcp\"\n").assertError<TomlDecodeError.UnknownEnumValue>().message,
         )
         assertEquals(
             "shape: unknown subclass \"triangle\", expected one of circle, point, square",
-            Toml.decodeFromString<Holder>("[shape]\ntype = \"triangle\"\n").errorOrFail().message,
+            Toml.decodeFromString<Holder>("[shape]\ntype = \"triangle\"\n").assertError<TomlDecodeError.UnknownSubtype>().message,
         )
     }
 
@@ -69,28 +71,28 @@ class ErrorMessageTest {
     fun `a parse error gives its place and reason`() {
         assertEquals(
             "line 2, column 1: duplicate key `a`",
-            Toml.decodeFromString<Ports>("a = 1\na = 2\n").errorOrFail().message,
+            Toml.decodeFromString<Ports>("a = 1\na = 2\n").assertError<TomlDecodeError.Parse>().message,
         )
     }
 
     @Test
     fun `a decode error has the position of the key it names`() {
-        val error = Toml.decodeFromString<App>(app).errorOrFail()
+        val error = Toml.decodeFromString<App>(app).assertError<TomlDecodeError.TypeMismatch>()
         assertIs<TomlDecodeError.Located>(error)
         assertEquals(TextPosition(7, 1), error.position)
     }
 
     @Test
     fun `an element of a list has the position of the list's key`() {
-        val error = Toml.decodeFromString<Grid>("\nrows = [[1, 2], [3, \"x\"]]\n").errorOrFail()
+        val error = Toml.decodeFromString<Grid>("\nrows = [[1, 2], [3, \"x\"]]\n").assertError<TomlDecodeError.TypeMismatch>()
         val expected = TomlDecodeError.TypeMismatch("rows[1][1]", TomlType.Integer, TomlType.String, "\"x\"")
         assertEquals(expected.copy(position = TextPosition(2, 1)), error)
     }
 
     @Test
     fun `a document parsed from text gives positions too`() {
-        val document = TomlDocument.parse("host = 1\n").getOrFail()
-        val error = Toml.decodeFromDocument<Server>(document).errorOrFail()
+        val document = TomlDocument.parse("host = 1\n").assertSuccess()
+        val error = Toml.decodeFromDocument<Server>(document).assertError<TomlDecodeError.TypeMismatch>()
         assertIs<TomlDecodeError.Located>(error)
         assertEquals(TextPosition(1, 1), error.position)
     }
@@ -98,8 +100,8 @@ class ErrorMessageTest {
     @Test
     fun `a document built in code has no positions`() {
         val root = StandardTable()
-        root.set("host", Value.Integer(1)).getOrFail()
-        val error = Toml.decodeFromDocument<Server>(TomlDocument(root)).errorOrFail()
+        root.set("host", Value.Integer(1)).assertSuccess()
+        val error = Toml.decodeFromDocument<Server>(TomlDocument(root)).assertError<TomlDecodeError.TypeMismatch>()
         assertIs<TomlDecodeError.Located>(error)
         assertNull(error.position)
     }
@@ -108,11 +110,11 @@ class ErrorMessageTest {
     fun `an encode error reads as a sentence`() {
         assertEquals(
             "ports: a map key that is not a string, which a table cannot hold",
-            Toml.encodeToString(NumberedPorts(mapOf(1 to "a"))).errorOrFail().message,
+            Toml.encodeToString(NumberedPorts(mapOf(1 to "a"))).assertError<TomlEncodeError.NonStringMapKey>().message,
         )
         assertEquals(
             "kotlin.Int cannot be written as a document, which is a table",
-            Toml.encodeToString(1).errorOrFail().message,
+            Toml.encodeToString(1).assertError<TomlEncodeError.UnsupportedRoot>().message,
         )
     }
 }

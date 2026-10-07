@@ -1,6 +1,8 @@
 package com.fromwau.kotoml
 
 import com.fromwau.kern.result.Result
+import com.fromwau.kern.result.assertError
+import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -9,9 +11,9 @@ import kotlin.test.assertTrue
 /** `toml_edit/tests/compliance/parse.rs` */
 class ComplianceParseTest {
 
-    private fun parseValue(text: String): Value = Value.parse(text).getOrFail()
+    private fun parseValue(text: String): Value = Value.parse(text).assertSuccess()
 
-    private fun parseDocument(text: String): TomlDocument = TomlDocument.parse(text).getOrFail()
+    private fun parseDocument(text: String): TomlDocument = TomlDocument.parse(text).assertSuccess()
 
     @Test
     fun `each kind of value text parses as its own value kind`() {
@@ -60,7 +62,7 @@ string'''""",
 [a.b.c.d]
 
 """
-        assertSnapshot(expected, TomlDocument.parse(toml).getOrFail().toString())
+        assertSnapshot(expected, TomlDocument.parse(toml).assertSuccess().toString())
     }
 
     @Test
@@ -88,24 +90,24 @@ string'''""",
                 "apples'''\nlines  = '''\nThe first newline is\ntrimmed in raw strings.\nAll other whitespace\n" +
                 "is preserved.\n'''\n",
         )
-        assertEquals("\u0000", table["bar"].getOrFail().stringOrNull)
-        assertEquals("One\nTwo", table["key1"].getOrFail().stringOrNull)
-        assertEquals("One\nTwo", table["key2"].getOrFail().stringOrNull)
-        assertEquals("One\nTwo", table["key3"].getOrFail().stringOrNull)
+        assertEquals("\u0000", table["bar"].assertSuccess().stringOrNull)
+        assertEquals("One\nTwo", table["key1"].assertSuccess().stringOrNull)
+        assertEquals("One\nTwo", table["key2"].assertSuccess().stringOrNull)
+        assertEquals("One\nTwo", table["key3"].assertSuccess().stringOrNull)
 
         val msg = "The quick brown fox jumps over the lazy dog."
-        assertEquals(msg, table["key4"].getOrFail().stringOrNull)
-        assertEquals(msg, table["key5"].getOrFail().stringOrNull)
-        assertEquals(msg, table["key6"].getOrFail().stringOrNull)
+        assertEquals(msg, table["key4"].assertSuccess().stringOrNull)
+        assertEquals(msg, table["key5"].assertSuccess().stringOrNull)
+        assertEquals(msg, table["key6"].assertSuccess().stringOrNull)
 
-        assertEquals("C:\\Users\\nodejs\\templates", table["winpath"].getOrFail().stringOrNull)
-        assertEquals("\\\\ServerX\\admin\$\\system32\\", table["winpath2"].getOrFail().stringOrNull)
-        assertEquals("Tom \"Dubs\" Preston-Werner", table["quoted"].getOrFail().stringOrNull)
-        assertEquals("<\\i\\c*\\s*>", table["regex"].getOrFail().stringOrNull)
-        assertEquals("I [dw]on't need \\d{2} apples", table["regex2"].getOrFail().stringOrNull)
+        assertEquals("C:\\Users\\nodejs\\templates", table["winpath"].assertSuccess().stringOrNull)
+        assertEquals("\\\\ServerX\\admin\$\\system32\\", table["winpath2"].assertSuccess().stringOrNull)
+        assertEquals("Tom \"Dubs\" Preston-Werner", table["quoted"].assertSuccess().stringOrNull)
+        assertEquals("<\\i\\c*\\s*>", table["regex"].assertSuccess().stringOrNull)
+        assertEquals("I [dw]on't need \\d{2} apples", table["regex2"].assertSuccess().stringOrNull)
         assertEquals(
             "The first newline is\ntrimmed in raw strings.\nAll other whitespace\nis preserved.\n",
-            table["lines"].getOrFail().stringOrNull,
+            table["lines"].assertSuccess().stringOrNull,
         )
     }
 
@@ -124,14 +126,14 @@ string'''""",
 #...
 """,
         )
-        assertNotNull(table["foo"][0]["bar"].getOrFail().standardTableOrNull)
-        assertNotNull(table["foo"][1]["bar"].getOrFail().standardTableOrNull)
+        assertNotNull(table["foo"][0]["bar"].assertSuccess().standardTableOrNull)
+        assertNotNull(table["foo"][1]["bar"].assertSuccess().standardTableOrNull)
     }
 
     @Test
     fun `a header with no keys makes an empty table`() {
         val table = parseDocument("\n[foo]")
-        assertNotNull(table["foo"].getOrFail().standardTableOrNull)
+        assertNotNull(table["foo"].assertSuccess().standardTableOrNull)
     }
 
     @Test
@@ -178,25 +180,25 @@ name = "banana"
 name = "plantain"
 """,
         )
-        assertEquals("apple", table["fruit"][0]["name"].getOrFail().stringOrNull)
-        assertEquals("red", table["fruit"][0]["physical"]["color"].getOrFail().stringOrNull)
-        assertEquals("round", table["fruit"][0]["physical"]["shape"].getOrFail().stringOrNull)
-        assertEquals("red delicious", table["fruit"][0]["variety"][0]["name"].getOrFail().stringOrNull)
-        assertEquals("granny smith", table["fruit"][0]["variety"][1]["name"].getOrFail().stringOrNull)
-        assertEquals("banana", table["fruit"][1]["name"].getOrFail().stringOrNull)
-        assertEquals("plantain", table["fruit"][1]["variety"][0]["name"].getOrFail().stringOrNull)
+        assertEquals("apple", table["fruit"][0]["name"].assertSuccess().stringOrNull)
+        assertEquals("red", table["fruit"][0]["physical"]["color"].assertSuccess().stringOrNull)
+        assertEquals("round", table["fruit"][0]["physical"]["shape"].assertSuccess().stringOrNull)
+        assertEquals("red delicious", table["fruit"][0]["variety"][0]["name"].assertSuccess().stringOrNull)
+        assertEquals("granny smith", table["fruit"][0]["variety"][1]["name"].assertSuccess().stringOrNull)
+        assertEquals("banana", table["fruit"][1]["name"].assertSuccess().stringOrNull)
+        assertEquals("plantain", table["fruit"][1]["variety"][0]["name"].assertSuccess().stringOrNull)
     }
 
     @Test
     fun `an empty literal string reads as empty`() {
         val table = parseDocument("foo = ''")
-        assertEquals("", table["foo"].getOrFail().stringOrNull)
+        assertEquals("", table["foo"].assertSuccess().stringOrNull)
     }
 
     @Test
     fun `a multi-line string of blank lines keeps all but the trimmed first newline`() {
         val table = parseDocument("foo = \"\"\"\n\n\n\"\"\"")
-        assertEquals("\n\n", table["foo"].getOrFail().stringOrNull)
+        assertEquals("\n\n", table["foo"].assertSuccess().stringOrNull)
     }
 
     @Test
@@ -204,15 +206,15 @@ name = "plantain"
         val table = parseDocument(
             "\n        foo = \"\"\"\\\r\n\"\"\"\n        bar = \"\"\"\\\r\n   \r\n   \r\n   a\"\"\"\n    ",
         )
-        assertEquals("", table["foo"].getOrFail().stringOrNull)
-        assertEquals("a", table["bar"].getOrFail().stringOrNull)
+        assertEquals("", table["foo"].assertSuccess().stringOrNull)
+        assertEquals("a", table["bar"].assertSuccess().stringOrNull)
     }
 
     @Test
     fun `floats with exponents and underscores decode to their values`() {
         fun assertDecodesTo(actual: String, expected: Double) {
             val a = parseDocument("foo = $actual")
-            assertEquals(expected, a["foo"].getOrFail().doubleOrNull)
+            assertEquals(expected, a["foo"].assertSuccess().doubleOrNull)
         }
 
         assertDecodesTo("1.0", 1.0)
@@ -266,11 +268,11 @@ name = "plantain"
         ['""']
     """,
         )
-        assertNotNull(a["a"]["b"].getOrFail().standardTableOrNull)
-        assertNotNull(a["f f"].getOrFail().standardTableOrNull)
-        assertNotNull(a["f.f"].getOrFail().standardTableOrNull)
-        assertNotNull(a["\""].getOrFail().standardTableOrNull)
-        assertNotNull(a["\"\""].getOrFail().standardTableOrNull)
+        assertNotNull(a["a"]["b"].assertSuccess().standardTableOrNull)
+        assertNotNull(a["f f"].assertSuccess().standardTableOrNull)
+        assertNotNull(a["f.f"].assertSuccess().standardTableOrNull)
+        assertNotNull(a["\""].assertSuccess().standardTableOrNull)
+        assertNotNull(a["\"\""].assertSuccess().standardTableOrNull)
     }
 
     @Test
@@ -289,7 +291,7 @@ name = "plantain"
     fun `integers with underscores and signs decode to their values`() {
         fun assertDecodesTo(actual: String, expected: Long) {
             val table = parseDocument("foo = $actual")
-            assertEquals(expected, table["foo"].getOrFail().longOrNull)
+            assertEquals(expected, table["foo"].assertSuccess().longOrNull)
         }
 
         assertDecodesTo("1_0", 10)
@@ -301,14 +303,14 @@ name = "plantain"
 
     @Test
     fun `an empty basic string reads as empty`() {
-        assertEquals("", parseDocument("foo = \"\"")["foo"].getOrFail().stringOrNull)
+        assertEquals("", parseDocument("foo = \"\"")["foo"].assertSuccess().stringOrNull)
     }
 
     @Test
     fun `offset date-times print back as written`() {
         fun assertPrintsBack(actual: String) {
             val toml = parseDocument("foo = $actual")
-            assertEquals(actual, toml["foo"].getOrFail().datetimeOrNull.toString())
+            assertEquals(actual, toml["foo"].assertSuccess().datetimeOrNull.toString())
         }
 
         assertPrintsBack("2016-09-09T09:09:09Z")
@@ -468,7 +470,7 @@ clippy.exhaustive_enums = "warn"
     @Test
     fun `garbage inside an inline table reports the unquoted value at column 4`() {
         val input = "={=<=u=="
-        val err = TomlDocument.parse(input).errorOrFail()
+        val err = TomlDocument.parse(input).assertError<TomlParseError>()
         assertSnapshot(
             """
 TOML parse error at line 1, column 4
@@ -485,7 +487,7 @@ string values must be quoted, expected literal string
     @Test
     fun `garbage inside a closed inline table reports the unquoted value at column 4`() {
         val input = "={=<=u==}"
-        val err = TomlDocument.parse(input).errorOrFail()
+        val err = TomlDocument.parse(input).assertError<TomlParseError>()
         assertSnapshot(
             """
 TOML parse error at line 1, column 4
@@ -502,7 +504,7 @@ string values must be quoted, expected literal string
     @Test
     fun `a line of two equals signs reports an extra equals sign at column 2`() {
         val input = "==\n[._[._"
-        val err = TomlDocument.parse(input).errorOrFail()
+        val err = TomlDocument.parse(input).assertError<TomlParseError>()
         assertSnapshot(
             """
 TOML parse error at line 1, column 2

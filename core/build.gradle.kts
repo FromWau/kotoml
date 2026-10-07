@@ -21,6 +21,7 @@ kotlin {
         }
 
         commonTest.dependencies {
+            implementation(libs.kern.result.test)
             implementation(libs.kotlinx.serialization.json)
         }
     }

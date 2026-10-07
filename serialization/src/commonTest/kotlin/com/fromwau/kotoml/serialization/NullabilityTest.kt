@@ -1,10 +1,11 @@
 package com.fromwau.kotoml.serialization
 
 import com.fromwau.kern.result.Result
+import com.fromwau.kern.result.assertSuccess
 import com.fromwau.kotoml.TomlDocument
-import kotlinx.serialization.Serializable
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.serialization.Serializable
 
 @Serializable
 private data class Owned(
@@ -104,7 +105,7 @@ class NullabilityTest {
 
     @Test
     fun `encodeInto refuses a nullable type and leaves the document as it was`() {
-        val document = TomlDocument.parse("name = \"n\"\n").getOrFail()
+        val document = TomlDocument.parse("name = \"n\"\n").assertSuccess()
         assertEquals(Result.Error(TomlEncodeError.NullableType("owner")), Toml.encodeInto(document, Owned("n")))
         assertEquals("name = \"n\"\n", document.toString())
     }

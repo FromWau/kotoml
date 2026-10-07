@@ -179,7 +179,8 @@ is goal 4 in [GOALS.md](../GOALS.md).
 A document's top-level keys live in its `root` table. The document itself offers the map calls (`get`, `set`,
 `getOrNull`, `contains`, `keys`, `put`, `putAll`, `getOrPut`, `remove`, `rename`, `retainAll`, `removeAll`,
 `clear`, `size`) and iterates over the root's pairs; everything else a `StandardTable` does, such as
-`sortBy { (key, _) -> key }` or `keyOrNull(name)`, goes through `doc.root`. A key read from text knows its `position`, the line and column it
+`sortBy { (key, _) -> key }` or `keyOrNull(name)`, goes through `doc.root`. A key read from text knows its
+`position`, the line and column it
 was written at, so a program checking a parsed document can point at the line it complains about.
 
 ## Items and their comments
@@ -199,10 +200,10 @@ An item handed out by indexing, and the comments that go with it, follow five ru
 2. **Storing stores a copy that leaves its source's comments.** An item read from a document, this one or another,
    is stored without its same-line comment, its header comment and the comment lines above its header; the comments
    inside it go along. Editing the original afterwards does not change the copy.
-3. **`copy()` is exactly what a store would store.** `dst.set("db", src["db"].getOrFail().copy())` prints the same as
-   `dst.set("db", src["db"].getOrFail())`, in another document or the same one. The same holds for the `copy()` of
-   what an item holds: `src["db"].getOrFail().standardTableOrNull!!.copy()` stores as `src["db"].getOrFail().copy()`
-   does, and so do the copies of an `InlineTable`, a `TomlArray`, an `ArrayOfTables` and a `Value`. A
+3. **`copy()` is exactly what a store would store.** With `val db = src["db"].getOrElse { error(it) }`,
+   `dst.set("db", db.copy())` prints the same as `dst.set("db", db)`, in another document or the same one. The same
+   holds for the `copy()` of what an item holds: `db.standardTableOrNull!!.copy()` stores as `db.copy()` does, and
+so do the copies of an `InlineTable`, a `TomlArray`, an `ArrayOfTables` and a `Value`. A
    `TomlDocument.copy()` is a whole document and keeps every comment and its version.
 4. **Removing is a move.** An item returned by `remove` or `removeAt` keeps its own comments, its same-line and header
    comment included, and stores with them. The comment lines above it stay in the document it left, so storing it
@@ -332,7 +333,8 @@ version, and in TOML 1.1 when it is stored in no document, such as a value remov
 
 The types keep upstream's names (`Array` is `TomlArray`), and their members read like Kotlin's collections:
 `size` for `len`, `put` and `getOrPut` for `insert` and the entry API, `add` for `push`. A document is a
-`TomlDocument` whose `root` is its top-level table. Unchanged text prints back byte for byte, which goes past upstream: line endings are kept per
+`TomlDocument` whose `root` is its top-level table. Unchanged text prints back byte for byte, which goes past
+upstream: line endings are kept per
 line, each dotted key and header keeps its own spelling, and dotted keys keep the order they were read in.
 
 The command-line tool [kotoml](../app/README.md) queries TOML files with this module, and runs the official

@@ -1,11 +1,13 @@
 package com.fromwau.kotoml
 
-import kotlinx.io.Buffer
-import kotlinx.io.readString
+import com.fromwau.kern.result.assertError
+import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertSame
+import kotlinx.io.Buffer
+import kotlinx.io.readString
 
 /**
  * A document's [TomlDocument.version]: [TomlDocument.setVersion] converting it, and the edits a TOML 1.0 document
@@ -16,18 +18,18 @@ class VersionTest {
     private fun parse(
         text: String,
         version: TomlVersion = TomlVersion.V1_1,
-    ): TomlDocument = TomlDocument.parse(text, version).getOrFail()
+    ): TomlDocument = TomlDocument.parse(text, version).assertSuccess()
 
     private fun written(doc: TomlDocument): String {
         val buffer = Buffer()
-        doc.writeTo(buffer).getOrFail()
+        doc.writeTo(buffer).assertSuccess()
         return buffer.readString()
     }
 
     /** Converts [text] to TOML 1.0, checks the result reads back as TOML 1.0, and returns what it prints. */
     private fun converted(text: String): String {
         val doc = parse(text)
-        doc.setVersion(TomlVersion.V1_0).getOrFail()
+        doc.setVersion(TomlVersion.V1_0).assertSuccess()
         assertEquals(TomlVersion.V1_0, doc.version)
         val printed = written(doc)
         assertEquals(printed, doc.toString())
@@ -66,8 +68,8 @@ class VersionTest {
     @Test
     fun `a converted time reads its seconds`() {
         val doc = parse("t = 07:32\n")
-        doc.setVersion(TomlVersion.V1_0).getOrFail()
-        val value = doc["t"].getOrFail().valueOrNull!!
+        doc.setVersion(TomlVersion.V1_0).assertSuccess()
+        val value = doc["t"].assertSuccess().valueOrNull!!
         assertEquals(0, value.datetimeOrNull!!.time!!.second)
         assertEquals("07:32:00", value.toString())
     }
@@ -75,15 +77,15 @@ class VersionTest {
     @Test
     fun `a time without seconds stored in a TOML 1_0 document reads its seconds`() {
         val doc = parse("a = [1]\nt = { x = 1 }\n[[l]]\n", TomlVersion.V1_0)
-        val time = Value.Datetime(Datetime.LocalTime(Time.of(7, 32).getOrFail()))
-        doc.set("s", time).getOrFail()
-        doc["a"].getOrFail().valueOrNull!!.arrayOrNull!!.add(time).getOrFail()
-        doc["t"].getOrFail().inline().set("y", time).getOrFail()
-        doc["t"]["x"].getOrFail().assign(Item(time)).getOrFail()
-        val table = StandardTable().apply { set("z", time).getOrFail() }
-        doc["l"].getOrFail().arrayOfTablesOrNull!!.add(table).getOrFail()
+        val time = Value.Datetime(Datetime.LocalTime(Time.of(7, 32).assertSuccess()))
+        doc.set("s", time).assertSuccess()
+        doc["a"].assertSuccess().valueOrNull!!.arrayOrNull!!.add(time).assertSuccess()
+        doc["t"].assertSuccess().inline().set("y", time).assertSuccess()
+        doc["t"]["x"].assertSuccess().assign(Item(time)).assertSuccess()
+        val table = StandardTable().apply { set("z", time).assertSuccess() }
+        doc["l"].assertSuccess().arrayOfTablesOrNull!!.add(table).assertSuccess()
         val stored = listOf(doc["s"], doc["a"][1], doc["t"]["y"], doc["t"]["x"], doc["l"][1]["z"])
-        for (slot in stored) assertEquals(0, slot.getOrFail().valueOrNull!!.datetimeOrNull!!.time!!.second)
+        for (slot in stored) assertEquals(0, slot.assertSuccess().valueOrNull!!.datetimeOrNull!!.time!!.second)
         assertNull(time.value.time!!.second)
         val expected = "a = [1, 07:32:00]\nt = { x = 07:32:00, y = 07:32:00 }\ns = 07:32:00\n" +
             "[[l]]\n\n[[l]]\nz = 07:32:00\n"
@@ -146,18 +148,18 @@ class VersionTest {
     fun `an inline table across lines with comments is refused naming it and every comment the change drops`() {
         val text = "s = \"\\e\"\nt0 = 07:32\n[a]\nt = { # one\n  x = 1, # two\n}\nu = {\n  y = 1, # three\n}\n"
         val doc = parse(text)
-        val error = doc.setVersion(TomlVersion.V1_0).errorOrFail()
+        val error = doc.setVersion(TomlVersion.V1_0).assertError<TomlEditError.CommentsWouldBeLost>()
         assertEquals(TomlEditError.CommentsWouldBeLost(listOf("a", "t"), 2), error)
         assertEquals(text, doc.toString())
         assertEquals(TomlVersion.V1_1, doc.version)
-        assertNull(doc["t0"].getOrFail().valueOrNull!!.datetimeOrNull!!.time!!.second)
-        assertEquals("\"\\e\"", doc["s"].getOrFail().valueOrNull!!.toString())
+        assertNull(doc["t0"].assertSuccess().valueOrNull!!.datetimeOrNull!!.time!!.second)
+        assertEquals("\"\\e\"", doc["s"].assertSuccess().valueOrNull!!.toString())
     }
 
     @Test
     fun `an inline table across lines with comments goes on one line when forced`() {
         val doc = parse("[a]\nt = { # one\n  x = 1, # two\n} # three\n")
-        doc.setVersion(TomlVersion.V1_0, force = true).getOrFail()
+        doc.setVersion(TomlVersion.V1_0, force = true).assertSuccess()
         assertEquals("[a]\nt = { x = 1 } # three\n", doc.toString())
         assertEquals(TomlVersion.V1_0, doc.version)
     }
@@ -165,33 +167,33 @@ class VersionTest {
     @Test
     fun `an inline table across lines keeps its header comment after the braces`() {
         val doc = parse("[a]\nt = { # one\n  x = 1,\n}\nl = [\n  { # two\n    y = 1,\n  },\n]\n")
-        doc.setVersion(TomlVersion.V1_0).getOrFail()
+        doc.setVersion(TomlVersion.V1_0).assertSuccess()
         assertEquals("[a]\nt = { x = 1 } # one\nl = [\n  { y = 1 }, # two\n]\n", doc.toString())
     }
 
     @Test
     fun `an inline table across lines drops the header comments of the inline tables inside when forced`() {
         val doc = parse("t = { # one\n  u = { # two\n    x = 1,\n  },\n}\n")
-        val error = doc.setVersion(TomlVersion.V1_0).errorOrFail()
+        val error = doc.setVersion(TomlVersion.V1_0).assertError<TomlEditError.CommentsWouldBeLost>()
         assertEquals(TomlEditError.CommentsWouldBeLost(listOf("t"), 1), error)
-        doc.setVersion(TomlVersion.V1_0, force = true).getOrFail()
+        doc.setVersion(TomlVersion.V1_0, force = true).assertSuccess()
         assertEquals("t = { u = { x = 1 } } # one\n", doc.toString())
     }
 
     @Test
     fun `a handle to a converted inline table stays in the document`() {
         val doc = parse("t = {\n  a = 1,\n}\n")
-        val table = doc["t"].getOrFail().inline()
-        doc.setVersion(TomlVersion.V1_0).getOrFail()
-        table.set("b", Value.Integer(2L)).getOrFail()
-        assertSame(table, doc["t"].getOrFail().inline())
+        val table = doc["t"].assertSuccess().inline()
+        doc.setVersion(TomlVersion.V1_0).assertSuccess()
+        table.set("b", Value.Integer(2L)).assertSuccess()
+        assertSame(table, doc["t"].assertSuccess().inline())
         assertEquals("t = { a = 1, b = 2 }\n", doc.toString())
     }
 
     @Test
     fun `a value removed from a converted document keeps its TOML 1_0 spelling`() {
         val doc = parse("s = \"\\e\"\n")
-        doc.setVersion(TomlVersion.V1_0).getOrFail()
+        doc.setVersion(TomlVersion.V1_0).assertSuccess()
         assertEquals("\"\\u001B\"", doc.remove("s")!!.valueOrNull!!.toString())
     }
 
@@ -199,7 +201,7 @@ class VersionTest {
     fun `a TOML 1_0 document set to TOML 1_0 changes nothing`() {
         val text = "# c\nt = { a = 1 }\n"
         val doc = parse(text, TomlVersion.V1_0)
-        doc.setVersion(TomlVersion.V1_0).getOrFail()
+        doc.setVersion(TomlVersion.V1_0).assertSuccess()
         assertEquals(text, doc.toString())
     }
 
@@ -207,35 +209,35 @@ class VersionTest {
     fun `a document set to TOML 1_1 changes nothing and takes TOML 1_1 edits`() {
         val text = "t = { a = 1 } # c\nd = 07:32:00\n"
         val doc = parse(text, TomlVersion.V1_0)
-        doc.setVersion(TomlVersion.V1_1).getOrFail()
+        doc.setVersion(TomlVersion.V1_1).assertSuccess()
         assertEquals(TomlVersion.V1_1, doc.version)
         assertEquals(text, doc.toString())
-        doc["t"].getOrFail().inline().setTrailingComma(true).getOrFail()
-        doc["e"] = Value.parse("\"\\e\"").getOrFail()
+        doc["t"].assertSuccess().inline().setTrailingComma(true).assertSuccess()
+        doc["e"] = Value.parse("\"\\e\"").assertSuccess()
         assertEquals("t = { a = 1 ,} # c\nd = 07:32:00\ne = \"\\e\"\n", written(doc))
     }
 
     @Test
     fun `a document set to TOML 1_0 and back keeps the TOML 1_0 spelling`() {
         val doc = parse("s = \"\\e\"\n")
-        doc.setVersion(TomlVersion.V1_0).getOrFail()
-        doc.setVersion(TomlVersion.V1_1).getOrFail()
+        doc.setVersion(TomlVersion.V1_0).assertSuccess()
+        doc.setVersion(TomlVersion.V1_1).assertSuccess()
         assertEquals("s = \"\\u001B\"\n", doc.toString())
     }
 
     @Test
     fun `a table and a value print what the converted document holds`() {
         val doc = parse("[a]\nt = 07:32\ns = \"\\e\"\nl = [\"\\x41\"]\n")
-        doc.setVersion(TomlVersion.V1_0).getOrFail()
-        assertEquals("t = 07:32:00\ns = \"\\u001B\"\nl = [\"\\u0041\"]\n", doc["a"].getOrFail().toString())
-        assertEquals("\"\\u0041\"", doc["a"]["l"][0].getOrFail().valueOrNull!!.toString())
+        doc.setVersion(TomlVersion.V1_0).assertSuccess()
+        assertEquals("t = 07:32:00\ns = \"\\u001B\"\nl = [\"\\u0041\"]\n", doc["a"].assertSuccess().toString())
+        assertEquals("\"\\u0041\"", doc["a"]["l"][0].assertSuccess().valueOrNull!!.toString())
     }
 
     @Test
     fun `a table set across lines in a TOML 1_0 document is refused`() {
         val text = "# c\n[t] # t\na = 1 # a\n"
         val doc = parse(text, TomlVersion.V1_0)
-        val error = doc["t"].getOrFail().setLayout(TableLayout.MultilineInline).errorOrFail()
+        val error = doc["t"].assertSuccess().setLayout(TableLayout.MultilineInline).assertError<TomlEditError.NotInToml10>()
         assertEquals(TomlEditError.NotInToml10(listOf("t"), Toml11Feature.MultilineInlineTable), error)
         assertEquals(text, doc.toString())
     }
@@ -243,9 +245,9 @@ class VersionTest {
     @Test
     fun `an inline table set across lines in a TOML 1_0 document is refused`() {
         val doc = parse("[a]\nt = { x = 1 }\nl = [{ y = 1 }]\n", TomlVersion.V1_0)
-        val inTable = doc["a"]["t"].getOrFail().setLayout(TableLayout.MultilineInline).errorOrFail()
+        val inTable = doc["a"]["t"].assertSuccess().setLayout(TableLayout.MultilineInline).assertError<TomlEditError.NotInToml10>()
         assertEquals(TomlEditError.NotInToml10(listOf("a", "t"), Toml11Feature.MultilineInlineTable), inTable)
-        val inArray = doc["a"]["l"].getOrFail().setLayout(TableLayout.MultilineInline).errorOrFail()
+        val inArray = doc["a"]["l"].assertSuccess().setLayout(TableLayout.MultilineInline).assertError<TomlEditError.NotInToml10>()
         assertEquals(TomlEditError.NotInToml10(listOf("a", "l"), Toml11Feature.MultilineInlineTable), inArray)
         assertEquals("[a]\nt = { x = 1 }\nl = [{ y = 1 }]\n", doc.toString())
     }
@@ -253,41 +255,41 @@ class VersionTest {
     @Test
     fun `a table set on one line in a TOML 1_0 document is written`() {
         val doc = parse("[t] # t\na = 1\n", TomlVersion.V1_0)
-        doc["t"].getOrFail().setLayout(TableLayout.Inline).getOrFail()
+        doc["t"].assertSuccess().setLayout(TableLayout.Inline).assertSuccess()
         assertEquals("t = { a = 1 } # t\n", written(doc))
     }
 
     @Test
     fun `a trailing comma in a TOML 1_0 document is refused`() {
         val doc = parse("[a]\nt = { x = 1 }\n", TomlVersion.V1_0)
-        val table = doc["a"]["t"].getOrFail().inline()
-        val error = table.setTrailingComma(true).errorOrFail()
+        val table = doc["a"]["t"].assertSuccess().inline()
+        val error = table.setTrailingComma(true).assertError<TomlEditError.NotInToml10>()
         assertEquals(TomlEditError.NotInToml10(listOf("a", "t"), Toml11Feature.InlineTableTrailingComma), error)
         assertEquals(false, table.trailingComma)
-        table.setTrailingComma(false).getOrFail()
+        table.setTrailingComma(false).assertSuccess()
         assertEquals("[a]\nt = { x = 1 }\n", doc.toString())
     }
 
     @Test
     fun `a trailing comma in a TOML 1_1 document prints`() {
         val doc = parse("t = { x = 1 }\n")
-        doc["t"].getOrFail().inline().setTrailingComma(true).getOrFail()
+        doc["t"].assertSuccess().inline().setTrailingComma(true).assertSuccess()
         assertEquals("t = { x = 1 ,}\n", doc.toString())
     }
 
     @Test
     fun `a string spelled with a TOML 1_1 escape is refused in a TOML 1_0 document`() {
         val doc = parse("a = [1]\nt = { x = 1 }\n", TomlVersion.V1_0)
-        val escaped = Value.parse("\"\\e\"").getOrFail()
-        val stored = doc.set("s", escaped).errorOrFail()
+        val escaped = Value.parse("\"\\e\"").assertSuccess()
+        val stored = doc.set("s", escaped).assertError<TomlEditError.NotInToml10>()
         assertEquals(TomlEditError.NotInToml10(listOf("s"), Toml11Feature.EscapeEscape), stored)
-        val array = doc["a"].getOrFail().valueOrNull!!.arrayOrNull!!
-        val added = array.add(escaped).errorOrFail()
+        val array = doc["a"].assertSuccess().valueOrNull!!.arrayOrNull!!
+        val added = array.add(escaped).assertError<TomlEditError.NotInToml10>()
         assertEquals(TomlEditError.NotInToml10(listOf("a"), Toml11Feature.EscapeEscape), added)
-        val table = doc["t"].getOrFail().inline()
-        val inTable = table.set("y", escaped).errorOrFail()
+        val table = doc["t"].assertSuccess().inline()
+        val inTable = table.set("y", escaped).assertError<TomlEditError.NotInToml10>()
         assertEquals(TomlEditError.NotInToml10(listOf("t", "y"), Toml11Feature.EscapeEscape), inTable)
-        val assigned = doc["t"]["x"].getOrFail().assign(Item(escaped)).errorOrFail()
+        val assigned = doc["t"]["x"].assertSuccess().assign(Item(escaped)).assertError<TomlEditError.NotInToml10>()
         assertEquals(TomlEditError.NotInToml10(listOf("t", "x"), Toml11Feature.EscapeEscape), assigned)
         assertEquals("a = [1]\nt = { x = 1 }\n", doc.toString())
     }
@@ -295,10 +297,10 @@ class VersionTest {
     @Test
     fun `a key spelled with a TOML 1_1 escape is refused in a TOML 1_0 document`() {
         val doc = parse("t = { x = 1 }\n", TomlVersion.V1_0)
-        val key = Key.parse("\"\\x41\"").getOrFail()
-        val error = doc.put(key, Item(Value.Integer(1L))).errorOrFail()
+        val key = Key.parse("\"\\x41\"").assertSuccess()
+        val error = doc.put(key, Item(Value.Integer(1L))).assertError<TomlEditError.NotInToml10>()
         assertEquals(TomlEditError.NotInToml10(listOf("A"), Toml11Feature.HexEscape), error)
-        val inTable = doc["t"].getOrFail().inline().put(key, Value.Integer(1L)).errorOrFail()
+        val inTable = doc["t"].assertSuccess().inline().put(key, Value.Integer(1L)).assertError<TomlEditError.NotInToml10>()
         assertEquals(TomlEditError.NotInToml10(listOf("t", "A"), Toml11Feature.HexEscape), inTable)
         assertEquals("t = { x = 1 }\n", doc.toString())
     }
@@ -307,15 +309,15 @@ class VersionTest {
     fun `a table holding what only TOML 1_1 reads is refused in a TOML 1_0 document`() {
         val source = parse("[t]\nk = 1\n[t.u]\n\"\\e\" = 1\n")
         val doc = parse("[[x]]\n", TomlVersion.V1_0)
-        val table = source["t"].getOrFail().standardTableOrNull!!
+        val table = source["t"].assertSuccess().standardTableOrNull!!
         assertEquals(
             TomlEditError.NotInToml10(listOf("y", "u", "\u001B"), Toml11Feature.EscapeEscape),
-            doc.set("y", table).errorOrFail(),
+            doc.set("y", table).assertError<TomlEditError.NotInToml10>(),
         )
-        val tables = doc["x"].getOrFail().arrayOfTablesOrNull!!
+        val tables = doc["x"].assertSuccess().arrayOfTablesOrNull!!
         assertEquals(
             TomlEditError.NotInToml10(listOf("x", "u", "\u001B"), Toml11Feature.EscapeEscape),
-            tables.add(table).errorOrFail(),
+            tables.add(table).assertError<TomlEditError.NotInToml10>(),
         )
         assertEquals("[[x]]\n", doc.toString())
     }
@@ -323,11 +325,11 @@ class VersionTest {
     @Test
     fun `an inline table across lines or with a trailing comma is refused in a TOML 1_0 document`() {
         val doc = parse("a = 1\n", TomlVersion.V1_0)
-        val across = Value.parse("{\n  x = 1,\n}").getOrFail()
-        val acrossError = doc.set("t", Value.Array(tomlArrayOf(across).getOrFail())).errorOrFail()
+        val across = Value.parse("{\n  x = 1,\n}").assertSuccess()
+        val acrossError = doc.set("t", Value.Array(tomlArrayOf(across).assertSuccess())).assertError<TomlEditError.NotInToml10>()
         assertEquals(TomlEditError.NotInToml10(listOf("t"), Toml11Feature.MultilineInlineTable), acrossError)
-        val comma = Value.parse("{ x = { y = 1, } }").getOrFail()
-        val commaError = doc.set("t", comma).errorOrFail()
+        val comma = Value.parse("{ x = { y = 1, } }").assertSuccess()
+        val commaError = doc.set("t", comma).assertError<TomlEditError.NotInToml10>()
         assertEquals(TomlEditError.NotInToml10(listOf("t", "x"), Toml11Feature.InlineTableTrailingComma), commaError)
         assertEquals("a = 1\n", doc.toString())
     }
@@ -335,8 +337,8 @@ class VersionTest {
     @Test
     fun `a time without seconds stored in a TOML 1_0 document prints its seconds`() {
         val doc = parse("a = [1]\n", TomlVersion.V1_0)
-        doc["t"] = Value.parse("07:32").getOrFail()
-        doc["a"].getOrFail().valueOrNull!!.arrayOrNull!!.add(Value.parse("1979-05-27T07:32").getOrFail()).getOrFail()
+        doc["t"] = Value.parse("07:32").assertSuccess()
+        doc["a"].assertSuccess().valueOrNull!!.arrayOrNull!!.add(Value.parse("1979-05-27T07:32").assertSuccess()).assertSuccess()
         val expected = "a = [1, 1979-05-27T07:32:00]\nt = 07:32:00\n"
         assertEquals(expected, written(doc))
         parse(expected, TomlVersion.V1_0)
@@ -345,15 +347,15 @@ class VersionTest {
     @Test
     fun `a TOML 1_1 spelling stored in a TOML 1_1 document is kept`() {
         val doc = parse("a = 1\n")
-        doc["s"] = Value.parse("\"\\e\"").getOrFail()
-        doc["t"] = Value.parse("{\n  x = 1,\n}").getOrFail()
+        doc["s"] = Value.parse("\"\\e\"").assertSuccess()
+        doc["t"] = Value.parse("{\n  x = 1,\n}").assertSuccess()
         assertEquals("a = 1\ns = \"\\e\"\nt = {\n  x = 1,\n}\n", written(doc))
     }
 
     @Test
     fun `a refused edit reads as a sentence naming the key`() {
         val doc = parse("point = { x = 1 }\n", TomlVersion.V1_0)
-        val error = doc["point"].getOrFail().inline().setTrailingComma(true).errorOrFail()
+        val error = doc["point"].assertSuccess().inline().setTrailingComma(true).assertError<TomlEditError.NotInToml10>()
         assertEquals("point: inline tables cannot end with a comma in TOML 1.0", error.message)
     }
 }

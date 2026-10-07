@@ -1,5 +1,6 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -13,18 +14,18 @@ class DatetimeParseTest {
 
     @Test
     fun `the Datetime KDoc example parses an offset date-time and builds a local date`() {
-        val odt = Datetime.parse("1979-05-27T07:32:00Z").getOrFail()
-        val date = Datetime.LocalDate(Date.of(year = 1979, month = 5, day = 27).getOrFail())
+        val odt = Datetime.parse("1979-05-27T07:32:00Z").assertSuccess()
+        val date = Datetime.LocalDate(Date.of(year = 1979, month = 5, day = 27).assertSuccess())
         assertIs<Datetime.OffsetDateTime>(odt)
         assertEquals("1979-05-27", date.toString())
     }
 
     @Test
     fun `each of the four forms parses to its own kind`() {
-        assertIs<Datetime.OffsetDateTime>(Datetime.parse("1979-05-27T07:32:00Z").getOrFail())
-        assertIs<Datetime.LocalDateTime>(Datetime.parse("1979-05-27T07:32:00").getOrFail())
-        assertIs<Datetime.LocalDate>(Datetime.parse("1979-05-27").getOrFail())
-        assertIs<Datetime.LocalTime>(Datetime.parse("07:32:00").getOrFail())
+        assertIs<Datetime.OffsetDateTime>(Datetime.parse("1979-05-27T07:32:00Z").assertSuccess())
+        assertIs<Datetime.LocalDateTime>(Datetime.parse("1979-05-27T07:32:00").assertSuccess())
+        assertIs<Datetime.LocalDate>(Datetime.parse("1979-05-27").assertSuccess())
+        assertIs<Datetime.LocalTime>(Datetime.parse("07:32:00").assertSuccess())
     }
 
     @Test

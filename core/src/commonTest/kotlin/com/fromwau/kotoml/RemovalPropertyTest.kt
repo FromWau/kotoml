@@ -1,6 +1,7 @@
 package com.fromwau.kotoml
 
 import com.fromwau.kern.result.Result
+import com.fromwau.kern.result.assertSuccess
 import com.fromwau.kotoml.parser.ErrorSink
 import com.fromwau.kotoml.parser.Event
 import com.fromwau.kotoml.parser.EventKind
@@ -65,12 +66,12 @@ class RemovalPropertyTest {
         version: TomlVersion,
     ): List<String> {
         val keys = TomlDocument.parse(text, version)
-            .getOrFail()
+            .assertSuccess()
             .root
             .entries
             .map { it.first }
         return keys.filter { key ->
-            val document = TomlDocument.parse(text, version).getOrFail()
+            val document = TomlDocument.parse(text, version).assertSuccess()
             document.remove(key)
             val tablesFirst = document.root.all { (_, item) -> item.printsOwnHeader }
             !printsWithout(text, document.toString(), ownLines(text, version, key), tablesFirst)
@@ -170,7 +171,7 @@ class RemovalPropertyTest {
 
         fun keyName(event: Event): String {
             val span = event.span
-            return Key.parse(bytes.decodeToString(span.start, span.end), version).getOrFail().name
+            return Key.parse(bytes.decodeToString(span.start, span.end), version).assertSuccess().name
         }
 
         val statements = mutableListOf<Statement>()

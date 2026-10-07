@@ -1,10 +1,11 @@
 package com.fromwau.kotoml.serialization
 
+import com.fromwau.kern.result.assertError
 import com.fromwau.kotoml.TextPosition
 import com.fromwau.kotoml.TomlType
-import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.serialization.json.Json
 
 /** The suggestion a decode error carries for an unknown enum value or subclass, or a value of the wrong type. */
 class DecodeSuggestionTest {
@@ -13,10 +14,10 @@ class DecodeSuggestionTest {
     private val shapes = listOf("circle", "point", "square")
 
     private fun mode(value: String): TomlDecodeError =
-        Toml.decodeFromString<Config>("hostname = \"h\"\nport = 1\nmode = \"$value\"\n").errorOrFail()
+        Toml.decodeFromString<Config>("hostname = \"h\"\nport = 1\nmode = \"$value\"\n").assertError<TomlDecodeError.UnknownEnumValue>()
 
     private fun shape(name: String): TomlDecodeError =
-        Toml.decodeFromString<Holder>("[shape]\ntype = \"$name\"\n").errorOrFail()
+        Toml.decodeFromString<Holder>("[shape]\ntype = \"$name\"\n").assertError<TomlDecodeError.UnknownSubtype>()
 
     // Where the `mode` key and the `[shape]` header key stand in the texts above.
     private fun unknownMode(
@@ -74,9 +75,9 @@ class DecodeSuggestionTest {
         assertEquals(unknownShape("triangle", null), shape("triangle"))
     }
 
-    private fun switches(text: String): TomlDecodeError = Toml.decodeFromString<Switches>(text).errorOrFail()
+    private fun switches(text: String): TomlDecodeError = Toml.decodeFromString<Switches>(text).assertError<TomlDecodeError.TypeMismatch>()
 
-    private fun numbers(text: String): TomlDecodeError = Toml.decodeFromString<Numbers>(text).errorOrFail()
+    private fun numbers(text: String): TomlDecodeError = Toml.decodeFromString<Numbers>(text).assertError<TomlDecodeError.TypeMismatch>()
 
     // Each text below is one key on the first line.
     private fun mismatch(

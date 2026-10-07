@@ -1,6 +1,7 @@
 package com.fromwau.kotoml
 
 import com.fromwau.kern.result.Result
+import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertIs
 
@@ -16,7 +17,7 @@ class DatetimeDisplayTest {
     fun `a time without seconds prints as hours and minutes`() {
         assertPrintsAndParsesBack(
             Datetime.LocalTime(
-                Time.of(hour = 13, minute = 37, second = null, nanosecond = null).getOrFail(),
+                Time.of(hour = 13, minute = 37, second = null, nanosecond = null).assertSuccess(),
             ),
             """
 "13:37"
@@ -29,7 +30,7 @@ class DatetimeDisplayTest {
     fun `a time with zero seconds and zero nanoseconds prints a one digit fraction`() {
         assertPrintsAndParsesBack(
             Datetime.LocalTime(
-                Time.of(hour = 13, minute = 37, second = 0, nanosecond = 0).getOrFail(),
+                Time.of(hour = 13, minute = 37, second = 0, nanosecond = 0).assertSuccess(),
             ),
             """
 "13:37:00.0"
@@ -42,8 +43,8 @@ class DatetimeDisplayTest {
     fun `an offset date-time without seconds prints as hours and minutes`() {
         assertPrintsAndParsesBack(
             Datetime.OffsetDateTime(
-                date = Date.of(year = 1979, month = 5, day = 27).getOrFail(),
-                time = Time.of(hour = 7, minute = 32, second = null, nanosecond = null).getOrFail(),
+                date = Date.of(year = 1979, month = 5, day = 27).assertSuccess(),
+                time = Time.of(hour = 7, minute = 32, second = null, nanosecond = null).assertSuccess(),
                 offset = Offset.Z,
             ),
             """

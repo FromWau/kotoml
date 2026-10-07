@@ -1,14 +1,15 @@
 package com.fromwau.kotoml
 
-import kotlinx.serialization.json.Json
+import com.fromwau.kern.result.assertError
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.serialization.json.Json
 
 /** Every error type is data a program can hand on: it encodes with its own fields and a short `type`. */
 class ErrorJsonTest {
 
     private fun json(text: String): String =
-        Json.encodeToString(TomlParseError.serializer(), TomlDocument.parse(text).errorOrFail())
+        Json.encodeToString(TomlParseError.serializer(), TomlDocument.parse(text).assertError<TomlParseError>())
 
     @Test
     fun `a duplicate key names the key and both places`() {

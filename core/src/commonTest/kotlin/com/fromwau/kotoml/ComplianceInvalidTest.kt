@@ -1,6 +1,7 @@
 package com.fromwau.kotoml
 
 import com.fromwau.kern.result.Result
+import com.fromwau.kern.result.assertError
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -145,35 +146,35 @@ missing key for inline table element, expected key
     @Test
     fun `an error span covers a whole multi-byte character`() {
         val input = "key = 😀"
-        val err = TomlDocument.parse(input).errorOrFail()
+        val err = TomlDocument.parse(input).assertError<TomlParseError>()
         assertEquals("😀", spanText(input, err))
     }
 
     @Test
     fun `an error span after non-ASCII text indexes the parsed String`() {
         val input = "a = \"é😀\"\nb = asdf"
-        val err = TomlDocument.parse(input).errorOrFail()
+        val err = TomlDocument.parse(input).assertError<TomlParseError>()
         assertEquals("asdf", spanText(input, err))
     }
 
     @Test
     fun `bytes that are not UTF-8 get an empty span where the valid text ends`() {
         val bytes = "a = \"é\"".encodeToByteArray() + byteArrayOf(0xFF.toByte())
-        val err = TomlDocument.parse(bytes).errorOrFail()
+        val err = TomlDocument.parse(bytes).assertError<TomlParseError>()
         assertEquals(Span(7, 7), err.span)
     }
 
     @Test
     fun `an error span covers the whole unquoted word`() {
         val input = "key = asdf"
-        val err = TomlDocument.parse(input).errorOrFail()
+        val err = TomlDocument.parse(input).assertError<TomlParseError>()
         assertEquals("asdf", spanText(input, err))
     }
 
     @Test
     fun `a bad escape value reports an empty span where the escape value is missing`() {
         val input = "key = \"\\ᾂr\""
-        val err = TomlDocument.parse(input).errorOrFail()
+        val err = TomlDocument.parse(input).assertError<TomlParseError>()
         // Bad escape values are reported as missing escape values.
         assertEquals("", spanText(input, err))
     }

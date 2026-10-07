@@ -1,6 +1,7 @@
 package com.fromwau.kotoml
 
 import com.fromwau.kern.result.Result
+import com.fromwau.kern.result.assertSuccess
 import com.fromwau.kotoml.writer.rustLowerExp
 
 /**
@@ -281,4 +282,4 @@ private class JsonParser(private val text: String) {
 }
 
 /** The time with its second and fraction written out, as toml-test compares them. */
-private fun Time.full(): Time = Time.of(hour, minute, second ?: 0, nanosecond ?: 0).getOrFail()
+private fun Time.full(): Time = Time.of(hour, minute, second ?: 0, nanosecond ?: 0).assertSuccess()

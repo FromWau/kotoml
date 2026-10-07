@@ -1,9 +1,10 @@
 package com.fromwau.kotoml.serialization
 
+import com.fromwau.kern.result.assertSuccess
 import com.fromwau.kotoml.TomlDocument
-import kotlinx.serialization.Serializable
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.serialization.Serializable
 
 @Serializable
 private data class PortList(val ports: List<Int>)
@@ -31,9 +32,9 @@ class ListMergeTest {
         text: String,
         change: (Fleet) -> Fleet,
     ): String {
-        val document = TomlDocument.parse(text).getOrFail()
-        val value = Toml.decodeFromDocument<Fleet>(document).getOrFail()
-        Toml.encodeInto(document, change(value)).getOrFail()
+        val document = TomlDocument.parse(text).assertSuccess()
+        val value = Toml.decodeFromDocument<Fleet>(document).assertSuccess()
+        Toml.encodeInto(document, change(value)).assertSuccess()
         return document.toString()
     }
 
@@ -41,8 +42,8 @@ class ListMergeTest {
         text: String,
         ports: List<Int>,
     ): String {
-        val document = TomlDocument.parse(text).getOrFail()
-        Toml.encodeInto(document, PortList(ports)).getOrFail()
+        val document = TomlDocument.parse(text).assertSuccess()
+        Toml.encodeInto(document, PortList(ports)).assertSuccess()
         return document.toString()
     }
 

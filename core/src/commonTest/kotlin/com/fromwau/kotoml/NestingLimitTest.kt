@@ -1,5 +1,7 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.assertError
+import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -19,7 +21,7 @@ class NestingLimitTest {
 
     @Test
     fun `dotted keys inside nested inline tables are refused once their levels add up past the limit`() {
-        val error = TomlDocument.parse(inlineTables(depth = 78, dots = 77)).errorOrFail()
+        val error = TomlDocument.parse(inlineTables(depth = 78, dots = 77)).assertError<TomlParseError>()
         assertEquals(TomlParseError.Reason.KeyTooDeep, error.reason)
     }
 
@@ -27,13 +29,13 @@ class NestingLimitTest {
     fun `a dotted key inside inline tables may reach one level below the limit`() {
         val depth = 40
         val text = keyInside(depth, dots = limit - depth - 1)
-        assertEquals(text, TomlDocument.parse(text).getOrFail().toString())
+        assertEquals(text, TomlDocument.parse(text).assertSuccess().toString())
     }
 
     @Test
     fun `a dotted key that brings inline tables to the limit is refused at the key`() {
         val depth = 40
-        val error = TomlDocument.parse(keyInside(depth, dots = limit - depth)).errorOrFail()
+        val error = TomlDocument.parse(keyInside(depth, dots = limit - depth)).assertError<TomlParseError>()
         assertEquals(TomlParseError.Reason.KeyTooDeep, error.reason)
         assertEquals(TextPosition(1, "x = ".length + "{ k = ".length * (depth - 1) + "{ ".length + 1), error.position)
     }
@@ -42,7 +44,7 @@ class NestingLimitTest {
     fun `arrays under a dotted key may nest to the limit counted with its dots`() {
         val dots = 70
         val text = "a.".repeat(dots) + "b = " + "[".repeat(limit - dots) + "1" + "]".repeat(limit - dots) + "\n"
-        assertEquals(text, TomlDocument.parse(text).getOrFail().toString())
+        assertEquals(text, TomlDocument.parse(text).assertSuccess().toString())
     }
 
     @Test
@@ -50,7 +52,7 @@ class NestingLimitTest {
         val dots = 70
         val brackets = limit - dots + 1
         val text = "a.".repeat(dots) + "b = " + "[".repeat(brackets) + "1" + "]".repeat(brackets) + "\n"
-        val error = TomlDocument.parse(text).errorOrFail()
+        val error = TomlDocument.parse(text).assertError<TomlParseError>()
         assertEquals(TomlParseError.Reason.Syntax(ParseErrorReason.RecursionLimit), error.reason)
         assertEquals(TextPosition(1, "a.".length * dots + "b = ".length + brackets), error.position)
     }

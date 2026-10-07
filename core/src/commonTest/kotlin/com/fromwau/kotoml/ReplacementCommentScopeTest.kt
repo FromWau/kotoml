@@ -1,5 +1,6 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -13,12 +14,12 @@ class ReplacementCommentScopeTest {
         text: String,
         edit: (TomlDocument) -> Unit,
     ): String {
-        val document = TomlDocument.parse(text).getOrFail()
+        val document = TomlDocument.parse(text).assertSuccess()
         edit(document)
         return document.toString()
     }
 
-    private val table = standardTableOf("q" to Item(Value.Integer(1L))).getOrFail()
+    private val table = standardTableOf("q" to Item(Value.Integer(1L))).assertSuccess()
 
     @Test
     fun `a value replaced by a value keeps the comment after it`() {
@@ -27,7 +28,7 @@ class ReplacementCommentScopeTest {
         assertEquals(expected, replacing(text) { it["server"]["port"] = Value.Integer(2L) })
         assertEquals(
             expected,
-            replacing(text) { it["server"]["port"].getOrFail().assign(Item(Value.Integer(2L))).getOrFail() },
+            replacing(text) { it["server"]["port"].assertSuccess().assign(Item(Value.Integer(2L))).assertSuccess() },
         )
     }
 
@@ -45,7 +46,7 @@ class ReplacementCommentScopeTest {
         val text = "c = 2\n# about a\na.b = 1 # same line\nz = 0\n"
         val expected = "c = 2\n# about a\na = 5\nz = 0\n"
         assertEquals(expected, replacing(text) { it["a"] = Value.Integer(5L) })
-        assertEquals(expected, replacing(text) { it["a"].getOrFail().assign(Item(Value.Integer(5L))).getOrFail() })
+        assertEquals(expected, replacing(text) { it["a"].assertSuccess().assign(Item(Value.Integer(5L))).assertSuccess() })
     }
 
     @Test

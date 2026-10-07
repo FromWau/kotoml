@@ -1,12 +1,13 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /** What this port keeps beyond upstream so that unchanged text prints back byte for byte. */
 class PreservationTest {
 
-    private fun parse(text: String): TomlDocument = TomlDocument.parse(text).getOrFail()
+    private fun parse(text: String): TomlDocument = TomlDocument.parse(text).assertSuccess()
 
     @Test
     fun `CRLF lines keep their endings`() {
@@ -37,7 +38,7 @@ class PreservationTest {
     @Test
     fun `an array of tables element added later prints its header as the key is spelled`() {
         val doc = parse("[[\"x\"]]\nn = 1\n")
-        doc["x"].getOrFail().arrayOfTablesOrNull!!.add(standardTableOf("n" to Item(Value.Integer(2L))).getOrFail())
+        doc["x"].assertSuccess().arrayOfTablesOrNull!!.add(standardTableOf("n" to Item(Value.Integer(2L))).assertSuccess())
         assertEquals("[[\"x\"]]\nn = 1\n\n[[\"x\"]]\nn = 2\n", doc.toString())
     }
 
@@ -116,26 +117,26 @@ class PreservationTest {
     @Test
     fun `an inline table made dotted keeps the comment above its key`() {
         val doc = parse("x = 1\n# about t\nt = { c = 3 }\n")
-        doc["t"].getOrFail().setLayout(TableLayout.Dotted).getOrFail()
+        doc["t"].assertSuccess().setLayout(TableLayout.Dotted).assertSuccess()
         assertEquals("x = 1\n# about t\nt.c = 3\n", doc.toString())
     }
 
     @Test
     fun `nested inline tables made dotted keep the comment above and take new keys on lines of their own`() {
         val doc = parse("x = 1\r\n# about t\r\nt = { c = { c = 3 } }\r\n")
-        val inner = doc["t"]["c"].getOrFail().inlineTableOrNull!!
-        doc["t"].getOrFail().setLayout(TableLayout.Dotted).getOrFail()
-        doc["t"]["c"].getOrFail().setLayout(TableLayout.Dotted).getOrFail()
-        inner.set("d", 1L).getOrFail()
+        val inner = doc["t"]["c"].assertSuccess().inlineTableOrNull!!
+        doc["t"].assertSuccess().setLayout(TableLayout.Dotted).assertSuccess()
+        doc["t"]["c"].assertSuccess().setLayout(TableLayout.Dotted).assertSuccess()
+        inner.set("d", 1L).assertSuccess()
         assertEquals("x = 1\r\n# about t\r\nt.c.c = 3\r\nt.c.d = 1\r\n", doc.toString())
     }
 
     @Test
     fun `removing the last key of an inline table made dotted keeps the comment above it`() {
         val doc = parse("x = 1\n# about t\nt = { c = { c = 3 } }\n")
-        val inner = doc["t"]["c"].getOrFail().inlineTableOrNull!!
-        doc["t"].getOrFail().setLayout(TableLayout.Dotted).getOrFail()
-        doc["t"]["c"].getOrFail().setLayout(TableLayout.Dotted).getOrFail()
+        val inner = doc["t"]["c"].assertSuccess().inlineTableOrNull!!
+        doc["t"].assertSuccess().setLayout(TableLayout.Dotted).assertSuccess()
+        doc["t"]["c"].assertSuccess().setLayout(TableLayout.Dotted).assertSuccess()
         inner.remove("c")
         assertEquals("x = 1\n# about t\nt.c = {}\n", doc.toString())
     }

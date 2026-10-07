@@ -23,12 +23,6 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
 
 ### API gaps and ergonomics
 
-- [ ] **61. No rename.** `put("new", remove("old"))` moves the key to the end and leaves its comment above the next
-  key; a key built from the old key's decor duplicates the comment.
-  **Ruling 2026-10-05:** `rename(old, new)` keeps position, comments and value; a header table renames its sub-tables;
-  `NotFound` / key-taken errors.
-  **Ruling 2026-10-05 (2):** renaming an array of tables renames every `[[x]]` header to `[[y]]`. Renaming onto a key
-  already taken is an error (assumed, not yet confirmed).
 - [ ] **65. `resetFormatting` is shallow and differs per kind.** A table keeps its values' spellings and key quoting,
   an array resets its layout but not its elements, and on the root it deletes comments. No document-wide reset.
   **Ruling 2026-10-05:** rename to `format(): Unit` on `Item`, `Value`, the tables and the document; deep; keeps
@@ -89,6 +83,17 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **61. No rename.** `put("new", remove("old"))` moves the key to the end and leaves its comment above the next
+  key; a key built from the old key's decor duplicates the comment.
+  **Ruling 2026-10-05:** `rename(old, new)` keeps position, comments and value; a header table renames its sub-tables;
+  `NotFound` / key-taken errors.
+  **Ruling 2026-10-05 (2):** renaming an array of tables renames every `[[x]]` header to `[[y]]`. Renaming onto a key
+  already taken is an error (assumed, not yet confirmed).
+  **Verdict 2026-10-07:** fixed: `rename(old, new)` on tables, inline tables, the document and items keeps the entry's
+  place, comments, spacing and item (handles stay live), renames sub-table headers, every `[[old]]` header and dotted
+  lines, spells the new key as a new key; `NotFound` and the new `KeyTaken` change nothing; renaming to itself is Ok.
+  RenameTest; random renames in both property tests.
 
 - [x] **94. A multi-line inline table is a layout no caller can choose.** `inline()` writes one across lines only
   when comments need it, and nested tables always on one line, dropping their comments in 1.1. **Ruling 2026-10-06:**

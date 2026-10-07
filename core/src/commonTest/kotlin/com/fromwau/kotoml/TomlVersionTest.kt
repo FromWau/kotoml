@@ -1,6 +1,8 @@
 package com.fromwau.kotoml
 
 import com.fromwau.kern.result.Result
+import com.fromwau.kern.result.assertError
+import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -10,7 +12,7 @@ class TomlVersionTest {
 
     private fun refusedIn10(input: String, expected: String) {
         assertIs<Result.Success<*>>(TomlDocument.parse(input), "TOML 1.1 accepts:\n$input")
-        assertSnapshot(expected, TomlDocument.parse(input, TomlVersion.V1_0).errorOrFail().render(input))
+        assertSnapshot(expected, TomlDocument.parse(input, TomlVersion.V1_0).assertError<TomlParseError>().render(input))
     }
 
     @Test
@@ -100,7 +102,7 @@ TOML parse error at line 1, column 7
 missing escaped value, expected `b`, `f`, `n`, `r`, `t`, `\`, `"`, `u`, `U`
 
 """,
-            TomlDocument.parse(input, TomlVersion.V1_0).errorOrFail().render(input),
+            TomlDocument.parse(input, TomlVersion.V1_0).assertError<TomlParseError>().render(input),
         )
     }
 
@@ -116,14 +118,14 @@ TOML parse error at line 1, column 4
 missing escaped value, expected `b`, `f`, `n`, `r`, `t`, `\`, `"`, `u`, `U`
 
 """,
-            TomlDocument.parse(input, TomlVersion.V1_0).errorOrFail().render(input),
+            TomlDocument.parse(input, TomlVersion.V1_0).assertError<TomlParseError>().render(input),
         )
     }
 
     @Test
     fun `V1_0 reads an escaped backslash before an x as text`() {
-        val doc = TomlDocument.parse("s = \"\\\\x41\"\n", TomlVersion.V1_0).getOrFail()
-        assertEquals("\\x41", doc["s"].getOrFail().stringOrNull)
+        val doc = TomlDocument.parse("s = \"\\\\x41\"\n", TomlVersion.V1_0).assertSuccess()
+        assertEquals("\\x41", doc["s"].assertSuccess().stringOrNull)
     }
 
     @Test

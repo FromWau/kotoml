@@ -1,6 +1,8 @@
 package com.fromwau.kotoml
 
 import com.fromwau.kern.result.Result
+import com.fromwau.kern.result.assertError
+import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -30,18 +32,18 @@ class EditTest {
     }
 
     private fun given(input: String): Given {
-        return Given(TomlDocument.parse(input).getOrFail())
+        return Given(TomlDocument.parse(input).assertSuccess())
     }
 
     private fun assertKeySpellingRoundTrip(input: String, expected: String) {
-        val value = Key.parse(input).getOrFail()
+        val value = Key.parse(input).assertSuccess()
         val actual = value.toString()
         if (Key.parse(actual) is Result.Error) fail("invalid `Key`:\n```\n$actual\n```\n")
         assertSnapshot(expected, actual)
     }
 
     private fun assertKeyValueRoundTrip(input: String, expected: String) {
-        val parsed = Key.parse(input).getOrFail()
+        val parsed = Key.parse(input).assertSuccess()
         // Drops the written spelling.
         val value = Key(parsed.name)
         val actual = value.toString()
@@ -54,27 +56,27 @@ class EditTest {
             "# leading comment\n[ parent . 'child' ] # header\nvalue = { dotted . key = [ 1, 2, ], other = 'text' } #" +
             " value\n\n[[ parent . 'entries' ]] # first\nname = \"first\"\n\n[[ parent . 'entries' ]] # second\nname " +
             "= \"second\"\n# trailing comment\n"
-        val document = TomlDocument.parse(input.toCharArray().concatToString()).getOrFail()
+        val document = TomlDocument.parse(input.toCharArray().concatToString()).assertSuccess()
         assertEquals(input, document.toString())
 
         val name = document["parent"]["entries"][1]["name"]
-        val decor = name.getOrFail().valueOrNull!!.decor
-        name.getOrFail().assign(Item(Value.String("updated")))
-        name.getOrFail().valueOrNull!!.decor = decor
+        val decor = name.assertSuccess().valueOrNull!!.decor
+        name.assertSuccess().assign(Item(Value.String("updated")))
+        name.assertSuccess().valueOrNull!!.decor = decor
         assertEquals(input.replace("\"second\"", "\"updated\""), document.toString())
     }
 
     @Test
     fun `a parse error renders against the input it came from`() {
         val input = "[table]\nkey = 1\n[table]\nkey = 2\n"
-        val error = TomlDocument.parse(input).errorOrFail()
+        val error = TomlDocument.parse(input).assertError<TomlParseError>()
         assertEquals(TomlParseError.Reason.DuplicateKey(listOf("table")), error.reason)
         assertTrue(error.render(input).contains("[table]"))
     }
 
     @Test
     fun `a line inserted into a CRLF document ends with CRLF`() {
-        val document = TomlDocument.parse("# comment\r\n[table]\r\nvalue = { dotted.key = [1, 2] }\r\n").getOrFail()
+        val document = TomlDocument.parse("# comment\r\n[table]\r\nvalue = { dotted.key = [1, 2] }\r\n").assertSuccess()
         document["table"]["new key"] = "new value"
         // Upstream prints CRLF input with LF line endings; this port keeps each line's ending, which the toml-test
         // round trip requires (valid/newline-crlf), and an inserted line ends like the line before it.
@@ -337,7 +339,7 @@ class EditTest {
                 "                             },\n                            ),\n                        },\n       " +
                 "             },\n                ),\n            },\n        },\n    ),\n    trailing: \" # final co" +
                 "mment\\n\",\n}\n\n",
-            TomlDocument.parse(input).getOrFail().dbg(),
+            TomlDocument.parse(input).assertSuccess().dbg(),
         )
     }
 
@@ -462,8 +464,8 @@ dc = "eqdc10"
     fun `a table copied from another parsed document prints in its new document`() {
         given("[a]")
             .running { root ->
-                val other = TomlDocument.parse("[b]").getOrFail()
-                root["b"] = other["b"].getOrFail().copy()
+                val other = TomlDocument.parse("[b]").assertSuccess()
+                root["b"] = other["b"].assertSuccess().copy()
             }
             .prints("""
 [a]
@@ -497,7 +499,7 @@ dc = "eqdc10"
         given("\n        [package]\n        title = \"withoutarray\"")
             .running { root ->
                 root["bin"] = ArrayOfTables()
-                val array = assertNotNull(root["bin"].getOrFail().arrayOfTablesOrNull)
+                val array = assertNotNull(root["bin"].assertSuccess().arrayOfTablesOrNull)
                 run {
                     val table = StandardTable()
                     table["hello"] = "world"
@@ -906,16 +908,16 @@ edition = "2024"
                 assertEquals(1, b.size)
                 b.add(Value.String("world", Decor("\n", "\n")))
                 b.add(Value.String("test", Decor("", "")))
-                b.add(1, Value.String("beep")).getOrFail()
-                b.add(2, Value.String("boop", Decor("   ", "   "))).getOrFail()
+                b.add(1, Value.String("beep")).assertSuccess()
+                b.add(2, Value.String("boop", Decor("   ", "   "))).assertSuccess()
                 // This should preserve formatting.
-                assertEquals("boop", b.set(2, Value.String("zoink")).getOrFail().stringOrNull)
+                assertEquals("boop", b.set(2, Value.String("zoink")).assertSuccess().stringOrNull)
                 // This should replace formatting.
                 assertEquals(
                     "test",
                     b
                         .replace(4, Value.String("yikes", Decor("  ", "")), keepDecor = false)
-                        .getOrFail()
+                        .assertSuccess()
                         .stringOrNull,
                 )
             }
@@ -937,12 +939,12 @@ edition = "2024"
                 run {
                     val a = root.getOrNull("a")!!.arrayOrNull!!
                     assertEquals(4, a.size)
-                    assertTrue(a.removeAt(3).getOrFail() is Value.Integer)
+                    assertTrue(a.removeAt(3).assertSuccess() is Value.Integer)
                     assertEquals(3, a.size)
                 }
                 val b = root.getOrNull("b")!!.arrayOrNull!!
                 assertEquals(1, b.size)
-                assertTrue(b.removeAt(0).getOrFail() is Value.String)
+                assertTrue(b.removeAt(0).assertSuccess() is Value.String)
                 assertTrue(b.isEmpty())
             }
             .prints("""
@@ -983,7 +985,7 @@ edition = "2024"
                     assertEquals(2, a.size)
                     assertTrue(a.containsKey("a"))
                     assertTrue("a" in a)
-                    a["c"].getOrFail()
+                    a["c"].assertSuccess()
                     a.getOrPut("b") { Value.Integer(42L) }
                     assertEquals(3, a.size)
                     a.resetFormatting()
@@ -1035,30 +1037,30 @@ edition = "2024"
         x = "y"
         [empty]""")
             .running { root ->
-                val a = root["a"].getOrFail().tableOrNull
+                val a = root["a"].assertSuccess().tableOrNull
                 assertNotNull(a)
                 assertEquals(3, a.entries.size)
                 assertEquals(3, a.size)
                 assertEquals(2L, a.getItem("a")?.longOrNull)
-                val b = root["b"].getOrFail().tableOrNull
+                val b = root["b"].assertSuccess().tableOrNull
                 assertNotNull(b)
                 assertEquals(1, b.entries.size)
                 assertEquals(1, b.size)
                 assertEquals("y", b.getItem("x")?.stringOrNull)
-                assertEquals(0, root["x"].getOrFail().tableOrNull?.entries?.size)
-                assertEquals(true, root["empty"].getOrFail().tableOrNull?.isEmpty())
-                assertNull(root["bin"].getOrFail().tableOrNull)
+                assertEquals(0, root["x"].assertSuccess().tableOrNull?.entries?.size)
+                assertEquals(true, root["empty"].assertSuccess().tableOrNull?.isEmpty())
+                assertNull(root["bin"].assertSuccess().tableOrNull)
             }
     }
 
     @Test
     fun `putAll copies another inline table's pairs and leaves that table as it was`() {
         val a = Value.InlineTable(
-            inlineTableOf("a" to Value.Integer(1L), "b" to Value.Integer(2L), "c" to Value.Integer(3L)).getOrFail(),
+            inlineTableOf("a" to Value.Integer(1L), "b" to Value.Integer(2L), "c" to Value.Integer(3L)).assertSuccess(),
         )
         val aTable = a.inlineTableOrNull!!
         val b = Value.InlineTable(
-            inlineTableOf("c" to Value.Integer(4L), "d" to Value.Integer(5L), "e" to Value.Integer(6L)).getOrFail(),
+            inlineTableOf("c" to Value.Integer(4L), "d" to Value.Integer(5L), "e" to Value.Integer(6L)).assertSuccess(),
         )
         val bTable = b.inlineTableOrNull!!
         aTable.putAll(bTable.map { (key, value) -> key to value.copy() })
@@ -1073,7 +1075,7 @@ edition = "2024"
             .running { root ->
                 root["nixpkgs"] = StandardTable()
                 root["nixpkgs"]["src"] = StandardTable()
-                root["nixpkgs"]["src"].getOrFail().setLayout(TableLayout.Dotted).getOrFail()
+                root["nixpkgs"]["src"].assertSuccess().setLayout(TableLayout.Dotted).assertSuccess()
                 root["nixpkgs"]["src"]["git"] = "https://github.com/nixos/nixpkgs"
             }
             .prints("""
@@ -1090,7 +1092,7 @@ src.git = "https://github.com/nixos/nixpkgs"
                 root["nixpkgs"] = StandardTable()
                 root["nixpkgs"]["src"] = Value.InlineTable(InlineTable())
                 root["nixpkgs"]["src"]["git"] = "https://github.com/nixos/nixpkgs"
-                root["nixpkgs"]["src"].getOrFail().setLayout(TableLayout.Dotted).getOrFail()
+                root["nixpkgs"]["src"].assertSuccess().setLayout(TableLayout.Dotted).assertSuccess()
             }
             .prints("""
 [nixpkgs]
@@ -1102,17 +1104,17 @@ src.git = "https://github.com/nixos/nixpkgs"
     @Test
     fun `an array of strings sorts with a comparator over its values`() {
         val values = listOf("foo", "qux", "bar")
-        val array = values.map { Value.String(it) }.toTomlArray().getOrFail()
+        val array = values.map { Value.String(it) }.toTomlArray().assertSuccess()
         array.sortWith { lhs, rhs -> compareValues(lhs.stringOrNull, rhs.stringOrNull) }
         assertEquals("[\"bar\", \"foo\", \"qux\"]", array.toString())
     }
 
     @Test
     fun `an array of tables put at a string key replaces the value there`() {
-        val document = TomlDocument.parse("bookmark = 1010").getOrFail()
+        val document = TomlDocument.parse("bookmark = 1010").assertSuccess()
         val key = "bookmark"
         document.put(key, Item(ArrayOfTables()))
-        val table = document[key].getOrFail().arrayOfTablesOrNull!!
+        val table = document[key].assertSuccess().arrayOfTablesOrNull!!
         val bookmarkTable = StandardTable()
         bookmarkTable["name"] = "test.swf"
         table.add(bookmarkTable)
@@ -1124,10 +1126,10 @@ name = "test.swf"
 
     @Test
     fun `an array of tables put at a parsed key prints the key's whitespace in its header`() {
-        val document = TomlDocument.parse("bookmark = 1010").getOrFail()
-        val key = Key.parsePath("  bookmark   ").getOrFail()[0]
+        val document = TomlDocument.parse("bookmark = 1010").assertSuccess()
+        val key = Key.parsePath("  bookmark   ").assertSuccess()[0]
         document.root.put(key, Item(ArrayOfTables()))
-        val table = document[key.name].getOrFail().arrayOfTablesOrNull!!
+        val table = document[key.name].assertSuccess().arrayOfTablesOrNull!!
         val bookmarkTable = StandardTable()
         bookmarkTable["name"] = "test.swf"
         table.add(bookmarkTable)
@@ -1148,8 +1150,8 @@ inline = { "1" = 1, "2" = 2 }
 [table.child]
 other = "world"
 """
-        val doc = TomlDocument.parse(toml).getOrFail()
-        doc.getOrNull("table")!!.setLayout(TableLayout.Inline).getOrFail()
+        val doc = TomlDocument.parse(toml).assertSuccess()
+        doc.getOrNull("table")!!.setLayout(TableLayout.Inline).assertSuccess()
         val actual = doc.toString()
         assertSnapshot(
             "\ntable = { string = \"value\", array = [1, 2, 3], inline = { \"1\" = 1, \"2\" = 2 }, child = { other = " +
@@ -1161,7 +1163,7 @@ other = "world"
         val toml =
             "table = { string = \"value\", array = [1, 2, 3], inline = { \"1\" = 1, \"2\" = 2 }, child = { other = \"" +
             "world\" } }\n"
-        val doc = TomlDocument.parse(toml).getOrFail()
+        val doc = TomlDocument.parse(toml).assertSuccess()
         val t = doc.remove("table")!!
         val inline = t.inlineTableOrNull ?: fail("Unexpected $t")
         val table = inline.toStandardTable()
@@ -1196,8 +1198,8 @@ inline = { "1" = 1, "2" = 2 }
 [table.child]
 other = "world"
 """
-        val doc = TomlDocument.parse(toml).getOrFail()
-        doc.getOrNull("table")!!.setLayout(TableLayout.Inline).getOrFail()
+        val doc = TomlDocument.parse(toml).assertSuccess()
+        doc.getOrNull("table")!!.setLayout(TableLayout.Inline).assertSuccess()
         val actual = doc.toString()
         assertSnapshot(
             "\ntable = [{ string = \"value\", array = [1, 2, 3], inline = { \"1\" = 1, \"2\" = 2 }, " +
@@ -1228,8 +1230,8 @@ other = "world"
 
     @Test
     fun `a parsed key put into a document prints after the existing keys`() {
-        val doc = TomlDocument.parse("aaaaaa = 1").getOrFail()
-        val key = Key.parse("bbb").getOrFail()
+        val doc = TomlDocument.parse("aaaaaa = 1").assertSuccess()
+        val key = Key.parse("bbb").assertSuccess()
         val table = doc.root
         table.put(key, Item(Value.Integer(2L)))
         assertEquals("aaaaaa = 1\nbbb = 2", doc.toString())
@@ -1291,7 +1293,7 @@ other = "world"
         val doc = TomlDocument()
         // An inline table holds only values, so a dotted inline table stands in for upstream's table here.
         val dotted = InlineTable()
-        Item(Value.InlineTable(dotted)).setLayout(TableLayout.Dotted).getOrFail()
+        Item(Value.InlineTable(dotted)).setLayout(TableLayout.Dotted).assertSuccess()
         doc["tool"] = Value.InlineTable(InlineTable())
         doc["tool"]["typst-test"] = Value.InlineTable(dotted)
         doc["tool"]["typst-test"]["tests"] = "tests"
@@ -1310,13 +1312,13 @@ name = "apple"
 name = "banana"
 """)
             .running { root ->
-                    val array = root["fruit"].getOrFail().arrayOfTablesOrNull!!
+                    val array = root["fruit"].assertSuccess().arrayOfTablesOrNull!!
                     val newTable = StandardTable()
                     newTable.put("name", Item(Value.String("cherry")))
                     array.add(0, newTable)
                     // The previously-first table (now at index 1) had no leading blank line
                     // from parsing; fix it up so it separates properly.
-                    val moved = array[1].getOrFail()
+                    val moved = array[1].assertSuccess()
                     moved.decor = moved.decor.copy(prefix = "\n")
             }
             .prints("""
@@ -1341,7 +1343,7 @@ name = "apple"
 name = "banana"
 """)
             .running { root ->
-                    val array = root["fruit"].getOrFail().arrayOfTablesOrNull!!
+                    val array = root["fruit"].assertSuccess().arrayOfTablesOrNull!!
                     val newTable = StandardTable()
                     newTable.put("name", Item(Value.String("cherry")))
                     // Give the new table a leading blank line to match the existing style.
@@ -1370,7 +1372,7 @@ name = "apple"
 name = "banana"
 """)
             .running { root ->
-                    val array = root["fruit"].getOrFail().arrayOfTablesOrNull!!
+                    val array = root["fruit"].assertSuccess().arrayOfTablesOrNull!!
                     val newTable = StandardTable()
                     newTable.put("name", Item(Value.String("cherry")))
                     // Give the new table a leading blank line to match the existing style.
@@ -1394,7 +1396,7 @@ name = "cherry"
     fun `adding a table past the end of an array of tables fails with IndexOutOfBounds`() {
         val array = ArrayOfTables()
         val t = StandardTable()
-        assertEquals(TomlEditError.IndexOutOfBounds(1, 0), array.add(1, t).errorOrFail())
+        assertEquals(TomlEditError.IndexOutOfBounds(1, 0), array.add(1, t).assertError<TomlEditError.IndexOutOfBounds>())
     }
 
     @Test
@@ -1453,11 +1455,11 @@ name = "apple"
 name = "banana"
 """)
             .running { root ->
-                val array = root["fruit"].getOrFail().arrayOfTablesOrNull!!
+                val array = root["fruit"].assertSuccess().arrayOfTablesOrNull!!
                 val newTable = StandardTable()
                 newTable.put("name", Item(Value.String("cherry")))
-                val old = array.set(1, newTable).getOrFail()
-                assertEquals("banana", old["name"].getOrFail().stringOrNull)
+                val old = array.set(1, newTable).assertSuccess()
+                assertEquals("banana", old["name"].assertSuccess().stringOrNull)
             }
             .prints("""
 [[fruit]]
@@ -1474,6 +1476,6 @@ name = "cherry"
     fun `setting a table past the end of an array of tables fails with IndexOutOfBounds`() {
         val array = ArrayOfTables()
         val t = StandardTable()
-        assertEquals(TomlEditError.IndexOutOfBounds(0, 0), array.set(0, t).errorOrFail())
+        assertEquals(TomlEditError.IndexOutOfBounds(0, 0), array.set(0, t).assertError<TomlEditError.IndexOutOfBounds>())
     }
 }

@@ -1,5 +1,6 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -13,7 +14,7 @@ class RemovalCommentScopeTest {
         text: String,
         edit: (TomlDocument) -> Unit,
     ): String {
-        val document = TomlDocument.parse(text).getOrFail()
+        val document = TomlDocument.parse(text).assertSuccess()
         edit(document)
         return document.toString()
     }
@@ -23,7 +24,7 @@ class RemovalCommentScopeTest {
         val text = "[[server]]\n#host = \"127.0.0.1\"\nhost = \"localhost\"\nport = 8080\n"
         assertEquals(
             "[[server]]\n#host = \"127.0.0.1\"\nport = 8080\n",
-            removing(text) { it["server"].getOrFail().arrayOfTablesOrNull!![0].getOrFail().remove("host") },
+            removing(text) { it["server"].assertSuccess().arrayOfTablesOrNull!![0].assertSuccess().remove("host") },
         )
     }
 
@@ -62,7 +63,7 @@ class RemovalCommentScopeTest {
         val text = "[[server]]\nhost = \"a\"\n# backup\n[[server]]\nhost = \"b\"\n"
         assertEquals(
             "[[server]]\nhost = \"a\"\n# backup\n",
-            removing(text) { it["server"].getOrFail().arrayOfTablesOrNull!!.removeAt(1).getOrFail() },
+            removing(text) { it["server"].assertSuccess().arrayOfTablesOrNull!!.removeAt(1).assertSuccess() },
         )
     }
 
@@ -83,7 +84,7 @@ class RemovalCommentScopeTest {
         val text = "ports = [\n  8080, # http\n  # https\n  8443, # tls\n]\n"
         assertEquals(
             "ports = [\n  8080, # http\n  # https\n]\n",
-            removing(text) { it["ports"].getOrFail().arrayOrNull!!.removeAt(1).getOrFail() },
+            removing(text) { it["ports"].assertSuccess().arrayOrNull!!.removeAt(1).assertSuccess() },
         )
     }
 
@@ -92,7 +93,7 @@ class RemovalCommentScopeTest {
         val text = "[database]\n# primary\nurl = \"postgres://\"\n[cache]\n"
         assertEquals(
             "[database]\n# primary\n[cache]\n",
-            removing(text) { it["database"].getOrFail().standardTableOrNull!!.remove("url") },
+            removing(text) { it["database"].assertSuccess().standardTableOrNull!!.remove("url") },
         )
     }
 
@@ -107,7 +108,7 @@ class RemovalCommentScopeTest {
         val text = "# all servers\n[[server]]\nhost = \"a\"\n# backup\n[[server]]\nhost = \"b\"\n"
         assertEquals(
             "# all servers\nserver = []\n",
-            removing(text) { it["server"].getOrFail().arrayOfTablesOrNull!!.clear() },
+            removing(text) { it["server"].assertSuccess().arrayOfTablesOrNull!!.clear() },
         )
     }
 }

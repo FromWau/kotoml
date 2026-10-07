@@ -1,14 +1,15 @@
 package com.fromwau.kotoml.serialization
 
+import com.fromwau.kern.result.assertSuccess
 import com.fromwau.kotoml.TomlDocument
-import kotlinx.datetime.LocalDate
-import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.LocalTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.LocalTime
 
 class RoundTripTest {
 
@@ -16,10 +17,10 @@ class RoundTripTest {
         value: T,
         toml: Toml = Toml,
     ) {
-        val text = toml.encodeToString(value).getOrFail()
-        assertEquals(value, toml.decodeFromString<T>(text).getOrFail(), text)
-        val document = TomlDocument.parse(text).getOrFail()
-        toml.encodeInto(document, value).getOrFail()
+        val text = toml.encodeToString(value).assertSuccess()
+        assertEquals(value, toml.decodeFromString<T>(text).assertSuccess(), text)
+        val document = TomlDocument.parse(text).assertSuccess()
+        toml.encodeInto(document, value).assertSuccess()
         assertEquals(text, document.toString())
     }
 

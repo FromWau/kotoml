@@ -1,6 +1,9 @@
 package com.fromwau.kotoml.serialization
 
+import com.fromwau.kern.result.assertSuccess
 import com.fromwau.kotoml.TomlDocument
+import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationStrategy
@@ -9,8 +12,6 @@ import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import kotlin.test.Test
-import kotlin.test.assertEquals
 
 @Serializable
 private data class WeightTable(val m: Map<String, Int> = mapOf("a" to 1, "b" to 2))
@@ -90,8 +91,8 @@ class EncodeIntoFixesTest {
         serializer: SerializationStrategy<T>,
         value: T,
     ): String {
-        val document = TomlDocument.parse(text).getOrFail()
-        Toml.encodeInto(document, serializer, value).getOrFail()
+        val document = TomlDocument.parse(text).assertSuccess()
+        Toml.encodeInto(document, serializer, value).assertSuccess()
         return document.toString()
     }
 
@@ -181,27 +182,27 @@ class EncodeIntoFixesTest {
 
     @Test
     fun `a nested class at a default that differs from its own defaults writes the keys that differ`() {
-        val document = TomlDocument.parse("[listener]\nhost = \"localhost\"\n").getOrFail()
-        Toml.encodeInto(document, ListenerConfig()).getOrFail()
+        val document = TomlDocument.parse("[listener]\nhost = \"localhost\"\n").assertSuccess()
+        Toml.encodeInto(document, ListenerConfig()).assertSuccess()
         assertEquals("[listener]\nhost = \"localhost\"\nport = 9090\n", document.toString())
-        assertEquals(ListenerConfig(), Toml.decodeFromDocument<ListenerConfig>(document).getOrFail())
+        assertEquals(ListenerConfig(), Toml.decodeFromDocument<ListenerConfig>(document).assertSuccess())
     }
 
     @Test
     fun `a default two levels down that differs from its class's defaults is written`() {
-        val document = TomlDocument.parse("[service]\nname = \"api\"\n\n[service.limits]\nretries = 3\n").getOrFail()
-        Toml.encodeInto(document, Deployment()).getOrFail()
+        val document = TomlDocument.parse("[service]\nname = \"api\"\n\n[service.limits]\nretries = 3\n").assertSuccess()
+        Toml.encodeInto(document, Deployment()).assertSuccess()
         assertEquals(
             "[service]\nname = \"api\"\n\n[service.limits]\nretries = 3\ntimeout = 5\n",
             document.toString(),
         )
-        assertEquals(Deployment(), Toml.decodeFromDocument<Deployment>(document).getOrFail())
+        assertEquals(Deployment(), Toml.decodeFromDocument<Deployment>(document).assertSuccess())
     }
 
     @Test
     fun `a nested class at its own class's defaults adds no keys`() {
-        val document = TomlDocument.parse("[listener]\nhost = \"localhost\"\n").getOrFail()
-        Toml.encodeInto(document, PlainConfig()).getOrFail()
+        val document = TomlDocument.parse("[listener]\nhost = \"localhost\"\n").assertSuccess()
+        Toml.encodeInto(document, PlainConfig()).assertSuccess()
         assertEquals("[listener]\nhost = \"localhost\"\n", document.toString())
     }
 }

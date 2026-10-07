@@ -1,10 +1,11 @@
 package com.fromwau.kotoml
 
-import kotlinx.io.Buffer
-import kotlinx.io.readString
+import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlinx.io.Buffer
+import kotlinx.io.readString
 
 /** writeTo writes a document built to the limit, and refuses one that later edits made deeper. */
 class WriteDepthTest {
@@ -13,36 +14,36 @@ class WriteDepthTest {
 
     private fun nestedArrays(depth: Int): TomlDocument {
         var value = Value.Integer(1L) as Value
-        repeat(depth) { value = Value.Array(tomlArrayOf(value).getOrFail()) }
-        return TomlDocument().also { it.set("a", value).getOrFail() }
+        repeat(depth) { value = Value.Array(tomlArrayOf(value).assertSuccess()) }
+        return TomlDocument().also { it.set("a", value).assertSuccess() }
     }
 
     private fun nestedTables(depth: Int): TomlDocument {
         val doc = TomlDocument()
         var table = doc.root
         repeat(depth) {
-            table = table.getOrPut("t") { Item(StandardTable()) }.getOrFail().standardTableOrNull!!
+            table = table.getOrPut("t") { Item(StandardTable()) }.assertSuccess().standardTableOrNull!!
         }
-        table.set("x", 1L).getOrFail()
+        table.set("x", 1L).assertSuccess()
         return doc
     }
 
     private fun written(doc: TomlDocument): String {
         val buffer = Buffer()
-        doc.writeTo(buffer).getOrFail()
+        doc.writeTo(buffer).assertSuccess()
         return buffer.readString()
     }
 
     @Test
     fun `arrays nested to the limit are written and read back`() {
         val text = written(nestedArrays(limit))
-        TomlDocument.parse(text).getOrFail()
+        TomlDocument.parse(text).assertSuccess()
     }
 
     @Test
     fun `tables nested to the limit are written and read back`() {
         val text = written(nestedTables(limit))
-        TomlDocument.parse(text).getOrFail()
+        TomlDocument.parse(text).assertSuccess()
     }
 
     @Test
@@ -51,11 +52,11 @@ class WriteDepthTest {
         var table = doc.root
         repeat(limit) {
             val slot = table.getOrNull("t")!!
-            slot.setLayout(TableLayout.Dotted).getOrFail()
+            slot.setLayout(TableLayout.Dotted).assertSuccess()
             table = slot.standardTableOrNull!!
         }
         val text = doc.toString()
         assertEquals(text, written(doc))
-        assertTrue(TomlDocument.parse(text).getOrFail().toTagged().sameAs(doc.toTagged()))
+        assertTrue(TomlDocument.parse(text).assertSuccess().toTagged().sameAs(doc.toTagged()))
     }
 }

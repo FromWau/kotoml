@@ -721,8 +721,8 @@ public class Item private constructor(
     /**
      * A deep copy of this item, stored nowhere and free to be put anywhere: exactly what storing this item would
      * store. A copy of an item read from a place in a document leaves that place's own comments behind, its same-line
-     * comment, its header comment and the comment lines above its header, and takes the comments inside it, so
-     * `dst.set("db", src["db"].getOrFail().copy())` prints the same as `dst.set("db", src["db"].getOrFail())`.
+     * comment, its header comment and the comment lines above its header, and takes the comments inside it, so with
+     * `val db = src["db"].getOrElse { error(it) }`, `dst.set("db", db.copy())` prints the same as `dst.set("db", db)`.
      * Comments a caller set through `decor` stay. A copy of an item stored nowhere, built in code or returned by
      * `remove`, keeps all its comments.
      */

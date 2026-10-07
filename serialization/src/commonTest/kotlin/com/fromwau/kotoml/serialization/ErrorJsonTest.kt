@@ -1,10 +1,11 @@
 package com.fromwau.kotoml.serialization
 
+import com.fromwau.kern.result.assertError
 import com.fromwau.kotoml.TextPosition
 import com.fromwau.kotoml.TomlType
-import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.serialization.json.Json
 
 /** The errors are data a program can hand on: each encodes with its own fields and a short `type`. */
 class ErrorJsonTest {
@@ -17,7 +18,7 @@ class ErrorJsonTest {
     fun `a missing key encodes as its path`() {
         assertEquals(
             """{"type":"MissingKey","path":"database.url","position":{"line":2,"column":2}}""",
-            json(Toml.decodeFromString<App>("title = \"t\"\n[database]\n").errorOrFail()),
+            json(Toml.decodeFromString<App>("title = \"t\"\n[database]\n").assertError<TomlDecodeError.MissingKey>()),
         )
     }
 
@@ -42,7 +43,7 @@ class ErrorJsonTest {
         assertEquals(
             """{"type":"TypeMismatch","path":"double","expected":"Float","found":"String","value":"\"NaN\"",""" +
                 """"suggestion":"nan","position":{"line":1,"column":1}}""",
-            json(Toml.decodeFromString<Numbers>("double = \"NaN\"\n").errorOrFail()),
+            json(Toml.decodeFromString<Numbers>("double = \"NaN\"\n").assertError<TomlDecodeError.TypeMismatch>()),
         )
     }
 
@@ -51,7 +52,7 @@ class ErrorJsonTest {
         assertEquals(
             """{"type":"UnknownEnumValue","path":"mode","value":"tcp","names":["TCP","udp"],"suggestion":"TCP",""" +
                 """"position":{"line":3,"column":1}}""",
-            json(Toml.decodeFromString<Config>("hostname = \"h\"\nport = 1\nmode = \"tcp\"\n").errorOrFail()),
+            json(Toml.decodeFromString<Config>("hostname = \"h\"\nport = 1\nmode = \"tcp\"\n").assertError<TomlDecodeError.UnknownEnumValue>()),
         )
     }
 
@@ -60,7 +61,7 @@ class ErrorJsonTest {
         assertEquals(
             """{"type":"DatetimeKindMismatch","path":"date","expected":"LocalDate","found":"LocalTime",""" +
                 """"position":{"line":1,"column":1}}""",
-            json(Toml.decodeFromString<Times>("date = 07:32:00\n").errorOrFail()),
+            json(Toml.decodeFromString<Times>("date = 07:32:00\n").assertError<TomlDecodeError.DatetimeKindMismatch>()),
         )
     }
 
@@ -69,7 +70,7 @@ class ErrorJsonTest {
         assertEquals(
             """{"type":"Parse","error":{"reason":{"type":"DuplicateKey","keyPath":["a"]},"span":{"start":6,"end":7},""" +
                 """"position":{"line":2,"column":1},"context":{"start":0,"end":1}}}""",
-            json(Toml.decodeFromString<Ports>("a = 1\na = 2\n").errorOrFail()),
+            json(Toml.decodeFromString<Ports>("a = 1\na = 2\n").assertError<TomlDecodeError.Parse>()),
         )
     }
 
@@ -77,11 +78,11 @@ class ErrorJsonTest {
     fun `an encode error encodes with its type and fields`() {
         assertEquals(
             """{"type":"NonStringMapKey","path":"ports"}""",
-            json(Toml.encodeToString(NumberedPorts(mapOf(1 to "a"))).errorOrFail()),
+            json(Toml.encodeToString(NumberedPorts(mapOf(1 to "a"))).assertError<TomlEncodeError.NonStringMapKey>()),
         )
         assertEquals(
             """{"type":"UnsupportedRoot","serialName":"kotlin.Int"}""",
-            json(Toml.encodeToString(1).errorOrFail()),
+            json(Toml.encodeToString(1).assertError<TomlEncodeError.UnsupportedRoot>()),
         )
     }
 }

@@ -1,5 +1,6 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertTrue
 import kotlin.time.Duration
@@ -21,7 +22,7 @@ class PrintScalingTest {
                 table("y") { "c" to 2 }
             }
         }
-    }.getOrFail()
+    }.assertSuccess()
 
     private fun builtArrayOfTables(count: Int): TomlDocument = buildTomlDocument {
         arrayOfTables("servers") {
@@ -32,10 +33,10 @@ class PrintScalingTest {
                 }
             }
         }
-    }.getOrFail()
+    }.assertSuccess()
 
     private fun parsedArrayOfTables(count: Int): TomlDocument =
-        TomlDocument.parse(builtArrayOfTables(count).toString()).getOrFail()
+        TomlDocument.parse(builtArrayOfTables(count).toString()).assertSuccess()
 
     private fun fastestPrint(document: TomlDocument): Duration {
         document.toString()

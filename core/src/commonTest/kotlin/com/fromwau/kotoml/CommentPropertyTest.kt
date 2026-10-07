@@ -1,6 +1,7 @@
 package com.fromwau.kotoml
 
 import com.fromwau.kern.result.Result
+import com.fromwau.kern.result.assertSuccess
 import com.fromwau.kotoml.parser.ErrorSink
 import com.fromwau.kotoml.parser.Event
 import com.fromwau.kotoml.parser.EventKind
@@ -62,7 +63,7 @@ class CommentPropertyTest {
         seed: Int,
     ): String? {
         val version = TomlVersion.entries.lastOrNull { TomlDocument.parse(text, it) is Result.Success } ?: return null
-        val doc = TomlDocument.parse(text, version).getOrFail()
+        val doc = TomlDocument.parse(text, version).assertSuccess()
         val random = Random(seed)
         val log = mutableListOf<String>()
         repeat(steps) {
@@ -118,7 +119,7 @@ class CommentPropertyTest {
                 val index = random.nextInt(array.size + 1)
                 add(Edit("array add") { array.add(edits.value()).let { emptyList() } })
                 add(Edit("array add at $index") { array.add(index, edits.value()).let { emptyList() } })
-                val scalarIndex = (0 until array.size).filter { array[it].getOrFail().isScalar() }.randomOrNull(random)
+                val scalarIndex = (0 until array.size).filter { array[it].assertSuccess().isScalar() }.randomOrNull(random)
                 if (scalarIndex != null) {
                     add(Edit("array replace $scalarIndex") {
                         array.replace(scalarIndex, edits.value()).let { emptyList() }
@@ -207,7 +208,7 @@ class CommentPropertyTest {
                     val item = (parent as StandardTable).getOrNull(step)!!
                     item.standardTableOrNull ?: item.arrayOfTablesOrNull!!
                 }
-                else -> (parent as ArrayOfTables)[step as Int].getOrFail()
+                else -> (parent as ArrayOfTables)[step as Int].assertSuccess()
             }
         }
         when (val last = path.last()) {
@@ -250,7 +251,7 @@ class CommentPropertyTest {
         array: TomlArray,
         index: Int,
     ): List<String> {
-        val suffix = array[index].getOrFail().decor.suffix.orEmpty()
+        val suffix = array[index].assertSuccess().decor.suffix.orEmpty()
         val next = array.getOrNull(index + 1)?.decor?.prefix ?: array.trailing
         val owned = comments(suffix) + comments(next.orEmpty().substringBefore('\n'))
         array.removeAt(index)

@@ -1,11 +1,12 @@
 package com.fromwau.kotoml.serialization
 
+import com.fromwau.kern.result.assertSuccess
 import com.fromwau.kotoml.TomlDocument
-import kotlinx.serialization.KSerializer
-import kotlinx.serialization.encoding.Encoder
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.encoding.Encoder
 
 /** Counts how often `encodeInto` runs the serializer, which is all a serializer with side effects can observe. */
 private class Counting<T>(private val inner: KSerializer<T>) : KSerializer<T> by inner {
@@ -31,9 +32,9 @@ class EncodeRunsTest {
         value: Endpoint,
         toml: Toml = Toml,
     ): Pair<Int, String> {
-        val document = TomlDocument.parse(text).getOrFail()
+        val document = TomlDocument.parse(text).assertSuccess()
         val serializer = Counting(Endpoint.serializer())
-        toml.encodeInto(document, serializer, value).getOrFail()
+        toml.encodeInto(document, serializer, value).assertSuccess()
         return serializer.runs to document.toString()
     }
 

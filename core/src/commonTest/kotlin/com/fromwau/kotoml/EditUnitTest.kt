@@ -1,5 +1,6 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.assertSuccess
 import com.fromwau.kotoml.writer.randomPrintableString
 import kotlin.random.Random
 import kotlin.test.Test
@@ -11,28 +12,28 @@ class EditUnitTest {
     @Test
     fun `an array built from strings prints with default spacing`() {
         val features = listOf("node", "mouth")
-        val value = Value.Array(features.map { Value.String(it) }.toTomlArray().getOrFail())
+        val value = Value.Array(features.map { Value.String(it) }.toTomlArray().assertSuccess())
         assertEquals("[\"node\", \"mouth\"]", value.toString())
     }
 
     @Test
     fun `a string value prints as text that parses back`() {
-        Value.parse(Value.String("hello").toString()).getOrFail()
+        Value.parse(Value.String("hello").toString()).assertSuccess()
     }
 
     @Test
     fun `a key prints as text that parses back`() {
-        Key.parse(Key("hello").toString()).getOrFail()
+        Key.parse(Key("hello").toString()).assertSuccess()
     }
 
     @Test
     fun `an item prints as text that parses back`() {
-        Item(Value.parse(Item(Value.String("hello")).toString()).getOrFail())
+        Item(Value.parse(Item(Value.String("hello")).toString()).assertSuccess())
     }
 
     @Test
     fun `an empty document prints as text that parses back`() {
-        TomlDocument.parse(TomlDocument().toString()).getOrFail()
+        TomlDocument.parse(TomlDocument().toString()).assertSuccess()
     }
 
     @Test
@@ -42,7 +43,7 @@ class EditUnitTest {
             val string = randomPrintableString(random)
             val value = Value.String(string)
             val encoded = value.toString()
-            Value.parse(encoded).getOrFail()
+            Value.parse(encoded).assertSuccess()
         }
     }
 
@@ -53,7 +54,7 @@ class EditUnitTest {
             val string = randomPrintableString(random)
             val key = Key(string)
             val encoded = key.toString()
-            Key.parse(encoded).getOrFail()
+            Key.parse(encoded).assertSuccess()
         }
     }
 

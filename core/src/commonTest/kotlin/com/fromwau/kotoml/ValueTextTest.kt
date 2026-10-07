@@ -1,18 +1,20 @@
 package com.fromwau.kotoml
 
-import kotlinx.io.Buffer
+import com.fromwau.kern.result.assertError
+import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlinx.io.Buffer
 
 /** The text a value prints as, and what a value's text reads as. */
 class ValueTextTest {
 
     private fun printed(value: Value): String {
         val doc = TomlDocument()
-        doc.set("a", value).getOrFail()
+        doc.set("a", value).assertSuccess()
         return doc.toString().removePrefix("a = ").removeSuffix("\n")
     }
 
@@ -39,43 +41,43 @@ class ValueTextTest {
 
     @Test
     fun `a value's text leaves out the spacing and comment around it`() {
-        val doc = TomlDocument.parse("a =   1   # one\nb = [\n    \"macros\",\n]\n").getOrFail()
-        assertEquals("1", doc["a"].getOrFail().valueOrNull.toString())
-        assertEquals("\"macros\"", doc["b"][0].getOrFail().valueOrNull.toString())
+        val doc = TomlDocument.parse("a =   1   # one\nb = [\n    \"macros\",\n]\n").assertSuccess()
+        assertEquals("1", doc["a"].assertSuccess().valueOrNull.toString())
+        assertEquals("\"macros\"", doc["b"][0].assertSuccess().valueOrNull.toString())
     }
 
     @Test
     fun `parsing a value ignores the whitespace around it`() {
-        assertEquals(1L, Value.parse("  1  ").getOrFail().longOrNull)
-        assertEquals("x", Value.parse("\"x\"\n").getOrFail().stringOrNull)
+        assertEquals(1L, Value.parse("  1  ").assertSuccess().longOrNull)
+        assertEquals("x", Value.parse("\"x\"\n").assertSuccess().stringOrNull)
     }
 
     @Test
     fun `a time stored in a TOML 1_0 document prints its seconds`() {
-        val doc = TomlDocument.parse("a = 1\n", TomlVersion.V1_0).getOrFail()
-        doc.set("t", Value.Datetime(Datetime.LocalTime(Time.of(7, 32, null, null).getOrFail()))).getOrFail()
+        val doc = TomlDocument.parse("a = 1\n", TomlVersion.V1_0).assertSuccess()
+        doc.set("t", Value.Datetime(Datetime.LocalTime(Time.of(7, 32, null, null).assertSuccess()))).assertSuccess()
         assertEquals("a = 1\nt = 07:32:00\n", doc.toString())
     }
 
     @Test
     fun `a trailing comma in a TOML 1_0 document is refused`() {
-        val doc = TomlDocument.parse("t = { x = 1 }\n", TomlVersion.V1_0).getOrFail()
-        doc["t"].getOrFail().valueOrNull!!.inlineTableOrNull!!.setTrailingComma(true).errorOrFail()
+        val doc = TomlDocument.parse("t = { x = 1 }\n", TomlVersion.V1_0).assertSuccess()
+        doc["t"].assertSuccess().valueOrNull!!.inlineTableOrNull!!.setTrailingComma(true).assertError<TomlEditError.NotInToml10>()
         assertEquals("t = { x = 1 }\n", doc.toString())
     }
 
     @Test
     fun `a handle to a replaced table keeps the old table and no longer reaches the document`() {
-        val doc = TomlDocument.parse("[a]\nx = 1\n").getOrFail()
-        val old = doc["a"].getOrFail()
-        doc.set("a", standardTableOf("y" to Item(Value.Integer(0L))).getOrFail()).getOrFail()
+        val doc = TomlDocument.parse("[a]\nx = 1\n").assertSuccess()
+        val old = doc["a"].assertSuccess()
+        doc.set("a", standardTableOf("y" to Item(Value.Integer(0L))).assertSuccess()).assertSuccess()
         assertNotNull(old.standardTableOrNull!!.getOrNull("x"))
-        old.set("z", Item(Value.Integer(3L))).getOrFail()
+        old.set("z", Item(Value.Integer(3L))).assertSuccess()
         assertEquals("[a]\ny = 0\n", doc.toString())
     }
 
     @Test
     fun `a value that does not parse is an error`() {
-        assertIs<TomlParseError.Reason.Syntax>(Value.parse("1 2").errorOrFail().reason)
+        assertIs<TomlParseError.Reason.Syntax>(Value.parse("1 2").assertError<TomlParseError>().reason)
     }
 }

@@ -1,9 +1,10 @@
 package com.fromwau.kotoml.serialization
 
+import com.fromwau.kern.result.assertSuccess
 import com.fromwau.kotoml.TomlDocument
-import kotlinx.serialization.Serializable
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.serialization.Serializable
 
 @Serializable
 private data class PortNumbers(val ports: List<Int>)
@@ -28,9 +29,9 @@ class ListLayoutTest {
         toml: Toml = Toml,
         change: (T) -> T,
     ): String {
-        val document = TomlDocument.parse(text).getOrFail()
-        val value = toml.decodeFromDocument<T>(document).getOrFail()
-        Toml.encodeInto(document, change(value)).getOrFail()
+        val document = TomlDocument.parse(text).assertSuccess()
+        val value = toml.decodeFromDocument<T>(document).assertSuccess()
+        Toml.encodeInto(document, change(value)).assertSuccess()
         return document.toString()
     }
 

@@ -1,6 +1,9 @@
 package com.fromwau.kotoml.serialization
 
+import com.fromwau.kern.result.assertSuccess
 import com.fromwau.kotoml.TomlDocument
+import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -9,8 +12,6 @@ import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import kotlin.test.Test
-import kotlin.test.assertEquals
 
 @Serializable
 private data class Hosts(val hosts: Map<String, Server>)
@@ -76,9 +77,9 @@ class DefaultsRunTest {
         runs: Int,
         toml: Toml = Toml,
     ) {
-        val document = TomlDocument.parse(text).getOrFail()
+        val document = TomlDocument.parse(text).assertSuccess()
         val counter = RunCounter(serializer)
-        toml.encodeInto(document, counter, value).getOrFail()
+        toml.encodeInto(document, counter, value).assertSuccess()
         assertEquals(expected, document.toString())
         assertEquals(runs, counter.runs)
     }

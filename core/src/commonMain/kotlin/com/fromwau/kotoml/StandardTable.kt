@@ -840,8 +840,8 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     /**
      * A deep copy of this table, stored nowhere: exactly what storing this table would store. A copy of a table read
      * from a document leaves its header comment and the comment lines above its header behind and takes the comments
-     * inside it, so `dst.set("db", src["db"].getOrFail().standardTableOrNull!!.copy())` prints the same as
-     * `dst.set("db", src["db"].getOrFail().copy())`. Comments a caller set through [decor] stay. A copy of a table
+     * inside it, so with `val db = src["db"].getOrElse { error(it) }`, `dst.set("db", db.standardTableOrNull!!.copy())`
+     * prints the same as `dst.set("db", db.copy())`. Comments a caller set through [decor] stay. A copy of a table
      * stored nowhere, built in code, returned by `remove` or a document's [TomlDocument.root], keeps all its comments.
      */
     public fun copy(): StandardTable = deepCopy().also { copy ->

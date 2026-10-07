@@ -1,6 +1,9 @@
 package com.fromwau.kotoml.serialization
 
+import com.fromwau.kern.result.assertError
 import com.fromwau.kotoml.TextPosition
+import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.descriptors.SerialDescriptor
@@ -10,8 +13,6 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.encoding.decodeStructure
 import kotlinx.serialization.encoding.encodeStructure
-import kotlin.test.Test
-import kotlin.test.assertEquals
 
 /** What a decode reports when the document has nothing where the model wants a value. */
 class MissingValueTest {
@@ -41,7 +42,7 @@ class MissingValueTest {
     fun `a generated serializer reports a field with no key and no default as a missing key`() {
         assertEquals(
             TomlDecodeError.MissingKey("port"),
-            Toml.decodeFromString<Server>("host = \"h\"\n").errorOrFail(),
+            Toml.decodeFromString<Server>("host = \"h\"\n").assertError<TomlDecodeError.MissingKey>(),
         )
     }
 
@@ -51,7 +52,7 @@ class MissingValueTest {
             TomlDecodeError.MissingKey("servers[1].port", position = TextPosition(1, 3)),
             Toml.decodeFromString<Servers>(
                 "[[servers]]\nhost = \"a\"\nport = 1\n[[servers]]\nhost = \"b\"\n",
-            ).errorOrFail(),
+            ).assertError<TomlDecodeError.MissingKey>(),
         )
     }
 
@@ -59,7 +60,7 @@ class MissingValueTest {
     fun `a serializer that reads a field the document lacks gets MissingKey`() {
         assertEquals(
             TomlDecodeError.MissingKey("port"),
-            Toml.decodeFromString(EagerPortSerializer, "").errorOrFail(),
+            Toml.decodeFromString(EagerPortSerializer, "").assertError<TomlDecodeError.MissingKey>(),
         )
     }
 }

@@ -23,6 +23,7 @@ kotlin-gradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", ve
 
 kern-result = { module = "com.fromwau.kern:result", version.ref = "kern" }
 kern-fuzzy = { module = "com.fromwau.kern:fuzzy", version.ref = "kern" }
+kern-result-test = { module = "com.fromwau.kern:result-test", version.ref = "kern" }
 klap = { module = "com.fromwau:klap", version.ref = "klap" }
 
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }

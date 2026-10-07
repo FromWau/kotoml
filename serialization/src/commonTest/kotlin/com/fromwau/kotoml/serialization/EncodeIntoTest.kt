@@ -1,5 +1,7 @@
 package com.fromwau.kotoml.serialization
 
+import com.fromwau.kern.result.assertError
+import com.fromwau.kern.result.assertSuccess
 import com.fromwau.kotoml.TomlDocument
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -39,9 +41,9 @@ class EncodeIntoTest {
         toml: Toml = Toml,
         change: (App) -> App,
     ): String {
-        val document = TomlDocument.parse(text).getOrFail()
-        val app = lenient.decodeFromDocument<App>(document).getOrFail()
-        toml.encodeInto(document, change(app)).getOrFail()
+        val document = TomlDocument.parse(text).assertSuccess()
+        val app = lenient.decodeFromDocument<App>(document).assertSuccess()
+        toml.encodeInto(document, change(app)).assertSuccess()
         return document.toString()
     }
 
@@ -96,16 +98,16 @@ class EncodeIntoTest {
     fun `an unchanged value keeps every spelling`() {
         val text = "hostname = 'example.org'  \r\nport = 0x1F90\r\ntimeout = \"PT30S\"\r\nmode = 'udp'\r\n" +
             "knownServers = [ { first = 'a', second = 0o1 } ]\r\n"
-        val document = TomlDocument.parse(text).getOrFail()
-        Toml.encodeInto(document, Toml.decodeFromDocument<Config>(document).getOrFail()).getOrFail()
+        val document = TomlDocument.parse(text).assertSuccess()
+        Toml.encodeInto(document, Toml.decodeFromDocument<Config>(document).assertSuccess()).assertSuccess()
         assertEquals(text, document.toString())
     }
 
     @Test
     fun `new fields are appended to their table`() {
         val text = "# server\nhostname = \"h\" # name\nport = 1\n\n[extra]\nkept = true\n"
-        val document = TomlDocument.parse(text).getOrFail()
-        Toml { ignoreUnknownKeys = true }.encodeInto(document, Config("h", 1, mode = Mode.UDP)).getOrFail()
+        val document = TomlDocument.parse(text).assertSuccess()
+        Toml { ignoreUnknownKeys = true }.encodeInto(document, Config("h", 1, mode = Mode.UDP)).assertSuccess()
         assertEquals(
             "# server\nhostname = \"h\" # name\nport = 1\nmode = \"udp\"\n\n[extra]\nkept = true\n",
             document.toString(),
@@ -124,8 +126,8 @@ class EncodeIntoTest {
     fun `unknown keys survive whatever ignoreUnknownKeys says`() {
         val text = "host = \"a\"\nport = 1\nlegacy = true # old\n"
         for (toml in listOf(Toml, lenient)) {
-            val document = TomlDocument.parse(text).getOrFail()
-            toml.encodeInto(document, Server("b", 1)).getOrFail()
+            val document = TomlDocument.parse(text).assertSuccess()
+            toml.encodeInto(document, Server("b", 1)).assertSuccess()
             assertEquals("host = \"b\"\nport = 1\nlegacy = true # old\n", document.toString())
         }
     }
@@ -163,75 +165,75 @@ class EncodeIntoTest {
     fun `a list keeps the form the document wrote it in`() {
         val inline = "name = \"f\"\nservers = [{ host = \"a\" }]\n"
         val fleet = Fleet("f", listOf(Server("b")))
-        val inlineDocument = TomlDocument.parse(inline).getOrFail()
-        Toml.encodeInto(inlineDocument, fleet).getOrFail()
+        val inlineDocument = TomlDocument.parse(inline).assertSuccess()
+        Toml.encodeInto(inlineDocument, fleet).assertSuccess()
         assertEquals("name = \"f\"\nservers = [{ host = \"b\" }]\n", inlineDocument.toString())
 
         val tables = "name = \"f\"\n\n[[servers]] # first\nhost = \"a\"\n"
-        val tablesDocument = TomlDocument.parse(tables).getOrFail()
-        Toml { tableListStyle = TableListStyle.InlineArray }.encodeInto(tablesDocument, fleet).getOrFail()
+        val tablesDocument = TomlDocument.parse(tables).assertSuccess()
+        Toml { tableListStyle = TableListStyle.InlineArray }.encodeInto(tablesDocument, fleet).assertSuccess()
         assertEquals("name = \"f\"\n\n[[servers]]\nhost = \"b\"\n", tablesDocument.toString())
     }
 
     @Test
     fun `a field at its default updates a key but adds none`() {
-        val document = TomlDocument.parse("hostname = \"h\"\nport = 1\ntimeout = \"30s\" # slow\n").getOrFail()
-        Toml.encodeInto(document, Config("h", 1, timeout = 15.seconds)).getOrFail()
+        val document = TomlDocument.parse("hostname = \"h\"\nport = 1\ntimeout = \"30s\" # slow\n").assertSuccess()
+        Toml.encodeInto(document, Config("h", 1, timeout = 15.seconds)).assertSuccess()
         assertEquals("hostname = \"h\"\nport = 1\ntimeout = \"15s\" # slow\n", document.toString())
     }
 
     @Test
     fun `a nested class at its default adds no keys to its table`() {
         val text = "url = \"u\"\n[pool] # defaults\n"
-        val document = TomlDocument.parse(text).getOrFail()
-        Toml.encodeInto(document, Database("u")).getOrFail()
+        val document = TomlDocument.parse(text).assertSuccess()
+        Toml.encodeInto(document, Database("u")).assertSuccess()
         assertEquals(text, document.toString())
     }
 
     @Test
     fun `a field at its default is added when encodeDefaults is set`() {
-        val document = TomlDocument.parse("hostname = \"h\"\nport = 1\n").getOrFail()
-        Toml { encodeDefaults = true }.encodeInto(document, Endpoint("h", 1)).getOrFail()
+        val document = TomlDocument.parse("hostname = \"h\"\nport = 1\n").assertSuccess()
+        Toml { encodeDefaults = true }.encodeInto(document, Endpoint("h", 1)).assertSuccess()
         assertEquals("hostname = \"h\"\nport = 1\ntimeout = \"15s\"\nmode = \"TCP\"\n", document.toString())
     }
 
     @Test
     fun `a map adds updates and removes keys to match its entries`() {
-        val document = TomlDocument.parse("[ports]\nhttp = 80 # web\nftp = 21\n").getOrFail()
-        Toml.encodeInto(document, Ports(mapOf("http" to 8080, "ssh" to 22))).getOrFail()
+        val document = TomlDocument.parse("[ports]\nhttp = 80 # web\nftp = 21\n").assertSuccess()
+        Toml.encodeInto(document, Ports(mapOf("http" to 8080, "ssh" to 22))).assertSuccess()
         assertEquals("[ports]\nhttp = 8080 # web\nssh = 22\n", document.toString())
     }
 
     @Test
     fun `a changed subtype drops the old subtype's keys`() {
-        val document = TomlDocument.parse("[shape] # the shape\ntype = \"circle\"\nradius = 1.0\n").getOrFail()
-        Toml.encodeInto(document, Holder(Square(2.0))).getOrFail()
+        val document = TomlDocument.parse("[shape] # the shape\ntype = \"circle\"\nradius = 1.0\n").assertSuccess()
+        Toml.encodeInto(document, Holder(Square(2.0))).assertSuccess()
         assertEquals("[shape] # the shape\ntype = \"square\"\nside = 2.0\n", document.toString())
     }
 
     @Test
     fun `a date read into a string writes back as the date it was`() {
         val text = "text = 1979-05-27\n"
-        val document = TomlDocument.parse(text).getOrFail()
-        Toml.encodeInto(document, Toml.decodeFromDocument<Text>(document).getOrFail()).getOrFail()
+        val document = TomlDocument.parse(text).assertSuccess()
+        Toml.encodeInto(document, Toml.decodeFromDocument<Text>(document).assertSuccess()).assertSuccess()
         assertEquals(text, document.toString())
     }
 
     @Test
     fun `a value spelled another way is left as it is when it reads the same`() {
         val text = "date = \"1979-05-27\"\ninstant = 1979-05-27T07:32:00+02:00\n"
-        val document = TomlDocument.parse(text).getOrFail()
-        Toml.encodeInto(document, Toml.decodeFromDocument<Times>(document).getOrFail()).getOrFail()
+        val document = TomlDocument.parse(text).assertSuccess()
+        Toml.encodeInto(document, Toml.decodeFromDocument<Times>(document).assertSuccess()).assertSuccess()
         assertEquals(text, document.toString())
     }
 
     @Test
     fun `an error leaves the document as it was`() {
         val text = "byte = 1 # one\n"
-        val document = TomlDocument.parse(text).getOrFail()
+        val document = TomlDocument.parse(text).assertSuccess()
         assertEquals(
             TomlEncodeError.OutOfRange("long", "${ULong.MAX_VALUE}"),
-            Toml.encodeInto(document, Unsigned(byte = 2u, long = ULong.MAX_VALUE)).errorOrFail(),
+            Toml.encodeInto(document, Unsigned(byte = 2u, long = ULong.MAX_VALUE)).assertError<TomlEncodeError.OutOfRange>(),
         )
         assertEquals(text, document.toString())
     }

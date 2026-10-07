@@ -1,10 +1,12 @@
 package com.fromwau.kotoml.serialization
 
+import com.fromwau.kern.result.assertError
+import com.fromwau.kern.result.assertSuccess
 import com.fromwau.kotoml.TomlDocument
-import kotlinx.serialization.Serializable
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlinx.serialization.Serializable
 
 /** A model is written only as deep as kotoml reads back, whichever way its lists are written. */
 class DepthTest {
@@ -25,28 +27,28 @@ class DepthTest {
     fun `a model nested to the limit is written and read back in either list style`() {
         val node = nested(TomlDocument.NESTING_LIMIT - 2)
         for (toml in listOf(Toml, inline)) {
-            val text = toml.encodeToString(node).getOrFail()
-            assertEquals(node, toml.decodeFromString<Node>(text).getOrFail())
+            val text = toml.encodeToString(node).assertSuccess()
+            assertEquals(node, toml.decodeFromString<Node>(text).assertSuccess())
         }
     }
 
     @Test
     fun `a model nested past the limit is TooDeep`() {
         for (toml in listOf(Toml, inline)) {
-            val error = toml.encodeToString(nested(TomlDocument.NESTING_LIMIT + 20)).errorOrFail()
+            val error = toml.encodeToString(nested(TomlDocument.NESTING_LIMIT + 20)).assertError<TomlEncodeError.TooDeep>()
             assertIs<TomlEncodeError.TooDeep>(error)
         }
     }
 
     @Test
     fun `a model nested thousands deep is TooDeep instead of overflowing the stack`() {
-        assertIs<TomlEncodeError.TooDeep>(Toml.encodeToString(nested(6000)).errorOrFail())
+        assertIs<TomlEncodeError.TooDeep>(Toml.encodeToString(nested(6000)).assertError<TomlEncodeError.TooDeep>())
     }
 
     @Test
     fun `encodeInto refuses a model nested past the limit and leaves the document as it was`() {
-        val document = TomlDocument.parse("n = 1\n").getOrFail()
-        val error = Toml.encodeInto(document, Node.serializer(), nested(TomlDocument.NESTING_LIMIT + 20)).errorOrFail()
+        val document = TomlDocument.parse("n = 1\n").assertSuccess()
+        val error = Toml.encodeInto(document, Node.serializer(), nested(TomlDocument.NESTING_LIMIT + 20)).assertError<TomlEncodeError.TooDeep>()
         assertIs<TomlEncodeError.TooDeep>(error)
         assertEquals("n = 1\n", document.toString())
     }

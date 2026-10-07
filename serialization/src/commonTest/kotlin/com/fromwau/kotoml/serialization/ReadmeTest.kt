@@ -1,18 +1,20 @@
 package com.fromwau.kotoml.serialization
 
-import com.fromwau.kotoml.TextPosition
 import com.fromwau.kern.result.Result
+import com.fromwau.kern.result.assertError
+import com.fromwau.kern.result.assertSuccess
 import com.fromwau.kern.result.errorOrNull
 import com.fromwau.kern.result.getOrElse
 import com.fromwau.kern.result.getOrNull
+import com.fromwau.kotoml.TextPosition
 import com.fromwau.kotoml.TomlDocument
 import com.fromwau.kotoml.TomlType
 import com.fromwau.kotoml.render
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.fail
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
 @Serializable
 private data class Account(
@@ -97,9 +99,9 @@ class ReadmeTest {
         }
         assertEquals(
             "shapes = [{ kind = \"circle\", radius = 1.0 }]\n",
-            toml.encodeToString(Drawing(listOf(Circle(1.0)))).getOrFail(),
+            toml.encodeToString(Drawing(listOf(Circle(1.0)))).assertSuccess(),
         )
-        assertEquals(Server("h"), toml.decodeFromString<Server>("host = \"h\"\nextra = 1\n").getOrFail())
+        assertEquals(Server("h"), toml.decodeFromString<Server>("host = \"h\"\nextra = 1\n").assertSuccess())
         val derived = Toml(from = toml) { classDiscriminator = "type" }
         assertEquals(true, derived.ignoreUnknownKeys)
         assertEquals("type", derived.classDiscriminator)
@@ -143,7 +145,7 @@ class ReadmeTest {
                 value = "\"x\"",
                 position = TextPosition(2, 1),
             ),
-            Toml.decodeFromString<Ports>("[ports]\n\"a.b\" = \"x\"\n").errorOrFail(),
+            Toml.decodeFromString<Ports>("[ports]\n\"a.b\" = \"x\"\n").assertError<TomlDecodeError.TypeMismatch>(),
         )
     }
 }
