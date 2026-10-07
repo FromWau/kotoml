@@ -1,6 +1,7 @@
 package com.fromwau.kotoml.app
 
 import com.fromwau.kern.result.IError
+import com.fromwau.klap.USAGE_ERROR_EXIT
 import com.fromwau.kotoml.TomlParseError
 import com.fromwau.kotoml.TextPosition
 import com.fromwau.kotoml.TomlType
@@ -127,12 +128,12 @@ internal enum class FilterExpected {
 }
 
 /** The exit status for a filter that found nothing where it looked. */
-internal const val NOTHING_FOUND_EXIT: Int = 3
+private const val NOTHING_FOUND_EXIT: Int = 3
 
 /** The exit status for this error: 2 for a malformed invocation, 3 for nothing found, 1 for an input that failed. */
 internal val AppError.exitCode: Int
     get() = when (this) {
-        is AppError.FilterSyntax -> 2
+        is AppError.FilterSyntax -> USAGE_ERROR_EXIT
         is AppError.NoSuchKey, is AppError.NoSuchIndex -> NOTHING_FOUND_EXIT
         else -> 1
     }

@@ -1,21 +1,16 @@
 package com.fromwau.kotoml.app
 
-import com.fromwau.kern.result.Result
+import com.fromwau.kern.result.assertError
+import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.fail
 
 class FilterTest {
 
-    private fun steps(filter: String): List<List<Step>> = when (val parsed = parseFilter(filter)) {
-        is Result.Success -> parsed.value.stages
-        is Result.Error -> fail("$filter: ${parsed.error}")
-    }
+    private fun steps(filter: String): List<List<Step>> = parseFilter(filter).assertSuccess().stages
 
-    private fun refused(filter: String): AppError.FilterSyntax = when (val parsed = parseFilter(filter)) {
-        is Result.Success -> fail("$filter parsed to ${parsed.value}")
-        is Result.Error -> parsed.error
-    }
+    private fun refused(filter: String): AppError.FilterSyntax = parseFilter(filter).assertError()
 
     @Test
     fun `a unicode escape takes exactly four hex digits`() {

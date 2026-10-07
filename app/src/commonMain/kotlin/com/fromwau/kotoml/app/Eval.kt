@@ -21,7 +21,7 @@ internal data class Selected(
 internal fun Filter.select(document: TomlDocument): Result<Selection, AppError> =
     evaluate(Item(document.root)).map { Selection(it, streams, document) }
 
-/** Runs [filter] on [input]; every stage maps each output of the stage before it. */
+/** Runs this filter on [input]; every stage maps each output of the stage before it. */
 internal fun Filter.evaluate(input: Item): Result<List<Selected>, AppError> {
     var current = listOf(Selected(input, emptyList()))
     for (stage in stages) {

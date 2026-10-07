@@ -1,13 +1,13 @@
 package com.fromwau.kotoml.app
 
 import com.fromwau.kern.result.Result
+import com.fromwau.kern.result.assertSuccess
 import com.fromwau.kotoml.Item
 import com.fromwau.kotoml.TomlDocument
 import com.fromwau.kotoml.TomlType
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.fail
 
 class GetTest {
 
@@ -30,7 +30,7 @@ class GetTest {
         filter: String,
         text: String = sample,
     ): Result<Selection, AppError> {
-        val document = (TomlDocument.parse(text) as? Result.Success)?.value ?: fail("input does not parse")
+        val document = TomlDocument.parse(text).assertSuccess()
         val parsed = when (val parsed = parseFilter(filter)) {
             is Result.Success -> parsed.value
             is Result.Error -> return parsed
@@ -41,10 +41,7 @@ class GetTest {
     private fun selection(
         filter: String,
         text: String = sample,
-    ): Selection = when (val result = select(filter, text)) {
-        is Result.Success -> result.value
-        is Result.Error -> fail("$filter: ${result.error}")
-    }
+    ): Selection = select(filter, text).assertSuccess()
 
     private fun get(
         filter: String,

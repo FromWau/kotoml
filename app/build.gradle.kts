@@ -58,6 +58,10 @@ kotlin {
             implementation(libs.klap)
             implementation(libs.kotlinx.io.core)
         }
+
+        commonTest.dependencies {
+            implementation(libs.kern.result.test)
+        }
     }
 }
 

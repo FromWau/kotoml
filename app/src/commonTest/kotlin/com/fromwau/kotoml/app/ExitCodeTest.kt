@@ -41,6 +41,9 @@ class ExitCodeTest {
         return path.toString()
     }
 
+    private fun missingFile(): String =
+        Path(SystemTemporaryDirectory, "kotoml-missing-${Random.nextLong().toULong()}.toml").toString()
+
     @AfterTest
     fun deleteFiles() {
         for (path in files) SystemFileSystem.delete(path)
@@ -85,8 +88,7 @@ class ExitCodeTest {
 
     @Test
     fun `an input that cannot be read exits 1`() {
-        val missing = Path(SystemTemporaryDirectory, "kotoml-missing-${Random.nextLong().toULong()}.toml").toString()
-        assertEquals(1, kotoml("check", missing).first)
+        assertEquals(1, kotoml("check", missingFile()).first)
     }
 
     @Test
@@ -192,7 +194,7 @@ class ExitCodeTest {
     @Test
     fun `check --json of several files prints each with its error`() {
         val good = file("a = 1\n")
-        val missing = Path(SystemTemporaryDirectory, "kotoml-missing-${Random.nextLong().toULong()}.toml").toString()
+        val missing = missingFile()
         val (code, terminal) = kotoml("check", "--json", good, missing)
         assertEquals(1, code)
         assertEquals(

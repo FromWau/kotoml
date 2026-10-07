@@ -1,19 +1,19 @@
 package com.fromwau.kotoml.app
 
 import com.fromwau.kern.result.Result
+import com.fromwau.kern.result.assertError
+import com.fromwau.kern.result.assertSuccess
 import com.fromwau.kotoml.TextPosition
 import com.fromwau.kotoml.TomlDocument
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
-import kotlin.test.fail
 
 class TaggedJsonTest {
 
-    private fun decode(toml: String): String = when (val parsed = TomlDocument.parse(toml)) {
-        is Result.Success -> parsed.value.toTaggedJson().toString()
-        is Result.Error -> fail("$toml: ${parsed.error}")
-    }
+    private fun decode(toml: String): String = TomlDocument.parse(toml)
+        .assertSuccess()
+        .toTaggedJson()
+        .toString()
 
     @Test
     fun `scalars are tagged with their type`() {
@@ -35,10 +35,7 @@ class TaggedJsonTest {
     @Test
     fun `encoding reads what decoding writes`() {
         val json = decode("a = 1\n[t]\nd = 1979-05-27T07:32:00Z\nl = [1.5, 'x']\n")
-        val document = when (val parsed = parseTaggedJson(json)) {
-            is Result.Success -> parsed.value
-            is Result.Error -> fail("$json: ${parsed.error}")
-        }
+        val document = parseTaggedJson(json).assertSuccess()
         assertEquals(json, document.toTaggedJson().toString())
     }
 
@@ -82,10 +79,7 @@ class TaggedJsonTest {
         )
         for ((type, value) in matches) {
             val json = """{"a":{"type":"$type","value":"$value"}}"""
-            val document = when (val parsed = parseTaggedJson(json)) {
-                is Result.Success -> parsed.value
-                is Result.Error -> fail("$type: ${parsed.error}")
-            }
+            val document = parseTaggedJson(json).assertSuccess()
             assertEquals(json, document.toTaggedJson().toString(), type)
         }
     }
@@ -95,7 +89,7 @@ class TaggedJsonTest {
     @Test
     fun `the deepest arrays TOML reads encode back`() {
         val json = decode(nestedArrays(TomlDocument.NESTING_LIMIT))
-        assertTrue(parseTaggedJson(json) is Result.Success)
+        parseTaggedJson(json).assertSuccess()
     }
 
     @Test
@@ -123,16 +117,8 @@ class TaggedJsonTest {
     fun `the deepest empty arrays TOML reads encode to TOML that reads back`() {
         val depth = TomlDocument.NESTING_LIMIT
         val json = "{\"a\":" + "[".repeat(depth) + "]".repeat(depth) + "}"
-        val document = when (val parsed = parseTaggedJson(json)) {
-            is Result.Success -> parsed.value
-            is Result.Error -> fail("${parsed.error}")
-        }
-        assertTrue(TomlDocument.parse(document.toString()) is Result.Success)
-    }
-
-    private fun parsedOrFail(json: String): TomlDocument = when (val parsed = parseTaggedJson(json)) {
-        is Result.Success -> parsed.value
-        is Result.Error -> fail("${parsed.error}")
+        val document = parseTaggedJson(json).assertSuccess()
+        TomlDocument.parse(document.toString()).assertSuccess()
     }
 
     @Test
@@ -148,7 +134,8 @@ class TaggedJsonTest {
         val limit = TomlDocument.NESTING_LIMIT
         val value = "{\"type\":\"integer\",\"value\":\"1\"}"
         val json = "{\"a\":" + "{\"k\":".repeat(limit - 1) + value + "}".repeat(limit)
-        assertTrue(TomlDocument.parse(parsedOrFail(json).toString()) is Result.Success)
+        val document = parseTaggedJson(json).assertSuccess()
+        TomlDocument.parse(document.toString()).assertSuccess()
     }
 
     @Test
@@ -156,14 +143,18 @@ class TaggedJsonTest {
         val json = "{\"t\":{\"s\":{\"type\":\"string\",\"value\":\"a\\ud800\"}}}"
         assertEquals(
             Result.Error(AppError.NotTaggedJson("-", "$.t.s", TaggedJsonProblem.NotUnicode)),
-            parsedOrFail(json).encodedText(),
+            parseTaggedJson(json).assertSuccess().encodedText(),
         )
     }
 
     @Test
     fun `a key holding half of a surrogate pair is refused`() {
         val json = "{\"\\udc00\":{\"type\":\"string\",\"value\":\"a\"}}"
-        assertTrue(parsedOrFail(json).encodedText() is Result.Error)
+        val error = parseTaggedJson(json)
+            .assertSuccess()
+            .encodedText()
+            .assertError<AppError.NotTaggedJson>()
+        assertEquals(TaggedJsonProblem.NotUnicode, error.reason)
     }
 
     @Test
@@ -176,7 +167,7 @@ class TaggedJsonTest {
     fun `brackets inside a string do not count as nesting`() {
         val text = "[".repeat(200) + "\\\""
         val json = """{"a":{"type":"string","value":"${text.replace("\\", "\\\\").replace("\"", "\\\"")}"}}"""
-        assertTrue(parseTaggedJson(json) is Result.Success)
+        parseTaggedJson(json).assertSuccess()
     }
 
     private fun badValue(type: String, value: String): Result<TomlDocument, AppError> =
@@ -197,7 +188,7 @@ class TaggedJsonTest {
     fun `integers in any TOML spelling are read`() {
         val read = listOf("0", "42", "-17", "+5", "1_000", "0x10", "0o17", "0b101", "9223372036854775807")
         for (value in read) {
-            assertTrue(scalar("integer", value) is Result.Success, "integer $value")
+            scalar("integer", value).assertSuccess()
         }
     }
 
@@ -218,41 +209,36 @@ class TaggedJsonTest {
             "inf", "+inf", "-inf", "nan", "+nan", "-nan",
         )
         for (value in read) {
-            assertTrue(scalar("float", value) is Result.Success, "float $value")
+            scalar("float", value).assertSuccess()
         }
     }
 
     @Test
     fun `a negative zero integer spelling tagged float encodes as negative zero`() {
-        val document = when (val parsed = scalar("float", "-0")) {
-            is Result.Success -> parsed.value
-            is Result.Error -> fail("${parsed.error}")
-        }
+        val document = scalar("float", "-0").assertSuccess()
         assertEquals("a = -0.0", document.toString().trimEnd())
         assertEquals("""{"a":{"type":"float","value":"-0.0"}}""", document.toTaggedJson().toString())
     }
 
     @Test
     fun `a zero integer spelling tagged float encodes as zero`() {
-        val document = when (val parsed = scalar("float", "+0")) {
-            is Result.Success -> parsed.value
-            is Result.Error -> fail("${parsed.error}")
-        }
+        val document = scalar("float", "+0").assertSuccess()
         assertEquals("a = 0.0", document.toString().trimEnd())
     }
 
-    private fun problem(json: String): Result<TomlDocument, AppError> = parseTaggedJson(json)
-
     @Test
     fun `a root that is not an object is refused at the root`() {
-        assertEquals(Result.Error(AppError.NotTaggedJson("-", "$", TaggedJsonProblem.RootNotObject)), problem("[1]"))
+        assertEquals(
+            Result.Error(AppError.NotTaggedJson("-", "$", TaggedJsonProblem.RootNotObject)),
+            parseTaggedJson("[1]"),
+        )
     }
 
     @Test
     fun `an unknown type is named`() {
         assertEquals(
             Result.Error(AppError.NotTaggedJson("-", "$.a", TaggedJsonProblem.UnknownType("bogus"))),
-            problem("""{"a":{"type":"bogus","value":"x"}}"""),
+            parseTaggedJson("""{"a":{"type":"bogus","value":"x"}}"""),
         )
     }
 
@@ -260,7 +246,7 @@ class TaggedJsonTest {
     fun `a tagged value without a value is refused at its own key`() {
         assertEquals(
             Result.Error(AppError.NotTaggedJson("-", "$.a", TaggedJsonProblem.MissingValue)),
-            problem("""{"a":{"type":"string"}}"""),
+            parseTaggedJson("""{"a":{"type":"string"}}"""),
         )
     }
 
@@ -268,7 +254,7 @@ class TaggedJsonTest {
     fun `a value that is not a JSON string is refused at its own key`() {
         assertEquals(
             Result.Error(AppError.NotTaggedJson("-", "$.a", TaggedJsonProblem.ValueNotString)),
-            problem("""{"a":{"type":"integer","value":5}}"""),
+            parseTaggedJson("""{"a":{"type":"integer","value":5}}"""),
         )
     }
 
@@ -276,17 +262,14 @@ class TaggedJsonTest {
     fun `an extra key beside type and value is named`() {
         assertEquals(
             Result.Error(AppError.NotTaggedJson("-", "$.a", TaggedJsonProblem.ExtraKey("extra"))),
-            problem("""{"a":{"type":"string","value":"x","extra":1}}"""),
+            parseTaggedJson("""{"a":{"type":"string","value":"x","extra":1}}"""),
         )
     }
 
     @Test
     fun `a table with a key named type still reads as a table`() {
         val json = """{"t":{"type":{"type":"string","value":"x"},"value":{"type":"integer","value":"1"}}}"""
-        val document = when (val parsed = problem(json)) {
-            is Result.Success -> parsed.value
-            is Result.Error -> fail("${parsed.error}")
-        }
+        val document = parseTaggedJson(json).assertSuccess()
         assertEquals(json, document.toTaggedJson().toString())
     }
 
@@ -317,10 +300,7 @@ class TaggedJsonTest {
     fun `an unknown -00 00 offset decodes and encodes as written`() {
         val json = decode("d = 1979-05-27T07:32:00-00:00\n")
         assertEquals("""{"d":{"type":"datetime","value":"1979-05-27T07:32:00-00:00"}}""", json)
-        val document = when (val parsed = parseTaggedJson(json)) {
-            is Result.Success -> parsed.value
-            is Result.Error -> fail("${parsed.error}")
-        }
+        val document = parseTaggedJson(json).assertSuccess()
         assertEquals("d = 1979-05-27T07:32:00-00:00\n", document.toString().trimEnd() + "\n")
     }
 }

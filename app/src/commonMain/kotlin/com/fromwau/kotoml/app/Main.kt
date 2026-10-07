@@ -11,6 +11,7 @@ import com.fromwau.klap.Cli
 import com.fromwau.klap.CliError
 import com.fromwau.klap.CommandBuilder
 import com.fromwau.klap.Invocation
+import com.fromwau.klap.USAGE_ERROR_EXIT
 import com.fromwau.klap.cli
 import com.fromwau.klap.parse
 import com.fromwau.klap.run
@@ -86,7 +87,7 @@ private fun check(
 ): CheckReport {
     val results = paths.map { path ->
         val error = (parseToml(path, spec) as? Result.Error)?.error
-        errors?.let { terminal -> error?.let { terminal.err("error: ${it.describe().escapingControls()}\n") } }
+        if (errors != null && error != null) errors.err("error: ${error.describe().escapingControls()}\n")
         CheckedFile(path, valid = error == null, error = error)
     }
     return CheckReport(results)
@@ -129,8 +130,6 @@ internal fun runKotoml(
     cli.run(listOf("--help"), StandardErrorOnly(terminal))
     return USAGE_ERROR_EXIT
 }
-
-private const val USAGE_ERROR_EXIT = 2
 
 /** [terminal] with standard output sent to its standard error. */
 private class StandardErrorOnly(private val terminal: Terminal) : Terminal by terminal {

@@ -1,19 +1,17 @@
 package com.fromwau.kotoml.app
 
-import com.fromwau.kern.result.Result
+import com.fromwau.kern.result.assertError
 import com.fromwau.kotoml.TomlDocument
+import com.fromwau.kotoml.TomlParseError
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import kotlin.test.fail
 
 class CheckTest {
 
-    private fun invalid(text: String): AppError.InvalidToml = when (val parsed = TomlDocument.parse(text)) {
-        is Result.Success -> fail("$text parsed")
-        is Result.Error -> AppError.InvalidToml("bad.toml", parsed.error, text)
-    }
+    private fun invalid(text: String): AppError.InvalidToml =
+        AppError.InvalidToml("bad.toml", TomlDocument.parse(text).assertError<TomlParseError>(), text)
 
     @Test
     fun `an error in a CRLF file quotes its line without the carriage return`() {
