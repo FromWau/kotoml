@@ -826,26 +826,46 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
      * entry is not under this dotted table: it ends that entry's line, after its comma, so it stays with the entry.
      */
     private fun leaveCommentsWithLinesBefore(removed: RemovedLines) {
-        val values = visualValues()
-        val own = values.mapTo(HashSet()) { it.entry }
-        val removedEntries = values.filter { it in removed }.mapTo(HashSet()) { it.entry }
-        var before: BodyLine? = null
-        for (line in outermostBraces().bodyLines()) {
-            val previous = before
-            before = line
-            if (line !is VisualValue || line.entry !in removedEntries) continue
-            if (previous !is VisualValue || previous.entry in own) continue
+        val removedEntries = visualValues().filter { it in removed }.mapTo(HashSet()) { it.entry }
+        for ((previous, line) in linesAfterOtherEntries()) {
+            if (line.entry !in removedEntries) continue
             val pairs = previous.entry.pairs ?: continue
             val order = previous.order ?: continue
             val decor = line.entry.key.rawLeafDecor
             val prefix = decor.prefix?.textOrNull ?: continue
-            val firstBreak = prefix.indexOf('\n')
-            if (firstBreak < 0) continue
-            val lineEnd = prefix.lineEndBefore(firstBreak)
-            if ('#' !in prefix.substring(0, lineEnd)) continue
-            pairs.keptLines += KeptLines(prefix.substring(0, lineEnd), order)
-            decor.prefix = KeptText.from(prefix.substring(lineEnd))
+            val end = prefix.leadingCommentLength()
+            if (end == 0) continue
+            pairs.keptLines += KeptLines(prefix.substring(0, end), order)
+            decor.prefix = KeptText.from(prefix.substring(end))
         }
+    }
+
+    /**
+     * The lines of this dotted table printed in its braces right after the line of an entry not under it, each paired
+     * with that entry's line.
+     */
+    private fun linesAfterOtherEntries(): List<Pair<VisualValue, VisualValue>> {
+        val own = visualValues().mapTo(HashSet()) { it.entry }
+        return outermostBraces().bodyLines().zipWithNext().mapNotNull { (previous, line) ->
+            val afterOther = previous is VisualValue && previous.entry !in own
+            if (afterOther && line is VisualValue && line.entry in own) previous to line else null
+        }
+    }
+
+    /**
+     * A [deepCopy] to store away from the braces this dotted table prints in: the comment ending the line of an entry
+     * not under it, which the prefix of its next key starts with, stays with that entry.
+     */
+    internal fun copyOutOfBraces(): InlineTable {
+        val copy = deepCopy()
+        val copies = HashMap<KeyValue, KeyValue>()
+        pairEntries(items, copy.items, copies)
+        for ((_, line) in linesAfterOtherEntries()) {
+            val decor = copies[line.entry]?.key?.rawLeafDecor ?: continue
+            val prefix = decor.prefix?.textOrNull ?: continue
+            decor.prefix = KeptText.from(prefix.substring(prefix.leadingCommentLength()))
+        }
+        return copy
     }
 
     /** The table whose braces this one prints in: the first holding it that is not a dotted table, or this one. */
@@ -950,7 +970,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
      * caller set through [decor] stay. A copy of a table stored nowhere, built in code or returned by `remove`, keeps
      * all its comments.
      */
-    public fun copy(): InlineTable = deepCopy().also { copy ->
+    public fun copy(): InlineTable = copyOutOfBraces().also { copy ->
         copy.takenFrom = documentOf(this)
         if (isStored(this)) copy.rawDecor.dropReadComments(isHeader = false)
     }
@@ -1099,4 +1119,25 @@ private fun inlineTablesIn(value: Value?): List<InlineTable> = when (value) {
     is Value.InlineTable -> listOf(value.value)
     is Value.Array -> value.value.flatMap(::inlineTablesIn)
     else -> emptyList()
+}
+
+/** Maps each entry of [source], and of the dotted tables under it, to its own in [copy], a deep copy of [source]. */
+private fun pairEntries(
+    source: KeyValuePairs,
+    copy: KeyValuePairs,
+    copies: MutableMap<KeyValue, KeyValue>,
+) {
+    for ((entry, copied) in source.entries.zip(copy.entries)) {
+        copies[entry] = copied
+        val dotted = entry.item.inlineTableOrNull?.takeIf { it.isDotted } ?: continue
+        pairEntries(dotted.items, copied.item.inlineTableOrNull?.items ?: continue, copies)
+    }
+}
+
+/** The length of the comment this key prefix in braces starts with, ending the line before, or 0 when it has none. */
+private fun String.leadingCommentLength(): Int {
+    val firstBreak = indexOf('\n')
+    if (firstBreak < 0) return 0
+    val lineEnd = lineEndBefore(firstBreak)
+    return if ('#' in substring(0, lineEnd)) lineEnd else 0
 }

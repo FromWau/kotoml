@@ -372,4 +372,91 @@ class CommentPlacementTest {
     }
 
     private fun commented(value: Long): Value = Value.Integer(value).also { it.decor = Decor(suffix = " # c") }
+
+    private val siblingCommented = "s = {\n  b.c = 1,\n  y = 5, # on y\n  # about d\n  b.d = 2,\n}\n"
+
+    // Stores a copy of `s.b`, read from [source], at `t.b` of [doc].
+    private fun storeDottedB(
+        doc: TomlDocument,
+        source: TomlDocument = doc,
+    ) {
+        doc["t"].assertSuccess().standardTableOrNull!!["b"] = source["s"]["b"].assertSuccess()
+    }
+
+    private fun assertFormatsTo(
+        expected: String,
+        doc: TomlDocument,
+    ) {
+        doc.format()
+        assertEquals(expected, doc.toString())
+        doc.format()
+        assertEquals(expected, doc.toString())
+    }
+
+    @Test
+    fun `a dotted table in braces stored in a table leaves the comment after a sibling's comma with that sibling`() {
+        val doc = parse("$siblingCommented[t]\nx = 0\n")
+        storeDottedB(doc)
+        assertEquals("$siblingCommented[t]\nb.c = 1\n# about d\nb.d = 2\nx = 0\n", doc.toString())
+        assertFormatsTo("$siblingCommented\n[t]\nb.c = 1\n# about d\nb.d = 2\nx = 0\n", doc)
+    }
+
+    @Test
+    fun `a dotted table in braces of a CRLF document stored in a table leaves a sibling's comma comment there`() {
+        val s = siblingCommented.replace("\n", "\r\n")
+        val doc = parse("$s[t]\r\nx = 0\r\n")
+        storeDottedB(doc)
+        assertEquals("$s[t]\r\nb.c = 1\r\n# about d\r\nb.d = 2\r\nx = 0\r\n", doc.toString())
+        assertFormatsTo("$s\r\n[t]\r\nb.c = 1\r\n# about d\r\nb.d = 2\r\nx = 0\r\n", doc)
+    }
+
+    @Test
+    fun `a comment after the comma of a key of a dotted table in braces prints once after that key when stored`() {
+        val s = "s = {\n  b.c = 1, # on c\n  # about d\n  b.d = 2,\n}\n"
+        val doc = parse("$s[t]\nx = 0\n")
+        storeDottedB(doc)
+        assertEquals("$s[t]\nb.c = 1 # on c\n# about d\nb.d = 2\nx = 0\n", doc.toString())
+        assertFormatsTo("$s\n[t]\nb.c = 1 # on c\n# about d\nb.d = 2\nx = 0\n", doc)
+    }
+
+    @Test
+    fun `a dotted table in braces stored under a later dotted key leaves a sibling's comma comment there`() {
+        val s = "s = {\n  b.c = 1,\n  y = 5, # on y\n  # about e\n  b.e.f = 2,\n}\n"
+        val doc = parse("$s[t]\nx = 0\n")
+        storeDottedB(doc)
+        assertEquals("$s[t]\nb.c = 1\n# about e\nb.e.f = 2\nx = 0\n", doc.toString())
+    }
+
+    @Test
+    fun `a dotted table in braces stored in other braces leaves a sibling's comma comment with that sibling`() {
+        val doc = parse("$siblingCommented[t]\nu = {\n  z = 1,\n}\n")
+        val u = doc["t"]["u"].assertSuccess().valueOrNull!!.inlineTableOrNull!!
+        u["b"] = doc["s"]["b"].assertSuccess().valueOrNull!!
+        val inBraces = "u = {\n  b.c = 1,\n  # about d\n  b.d = 2,\n  z = 1,\n}\n"
+        assertEquals("$siblingCommented[t]\n$inBraces", doc.toString())
+    }
+
+    @Test
+    fun `a copy of a dotted table in braces stored in another document leaves a sibling's comma comment behind`() {
+        val source = parse(siblingCommented)
+        val doc = parse("[t]\nx = 0\n")
+        doc["t"].assertSuccess().standardTableOrNull!!["b"] = source["s"]["b"].assertSuccess().copy()
+        assertEquals("[t]\nx = 0\nb.c = 1\n# about d\nb.d = 2\n", doc.toString())
+        assertEquals(siblingCommented, source.toString())
+    }
+
+    @Test
+    fun `a dotted table in braces assigned to a slot leaves a sibling's comma comment with that sibling`() {
+        val source = parse(siblingCommented)
+        val doc = parse("[t]\nx = 0\n")
+        doc["t"]["x"].assertSuccess().assign(source["s"]["b"].assertSuccess()).assertSuccess()
+        assertEquals("[t]\nx.c = 1\n# about d\nx.d = 2\n", doc.toString())
+    }
+
+    @Test
+    fun `an inline table copy of a dotted table in braces leaves a sibling's comma comment behind`() {
+        val doc = parse(siblingCommented)
+        val copy = doc["s"]["b"].assertSuccess().valueOrNull!!.inlineTableOrNull!!.copy()
+        assertEquals(false, "# on y" in Value.InlineTable(copy).toString())
+    }
 }

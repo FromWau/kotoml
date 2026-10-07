@@ -44,7 +44,8 @@ internal fun MutableList<BodyLine>.takeOutOfBraces(
                 position == 0 -> firstAbove += carried.trimStart() + prefix.lineBreak()
                 else -> endLine(position - 1, carried, prefix.lineBreak())
             }
-            aboves[position] += linesAboveOnTableLines(KeptText.from(prefix))
+            val linesAbove = linesAboveOnTableLines(KeptText.from(prefix))
+            aboves[position] += indentedCommentLines(linesAbove, "", prefix.lineBreak())
         }
     }
     // The comment after the last value of a dotted table inside this one, held before its `}`, ends that line.

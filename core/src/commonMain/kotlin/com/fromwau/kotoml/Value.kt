@@ -465,8 +465,14 @@ internal fun Value.deepCopy(): Value = when (this) {
     is Value.InlineTable -> Value.InlineTable(value.deepCopy())
 }
 
+/** A [deepCopy] to store elsewhere; see [com.fromwau.kotoml.InlineTable.copyOutOfBraces]. */
+internal fun Value.copyOutOfBraces(): Value = when (this) {
+    is Value.InlineTable -> Value.InlineTable(value.copyOutOfBraces())
+    else -> deepCopy()
+}
+
 /** A copy of this value whose decor fits [place]; see [RawDecor.fitFor]. */
-internal fun Value.copyFor(place: ValuePlace): Value = deepCopy().fitFor(place)
+internal fun Value.copyFor(place: ValuePlace): Value = copyOutOfBraces().fitFor(place)
 
 /** This value, its decor fitted to [place]. */
 internal fun Value.fitFor(place: ValuePlace): Value = also { rawDecor.fitFor(place) }

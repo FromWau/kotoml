@@ -139,6 +139,9 @@ public class Item private constructor(
             is TableContent -> TableContent(table.deepCopy())
             is ArrayOfTablesContent -> ArrayOfTablesContent(array.deepCopy())
         }
+
+        /** A [deepCopy] to store elsewhere; see [com.fromwau.kotoml.InlineTable.copyOutOfBraces]. */
+        fun copyOutOfBraces(): Content = if (this is ValueContent) ValueContent(value.copyOutOfBraces()) else deepCopy()
     }
 
     private fun refusal(content: Content): TomlEditError? = when (holds) {
@@ -198,7 +201,10 @@ public class Item private constructor(
      */
     public fun assign(item: Item): EmptyResult<TomlEditError> {
         val within = owner?.let { copiesWithinDocument(item, it) } ?: false
-        val next = item.content.deepCopy().placedIn(holds).also { if (copiesFromDocument(item)) it.leaveSource() }
+        val next = item.content
+            .copyOutOfBraces()
+            .placedIn(holds)
+            .also { if (copiesFromDocument(item)) it.leaveSource() }
         owner?.let { placeStored(Item(next, Holds.Anything), within, it) }
         refusal(next)?.let { return Err(it) }
         tooDeepToHold(item)?.let { return Err(it) }
@@ -803,7 +809,7 @@ public class Item private constructor(
      * Comments a caller set through `decor` stay. A copy of an item stored nowhere, built in code or returned by
      * `remove`, keeps all its comments.
      */
-    public fun copy(): Item = copyWithComments().also { copy ->
+    public fun copy(): Item = Item(content.copyOutOfBraces(), Holds.Anything).also { copy ->
         copy.copiedWithin = outermostTableOfSource(this) ?: copiedWithin
         copy.content.keepDocument(document)
         if (copiesFromDocument(this)) copy.content.leaveSource()
