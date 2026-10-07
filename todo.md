@@ -66,15 +66,6 @@ its same-line comment into an array as into a table (C5 stands).
   the comma, because the empty table's value is built anew on each read and loses its suffix. Valid TOML, no comment
   lost.
 
-- [ ] **101. Two indents for arrays, and LF lines in a CRLF file.** The spreading a caller's comment triggers indents
-  two spaces from column 0, while `setMultiline(true)` indents from the array's line; and a multi-line string written in
-  its default spelling (by `respell()` or built in code) breaks its lines with LF in a CRLF document.
-  **Ruling 2026-10-07:** one rule: every spread array indents from its own line; and every line kotoml writes takes the
-  document's line ending (item 79), multi-line strings included.
-  **Progress 2026-10-07:** the indent rule is done (d87e784). A CRLF inside a multi-line string decodes as `\r\n`
-  today, so writing those lines in CRLF would change the value. **Ruling 2026-10-07:** A: the parser reads a line
-  break inside a multi-line string as `\n` whatever the file's line ending (the spec allows it), so kotoml can write
-  those lines in the document's line ending; a file still prints back byte for byte.
 
 Settled the same day, no change: a copied table prints where its key stands (item 38 over 29's "after the tables
 already there"); a moved table gets the default blank line (spacing is not kept across operations); a bare value's
@@ -92,6 +83,21 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **101. Two indents for arrays, and LF lines in a CRLF file.** The spreading a caller's comment triggers indents
+  two spaces from column 0, while `setMultiline(true)` indents from the array's line; and a multi-line string written in
+  its default spelling (by `respell()` or built in code) breaks its lines with LF in a CRLF document.
+  **Ruling 2026-10-07:** one rule: every spread array indents from its own line; and every line kotoml writes takes the
+  document's line ending (item 79), multi-line strings included.
+  **Progress 2026-10-07:** the indent rule is done (d87e784). A CRLF inside a multi-line string decodes as `\r\n`
+  today, so writing those lines in CRLF would change the value. **Ruling 2026-10-07:** A: the parser reads a line
+  break inside a multi-line string as `\n` whatever the file's line ending (the spec allows it), so kotoml can write
+  those lines in the document's line ending; a file still prints back byte for byte.
+  **Verdict 2026-10-07:** fixed: a spread array indents from its own line by one path, nested arrays included
+  (CommentPlacementTest); a CRLF inside a multi-line string decodes to `\n`, and a multi-line string in its default
+  spelling (respelled, or built in code and stored) breaks its lines with the document's line ending and reads back
+  the same; unchanged files print byte for byte. DecoderStringTest, PreservationTest, RespellTest, serialization
+  DecodeTest and EncodeIntoTest.
 
 - [x] **99. No one call writes a value in its default spelling or puts an array on one line.** `resetFormatting()`
   did both; `format()` keeps value spellings and layouts by ruling, so `0x10` cannot become `16` and a multi-line
