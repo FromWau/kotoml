@@ -36,11 +36,6 @@ follows the removal contract. `remove` of a missing key inside `edit {}` aborts 
 
 - [ ] **120. Write the comment ownership rule down.** GOALS.md goal 4 holds it (done with this item's filing);
   core/README.md's "Items and their comments" changes wave by wave with the code (121 to 125), never ahead of it.
-- [ ] **122. Removing takes an item's comments and refuses without force.**
-  `remove(key: String, force: Boolean = false): Result<Item, TomlEditError>`: `NotFound` when absent;
-  `CommentsWouldBeLost(keyPath, count)` when the item holds attached comments or comments inside it, changing
-  nothing; forced, `Ok(item)` holding its comments, the free lines staying. Same for `removeAt`, `removeAll`,
-  `retainAll` on documents, tables, inline tables, arrays and arrays of tables; serialization and app callers follow.
 - [ ] **123. Copying and storing carry an item's comments; replacing follows the item.** A store or copy takes the
   attached comments, the header's included (`# about db\n[db] # primary` comes along; a free `# loose note` does
   not). Replacing a value keeps the slot's comments (`# about x\nx = 1 # one`, `doc["x"] = 2L` gives
@@ -125,6 +120,19 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **122. Removing takes an item's comments and refuses without force.**
+  `remove(key: String, force: Boolean = false): Result<Item, TomlEditError>`: `NotFound` when absent;
+  `CommentsWouldBeLost(keyPath, count)` when the item holds attached comments or comments inside it, changing
+  nothing; forced, `Ok(item)` holding its comments, the free lines staying. Same for `removeAt`, `removeAll`,
+  `retainAll` on documents, tables, inline tables, arrays and arrays of tables; serialization and app callers follow.
+  **Verdict 2026-10-07:** done: `remove`, `removeAt`, `removeAll`, `retainAll`, `removeItem` and `clear` take `force =
+  false` and return `Result`: `NotFound` when absent, `CommentsWouldBeLost(keyPath, count)` changing nothing when
+  comments would leave the document (counted by a forced trial on a copy), all or nothing for the batch forms; forced,
+  the item takes its attached block and the comments inside it, free lines stay, no blank lines dangle at the file's
+  ends. An emptied array of tables keeps the comment above its first header above `key = []`. The 66 QA removal
+  scenarios that changed were approved in bulk and updated. Pinned in RemovalContractTest, CommentOwnershipTest and the
+  updated removal tests.
 
 - [x] **121. One place decides an item's comments.** An internal function gives, for any item in any container, its
   attached comment lines (the block directly above, no blank line between, and its same-line comment) and the free
