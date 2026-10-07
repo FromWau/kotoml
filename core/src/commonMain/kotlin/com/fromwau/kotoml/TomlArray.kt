@@ -226,7 +226,7 @@ public class TomlArray() : Iterable<Value> {
         val tables = ArrayOfTables()
         for ((index, inline) in inlineTables.withIndex()) {
             // An element prints in braces even when dotted, so its comments are read where braces hold them.
-            inline.setDotted(false)
+            inline.markDotted(false)
             val table = inline.moveToStandardTable()
             table.keepCommentAfterBraces(lineComments[index + 1], lineBreak)
             val above = linesAbove[index]

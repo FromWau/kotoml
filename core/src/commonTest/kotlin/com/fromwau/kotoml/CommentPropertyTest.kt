@@ -14,9 +14,10 @@ import kotlin.test.assertEquals
 /**
  * Edits keep every comment they do not own. Adding, replacing a value with a value, sorting and changing how a table
  * prints keep them all; removing a value takes only the comment on its own line, and giving a table a new layout with
- * `isDotted` may take its comments, all but the lines above its key; putting an inline table on one line with
- * `isMultiline` may take the comments inside its braces. Removing or replacing whole tables
- * is covered by `RemovalPropertyTest` and the comment scope tests, which state what those take.
+ * `setDotted(force = true)` may take its comments, all but the lines above its key; putting an inline table on one
+ * line with `setMultiline(false, force = true)` may take the comments inside its braces. Without force a layout
+ * change, `setInline` included, keeps every comment or is refused and changes nothing. Removing or replacing whole
+ * tables is covered by `RemovalPropertyTest` and the comment scope tests, which state what those take.
  */
 class CommentPropertyTest {
 
@@ -101,13 +102,14 @@ class CommentPropertyTest {
             }
             add(Edit("table sort") { table.sortWith(compareBy { it.first.name }).let { emptyList() } })
             if (table !== edits.tables.first()) {
-                add(Edit("table isDotted") {
+                add(Edit("table setDotted forced") {
                     // A new layout for the table: its comments may go, but for the lines above its key.
                     val owned = commentsOf(doc, table)
-                    table.isDotted = !table.isDotted
+                    table.setDotted(!table.isDotted, force = true).getOrFail()
                     owned
                 })
-                add(Edit("table isImplicit") { (!table.isImplicit).also { table.isImplicit = it }.let { emptyList() } })
+                add(Edit("table setDotted") { keptOrRefused(doc) { table.setDotted(!table.isDotted) } })
+                add(Edit("table setImplicit") { table.setImplicit(!table.isImplicit).let { emptyList() } })
             }
             edits.arrays.randomOrNull(random)?.let { array ->
                 val index = random.nextInt(array.size + 1)
@@ -122,27 +124,46 @@ class CommentPropertyTest {
                 }
             }
             edits.inlines.randomOrNull(random)?.let { inline ->
-                add(Edit("inline isDotted") {
+                add(Edit("inline setDotted forced") {
                     // A new layout for the table: its comments may go, but for those above it.
                     val inside = comments(inline.toString()) + comments(inline.decor.suffix.orEmpty())
-                    inline.isDotted = !inline.isDotted
+                    inline.setDotted(!inline.isDotted, force = true).getOrFail()
                     inside
                 })
-                add(Edit("inline isMultiline") {
+                add(Edit("inline setDotted") { keptOrRefused(doc) { inline.setDotted(!inline.isDotted) } })
+                add(Edit("inline setMultiline forced") {
                     // One line holds no comment: going to one, the comments inside the braces may go.
                     val inside = if (inline.isMultiline) comments(inline.toString()) else emptyList()
-                    inline.isMultiline = !inline.isMultiline
+                    inline.setMultiline(!inline.isMultiline, force = true).getOrFail()
                     inside
                 })
+                add(Edit("inline setMultiline") { keptOrRefused(doc) { inline.setMultiline(!inline.isMultiline) } })
             }
             edits.tableArrays.randomOrNull(random)?.let { tables ->
                 add(Edit("tables add") { tables.add(edits.table()).let { emptyList() } })
             }
             edits.slots.randomOrNull(random)?.let { slot ->
-                add(Edit("slot expand") { slot.expand().let { emptyList() } })
+                add(Edit("slot setInline") { keptOrRefused(doc) { slot.setInline(true) } })
+                add(Edit("slot setInline false") { keptOrRefused(doc) { slot.setInline(false) } })
             }
         }
         return options.random(random)
+    }
+
+    /**
+     * Applies a layout change without force, which drops no comment: it either keeps them all or, refused with
+     * [TomlEditError.CommentsWouldBeLost], leaves [doc] as it was.
+     */
+    private fun keptOrRefused(
+        doc: TomlDocument,
+        change: () -> Result<Unit, TomlEditError>,
+    ): List<String> {
+        val before = doc.toString()
+        val result = change()
+        if (result is Result.Error && result.error is TomlEditError.CommentsWouldBeLost) {
+            assertEquals(before, doc.toString(), "a refused layout change left the document changed")
+        }
+        return emptyList()
     }
 
     private fun Item.isScalar(): Boolean = valueOrNull?.isScalar() ?: false

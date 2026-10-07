@@ -81,7 +81,7 @@ class CommentPlacementTest {
         val doc = parse("t = { a = 1 }\n")
         val value = Value.Integer(2L).also { it.decor = Decor(suffix = " # c") }
         doc["t"].getOrFail().valueOrNull!!.inlineTableOrNull!!.set("b", value).getOrFail()
-        assertEquals("t = {\n  a = 1,\n  b = 2 # c\n}\n", doc.toString())
+        assertEquals("t = {\n  a = 1,\n  b = 2, # c\n}\n", doc.toString())
     }
 
     @Test
@@ -113,7 +113,7 @@ class CommentPlacementTest {
         val doc = parse("t = { a = 1, b = 2 }\n")
         val value = Value.Integer(5L).also { it.decor = Decor(suffix = " # c") }
         doc["t"].getOrFail().valueOrNull!!.inlineTableOrNull!!.set("a", value).getOrFail()
-        assertEquals("t = {\n  a = 5, # c\n  b = 2\n}\n", doc.toString())
+        assertEquals("t = {\n  a = 5, # c\n  b = 2,\n}\n", doc.toString())
     }
 
     @Test
@@ -142,14 +142,14 @@ class CommentPlacementTest {
     fun `a comment given to a value in a document with CRLF line breaks spreads the inline table over CRLF lines`() {
         val doc = parse("t = { a = 1 }\r\n")
         doc["t"].getOrFail().valueOrNull!!.inlineTableOrNull!!.set("b", commented(2L)).getOrFail()
-        assertEquals("t = {\r\n  a = 1,\r\n  b = 2 # c\r\n}\r\n", doc.toString())
+        assertEquals("t = {\r\n  a = 1,\r\n  b = 2, # c\r\n}\r\n", doc.toString())
     }
 
     @Test
     fun `a comment given to a value set at a key in the middle of a CRLF document ends its line in CRLF`() {
         val doc = parse("t = { a = 1, b = 2 }\r\n")
         doc["t"].getOrFail().valueOrNull!!.inlineTableOrNull!!.set("a", commented(5L)).getOrFail()
-        assertEquals("t = {\r\n  a = 5, # c\r\n  b = 2\r\n}\r\n", doc.toString())
+        assertEquals("t = {\r\n  a = 5, # c\r\n  b = 2,\r\n}\r\n", doc.toString())
     }
 
     @Test
@@ -158,8 +158,8 @@ class CommentPlacementTest {
         val table = StandardTable()
         table.set("k", commented(1L)).getOrFail()
         doc.set("t", table).getOrFail()
-        doc["t"].getOrFail().inline().getOrFail()
-        assertEquals("x = 1\r\nt = {\r\n  k = 1 # c\r\n}\r\n", doc.toString())
+        doc["t"].getOrFail().setInline(true).getOrFail()
+        assertEquals("x = 1\r\nt = {\r\n  k = 1, # c\r\n}\r\n", doc.toString())
     }
 
     @Test
@@ -168,8 +168,8 @@ class CommentPlacementTest {
         val first = StandardTable()
         first.set("k", commented(1L)).getOrFail()
         doc.set("s", listOf(first, StandardTable()).toArrayOfTables().getOrFail()).getOrFail()
-        doc["s"].getOrFail().inline().getOrFail()
-        assertEquals("x = 1\r\ns = [\r\n  {\r\n    k = 1 # c\r\n  },\r\n  {},\r\n]\r\n", doc.toString())
+        doc["s"].getOrFail().setInline(true).getOrFail()
+        assertEquals("x = 1\r\ns = [\r\n  {\r\n    k = 1, # c\r\n  },\r\n  {},\r\n]\r\n", doc.toString())
     }
 
     @Test
@@ -275,14 +275,23 @@ class CommentPlacementTest {
     @Test
     fun `an array of tables made a value keeps its comments in TOML 1_1`() {
         val doc = parse("# first\n[[s]] # ac\nn = 1 # one\n\n[[s]]\nn = 2\n")
-        doc["s"].getOrFail().inline().getOrFail()
-        assertEquals("# first\ns = [\n  { # ac\n    n = 1 # one\n  },\n  { n = 2 },\n]\n", doc.toString())
+        doc["s"].getOrFail().setInline(true).getOrFail()
+        assertEquals("# first\ns = [\n  { # ac\n    n = 1, # one\n  },\n  { n = 2 },\n]\n", doc.toString())
     }
 
     @Test
-    fun `an array of tables made a value in TOML 1_0 keeps the comments on and between its headers`() {
+    fun `an array of tables made a value in TOML 1_0 is refused while a comment inside a table would go`() {
+        val text = "[[s]]\nn = 1 # one\n"
+        val doc = parse(text, TomlVersion.V1_0)
+        val error = doc["s"].getOrFail().setInline(true).errorOrFail()
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("s"), 1), error)
+        assertEquals(text, doc.toString())
+    }
+
+    @Test
+    fun `an array of tables made a value in TOML 1_0 with force keeps the comments on and between its headers`() {
         val doc = parse("# first\n[[s]] # ac\nn = 1 # one\n\n# second\n[[s]]\nn = 2\n", TomlVersion.V1_0)
-        doc["s"].getOrFail().inline().getOrFail()
+        doc["s"].getOrFail().setInline(true, force = true).getOrFail()
         val expected = "# first\ns = [\n  { n = 1 }, # ac\n  # second\n  { n = 2 },\n]\n"
         assertEquals(expected, doc.toString())
         assertEquals(expected, parse(expected, TomlVersion.V1_0).toString())

@@ -37,7 +37,7 @@ public class TomlDocument internal constructor(
 
     init {
         // The root prints its values as the document's first lines, never as the parts of a dotted key.
-        root.setDotted(false)
+        root.markDotted(false)
         root.isDocumentRoot = true
         root.lineEnding = lineEnding
     }

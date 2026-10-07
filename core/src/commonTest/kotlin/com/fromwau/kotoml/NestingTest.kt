@@ -97,7 +97,7 @@ class NestingTest {
     fun `a table made a value stands as an inline table on its line`() {
         val doc = parse("[a.b]\nx = 1\n")
         val item = doc.item("a", "b")
-        item.inline().getOrFail()
+        item.setInline(true).getOrFail()
         assertEquals(Nesting.InLine(level = 1), nestingOf(item.inlineTableOrNull!!))
     }
 

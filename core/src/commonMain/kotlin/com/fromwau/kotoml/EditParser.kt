@@ -390,7 +390,7 @@ private class DocumentBuilder(private val input: EventStream, private val contex
         currentTable.rawDecor.assign(decor)
         currentTable.opensFile = currentPosition == 1L && root.visualValues().isEmpty()
         currentTable.isImplicit = false
-        currentTable.setDotted(false)
+        currentTable.markDotted(false)
         currentTable.placeAt(currentPosition, fromText = true)
         currentTable.span = header.span
         currentHeader = header
@@ -422,7 +422,7 @@ private fun descendPath(
             val newTable = StandardTable()
             newTable.span = key.span
             newTable.isImplicit = true
-            newTable.setDotted(dotted)
+            newTable.markDotted(dotted)
             val held = key.copy()
             table.items.put(held, Item(newTable))
             shared += held
@@ -439,7 +439,7 @@ private fun descendPath(
             child != null -> {
                 if (dotted && child.isImplicit) {
                     // A dotted key extends an implicit table, so it becomes part of the dotted key.
-                    child.setDotted(true)
+                    child.markDotted(true)
                 }
                 // Tables cannot be defined more than once, and dotted keys cannot extend a table defined
                 // with a header.
@@ -949,7 +949,7 @@ private fun descendInlinePath(
             val newTable = InlineTable()
             newTable.span = key.span
             newTable.isImplicit = true
-            newTable.setDotted(dotted)
+            newTable.markDotted(dotted)
             val held = key.copy()
             table.items.put(held, Item.inInlineTable(Value.InlineTable(newTable)))
             shared += held

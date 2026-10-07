@@ -137,7 +137,7 @@ class RemovalKeepsCommentsTest {
     fun `a dotted key made by hand leaves its comment above the next one`() {
         val document = TomlDocument()
         val pool = StandardTable()
-        pool.isDotted = true
+        pool.setDotted(true).getOrFail()
         pool.put(Key("size", leafDecor = Decor(prefix = "# size\n")), Item(Value.Integer(1L)))
         pool.put(Key("idle", leafDecor = Decor(prefix = "# idle\n")), Item(Value.Integer(2L)))
         document["pool"] = pool

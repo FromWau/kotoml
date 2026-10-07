@@ -213,6 +213,13 @@ internal fun TomlEditError.describe(): String = when (this) {
     is TomlEditError.NotExpandable ->
         "only an inline table or an array of inline tables expands, not ${itemType.describe().withArticle()}"
     is TomlEditError.TooDeep -> at(keyPath, TOO_DEEP)
+    is TomlEditError.CommentsWouldBeLost -> at(keyPath, commentsWouldBeLost(count))
+}
+
+private fun commentsWouldBeLost(count: Int): String {
+    val comments = if (count == 1) "1 comment" else "$count comments"
+    val them = if (count == 1) "it" else "them"
+    return "the new layout would drop $comments; pass force = true to drop $them"
 }
 
 internal fun TomlWriteError.describe(): String = when (this) {

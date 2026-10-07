@@ -51,7 +51,7 @@ class WriteDepthTest {
         var table = doc.root
         repeat(limit) {
             table = table.getOrNull("t")!!.standardTableOrNull!!
-            table.isDotted = true
+            table.setDotted(true).getOrFail()
         }
         val text = doc.toString()
         assertEquals(text, written(doc))

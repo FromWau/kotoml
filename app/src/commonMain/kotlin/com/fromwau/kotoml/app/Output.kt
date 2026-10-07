@@ -104,7 +104,7 @@ internal fun Selected.toToml(): Printed {
         // The text around a table belongs to its header, which is not printed, and its lines print as its own.
         val printed = table.copy().also {
             it.decor = Decor()
-            it.isDotted = false
+            it.setDotted(false, force = true)
         }
         return printedTable(TomlDocument(printed).toString())
     }
@@ -116,7 +116,7 @@ internal fun Selected.toToml(): Printed {
         copy.firstOrNull()?.decor = tables.first().decor
         val holder = tableHolding(path.last(), Item(copy))
         val root = path.dropLast(1).foldRight(holder) { key, child ->
-            child.isImplicit = true
+            child.setImplicit(true)
             tableHolding(key, Item(child))
         }
         return printedTable(TomlDocument(root).toString().trimStart())

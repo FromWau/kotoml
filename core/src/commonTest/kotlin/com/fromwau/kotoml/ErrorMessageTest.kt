@@ -26,6 +26,10 @@ class ErrorMessageTest {
             TomlEditError.TooDeep(listOf("a", "b.c")) to
                 "a.\"b.c\": nests deeper than 80 levels, so it would not parse back",
             TomlEditError.TooDeep(emptyList()) to "nests deeper than 80 levels, so it would not parse back",
+            TomlEditError.CommentsWouldBeLost(listOf("t", "sub"), 2) to
+                "t.sub: the new layout would drop 2 comments; pass force = true to drop them",
+            TomlEditError.CommentsWouldBeLost(emptyList(), 1) to
+                "the new layout would drop 1 comment; pass force = true to drop it",
         )
         for ((error, message) in cases) assertEquals(message, error.message, "$error")
     }

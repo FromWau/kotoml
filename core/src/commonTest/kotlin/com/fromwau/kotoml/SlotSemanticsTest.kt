@@ -194,7 +194,7 @@ class SlotSemanticsTest {
     @Test
     fun `an array of tables slot refuses to become a value`() {
         val doc = TomlDocument.parse("[[a]]\nx = 1\n").getOrFail()
-        val error = doc["a"][0].getOrFail().inline().errorOrFail()
+        val error = doc["a"][0].getOrFail().setInline(true).errorOrFail()
         assertEquals(TomlEditError.NotATableElement(TomlType.InlineTable), error)
         assertEquals("[[a]]\nx = 1\n", doc.toString())
     }

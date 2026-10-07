@@ -1100,7 +1100,7 @@ x = 0
 t = { a = 1, b = 2 } # c
 ```
 ```kotlin edit
-doc["t"].getOrFail().inlineTableOrNull!!.isDotted = true
+doc["t"].getOrFail().inlineTableOrNull!!.setDotted(true, force = true)
 ```
 ```toml expected
 x = 0
@@ -1121,7 +1121,7 @@ t = {
 y = 3
 ```
 ```kotlin edit
-doc["t"].getOrFail().inlineTableOrNull!!.isDotted = true
+doc["t"].getOrFail().inlineTableOrNull!!.setDotted(true)
 ```
 ```toml expected
 # above
@@ -1228,7 +1228,7 @@ x = 0
 t.a = 1 # one
 ```
 ```kotlin edit
-doc["t"].getOrFail().standardTableOrNull!!.isDotted = false
+doc["t"].getOrFail().standardTableOrNull!!.setDotted(false)
 ```
 ```toml expected
 x = 0
@@ -1248,7 +1248,7 @@ x = 0
 a = 1 # one
 ```
 ```kotlin edit
-doc["t"].getOrFail().standardTableOrNull!!.isDotted = true
+doc["t"].getOrFail().standardTableOrNull!!.setDotted(true, force = true)
 ```
 ```toml expected
 x = 0
@@ -1737,7 +1737,7 @@ settled: owner confirmed 2026-10-05: as kotoml prints it.
 x = 1
 ```
 ```kotlin edit
-doc["a"].getOrFail().standardTableOrNull!!.isImplicit = true
+doc["a"].getOrFail().standardTableOrNull!!.setImplicit(true)
 ```
 ```toml expected
 # above a
@@ -1756,7 +1756,7 @@ rule: 8   version: 1.0
 x = 1
 ```
 ```kotlin edit
-doc["a"].getOrFail().standardTableOrNull!!.isImplicit = true
+doc["a"].getOrFail().standardTableOrNull!!.setImplicit(true)
 ```
 ```toml expected
 # above a
@@ -1908,7 +1908,7 @@ settled: owner ruling 2026-10-05 (Q6): makeValue on one line keeps the header co
 a = 1 # one
 ```
 ```kotlin edit
-doc["t"].getOrFail().inline()
+doc["t"].getOrFail().setInline(true, force = true)
 ```
 ```toml expected
 # above t
