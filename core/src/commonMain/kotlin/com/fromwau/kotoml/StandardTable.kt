@@ -29,37 +29,60 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     /**
      * Whether the table's header is hidden while it holds no values of its own and tables under it print theirs. A
      * table left holding nothing prints its header, so its key stays in the text. A table made in code with no
-     * [decor] hides its header the same way while this is false.
+     * [decor] hides its header the same way while this is false. [setImplicit] changes it.
+     */
+    public var isImplicit: Boolean = false
+        internal set
+
+    /**
+     * Hides the table's header while it holds no values of its own and tables under it print theirs when [value] is
+     * true, as [isImplicit] says. No comment goes: those of a hidden header print again once it does.
      *
      * ```kotlin
      * val doc = TomlDocument.parse("[a]\n[a.b]\n").getOrElse { error(it) }
-     * doc["a"].getOrNull()?.standardTableOrNull?.isImplicit = true
+     * doc["a"].getOrNull()?.standardTableOrNull?.setImplicit(true)
      * doc.toString() // "[a.b]\n"
      * ```
      */
-    public var isImplicit: Boolean = false
+    public fun setImplicit(value: Boolean) {
+        isImplicit = value
+    }
 
     /**
-     * Whether this table stands for the parts of a dotted key rather than for a header. A document's root and an
-     * element of an array of tables are never dotted: storing a table as either clears this. Changing it changes
-     * which comments stay, as [Table.isDotted] says; dotted keys made a header put the comment above their first line
-     * above the header. A dotted table whose lines, as dotted keys, would nest deeper than
-     * [TomlDocument.NESTING_LIMIT] prints under a header instead, so its text reads back.
+     * Whether this table stands for the parts of a dotted key rather than for a header; [setDotted] changes it. A
+     * document's root and an element of an array of tables are never dotted: storing a table as either clears this.
+     * A dotted table whose lines, as dotted keys, would nest deeper than [TomlDocument.NESTING_LIMIT] prints under a
+     * header instead, so its text reads back.
      */
-    override var isDotted: Boolean
+    override val isDotted: Boolean
         get() = dotted
-        set(value) {
-            if (value == dotted) return
-            // A new layout: the lines above the key stay, and each value keeps the comment on its line.
-            if (value) {
-                if ('#' in rawDecor.suffix?.textOrNull.orEmpty()) rawDecor.suffix = null
-                dropCommentLines(fromLine = 0)
-            } else {
-                takeFirstLineCommentsAboveHeader()
-                dropCommentLinesWithinRuns()
-            }
-            dotted = value
+
+    /**
+     * Gives the table a new layout, as [Table.setDotted] says; dotted keys made a header put the comment above their
+     * first line above the header.
+     */
+    override fun setDotted(
+        value: Boolean,
+        force: Boolean,
+    ): EmptyResult<TomlEditError> {
+        if (value == dotted) return Ok(Unit)
+        return changeLayout(this, force) { table ->
+            table.layOutDotted(value)
+            Ok(Unit)
         }
+    }
+
+    // A new layout: the lines above the key stay, and each value keeps the comment on its line.
+    private fun layOutDotted(value: Boolean) {
+        if (value) {
+            if ('#' in rawDecor.suffix?.textOrNull.orEmpty()) rawDecor.suffix = null
+            dropCommentLines(fromLine = 0)
+        } else {
+            takeFirstLineCommentsAboveHeader()
+            dropCommentLinesWithinRuns()
+        }
+        dotted = value
+    }
 
     private var dotted: Boolean = false
 
@@ -86,7 +109,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     internal var headEndsInRemovedTable: Boolean = false
 
     /** Sets [isDotted] as reading or copying a table does, which gives it no new layout. */
-    internal fun setDotted(value: Boolean) {
+    internal fun markDotted(value: Boolean) {
         dotted = value
     }
 
@@ -194,8 +217,8 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     }
 
     /**
-     * An inline table holding copies of this table's values, formatted anew; the table stays as it is. [Item.inline]
-     * turns a table in a document into an inline table in place.
+     * An inline table holding copies of this table's values, formatted anew; the table stays as it is.
+     * [Item.setInline] turns a table in a document into an inline table in place.
      *
      * @return [TomlEditError.TooDeep] when its tables, nested as inline tables, would be deeper than the parser reads.
      */
@@ -228,7 +251,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     }
 
     /**
-     * This table, a copy to use up, as the inline table value [Item.inline] makes of it on a line indented by
+     * This table, a copy to use up, as the inline table value [Item.setInline] makes of it on a line indented by
      * [indent]: across lines keeping its comments when [layout] says so, its header comment after `{`; otherwise on
      * one line, formatted anew, its header comment after `}`.
      */
@@ -259,7 +282,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         val comments = lineComments(headerComment)
         for (line in visualValues()) line.path.last().rawLeafDecor.suffix = null
         val table = moveToBraces()
-        table.layOutAcrossLines(layout.lineBreak, indent, comments)
+        table.layOutAcrossLines(layout.lineBreak, indent, layout.version, comments)
         return table
     }
 
@@ -310,7 +333,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     private fun moveToBraces(): InlineTable {
         for (entry in items.entries) {
             val dotted = entry.item.standardTableOrNull ?: continue
-            entry.item.holdValue(Value.InlineTable(dotted.moveToBraces().also { it.setDotted(true) }))
+            entry.item.holdValue(Value.InlineTable(dotted.moveToBraces().also { it.markDotted(true) }))
         }
         return InlineTable(items.takeAll())
     }
@@ -838,7 +861,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         val copy = StandardTable(items.deepCopy())
         copy.rawDecor.assign(rawDecor)
         copy.isImplicit = isImplicit
-        copy.setDotted(isDotted)
+        copy.markDotted(isDotted)
         copy.version = version
         copy.opensFile = opensFile
         copy.headEndsInRemovedTable = headEndsInRemovedTable
@@ -1003,17 +1026,14 @@ private fun String.splitLinesAbove(first: Boolean): Pair<String, String> {
 }
 
 /**
- * How [Item.inline] lays out each inline table it makes: across lines when [multiline] is true, on one line when it is
- * false, and when it is null across lines only where there are comments to keep and [version] reads that. The lines it
- * adds end in [lineBreak].
+ * How [Item.setInline] lays out each inline table it makes: across lines where there are comments to keep and
+ * [version] reads that, otherwise on one line. The lines it adds end in [lineBreak].
  */
 internal class InlineLayout(
-    private val multiline: Boolean?,
-    private val version: TomlVersion,
+    val version: TomlVersion,
     val lineBreak: String,
 ) {
-    fun acrossLines(table: StandardTable): Boolean =
-        multiline ?: (version == TomlVersion.V1_1 && table.holdsComments())
+    fun acrossLines(table: StandardTable): Boolean = version == TomlVersion.V1_1 && table.holdsComments()
 }
 
 /** The comment lines of [lines], each indented by [indent] and ended by [lineBreak]; blank lines go. */

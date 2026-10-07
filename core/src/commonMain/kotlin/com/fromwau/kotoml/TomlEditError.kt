@@ -50,8 +50,8 @@ public sealed interface TomlEditError : IError {
     public data class NotATableElement(val itemType: TomlType) : TomlEditError
 
     /**
-     * [Item.expand] found an item of type [itemType]: only an inline table, or an array holding inline tables and
-     * nothing else, becomes a table or an array of tables.
+     * [Item.setInline] with false found an item of type [itemType]: only an inline table, or an array holding inline
+     * tables and nothing else, becomes a table or an array of tables.
      */
     @Serializable
     @SerialName("NotExpandable")
@@ -65,4 +65,14 @@ public sealed interface TomlEditError : IError {
     @Serializable
     @SerialName("TooDeep")
     public data class TooDeep(val keyPath: List<String>) : TomlEditError
+
+    /**
+     * A new layout would drop [count] comments, so nothing changed: [Item.setInline], [Table.setDotted] or
+     * [InlineTable.setMultiline] was called without `force = true`. [keyPath] leads to the slot or table from the
+     * document's root, or from the top of the table, array or value it is stored under when that is stored in no
+     * document; an element of an array adds no part.
+     */
+    @Serializable
+    @SerialName("CommentsWouldBeLost")
+    public data class CommentsWouldBeLost(val keyPath: List<String>, val count: Int) : TomlEditError
 }

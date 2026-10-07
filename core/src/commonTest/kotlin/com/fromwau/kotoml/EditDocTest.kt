@@ -97,6 +97,35 @@ c = { d = "hello" }
     }
 
     @Test
+    fun `the module README layout example makes a table inline and then forces it on one line`() {
+        val doc = TomlDocument.parse("[t] # t\na = 1 # one\n").getOrFail()
+        val slot = doc["t"].getOrFail()
+        slot.setInline(true).getOrFail()
+        assertEquals("t = { # t\n  a = 1, # one\n}\n", doc.toString())
+        val table = slot.inlineTableOrNull!!
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("t"), 2), table.setMultiline(false).errorOrFail())
+        assertEquals("t = { # t\n  a = 1, # one\n}\n", doc.toString())
+        table.setMultiline(false, force = true).getOrFail()
+        assertEquals("t = { a = 1 }\n", doc.toString())
+    }
+
+    @Test
+    fun `the KDoc example of setDotted fails without force and drops the header comment with it`() {
+        val doc = TomlDocument.parse("[a] # a\nb = 1\n").getOrFail()
+        val table = doc["a"].getOrFail().standardTableOrNull!!
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("a"), 1), table.setDotted(true).errorOrFail())
+        table.setDotted(true, force = true).getOrFail()
+        assertEquals("a.b = 1\n", doc.toString())
+    }
+
+    @Test
+    fun `the KDoc example of setMultiline puts each entry on a line of its own`() {
+        val doc = TomlDocument.parse("t = { a = 1, b = 2 }\n").getOrFail()
+        doc["t"].getOrFail().inlineTableOrNull!!.setMultiline(true).getOrFail()
+        assertEquals("t = {\n  a = 1,\n  b = 2,\n}\n", doc.toString())
+    }
+
+    @Test
     fun `the module README builder example builds a document and edits it`() {
         val doc = buildTomlDocument {
             "title" to "kotoml"
@@ -296,7 +325,7 @@ duplicate key `a`
     fun `an implicit table with a sub-table prints only the sub-table's header`() {
         val doc = TomlDocument.parse("[a]\n[a.b]\n").getOrFail()
 
-        doc["a"].getOrFail().standardTableOrNull!!.isImplicit = true
+        doc["a"].getOrFail().standardTableOrNull!!.setImplicit(true)
         assertEquals("[a.b]\n", doc.toString())
     }
 

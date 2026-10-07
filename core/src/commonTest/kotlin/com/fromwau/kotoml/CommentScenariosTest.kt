@@ -208,7 +208,7 @@ class CommentScenariosTest {
         Scenario("S-062", false, TomlVersion.V1_0, "[t]\na = 1\n\n# about u\n[t.u] # u\nb = 2\n\n[v]\nc = 3\n", "t = { a = 1, u = { b = 2 } }\n\n[v]\nc = 3\n", ::eS_062),
         Scenario("S-063", false, TomlVersion.V1_0, "# about t\nt.a = 1\nt.b = 2\n", "# about t\nt = { a = 1, b = 2 }\n", ::eS_063),
         Scenario("S-064", false, TomlVersion.V1_0, "t.a = 1 # a\nt.b = 2\n", "t = { a = 1, b = 2 }\n", ::eS_064),
-        Scenario("S-065", false, TomlVersion.V1_1, "[t] # t\na = 1 # one\n", "t = { # t\n  a = 1 # one\n}\n", ::eS_065),
+        Scenario("S-065", false, TomlVersion.V1_1, "[t] # t\na = 1 # one\n", "t = { # t\n  a = 1, # one\n}\n", ::eS_065),
         Scenario("S-066", false, TomlVersion.V1_0, "# about x\n[x] # x header\na = 1\n", "# about x\nx.a = 1\n", ::eS_066),
         Scenario("S-067", false, TomlVersion.V1_0, "title = \"t\"\n\n# about x\n[x] # x header\na = 1\nb = 2\n", "title = \"t\"\n\n# about x\nx.a = 1\nx.b = 2\n", ::eS_067),
         Scenario("S-068", false, TomlVersion.V1_0, "[x]\na = 1 # one\nb = 2 # two\n", "x.a = 1 # one\nx.b = 2 # two\n", ::eS_068),
@@ -766,7 +766,7 @@ class CommentScenariosTest {
     }
 
     private fun eR_100(doc: TomlDocument) {
-        doc["t"].getOrFail().inline()
+        doc["t"].getOrFail().setInline(true, force = true)
     }
 
     private fun eR_101(doc: TomlDocument) {
@@ -786,19 +786,19 @@ class CommentScenariosTest {
     }
 
     private fun eR_105(doc: TomlDocument) {
-        doc["t"].getOrFail().standardTableOrNull!!.isDotted = true
+        doc["t"].getOrFail().standardTableOrNull!!.setDotted(true, force = true)
     }
 
     private fun eR_106(doc: TomlDocument) {
-        doc["t"].getOrFail().standardTableOrNull!!.isDotted = false
+        doc["t"].getOrFail().standardTableOrNull!!.setDotted(false)
     }
 
     private fun eR_107(doc: TomlDocument) {
-        doc["t"].getOrFail().inlineTableOrNull!!.isDotted = true
+        doc["t"].getOrFail().inlineTableOrNull!!.setDotted(true, force = true)
     }
 
     private fun eR_108(doc: TomlDocument) {
-        doc["a"].getOrFail().standardTableOrNull!!.isImplicit = true
+        doc["a"].getOrFail().standardTableOrNull!!.setImplicit(true)
     }
 
     private fun eS_001(doc: TomlDocument) {
@@ -1058,98 +1058,98 @@ class CommentScenariosTest {
     }
 
     private fun eS_059(doc: TomlDocument) {
-        doc["t"].getOrFail().inline()
+        doc["t"].getOrFail().setInline(true, force = true)
     }
 
     private fun eS_060(doc: TomlDocument) {
-        doc["t"].getOrFail().inline()
+        doc["t"].getOrFail().setInline(true, force = true)
     }
 
     private fun eS_061(doc: TomlDocument) {
-        doc["t"].getOrFail().inline()
+        doc["t"].getOrFail().setInline(true)
     }
 
     private fun eS_062(doc: TomlDocument) {
-        doc["t"].getOrFail().inline()
+        doc["t"].getOrFail().setInline(true, force = true)
     }
 
     private fun eS_063(doc: TomlDocument) {
-        doc["t"].getOrFail().inline()
+        doc["t"].getOrFail().setInline(true)
     }
 
     private fun eS_064(doc: TomlDocument) {
-        doc["t"].getOrFail().inline()
+        doc["t"].getOrFail().setInline(true, force = true)
     }
 
     private fun eS_065(doc: TomlDocument) {
-        doc["t"].getOrFail().inline()
+        doc["t"].getOrFail().setInline(true)
     }
 
     private fun eS_066(doc: TomlDocument) {
-        doc["x"].getOrFail().standardTableOrNull!!.isDotted = true
+        doc["x"].getOrFail().standardTableOrNull!!.setDotted(true, force = true)
     }
 
     private fun eS_067(doc: TomlDocument) {
-        doc["x"].getOrFail().standardTableOrNull!!.isDotted = true
+        doc["x"].getOrFail().standardTableOrNull!!.setDotted(true, force = true)
     }
 
     private fun eS_068(doc: TomlDocument) {
-        doc["x"].getOrFail().standardTableOrNull!!.isDotted = true
+        doc["x"].getOrFail().standardTableOrNull!!.setDotted(true)
     }
 
     private fun eS_069(doc: TomlDocument) {
-        doc["x"].getOrFail().standardTableOrNull!!.isDotted = true
+        doc["x"].getOrFail().standardTableOrNull!!.setDotted(true, force = true)
     }
 
     private fun eS_070(doc: TomlDocument) {
-        doc["x"].getOrFail().standardTableOrNull!!.isDotted = true
+        doc["x"].getOrFail().standardTableOrNull!!.setDotted(true, force = true)
     }
 
     private fun eS_071(doc: TomlDocument) {
-        doc["x"].getOrFail().standardTableOrNull!!.isDotted = true
+        doc["x"].getOrFail().standardTableOrNull!!.setDotted(true, force = true)
     }
 
     private fun eS_072(doc: TomlDocument) {
-        doc["x"].getOrFail().standardTableOrNull!!.isDotted = false
+        doc["x"].getOrFail().standardTableOrNull!!.setDotted(false)
     }
 
     private fun eS_073(doc: TomlDocument) {
-        doc["x"].getOrFail().standardTableOrNull!!.isDotted = false
+        doc["x"].getOrFail().standardTableOrNull!!.setDotted(false)
     }
 
     private fun eS_074(doc: TomlDocument) {
-        doc["t"].getOrFail().inlineTableOrNull!!.isDotted = true
+        doc["t"].getOrFail().inlineTableOrNull!!.setDotted(true, force = true)
     }
 
     private fun eS_075(doc: TomlDocument) {
-        doc["t"].getOrFail().inlineTableOrNull!!.isDotted = true
-        doc["t"]["u"].getOrFail().inlineTableOrNull!!.isDotted = true
+        doc["t"].getOrFail().inlineTableOrNull!!.setDotted(true, force = true)
+        doc["t"]["u"].getOrFail().inlineTableOrNull!!.setDotted(true, force = true)
     }
 
     private fun eS_076(doc: TomlDocument) {
         val x = doc["x"].getOrFail().standardTableOrNull!!
-        x.isDotted = true
-        x.isDotted = false
+        x.setDotted(true, force = true)
+        x.setDotted(false, force = true)
     }
 
     private fun eS_077(doc: TomlDocument) {
-        doc["a"]["b"].getOrFail().standardTableOrNull!!.isDotted = true
+        doc["a"]["b"].getOrFail().standardTableOrNull!!.setDotted(true, force = true)
     }
 
     private fun eS_078(doc: TomlDocument) {
-        doc["s"]["t"].getOrFail().inlineTableOrNull!!.isDotted = true
+        doc["s"]["t"].getOrFail().inlineTableOrNull!!.setDotted(true, force = true)
     }
 
     private fun eS_079(doc: TomlDocument) {
-        doc["a"].getOrFail().standardTableOrNull!!.isImplicit = true
+        doc["a"].getOrFail().standardTableOrNull!!.setImplicit(true)
     }
 
     private fun eS_080(doc: TomlDocument) {
-        doc["a"].getOrFail().standardTableOrNull!!.isImplicit = true
+        doc["a"].getOrFail().standardTableOrNull!!.setImplicit(true)
     }
 
     private fun eS_081(doc: TomlDocument) {
-        doc["a"].getOrFail().standardTableOrNull!!.isImplicit = true
+        doc["a"].getOrFail().standardTableOrNull!!.setImplicit(true)
     }
 
     private fun eS_082(doc: TomlDocument) {
@@ -1551,11 +1551,11 @@ class CommentScenariosTest {
     }
 
     private fun eC_063(doc: TomlDocument) {
-        doc["t"].getOrFail().inlineTableOrNull!!.isDotted = true
+        doc["t"].getOrFail().inlineTableOrNull!!.setDotted(true, force = true)
     }
 
     private fun eC_064(doc: TomlDocument) {
-        doc["t"].getOrFail().inlineTableOrNull!!.isDotted = true
+        doc["t"].getOrFail().inlineTableOrNull!!.setDotted(true)
     }
 
     private fun eC_065(doc: TomlDocument) {
@@ -1579,11 +1579,11 @@ class CommentScenariosTest {
     }
 
     private fun eC_070(doc: TomlDocument) {
-        doc["t"].getOrFail().standardTableOrNull!!.isDotted = false
+        doc["t"].getOrFail().standardTableOrNull!!.setDotted(false)
     }
 
     private fun eC_071(doc: TomlDocument) {
-        doc["t"].getOrFail().standardTableOrNull!!.isDotted = true
+        doc["t"].getOrFail().standardTableOrNull!!.setDotted(true, force = true)
     }
 
     private fun eC_072(doc: TomlDocument) {
@@ -1695,11 +1695,11 @@ class CommentScenariosTest {
     }
 
     private fun eC_099(doc: TomlDocument) {
-        doc["a"].getOrFail().standardTableOrNull!!.isImplicit = true
+        doc["a"].getOrFail().standardTableOrNull!!.setImplicit(true)
     }
 
     private fun eC_100(doc: TomlDocument) {
-        doc["a"].getOrFail().standardTableOrNull!!.isImplicit = true
+        doc["a"].getOrFail().standardTableOrNull!!.setImplicit(true)
     }
 
     private fun eC_101(doc: TomlDocument) {
@@ -1735,7 +1735,7 @@ class CommentScenariosTest {
     }
 
     private fun eC_109(doc: TomlDocument) {
-        doc["t"].getOrFail().inline()
+        doc["t"].getOrFail().setInline(true, force = true)
     }
 
     private fun eC_110(doc: TomlDocument) {

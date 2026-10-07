@@ -1204,7 +1204,7 @@ a = 1 # one
 
 ## Table to inline table
 
-### S-059: inline() keeps the comment above the header and moves the header comment to the line
+### S-059: setInline(true) keeps the comment above the header and moves the header comment to the line
 rule: 4, 8   version: 1.0
 settled: owner ruling 2026-10-05 (Q6): makeValue keeps a table with value comments across lines in TOML 1.1, the header comment after `{`; otherwise, or in a document read as 1.0, one line with only the header comment after `}`.
 ```toml input
@@ -1214,14 +1214,14 @@ a = 1 # one
 b = 2
 ```
 ```kotlin edit
-doc["t"].getOrFail().inline()
+doc["t"].getOrFail().setInline(true, force = true)
 ```
 ```toml expected
 # about t
 t = { a = 1, b = 2 } # t header
 ```
 
-### S-060: inline() keeps the blank line and comment above the header above the new key
+### S-060: setInline(true) keeps the blank line and comment above the header above the new key
 rule: 4, 8   version: 1.0
 ```toml input
 x = 0
@@ -1231,7 +1231,7 @@ x = 0
 a = 1 # one
 ```
 ```kotlin edit
-doc["t"].getOrFail().inline()
+doc["t"].getOrFail().setInline(true, force = true)
 ```
 ```toml expected
 x = 0
@@ -1240,7 +1240,7 @@ x = 0
 t = { a = 1 }
 ```
 
-### S-061: inline() leaves the comment above the next table where it is
+### S-061: setInline(true) leaves the comment above the next table where it is
 rule: 4, 8   version: 1.0
 ```toml input
 [t]
@@ -1250,7 +1250,7 @@ a = 1
 b = 2
 ```
 ```kotlin edit
-doc["t"].getOrFail().inline()
+doc["t"].getOrFail().setInline(true)
 ```
 ```toml expected
 t = { a = 1 }
@@ -1259,7 +1259,7 @@ t = { a = 1 }
 b = 2
 ```
 
-### S-062: inline() folds sub-tables in and drops their comments
+### S-062: setInline(true) folds sub-tables in and drops their comments
 rule: 4, 8   version: 1.0
 ```toml input
 [t]
@@ -1273,7 +1273,7 @@ b = 2
 c = 3
 ```
 ```kotlin edit
-doc["t"].getOrFail().inline()
+doc["t"].getOrFail().setInline(true, force = true)
 ```
 ```toml expected
 t = { a = 1, u = { b = 2 } }
@@ -1282,7 +1282,7 @@ t = { a = 1, u = { b = 2 } }
 c = 3
 ```
 
-### S-063: inline() on a dotted-key table keeps the comment above
+### S-063: setInline(true) on a dotted-key table keeps the comment above
 rule: 4, 8   version: 1.0
 ```toml input
 # about t
@@ -1290,14 +1290,14 @@ t.a = 1
 t.b = 2
 ```
 ```kotlin edit
-doc["t"].getOrFail().inline()
+doc["t"].getOrFail().setInline(true)
 ```
 ```toml expected
 # about t
 t = { a = 1, b = 2 }
 ```
 
-### S-064: inline() on a dotted-key table with a comment on its first line
+### S-064: setInline(true) on a dotted-key table with a comment on its first line
 rule: 4, 8, 10   version: 1.0
 settled: owner ruling 2026-10-05 (Q6): makeValue keeps a table with value comments across lines in TOML 1.1, the header comment after `{`; otherwise, or in a document read as 1.0, one line with only the header comment after `}`.
 ```toml input
@@ -1305,13 +1305,13 @@ t.a = 1 # a
 t.b = 2
 ```
 ```kotlin edit
-doc["t"].getOrFail().inline()
+doc["t"].getOrFail().setInline(true, force = true)
 ```
 ```toml expected
 t = { a = 1, b = 2 }
 ```
 
-### S-065: inline() in TOML 1.1 still writes a one-line inline table
+### S-065: setInline(true) in TOML 1.1 still writes a one-line inline table
 rule: 4, 8, 9   version: 1.1
 settled: owner ruling 2026-10-05 (Q6): makeValue keeps a table with value comments across lines in TOML 1.1, the header comment after `{`; otherwise, or in a document read as 1.0, one line with only the header comment after `}`.
 ```toml input
@@ -1319,11 +1319,11 @@ settled: owner ruling 2026-10-05 (Q6): makeValue keeps a table with value commen
 a = 1 # one
 ```
 ```kotlin edit
-doc["t"].getOrFail().inline()
+doc["t"].getOrFail().setInline(true)
 ```
 ```toml expected
 t = { # t
-  a = 1 # one
+  a = 1, # one
 }
 ```
 
@@ -1338,7 +1338,7 @@ settled: owner ruling 2026-10-05 (Q5): a table or inline table made dotted, or a
 a = 1
 ```
 ```kotlin edit
-doc["x"].getOrFail().standardTableOrNull!!.isDotted = true
+doc["x"].getOrFail().standardTableOrNull!!.setDotted(true, force = true)
 ```
 ```toml expected
 # about x
@@ -1357,7 +1357,7 @@ a = 1
 b = 2
 ```
 ```kotlin edit
-doc["x"].getOrFail().standardTableOrNull!!.isDotted = true
+doc["x"].getOrFail().standardTableOrNull!!.setDotted(true, force = true)
 ```
 ```toml expected
 title = "t"
@@ -1376,7 +1376,7 @@ a = 1 # one
 b = 2 # two
 ```
 ```kotlin edit
-doc["x"].getOrFail().standardTableOrNull!!.isDotted = true
+doc["x"].getOrFail().standardTableOrNull!!.setDotted(true)
 ```
 ```toml expected
 x.a = 1 # one
@@ -1391,7 +1391,7 @@ settled: owner ruling 2026-10-05 (Q5): a table or inline table made dotted, or a
 a = 1 # one
 ```
 ```kotlin edit
-doc["x"].getOrFail().standardTableOrNull!!.isDotted = true
+doc["x"].getOrFail().standardTableOrNull!!.setDotted(true, force = true)
 ```
 ```toml expected
 x.a = 1 # one
@@ -1406,7 +1406,7 @@ settled: owner ruling 2026-10-05 (Q5): a table or inline table made dotted, or a
 a = 1
 ```
 ```kotlin edit
-doc["x"].getOrFail().standardTableOrNull!!.isDotted = true
+doc["x"].getOrFail().standardTableOrNull!!.setDotted(true, force = true)
 ```
 ```toml expected
 x.a = 1
@@ -1423,7 +1423,7 @@ a = 1
 b = 2
 ```
 ```kotlin edit
-doc["x"].getOrFail().standardTableOrNull!!.isDotted = true
+doc["x"].getOrFail().standardTableOrNull!!.setDotted(true, force = true)
 ```
 ```toml expected
 x.a = 1
@@ -1440,7 +1440,7 @@ x.a = 1 # one
 x.b = 2
 ```
 ```kotlin edit
-doc["x"].getOrFail().standardTableOrNull!!.isDotted = false
+doc["x"].getOrFail().standardTableOrNull!!.setDotted(false)
 ```
 ```toml expected
 # about x
@@ -1458,7 +1458,7 @@ title = 1
 x.a = 1
 ```
 ```kotlin edit
-doc["x"].getOrFail().standardTableOrNull!!.isDotted = false
+doc["x"].getOrFail().standardTableOrNull!!.setDotted(false)
 ```
 ```toml expected
 title = 1
@@ -1475,7 +1475,7 @@ settled: owner ruling 2026-10-05 (Q5): a table or inline table made dotted, or a
 t = { a = 1, b = 2 } # tt
 ```
 ```kotlin edit
-doc["t"].getOrFail().inlineTableOrNull!!.isDotted = true
+doc["t"].getOrFail().inlineTableOrNull!!.setDotted(true, force = true)
 ```
 ```toml expected
 t.a = 1
@@ -1492,8 +1492,8 @@ k = 1, # one
 }
 ```
 ```kotlin edit
-doc["t"].getOrFail().inlineTableOrNull!!.isDotted = true
-doc["t"]["u"].getOrFail().inlineTableOrNull!!.isDotted = true
+doc["t"].getOrFail().inlineTableOrNull!!.setDotted(true, force = true)
+doc["t"]["u"].getOrFail().inlineTableOrNull!!.setDotted(true, force = true)
 ```
 ```toml expected
 t.u.k = 1 # one
@@ -1509,8 +1509,8 @@ a = 1
 ```
 ```kotlin edit
 val x = doc["x"].getOrFail().standardTableOrNull!!
-x.isDotted = true
-x.isDotted = false
+x.setDotted(true, force = true)
+x.setDotted(false, force = true)
 ```
 ```toml expected
 # about x
@@ -1530,7 +1530,7 @@ x = 1
 y = 2
 ```
 ```kotlin edit
-doc["a"]["b"].getOrFail().standardTableOrNull!!.isDotted = true
+doc["a"]["b"].getOrFail().standardTableOrNull!!.setDotted(true, force = true)
 ```
 ```toml expected
 [a] # a
@@ -1550,7 +1550,7 @@ t = { a = 1 } # tt
 z = 0
 ```
 ```kotlin edit
-doc["s"]["t"].getOrFail().inlineTableOrNull!!.isDotted = true
+doc["s"]["t"].getOrFail().inlineTableOrNull!!.setDotted(true, force = true)
 ```
 ```toml expected
 [s]
@@ -1573,7 +1573,7 @@ settled: owner confirmed 2026-10-05: as kotoml prints it.
 x = 1
 ```
 ```kotlin edit
-doc["a"].getOrFail().standardTableOrNull!!.isImplicit = true
+doc["a"].getOrFail().standardTableOrNull!!.setImplicit(true)
 ```
 ```toml expected
 # about a
@@ -1595,7 +1595,7 @@ k = 1
 x = 1
 ```
 ```kotlin edit
-doc["a"].getOrFail().standardTableOrNull!!.isImplicit = true
+doc["a"].getOrFail().standardTableOrNull!!.setImplicit(true)
 ```
 ```toml expected
 # about a
@@ -1616,7 +1616,7 @@ x = 1
 [a] # empty
 ```
 ```kotlin edit
-doc["a"].getOrFail().standardTableOrNull!!.isImplicit = true
+doc["a"].getOrFail().standardTableOrNull!!.setImplicit(true)
 ```
 ```toml expected
 x = 1

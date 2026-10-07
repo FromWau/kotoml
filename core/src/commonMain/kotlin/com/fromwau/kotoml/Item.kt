@@ -82,7 +82,7 @@ public class Item private constructor(
 
         // An element of an array of tables prints its values under its own header, so it never stands for a dotted key.
         fun placedIn(holds: Holds): Content {
-            if (holds == Holds.Table && this is TableContent) table.setDotted(false)
+            if (holds == Holds.Table && this is TableContent) table.markDotted(false)
             return this
         }
 
@@ -329,73 +329,97 @@ public class Item private constructor(
     }
 
     /**
-     * Turns a table in this slot into an inline table and an array of tables into an array of inline tables; a value
-     * stays as it is. The comment lines above the header move above the key.
-     *
-     * [multiline] picks the layout of the table and of every table under it, as [InlineTable.isMultiline] does for
-     * one. When true each goes across lines, one entry per line, keeping every comment: its header comment after `{`,
-     * each value's same-line comment after its comma, the comment lines above a key or above a header inside above
-     * the key; keys written dotted stay dotted. When false each goes on one line, formatted anew, and only the header
-     * comment of the table in this slot stays, after `}`. Without it a table goes across lines when it, or a table
-     * under it, has comments to keep, and otherwise on one line with its header comment after `}`, which stays on that
-     * line inside a table across lines. Only TOML 1.1 reads an inline table across lines, so without [multiline] a
-     * document whose [TomlDocument.version] is TOML 1.0 gets one line, and with it set to true
-     * [TomlDocument.writeTo] refuses the document.
-     *
-     * An array of tables with comments on or between its headers, or holding a table that goes across lines, becomes
-     * an array across lines, a table a line, each header comment after its table's comma, or after `{` for a table
-     * across lines, and the comment lines above a later header above its table.
-     *
-     * A table taken from this slot earlier keeps its content and no longer belongs to the document. [expand] turns
-     * it back: in TOML 1.1, `inline(multiline = true)` then [expand] gives back the text of a table with the tables
-     * under it and their comments.
-     *
-     * @return [TomlEditError.NotATableElement], changing nothing, when this is a table in an array of tables, or
-     *   [TomlEditError.TooDeep] when the value would nest deeper than the parser reads.
+     * Whether this slot's table content is written inline: it holds an inline table, `t = { … }`, dotted or not, or a
+     * non-empty array holding only inline tables, `t = [{ … }, { … }]`. These are what [setInline] with false turns
+     * into a table or an array of tables. False for a standard table, dotted ones such as `t` in `t.a = 1` included,
+     * an array of tables and any other value; [setInline] with true turns a table or an array of tables into this.
      */
-    public fun inline(multiline: Boolean? = null): EmptyResult<TomlEditError> {
-        if (holds == Holds.Table) return Err(TomlEditError.NotATableElement(TomlType.InlineTable))
+    public val isInline: Boolean
+        get() {
+            val value = valueOrNull ?: return false
+            if (value.inlineTableOrNull != null) return true
+            val array = value.arrayOrNull ?: return false
+            return array.isNotEmpty() && array.all { it is Value.InlineTable }
+        }
+
+    /**
+     * Writes this slot's table content inline when [value] is true, or under headers when false; content already
+     * written as asked stays as it is.
+     *
+     * With true a table becomes an inline table and an array of tables an array of inline tables. The comment lines
+     * above the header move above the key. A table goes across lines when it, or a table under it, has comments to
+     * keep, and only TOML 1.1 reads that; otherwise it goes on one line, formatted anew, with its header comment
+     * after `}`. Across lines each entry takes a line of its own and every comment stays: the header comment after
+     * `{`, each value's same-line comment after its comma, and the comment lines above a key or above a header inside
+     * above the key; keys written dotted stay dotted, and the last entry takes a comma. A table under it without
+     * comments goes on one line, its header comment after `}`. An array of tables with comments on or between its
+     * headers, or holding a table that goes across lines, becomes an array across lines, a table a line, each header
+     * comment after its table's comma, or after `{` for a table across lines, and the comment lines above a later
+     * header above its table. In a document whose [TomlDocument.version] is TOML 1.0 every table goes on one line,
+     * so the comments inside go, which takes [force]. [InlineTable.setMultiline] then picks one line or across lines
+     * for the inline table made.
+     *
+     * With false an inline table becomes a table, `t = { … }` becoming `[t]`, and an array of inline tables an array
+     * of tables. The whole tree changes: every inline table inside, at any depth, becomes a table under its own
+     * header, `[t.sub]`, and every array holding only inline tables an array of tables, `[[t.list]]`. An array
+     * holding anything else stays a value with all it holds, and keys written dotted inside stay dotted keys, though
+     * tables under them get headers. An inline table written as dotted keys in this slot, `t.a = 1`, becomes a table
+     * too. The table prints where a table stored at this key would: after its parent's values and the tables stored
+     * before its key, and a table holding only tables prints no header of its own. At every depth the comment lines
+     * above a key go above its header, and each table keeps its comments as [InlineTable.toStandardTable] does: the
+     * comment after `{` becomes the header comment, each value keeps its same-line comment, and the comment lines
+     * inside stay above the key below them. The comment after `}` goes on the header too, or below the table's lines
+     * when the one after `{` is there. In an array the comment after an element's comma goes on its header the same
+     * way, the comment after `[` and the comment lines above an element go above its header, and the comment lines
+     * before `]` and the comment after it below the last table.
+     *
+     * So in TOML 1.1 `setInline(true)` then `setInline(false)` gives back the text of a table, with the tables and
+     * arrays of tables under it and their comments. A table or inline table taken from this slot earlier keeps its
+     * content and no longer belongs to the document.
+     *
+     * ```kotlin
+     * val doc = TomlDocument.parse("[t] # t\na = 1 # a\n").getOrElse { error(it) }
+     * val slot = doc["t"].getOrElse { error(it) }
+     * slot.setInline(true)
+     * doc.toString() // "t = { # t\n  a = 1, # a\n}\n"
+     * slot.inlineTableOrNull?.setMultiline(false, force = true)
+     * doc.toString() // "t = { a = 1 }\n"
+     * ```
+     *
+     * @return [TomlEditError.CommentsWouldBeLost] when the new layout would drop a comment and [force] is false;
+     *   with true, [TomlEditError.NotATableElement] when this is a table in an array of tables; with false,
+     *   [TomlEditError.NotExpandable] when this holds any other value: a scalar, or an array that is empty or holds
+     *   anything but inline tables, or [TomlEditError.NotAValue] when this is a slot in an array or an inline table,
+     *   which holds only values; or [TomlEditError.TooDeep] when the result would nest deeper than the parser reads,
+     *   as headers with too many parts though the inline tables fit on their line. Each changes nothing.
+     */
+    public fun setInline(
+        value: Boolean,
+        force: Boolean = false,
+    ): EmptyResult<TomlEditError> {
+        if (value && holds == Holds.Table) return Err(TomlEditError.NotATableElement(TomlType.InlineTable))
+        if (value && valueOrNull != null) return Ok(Unit)
+        if (!value && valueOrNull == null) return Ok(Unit)
+        return changeLayout(this, force) { slot -> if (value) slot.inline() else slot.expand() }
+    }
+
+    private fun inline(): EmptyResult<TomlEditError> {
         val table = standardTableOrNull
         val tables = arrayOfTablesOrNull
         val version = owner?.let(::documentVersionOf) ?: TomlVersion.V1_1
         val lineBreak = (table ?: tables?.firstOrNull())?.headerLineEnding ?: newLineEnding()
-        val layout = InlineLayout(multiline, version, lineBreak)
+        val layout = InlineLayout(version, lineBreak)
         val value = when {
             table != null -> table.deepCopy().toInlineValue(layout, "")
             tables != null -> Value.Array(tables.deepCopy().moveToTomlArrayKeepingComments(layout, ""))
-            else -> copyWithComments().moveToValue()
+            else -> return Ok(Unit)
         }
         tooDeepToHold(Item(value))?.let { return Err(it) }
         holdValue(value)
         return Ok(Unit)
     }
 
-    /**
-     * Turns an inline table in this slot into a table, `t = { … }` into `[t]`, and an array of inline tables into an
-     * array of tables, the mirror of [inline]; a table or an array of tables stays as it is. The whole tree changes:
-     * every inline table inside, at any depth, becomes a table under its own header, `[t.sub]`, and every array
-     * holding only inline tables an array of tables, `[[t.list]]`. An array holding anything else stays a value with
-     * all it holds, and keys written dotted inside stay dotted keys, though tables under them get headers. An inline
-     * table written as dotted keys in this slot, `t.a = 1`, becomes a table too. The table prints where a table
-     * stored at this key would: after its parent's values and the tables stored before its key, and a table holding
-     * only tables prints no header of its own.
-     *
-     * At every depth the comment lines above a key go above its header, and each table keeps its comments as
-     * [InlineTable.toStandardTable] does: the comment after `{` becomes the header comment, each value keeps its
-     * same-line comment, and the comment lines inside stay above the key below them. The comment after `}` goes on the
-     * header too, or below the table's lines when the one after `{` is there. In an array the comment after an
-     * element's comma goes on its header the same way, the comment after `[` and the comment lines above an element go
-     * above its header, and the comment lines before `]` and the comment after it below the last table. So [inline]
-     * then [expand] gives back the text of a table, with the tables and arrays of tables under it, wherever [inline]
-     * kept the comments: in TOML 1.1 all of them, in TOML 1.0 only its header comment and the lines above it. An
-     * inline table taken from this slot earlier keeps its content and no longer belongs to the document.
-     *
-     * @return [TomlEditError.NotExpandable] when this holds any other value: a scalar, or an array that is empty or
-     *   holds anything but inline tables; [TomlEditError.NotAValue] when this is a slot in an array or an inline
-     *   table, which holds only values; or [TomlEditError.TooDeep] when its headers would have more parts than the
-     *   parser reads, though the inline tables fit on their line. Each changes nothing.
-     */
-    public fun expand(): EmptyResult<TomlEditError> {
+    private fun expand(): EmptyResult<TomlEditError> {
         val value = valueOrNull ?: return Ok(Unit)
         val expanded = expandedOrNull(value.deepCopy(), newLineEnding())
             ?: return Err(TomlEditError.NotExpandable(value.type))
@@ -404,6 +428,7 @@ public class Item private constructor(
         takeExpanded(expanded)
         return Ok(Unit)
     }
+
 
     /** Turns this slot's value into [expanded], made from it, keeping the lines above. */
     private fun takeExpanded(expanded: Item) {
@@ -422,7 +447,7 @@ public class Item private constructor(
         }
     }
 
-    /** [value], a copy, as a table or an array of tables keeping its comments, expanded inside; see [expand]. */
+    /** [value], a copy, as a table or an array of tables keeping its comments, expanded inside; see [setInline]. */
     private fun expandedOrNull(
         value: Value,
         lineBreak: String,
@@ -430,7 +455,7 @@ public class Item private constructor(
         val inline = value.inlineTableOrNull
         if (inline != null) {
             // Braces first, so the dotted lines' comments are read where a table across lines holds them.
-            inline.isDotted = false
+            inline.layOutDotted(false)
             val table = inline.moveToStandardTable()
             table.keepCommentAfterBraces(value.commentAfter(), lineBreak)
             expandWithin(table, lineBreak)

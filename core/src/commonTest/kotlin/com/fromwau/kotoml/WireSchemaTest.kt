@@ -91,6 +91,7 @@ class WireSchemaTest {
                 String()
             """.trimIndent(),
             TomlEditError.serializer().descriptor to """
+                CommentsWouldBeLost(keyPath, count)
                 IndexOutOfBounds(index, length)
                 NotATable(key, itemType)
                 NotATableElement(itemType)

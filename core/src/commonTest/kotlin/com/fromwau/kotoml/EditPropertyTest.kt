@@ -143,6 +143,7 @@ internal class Edits(
     fun applyOne(): String {
         val edits = buildList<Pair<String, () -> Unit>> {
             val table = tables.random(random)
+            val force = random.nextBoolean()
             val key = keyFor(table.keys)
             add("table set $key" to { table.set(key, item()) })
             add("table put $key" to { table.put(Key(key), item()) })
@@ -153,16 +154,16 @@ internal class Edits(
             add("table clear" to { table.clear() })
             add("table resetFormatting" to { table.resetFormatting() })
             if (table !== doc.root) {
-                add("table isDotted" to { table.isDotted = !table.isDotted })
-                add("table isImplicit" to { table.isImplicit = !table.isImplicit })
+                add("table setDotted force $force" to { table.setDotted(!table.isDotted, force) })
+                add("table setImplicit" to { table.setImplicit(!table.isImplicit) })
             }
             inlines.randomOrNull(random)?.let { inline ->
                 val inlineKey = keyFor(inline.keys)
                 add("inline set $inlineKey" to { inline.set(inlineKey, value()) })
                 add("inline putItem $inlineKey" to { inline.putItem(inlineKey, item()) })
                 inline.keys.randomOrNull(random)?.let { old -> add("inline remove $old" to { inline.remove(old) }) }
-                add("inline isDotted" to { inline.isDotted = !inline.isDotted })
-                add("inline isMultiline" to { inline.isMultiline = !inline.isMultiline })
+                add("inline setDotted force $force" to { inline.setDotted(!inline.isDotted, force) })
+                add("inline setMultiline force $force" to { inline.setMultiline(!inline.isMultiline, force) })
                 add("inline resetFormatting" to { inline.resetFormatting() })
             }
             arrays.randomOrNull(random)?.let { array ->
@@ -184,9 +185,8 @@ internal class Edits(
             }
             slots.randomOrNull(random)?.let { slot ->
                 add("slot assign" to { slot.assign(item()) })
-                add("slot inline" to { slot.inline() })
-                add("slot inline multiline" to { slot.inline(multiline = random.nextBoolean()) })
-                add("slot expand" to { slot.expand() })
+                add("slot setInline force $force" to { slot.setInline(true, force) })
+                add("slot setInline false" to { slot.setInline(false) })
                 add("slot index set" to { slot.set(keyFor(emptySet()), item()) })
             }
             slots.randomOrNull(random)?.let { source ->

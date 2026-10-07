@@ -48,6 +48,15 @@ class ErrorJsonTest {
     }
 
     @Test
+    fun `a layout change refused for its comments names the key path and the count`() {
+        val error = TomlEditError.CommentsWouldBeLost(listOf("t", "sub"), 2)
+        assertEquals(
+            """{"type":"CommentsWouldBeLost","keyPath":["t","sub"],"count":2}""",
+            Json.encodeToString(TomlEditError.serializer(), error),
+        )
+    }
+
+    @Test
     fun `a write error names the key and the TOML 1_1 feature`() {
         val error = TomlWriteError.NotInToml10(listOf("t"), Toml11Feature.InlineTableTrailingComma)
         assertEquals(

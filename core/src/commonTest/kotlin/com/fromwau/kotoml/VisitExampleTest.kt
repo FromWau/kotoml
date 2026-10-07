@@ -76,7 +76,7 @@ class VisitExampleTest {
         // Turning regular tables into inline ones can leave explicit parent tables hanging, so they become
         // implicit.
         if (state == VisitState.Target || state == VisitState.TargetWithSpec) {
-            table.isImplicit = true
+            table.setImplicit(true)
         }
     }
 
