@@ -167,7 +167,7 @@ internal val Item.headerTable: StandardTable?
  * used only while those keys still look the same, so editing a key's formatting takes effect everywhere.
  */
 internal class PathSpelling private constructor(
-    private val keys: List<Key>,
+    private var keys: List<Key>,
     private var shared: List<Key>?,
     private var sharedLooks: List<KeyLooks>,
     private val isHeader: Boolean,
@@ -207,13 +207,31 @@ internal class PathSpelling private constructor(
         sharedLooks = sharedLooks.map { looks -> looks.copy(spelling = looks.spelling?.let(respelled)) }
     }
 
+    /**
+     * Spells the key at [index] as [renamed], the key replacing [old] in the path this stands for, keeping the decor
+     * it had here; a spelling that no longer stands for [old] there is left as it is.
+     */
+    fun rename(
+        index: Int,
+        old: Key,
+        renamed: Key,
+    ) {
+        if (index !in keys.indices || index !in sharedLooks.indices) return
+        val isLast = index == keys.lastIndex
+        val spelled = keys[index]
+        if (spelled.name != old.name || looks(old, isLast) != sharedLooks[index]) return
+        keys = keys.toMutableList().also { it[index] = spelled.renamed(renamed.name) }
+        sharedLooks = sharedLooks.toMutableList().also { it[index] = looks(renamed, isLast) }
+    }
+
     /** Everything about the key at [index] of [path] that printing the path uses. */
-    private fun looks(path: List<Key>, index: Int): KeyLooks {
-        val key = path[index]
+    private fun looks(path: List<Key>, index: Int): KeyLooks = looks(path[index], index == path.lastIndex)
+
+    private fun looks(key: Key, isLast: Boolean): KeyLooks {
         val dotted = "${key.rawDottedDecor.prefix}|${key.rawDottedDecor.suffix}"
         val spelling = key.written?.raw?.toString()
         // A header prints its last key with that key's own decor, inside the brackets.
-        if (!isHeader || index != path.lastIndex) return KeyLooks(spelling, dotted)
+        if (!isHeader || !isLast) return KeyLooks(spelling, dotted)
         return KeyLooks(spelling, "$dotted|${key.rawLeafDecor.prefix}|${key.rawLeafDecor.suffix}")
     }
 
@@ -271,6 +289,19 @@ internal class KeyValuePairs {
     }
 
     fun remove(key: String): KeyValue? = byName.remove(key)
+
+    /** Gives the entry under [old] the key [renamed], keeping its place among the entries. */
+    fun rename(
+        old: String,
+        renamed: Key,
+    ) {
+        val entries = byName.values.toList()
+        byName.clear()
+        for (entry in entries) {
+            if (entry.key.name == old) entry.key = renamed
+            byName[entry.key.name] = entry
+        }
+    }
 
     val entries: Collection<KeyValue>
         get() = byName.values

@@ -182,6 +182,18 @@ public class TomlDocument internal constructor(
     public fun remove(key: String): Item? = root.remove(key)
 
     /**
+     * Renames the key [old] of the root table to [new], keeping its place, comments, spacing and item, and the
+     * headers of the tables under it; see [StandardTable.rename].
+     *
+     * @return [TomlEditError.NotFound] when there is no [old], or [TomlEditError.KeyTaken] when [new] is another key
+     *   already there; either changes nothing.
+     */
+    public fun rename(
+        old: String,
+        new: String,
+    ): EmptyResult<TomlEditError> = root.rename(old, new)
+
+    /**
      * Keeps only the root table's pairs [predicate] accepts, and returns whether any was removed; see
      * [StandardTable.retainAll].
      */

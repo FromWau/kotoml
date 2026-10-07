@@ -111,6 +111,27 @@ TOML 1.0, which has no comments inside an inline table, an inline table's value 
 with `sort()` or by your own order with `sortBy` and `sortWith`, moves each key and each table header with the
 comment lines right above it and leaves blank lines in place.
 
+```kotlin
+val doc = TomlDocument.parse("# db\n[old] # main\nurl = 1\n\n[cache]\n[old.pool]\nsize = 2\n").getOrElse { error(it) }
+doc.rename("old", "db")
+// # db
+// [db] # main
+// url = 1
+//
+// [cache]
+// [db.pool]
+// size = 2
+```
+
+`rename(old, new)`, on a `StandardTable`, an `InlineTable`, the document and an `Item` holding a table of either
+kind, gives a key a new name and keeps everything else: its place, the comment lines above it, its same-line comment,
+its spacing and its item, so an `Item` taken from it before stays in the document. The new name is spelled as a new
+key is, bare when it can be and quoted when it must be. A table renames the headers of the tables under it where they
+print, `[old.pool]` becoming `[db.pool]` with its comments; an array of tables renames every `[[old]]` header, and
+dotted keys every line they start, `old.a = 1` becoming `new.a = 1`. A name that is not there is
+`TomlEditError.NotFound`, and one another key already holds is `TomlEditError.KeyTaken`; either changes nothing, as
+renaming a key to its own name does.
+
 A table prints in one of four layouts, the `TableLayout` objects: `Header` (`[t]`), `Dotted` (`t.a = 1`), `Inline`
 (`t = { a = 1 }`) and `MultilineInline`, one entry per line between `{` and `}`, the last with a comma (which only
 TOML 1.1 reads). `layout` reads it, on a `StandardTable`, an `InlineTable` or the `Item` holding either, where it is
@@ -156,9 +177,9 @@ A table put under a header prints where a table stored at that key would, keepin
 is goal 4 in [GOALS.md](../GOALS.md).
 
 A document's top-level keys live in its `root` table. The document itself offers the map calls (`get`, `set`,
-`getOrNull`, `contains`, `keys`, `put`, `putAll`, `getOrPut`, `remove`, `retainAll`, `removeAll`, `clear`,
-`size`) and iterates over the root's pairs; everything else a `StandardTable` does, such as `sortBy { (key, _) -> key }`
-or `keyOrNull(name)`, goes through `doc.root`. A key read from text knows its `position`, the line and column it
+`getOrNull`, `contains`, `keys`, `put`, `putAll`, `getOrPut`, `remove`, `rename`, `retainAll`, `removeAll`,
+`clear`, `size`) and iterates over the root's pairs; everything else a `StandardTable` does, such as
+`sortBy { (key, _) -> key }` or `keyOrNull(name)`, goes through `doc.root`. A key read from text knows its `position`, the line and column it
 was written at, so a program checking a parsed document can point at the line it complains about.
 
 ## Items and their comments

@@ -696,6 +696,20 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     override fun removeItem(key: String): Item? = remove(key)?.let { Item(it) }
 
     /**
+     * Renames the key [old] to [new]. The entry keeps its place, the comment lines above it, the comment after its
+     * comma, its spacing and its value, so an [Item] taken from it before stays in the table. [new] is spelled as a
+     * new key is: bare when it can be, quoted when it must be. A dotted key renames every entry it starts,
+     * `{ old.a = 1, old.b = 2 }` printing as `{ new.a = 1, new.b = 2 }`.
+     *
+     * @return [TomlEditError.NotFound] when there is no [old], or [TomlEditError.KeyTaken] when [new] is another key
+     *   already there; either changes nothing. Renaming a key to itself changes nothing.
+     */
+    override fun rename(
+        old: String,
+        new: String,
+    ): EmptyResult<TomlEditError> = renameIn(this, items, old, new)
+
+    /**
      * Keeps only the pairs [predicate] accepts, visiting each pair of key and value once, in order. A removed
      * pair's own text goes and the lines above it stay, as [remove] says.
      *

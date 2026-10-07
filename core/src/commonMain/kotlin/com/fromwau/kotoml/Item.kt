@@ -296,6 +296,19 @@ public class Item private constructor(
     ): EmptyResult<TomlEditError> = set(key, Item(arrayOfTables))
 
     /**
+     * Renames the key [old] of this table or inline table to [new], as [StandardTable.rename] or [InlineTable.rename]
+     * does.
+     *
+     * @return [TomlEditError.NotATable] when this item holds neither a table nor an inline table,
+     *   [TomlEditError.NotFound] when there is no [old], or [TomlEditError.KeyTaken] when [new] is another key already
+     *   there; each changes nothing.
+     */
+    public fun rename(
+        old: String,
+        new: String,
+    ): EmptyResult<TomlEditError> = tableOrNull?.rename(old, new) ?: Err(TomlEditError.NotATable(old, type))
+
+    /**
      * Stores a copy of [item] at [index] of this array or array of tables. Fails when there is no such position,
      * when [item] does not hold a value for an array or a table for an array of tables, or when it would nest
      * deeper than the parser reads.

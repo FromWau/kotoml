@@ -748,6 +748,27 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     override fun removeItem(key: String): Item? = remove(key)
 
     /**
+     * Renames the key [old] to [new]. The entry keeps its place, the comment lines above its key, its same-line
+     * comment, its spacing and its item, so an [Item] taken from it before stays in the document. [new] is spelled
+     * as a new key is: bare when it can be, quoted when it must be. A table renames the headers of the tables under
+     * it, `[old.x]` printing as `[new.x]` where it printed, an array of tables every `[[old]]` header, and dotted keys
+     * every line they start, `old.a = 1` printing as `new.a = 1`.
+     *
+     * ```kotlin
+     * val doc = TomlDocument.parse("# db\n[old] # main\nurl = 1\n[old.pool]\nsize = 2\n").getOrElse { error(it) }
+     * doc.rename("old", "db")
+     * doc.toString() // "# db\n[db] # main\nurl = 1\n[db.pool]\nsize = 2\n"
+     * ```
+     *
+     * @return [TomlEditError.NotFound] when there is no [old], or [TomlEditError.KeyTaken] when [new] is another key
+     *   already there; either changes nothing. Renaming a key to itself changes nothing.
+     */
+    override fun rename(
+        old: String,
+        new: String,
+    ): EmptyResult<TomlEditError> = renameIn(this, items, old, new)
+
+    /**
      * Keeps only the pairs [predicate] accepts, visiting each pair of key and item once, in order. The lines above
      * a removed pair stay, as [remove] keeps them.
      *

@@ -13,6 +13,7 @@ class ErrorMessageTest {
         val cases = listOf(
             TomlEditError.NotFound("name") to "no key name",
             TomlEditError.NotFound("a b") to "no key \"a b\"",
+            TomlEditError.KeyTaken("port") to "there is already a key port",
             TomlEditError.TypeMismatch("server", TomlType.Table, TomlType.Integer) to
                 "server: expected a table, found an integer",
             TomlEditError.IndexOutOfBounds(5, 3) to "index 5 is out of bounds for a length of 3",

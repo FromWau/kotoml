@@ -19,6 +19,11 @@ public sealed interface TomlEditError : IError {
     @SerialName("NotFound")
     public data class NotFound(val key: String) : TomlEditError
 
+    /** A rename's new name [key] already names an item of the table, so nothing changed. */
+    @Serializable
+    @SerialName("KeyTaken")
+    public data class KeyTaken(val key: String) : TomlEditError
+
     /** A builder opened [key] as a [expected], but the key holds a [found]. */
     @Serializable
     @SerialName("TypeMismatch")

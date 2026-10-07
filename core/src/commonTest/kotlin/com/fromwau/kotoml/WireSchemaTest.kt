@@ -93,6 +93,7 @@ class WireSchemaTest {
             TomlEditError.serializer().descriptor to """
                 CommentsWouldBeLost(keyPath, count)
                 IndexOutOfBounds(index, length)
+                KeyTaken(key)
                 NotATable(key, itemType)
                 NotATableElement(itemType)
                 NotAValue(itemType)
