@@ -34,14 +34,14 @@ official toml-test runner for TOML 1.0 and 1.1.
    - a comment inside a structure whose key is removed or replaced goes with it, the comments between the lines of a
      removed dotted-key table included; a value replaced by a table takes the comment above it to its header;
    - a removed key's same-line comment goes with it, while a replaced value keeps its spacing and same-line comment;
-   - making a table or an inline table dotted, or dotted back into a header or braces, replaces its layout: the
-     lines above its key stay and each value keeps its same-line comment, while its header comment, the comment after
-     its braces and the comment lines inside it go;
-   - `inline()` keeps a table whose values have comments across lines in TOML 1.1, its header comment after `{`;
-     otherwise, or in a document read as TOML 1.0, it writes one line and only the header comment stays, after `}`;
-   - `expand()` turns an inline table and every inline table inside it into header tables, and arrays of inline
-     tables into arrays of tables, keeping every comment: the one after `{`, or else after `}`, goes on the header,
-     each value keeps its same-line comment, and the comment lines inside stay with their keys;
+   - a layout change (`setLayout`: a header, dotted keys, an inline table on one line or across lines) keeps every
+     comment the new layout can hold, and when it cannot hold one returns `CommentsWouldBeLost` and changes nothing,
+     unless forced. Forced, it drops only what the new layout cannot hold: dotted keys keep the lines above the key and
+     each value's same-line comment; across lines every comment stays; on one line the header comment stands after `}`
+     and the comments inside the braces go; a header keeps every comment, the one after `{`, or else after `}`, on the
+     header. A header layout and a multi-line one reach the tables inside;
+   - `setVersion` converts what TOML 1.0 cannot spell under the same comment rule, and under 1.0 an edit that would add
+     1.1-only syntax is refused with `NotInToml10`;
    - a table replaced by a table keeps its header comment;
    - in an array of tables, removing elements drops the comments between them and keeps the one above the first
      and the one after the last; one left empty prints `key = []` under the comment that was above its first header;
@@ -54,10 +54,10 @@ official toml-test runner for TOML 1.0 and 1.1.
      the file, stay in place.
 
    Check: `CommentPropertyTest` applies random comment-keeping edits (adding, replacing a value with a value, removing a
-   value, sorting, `isDotted` and `isImplicit`) and checks that every comment survives but those the rules above let
-   go; `CommentScenariosTest` runs the 330 scenarios three QA agents wrote from these rules (`qa/comment-scenarios`),
-   the firm ones byte for byte; `RemovalCommentScopeTest`, `RemovalKeepsCommentsTest`, `ReplacementCommentScopeTest`,
-   `HeaderCommentsTest`, `RemovalPropertyTest`.
+   value, sorting, `setLayout`, `setImplicit` and `setVersion`) and checks that every comment survives but those the
+   rules above let go; `CommentScenariosTest` runs the 330 scenarios three QA agents wrote from these rules
+   (`qa/comment-scenarios`), the firm ones byte for byte; `RemovalCommentScopeTest`, `RemovalKeepsCommentsTest`,
+   `ReplacementCommentScopeTest`, `HeaderCommentsTest`, `RemovalPropertyTest`.
 
 ### Robustness
 
@@ -66,10 +66,10 @@ official toml-test runner for TOML 1.0 and 1.1.
    Check: review every `throw`, `!!`, `require`, `check` and `error` in main code. Gap: no fuzzing.
 6. **Bounded depth on every target.** Arrays, inline tables and the dots of a line's keys count toward one nesting
    limit, `TomlDocument.NESTING_LIMIT`; a table header's path is bounded by the same limit on its own. So no input
-   overflows the stack, and deeper input is a typed parse error. What kotoml builds stays within the same limit:
-   every call that stores refuses to nest deeper with `TomlEditError.TooDeep` and stores nothing, `writeTo` refuses
-   a document that `isDotted` changes made deeper with `TomlWriteError.TooDeep`, and serialization refuses a model
-   nested that deep with `TomlEncodeError.TooDeep`.
+   overflows the stack, and deeper input is a typed parse error. What kotoml builds stays within the same limit: every
+   call that stores refuses to nest deeper with `TomlEditError.TooDeep` and stores nothing, a dotted layout that would
+   nest too deep prints under headers instead, `writeTo` keeps `TomlWriteError.TooDeep` as a backstop, and serialization
+   refuses a model nested that deep with `TomlEncodeError.TooDeep`.
    Check: `NestingLimitTest`, `NestingTest`, `StoreDepthTest`, `WriteDepthTest`, serialization's `DepthTest`, and
    `TaggedJsonTest` for the CLI's `encode`.
 7. **Edits are all or nothing.** `doc.edit { }` either applies completely or leaves the document byte for byte as it

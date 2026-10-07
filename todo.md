@@ -70,42 +70,8 @@ its same-line comment into an array as into a table (C5 stands).
 
 
 
-- [ ] **94. A multi-line inline table is a layout no caller can choose.** `inline()` writes one across lines only
-  when comments need it, and nested tables always on one line, dropping their comments in 1.1. **Ruling 2026-10-06:**
-  B: an explicit layout, `InlineTable.isMultiline`, like `isDotted`: `true` prints one entry per line, `false` one
-  line (comments inside go, as on one line today); a parsed multi-line inline table reads `true`;
-  `Item.inline(multiline = …)` picks it for the table and its nested tables, and without the argument picks
-  multi-line when there are comments to keep, as today; in a 1.0 document `writeTo` refuses it with
-  `NotInToml10(MultilineInlineTable)`. Four layouts: header, dotted, one-line inline, multi-line inline.
 
-- [ ] **95. A layout change is a property write that may drop comments.** `table.isDotted = true`, `inline.isMultiline`
-  set to false, and `Item.inline()` / `expand()` change the document as a side effect of an assignment or rewrite it
-  silently, a habit of the Rust port. **Ruling 2026-10-07:** read-only properties ask, and functions returning a
-  `Result` change: `Item.isInline` with `setInline(value, force = false)` (`setInline(true)` replaces `inline()`,
-  `setInline(false)` replaces `expand()`); `InlineTable.isMultiline` with `setMultiline(value, force = false)`;
-  `isDotted` with `setDotted(value, force = false)` on both table kinds; `StandardTable.isImplicit` with
-  `setImplicit(value)` returning `Unit`, since it cannot fail. A change that would drop a comment returns a new
-  `TomlEditError.CommentsWouldBeLost(keyPath, count)` and changes nothing, unless `force = true`; `setInline(true)`
-  goes across lines in TOML 1.1 when that keeps the comments, and in a 1.0 document fails unless forced; one line or
-  across lines is chosen separately with `setMultiline` (2026-10-07: no `multiline` parameter on `setInline`). A
-  multi-line inline table's last entry takes a trailing comma in TOML 1.1 (a 1.0 document has neither multi-line
-  inline tables nor trailing commas).
 
-- [ ] **96. A table's layout is three setters with flags, and the version is a print option.** `setInline`,
-  `setMultiline` and `setDotted` pick between states of one thing, and a 1.0 document refuses 1.1-only syntax only
-  when written. **Ruling 2026-10-07:** a table's layout is a state, a sealed `TableLayout` (`Header`, `Dotted`,
-  `Inline`, `MultilineInline`), read as `layout` and changed with `Item.setLayout(layout, force = false)`, which
-  reaches the tables inside for `Header` and `MultilineInline`; the tables stay `StandardTable` and `InlineTable`
-  objects, so handles stay live. The version belongs to the document: `doc.setVersion(version, force = false)`
-  converts it (to 1.0: seconds on times, `\e`/`\x` respelled, multi-line inline tables to one line, trailing
-  commas dropped; typed errors, `CommentsWouldBeLost` unless forced); under 1.0 an edit that would add 1.1-only
-  syntax is refused at the edit, so `writeTo` no longer refuses a version problem. Replaces item 95's setters
-  before release.
-- [ ] **97. `setInline(true)` on a dotted table holding lines kept from removed keys loses and duplicates
-  comments.** Parse `# about a.x\na.x = 1 # x\n# about b\nb = 2\n# about a.y\na.y = 3 # y\n`, then
-  `a.remove("y")`, `a.setDotted(false, true)`, `a.setImplicit(true)`, `a.setDotted(true, true)`, `doc.remove("b")`,
-  `doc["a"].setInline(true)`: refused with `CommentsWouldBeLost(["a"], 1)` (forced, it drops the comment above the
-  first line and repeats the kept lines). In 1.1 an inline conversion should never fail on comments.
 
 Settled the same day, no change: a copied table prints where its key stands (item 38 over 29's "after the tables
 already there"); a moved table gets the default blank line (spacing is not kept across operations); a bare value's
@@ -123,6 +89,58 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **94. A multi-line inline table is a layout no caller can choose.** `inline()` writes one across lines only
+  when comments need it, and nested tables always on one line, dropping their comments in 1.1. **Ruling 2026-10-06:**
+  B: an explicit layout, `InlineTable.isMultiline`, like `isDotted`: `true` prints one entry per line, `false` one
+  line (comments inside go, as on one line today); a parsed multi-line inline table reads `true`;
+  `Item.inline(multiline = …)` picks it for the table and its nested tables, and without the argument picks
+  multi-line when there are comments to keep, as today; in a 1.0 document `writeTo` refuses it with
+  `NotInToml10(MultilineInlineTable)`. Four layouts: header, dotted, one-line inline, multi-line inline.
+  **Verdict 2026-10-07:** fixed through 96: `TableLayout.MultilineInline` is a layout a caller chooses with
+  `setLayout`; a multi-line inline table's last entry takes a trailing comma in TOML 1.1.
+
+- [x] **97. `setInline(true)` on a dotted table holding lines kept from removed keys loses and duplicates
+  comments.** Parse `# about a.x\na.x = 1 # x\n# about b\nb = 2\n# about a.y\na.y = 3 # y\n`, then
+  `a.remove("y")`, `a.setDotted(false, true)`, `a.setImplicit(true)`, `a.setDotted(true, true)`, `doc.remove("b")`,
+  `doc["a"].setInline(true)`: refused with `CommentsWouldBeLost(["a"], 1)` (forced, it drops the comment above the
+  first line and repeats the kept lines). In 1.1 an inline conversion should never fail on comments.
+  **Verdict 2026-10-07:** fixed: a dotted table holding lines kept from removed keys goes to `MultilineInline` without
+  force and keeps every comment once (two causes in `KeyValue.takeLinesAbove`). LayoutTest.
+
+- [x] **96. A table's layout is three setters with flags, and the version is a print option.** `setInline`,
+  `setMultiline` and `setDotted` pick between states of one thing, and a 1.0 document refuses 1.1-only syntax only
+  when written. **Ruling 2026-10-07:** a table's layout is a state, a sealed `TableLayout` (`Header`, `Dotted`,
+  `Inline`, `MultilineInline`), read as `layout` and changed with `Item.setLayout(layout, force = false)`, which
+  reaches the tables inside for `Header` and `MultilineInline`; the tables stay `StandardTable` and `InlineTable`
+  objects, so handles stay live. The version belongs to the document: `doc.setVersion(version, force = false)`
+  converts it (to 1.0: seconds on times, `\e`/`\x` respelled, multi-line inline tables to one line, trailing
+  commas dropped; typed errors, `CommentsWouldBeLost` unless forced); under 1.0 an edit that would add 1.1-only
+  syntax is refused at the edit, so `writeTo` no longer refuses a version problem. Replaces item 95's setters
+  before release.
+  **Verdict 2026-10-07:** fixed: `TableLayout` (`Header`, `Dotted`, `Inline`, `MultilineInline`) read as `layout` and
+  changed with `Item.setLayout(layout, force)`, reaching the tables inside for `Header` and `MultilineInline`; a
+  change keeps every comment the new layout can hold, refuses with `CommentsWouldBeLost` unless forced, and going to
+  one line keeps the header comment after `}`; `doc.setVersion(version, force)` converts to 1.0 after a dry run; under
+  1.0 an edit adding 1.1-only syntax returns `TomlEditError.NotInToml10`; a time stored in a 1.0 document gets seconds
+  0; `writeTo` no longer refuses a version problem (`TomlWriteError.NotInToml10` removed). LayoutTest, VersionTest,
+  both modes in the property tests.
+
+- [x] **95. A layout change is a property write that may drop comments.** `table.isDotted = true`, `inline.isMultiline`
+  set to false, and `Item.inline()` / `expand()` change the document as a side effect of an assignment or rewrite it
+  silently, a habit of the Rust port. **Ruling 2026-10-07:** read-only properties ask, and functions returning a
+  `Result` change: `Item.isInline` with `setInline(value, force = false)` (`setInline(true)` replaces `inline()`,
+  `setInline(false)` replaces `expand()`); `InlineTable.isMultiline` with `setMultiline(value, force = false)`;
+  `isDotted` with `setDotted(value, force = false)` on both table kinds; `StandardTable.isImplicit` with
+  `setImplicit(value)` returning `Unit`, since it cannot fail. A change that would drop a comment returns a new
+  `TomlEditError.CommentsWouldBeLost(keyPath, count)` and changes nothing, unless `force = true`; `setInline(true)`
+  goes across lines in TOML 1.1 when that keeps the comments, and in a 1.0 document fails unless forced; one line or
+  across lines is chosen separately with `setMultiline` (2026-10-07: no `multiline` parameter on `setInline`). A
+  multi-line inline table's last entry takes a trailing comma in TOML 1.1 (a 1.0 document has neither multi-line
+  inline tables nor trailing commas).
+  **Verdict 2026-10-07:** superseded by 96 before release: its setters (setInline, setDotted, setMultiline,
+  setImplicit) and `CommentsWouldBeLost` were built, then folded into `setLayout`; `setImplicit` and
+  `CommentsWouldBeLost` stay.
 
 - [x] **93. `expand()` turns only the top level into a table.** Inline tables inside stay inline, so `inline()` then
   `expand()` does not give back a table with sub-tables. **Ruling 2026-10-06:** `expand()` mirrors `inline()` over the
