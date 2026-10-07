@@ -34,6 +34,13 @@ internal fun linesAboveOnTableLines(prefix: KeptText?): String {
     return text.substring(firstBreak + 1, text.lastIndexOf('\n') + 1)
 }
 
+/**
+ * The comment lines that lines kept in braces from removed keys, [kept], print as on lines of a table: those after
+ * its first break, which ends the line before, unindented and without blank lines.
+ */
+internal fun keptLinesOnTableLines(kept: String): String =
+    indentedCommentLines(kept.substringAfter('\n', ""), "", kept.lineBreak())
+
 // Between the elements of an inline table or an array the break ending a line opens the next prefix, so the
 // lines above an element end before its prefix's last break.
 internal fun linesAboveElement(prefix: KeptText?): String {

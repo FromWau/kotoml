@@ -403,4 +403,16 @@ class FormatTest {
         doc.format()
         assertEquals("[t]\nx = 0\nb.c = 1\n# about d\nb.d = 2\n", doc.toString())
     }
+
+    @Test
+    fun `a comment kept in a dotted table in braces stored into a table stays on its own line after formatting`() {
+        val doc = parse("s = {\n  b.c = 1,\n  # about d\n  b.d = 2,\n}\n[t]\nx = 0\n")
+        doc["s"]["b"].assertSuccess().valueOrNull!!.inlineTableOrNull!!.remove("d")
+        doc["t"].assertSuccess().standardTableOrNull!!["b"] = doc["s"]["b"].assertSuccess()
+        doc.format()
+        val expected = "s = {\n  b.c = 1,\n  # about d\n}\n\n[t]\nb.c = 1\n# about d\nx = 0\n"
+        assertEquals(expected, doc.toString())
+        doc.format()
+        assertEquals(expected, doc.toString())
+    }
 }

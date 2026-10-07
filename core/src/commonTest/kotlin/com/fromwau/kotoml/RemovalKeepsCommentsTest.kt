@@ -343,4 +343,76 @@ class RemovalKeepsCommentsTest {
             a["z"] = Value.Integer(3L)
         })
     }
+
+    // Removes [removed] from the dotted table `s.b` in [source], then stores `s.b` at [path] under `t` in [text].
+    private fun storedAfterRemoving(
+        text: String,
+        removed: String,
+        path: List<String> = listOf("b"),
+        source: String = text,
+    ): TomlDocument {
+        val doc = TomlDocument.parse(text).assertSuccess()
+        val from = if (source == text) doc else TomlDocument.parse(source).assertSuccess()
+        val b = from["s"]["b"].assertSuccess()
+        b.valueOrNull!!.inlineTableOrNull!!.remove(removed)
+        val holder = path.dropLast(1).fold(doc["t"].assertSuccess()) { item, key -> item[key].assertSuccess() }
+        holder.standardTableOrNull!![path.last()] = b
+        return doc
+    }
+
+    @Test
+    fun `a comment kept in a dotted table in braces stored into a table prints on its own line`() {
+        val doc = storedAfterRemoving("s = {\n  b.c = 1,\n  # about d\n  b.d = 2,\n}\n[t]\nx = 0\n", "d")
+        assertEquals("s = {\n  b.c = 1,\n  # about d\n}\n[t]\nb.c = 1\n# about d\nx = 0\n", doc.toString())
+    }
+
+    @Test
+    fun `a CRLF comment kept in a dotted table in braces stored into a table prints on its own line`() {
+        val source = "s = {\r\n  b.c = 1,\r\n  # about d\r\n  b.d = 2,\r\n}\r\n"
+        val doc = storedAfterRemoving("[t]\r\nx = 0\r\n", "d", source = source)
+        assertEquals("[t]\r\nx = 0\r\nb.c = 1\r\n# about d\r\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment kept above a later key of a dotted table in braces stays above that key in a table`() {
+        val text = "s = {\n  b.c = 1,\n  # about d\n  b.d = 2,\n  b.e = 3,\n}\n[t]\nx = 0\n"
+        val doc = storedAfterRemoving(text, "d")
+        assertEquals("[t]\nb.c = 1\n# about d\nb.e = 3\nx = 0\n", doc.toString().substringAfter("}\n"))
+    }
+
+    @Test
+    fun `a comment kept from the only key of a dotted table in braces prints above its empty table in a table`() {
+        val doc = storedAfterRemoving("s = {\n  # about c\n  b.c = 1,\n}\n[t]\nx = 0\n", "c")
+        assertEquals("[t]\n# about c\nb = {}\nx = 0\n", doc.toString().substringAfter("}\n"))
+    }
+
+    @Test
+    fun `a comment after a comma kept in a dotted table in braces ends the line before in a table`() {
+        val doc = storedAfterRemoving("s = {\n  b.c = 1, # on c\n  b.d = 2,\n}\n[t]\nx = 0\n", "d")
+        assertEquals("[t]\nb.c = 1 # on c\nx = 0\n", doc.toString().substringAfter("}\n"))
+    }
+
+    @Test
+    fun `a comment kept in a dotted table in braces stored under a dotted key of a table prints on its own line`() {
+        val text = "s = {\n  b.c = 1,\n  # about d\n  b.d = 2,\n}\n[t]\nx = 0\n[t.u]\ny = 1\n"
+        val doc = storedAfterRemoving(text, "d", path = listOf("u", "b"))
+        assertEquals("[t]\nx = 0\n[t.u]\nb.c = 1\n# about d\ny = 1\n", doc.toString().substringAfter("}\n"))
+    }
+
+    @Test
+    fun `a comment kept in a stored dotted table stays on its own line when the table is put on one line`() {
+        val doc = storedAfterRemoving("s = {\n  b.c = 1,\n  # about d\n  b.d = 2,\n}\n[t]\nx = 0\n", "d")
+        doc["t"]["b"].assertSuccess().setLayout(TableLayout.Inline).assertSuccess()
+        assertEquals("[t]\nb = { c = 1 }\n# about d\nx = 0\n", doc.toString().substringAfter("}\n"))
+    }
+
+    @Test
+    fun `a stored dotted table holding a kept comment prints it in braces when stored in braces again`() {
+        val text = "s = {\n  b.c = 1,\n  # about d\n  b.d = 2,\n}\n[t]\nu = {\n  y = 1,\n}\n"
+        val doc = storedAfterRemoving(text, "d")
+        val u = doc["t"]["u"].assertSuccess().valueOrNull!!.inlineTableOrNull!!
+        u["b"] = doc["t"]["b"].assertSuccess().valueOrNull!!
+        val inBraces = "u = {\n  b.c = 1,\n  # about d\n  y = 1,\n}\n"
+        assertEquals("[t]\nb.c = 1\n# about d\n$inBraces", doc.toString().substringAfter("}\n"))
+    }
 }

@@ -5,7 +5,8 @@ package com.fromwau.kotoml
  * The lines above [entry]'s key, which holds the table, print above the first; a comment that followed the opening
  * brace prints on a line of its own above it, and one that followed a comma ends the line before. The comments before
  * and after the closing brace end the last line. An emptied dotted table's text before its `}`, what was above its
- * removed keys, is read as the lines above its `{}`.
+ * removed keys, is read as the lines above its `{}`. The lines kept in braces from removed keys print as comment lines,
+ * a comment their text starts with ending the line before.
  */
 internal fun MutableList<BodyLine>.takeOutOfBraces(
     start: Int,
@@ -55,6 +56,21 @@ internal fun MutableList<BodyLine>.takeOutOfBraces(
     for ((nested, position) in lastOfNested) {
         val text = nested.rawTrailing.textOrNull.orEmpty()
         endLine(position, text.commentBeforeBreak(), text.lineBreak())
+    }
+    // Kept lines sort among the values only later, so the value printed before one is found in print order.
+    val positions = lines.withIndex().associate { (position, index) -> this[index] to position }
+    var before: Int? = null
+    for (line in inPrintOrder(subList(start, size).toList())) {
+        if (line !is KeptLines) {
+            before = positions[line]
+            continue
+        }
+        val text = line.text
+        val lineBreak = text.lineBreak()
+        val comment = text.substringBefore('\n').trimEnd('\r').takeIf { '#' in it }.orEmpty()
+        val ownLine = if (comment.isNotEmpty() && before == null) comment.trimStart() + lineBreak else ""
+        before?.let { endLine(it, comment, lineBreak) }
+        this[indexOf(line)] = KeptLines(ownLine + keptLinesOnTableLines(text), line.order)
     }
     val last = lines.lastIndex
     val trailing = if (inline.value.items.size == 0) "" else inline.value.rawTrailing.textOrNull.orEmpty()
