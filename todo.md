@@ -62,9 +62,6 @@ its same-line comment into an array as into a table (C5 stands).
 
 
 
-- [ ] **100. An empty dotted table last in a multi-line inline table prints `{} ,`.** `b.d = {} ,`: a space before
-  the comma, because the empty table's value is built anew on each read and loses its suffix. Valid TOML, no comment
-  lost.
 
 
 
@@ -84,6 +81,15 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **100. An empty dotted table last in a multi-line inline table prints `{} ,`.** `b.d = {} ,`: a space before
+  the comma, because the empty table's value is built anew on each read and loses its suffix. Valid TOML, no comment
+  lost.
+  **Verdict 2026-10-07:** fixed: two causes: an empty dotted table's `{}` value was built anew on each read, so the
+  spacing a layout gave it was lost (`{} ,`); and removing a dotted table's last key took its line's spacing with the
+  leaf key (`a = 1, b.d = {} ,` on one line). The `{}` spacing now lives on the table and survives `format()`, and the
+  emptied table takes the removed line's spacing without its comment. Five MultilineInlineTableTest cases;
+  CommentPropertyTest, EditPropertyTest and FormatTest clean at 10 times the seeds.
 
 - [x] **102. `displaySpelling` follows the document for strings but not date-times; a detached string forgets its
   file.**
