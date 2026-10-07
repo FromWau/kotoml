@@ -225,9 +225,15 @@ internal class PathSpelling private constructor(
     }
 
     /** Everything about the key at [index] of [path] that printing the path uses. */
-    private fun looks(path: List<Key>, index: Int): KeyLooks = looks(path[index], index == path.lastIndex)
+    private fun looks(
+        path: List<Key>,
+        index: Int,
+    ): KeyLooks = looks(path[index], index == path.lastIndex)
 
-    private fun looks(key: Key, isLast: Boolean): KeyLooks {
+    private fun looks(
+        key: Key,
+        isLast: Boolean,
+    ): KeyLooks {
         val dotted = "${key.rawDottedDecor.prefix}|${key.rawDottedDecor.suffix}"
         val spelling = key.written?.raw?.toString()
         // A header prints its last key with that key's own decor, inside the brackets.

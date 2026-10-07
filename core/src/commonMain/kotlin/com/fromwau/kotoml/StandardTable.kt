@@ -71,7 +71,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
      */
     internal fun layOutDotted(value: Boolean) {
         if (value) {
-            if ('#' in rawDecor.suffix?.textOrNull.orEmpty()) rawDecor.suffix = null
+            if (headerComment.isNotEmpty()) rawDecor.suffix = null
             dropCommentLines(fromLine = 0)
         } else {
             takeFirstLineCommentsAboveHeader()
@@ -143,7 +143,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         val above = linesAbove(key.rawLeafDecor.prefix)
         if ('#' !in above) return
         // A new header is set apart by a blank line, above the comment that introduces it, unless it comes first.
-        val lineBreak = if ("\r\n" in above) "\r\n" else "\n"
+        val lineBreak = above.lineBreak()
         val top = outermostTableOf(this)
         val firstLine = top?.bodyLines()?.firstOrNull()
         val printsFirst = firstLine is VisualValue && firstLine.path.last() === key
@@ -367,7 +367,10 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     private val isMadeByHand: Boolean
         get() = rawDecor.prefix == null && rawDecor.suffix == null
 
-    private fun appendValues(path: MutableList<Key>, values: MutableList<BodyLine>) {
+    private fun appendValues(
+        path: MutableList<Key>,
+        values: MutableList<BodyLine>,
+    ) {
         for (entry in items.entries) {
             path.add(entry.key)
             val table = entry.item.standardTableOrNull
@@ -421,7 +424,10 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         values += items.keptLines
     }
 
-    internal fun appendAllValues(path: MutableList<Key>, values: MutableList<BodyLine>) {
+    internal fun appendAllValues(
+        path: MutableList<Key>,
+        values: MutableList<BodyLine>,
+    ) {
         for (entry in items.entries) {
             path.add(entry.key)
             val table = entry.item.standardTableOrNull
@@ -984,7 +990,12 @@ private fun MutableList<BodyLine>.takeOutOfBraces(
     var firstAbove = entry.key.rawLeafDecor.prefix?.textOrNull.orEmpty()
     val ends = MutableList(lines.size) { "" }
     // A comment joining a line that already ends in one goes on a line of its own below it.
-    fun endLine(position: Int, comment: String, lineBreak: String, ownLine: Boolean = false) {
+    fun endLine(
+        position: Int,
+        comment: String,
+        lineBreak: String,
+        ownLine: Boolean = false,
+    ) {
         if (comment.isEmpty()) return
         val value = (this[lines[position]] as VisualValue).value
         val hasComment = value.commentAfter().isNotEmpty() || '#' in ends[position]
@@ -1037,8 +1048,6 @@ private fun String.commentBeforeBreak(): String {
     if ('\n' !in this) return ""
     return substringBefore('\n').trimEnd('\r').takeIf { '#' in it }.orEmpty()
 }
-
-private fun String.lineBreak(): String = if ("\r\n" in this) "\r\n" else "\n"
 
 private fun List<BodyLine>.indexOfFirstValue(from: Int): Int =
     (from until size).firstOrNull { this[it] is VisualValue } ?: -1

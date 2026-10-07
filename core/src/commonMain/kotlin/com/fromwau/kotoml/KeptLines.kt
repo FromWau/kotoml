@@ -94,8 +94,7 @@ internal fun String.withCommentEndingLine(
 ): String {
     val firstBreak = indexOf('\n')
     if (firstBreak < 0) return comment + lineBreak + lineStart
-    val lineEnd = if (firstBreak > 0 && this[firstBreak - 1] == '\r') firstBreak - 1 else firstBreak
-    return comment + substring(lineEnd)
+    return comment + substring(lineEndBefore(firstBreak))
 }
 
 /** Whether this text, after a value, ends the value's line with no comment on it. */
@@ -108,11 +107,18 @@ internal fun String.endsLineWithoutComment(): Boolean = '\n' in this && '#' !in 
 internal fun String.withoutCommentLines(keepFirstLineComment: Boolean): String {
     val firstBreak = indexOf('\n')
     if (firstBreak < 0) return if (keepFirstLineComment || '#' !in this) this else ""
-    val lineEnd = if (firstBreak > 0 && this[firstBreak - 1] == '\r') firstBreak - 1 else firstBreak
+    val lineEnd = lineEndBefore(firstBreak)
     val head = substring(0, lineEnd).let { if (keepFirstLineComment || '#' !in it) it else "" }
     val lineBreak = substring(lineEnd, firstBreak + 1)
     return head + lineBreak + substringAfterLast('\n')
 }
+
+/** Where the line ended by the `\n` at [lineBreak] ends, before the `\r` of a CRLF. */
+internal fun String.lineEndBefore(lineBreak: Int): Int =
+    if (lineBreak > 0 && this[lineBreak - 1] == '\r') lineBreak - 1 else lineBreak
+
+/** The line break this text uses: CRLF when it holds one, LF otherwise. */
+internal fun String.lineBreak(): String = if ("\r\n" in this) "\r\n" else "\n"
 
 /** Puts [text] in front of the prefix, which printed [default] while it had none of its own. */
 internal fun RawDecor.prependToPrefix(
@@ -167,11 +173,9 @@ internal fun keepLinesAbove(
     val inPlace = isDotted && lines.any { it in removed && it.order != null }
     var pending = ""
     var pendingOrder: Long? = null
-    var previous: BodyLine? = null
-    for (line in lines) {
-        val before = previous
-        previous = line
+    for ((index, line) in lines.withIndex()) {
         if (line in removed) {
+            val before = lines.getOrNull(index - 1)
             val continues = line is VisualValue && before is VisualValue && before in removed &&
                 before.path.first().name == line.path.first().name
             val text = when (line) {
