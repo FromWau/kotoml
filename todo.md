@@ -47,15 +47,9 @@ cannot hold the comment (TOML 1.0, or one-line braces that cannot spread).
 
 - [ ] **120. Write the comment ownership rule down.** GOALS.md goal 4 holds it (done with this item's filing);
   core/README.md's "Items and their comments" changes wave by wave with the code (121 to 125), never ahead of it.
-- [ ] **123. Copying and storing carry an item's comments; replacing follows the item.** A store or copy takes the
-  attached comments, the header's included (`# about db\n[db] # primary` comes along; a free `# loose note` does
-  not). Replacing a value keeps the slot's comments (`# about x\nx = 1 # one`, `doc["x"] = 2L` gives
-  `# about x\nx = 2 # one`) unless the new item brings its own, which take their place (`doc["x"] = other["y"]`
-  with `# about y\ny = 5 # five` gives `# about y\nx = 5 # five`). `add`/`addAll` and `toArrayOfTables` follow the
-  same rule. Folds in the 119 leftovers: a copy of `b` from `s = {\n  b.c = 1, # on c\n  y = 5,\n}` loses
-  `# on c`; a comment after `s = { # on s` goes along with a copy of `b`; two copies of one dotted table stored in
-  one table interleave their lines (`b.c, e.c, b.d, e.d`); a copied inline table printed alone has no line break
-  before `}`.
+- [ ] **126. A value's comment lines below it are dropped in a dotted table printed on table lines.** Storing a
+  value that brings comment lines below it (`2 # on 2\n  # more\n  , 3` copied from an array) into a dotted inline
+  table printed on a table's lines keeps only its same-line comment. Found in wave 3.
 - [ ] **124. Reordering, sorting and layout changes move items with their comments and keep blank lines.**
   `arr.reversed().toArrayOfTables()` moves `# first` with its `[[a]] # h1` (reverses 113); sort moves each item's
   block; free comments and blank lines stay. Conversions from braces to table lines keep blank lines between items
@@ -131,6 +125,22 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **123. Copying and storing carry an item's comments; replacing follows the item.** A store or copy takes the
+  attached comments, the header's included (`# about db\n[db] # primary` comes along; a free `# loose note` does
+  not). Replacing a value keeps the slot's comments (`# about x\nx = 1 # one`, `doc["x"] = 2L` gives
+  `# about x\nx = 2 # one`) unless the new item brings its own, which take their place (`doc["x"] = other["y"]`
+  with `# about y\ny = 5 # five` gives `# about y\nx = 5 # five`). `add`/`addAll` and `toArrayOfTables` follow the
+  same rule. Folds in the 119 leftovers: a copy of `b` from `s = {\n  b.c = 1, # on c\n  y = 5,\n}` loses
+  `# on c`; a comment after `s = { # on s` goes along with a copy of `b`; two copies of one dotted table stored in
+  one table interleave their lines (`b.c, e.c, b.d, e.d`); a copied inline table printed alone has no line break
+  before `}`.
+  **Verdict 2026-10-08:** done: a store or copy brings the item's attached comments (the header's for a table) and the
+  comments inside it; replacing keeps the slot's comments unless the new item brings its own; a store the target cannot
+  hold (an inline table of TOML 1.0) returns `CommentsWouldBeLost` unless forced (`InlineTable.put`/`putAll`/`getOrPut`,
+  `putItem`, `Item.assign`); `[]=` throws `TomlEditException` on any refusal while `set`/`put` return the `Result`, so
+  `doc["typo"]["k"] = v` now throws `NotFound`. The 119 leftovers are fixed. Seven QA scenarios updated as the owner
+  approved. Pinned in StoreCarriesCommentsTest.
 
 - [x] **122. Removing takes an item's comments and refuses without force.**
   `remove(key: String, force: Boolean = false): Result<Item, TomlEditError>`: `NotFound` when absent;
