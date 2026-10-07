@@ -17,6 +17,13 @@ import kotlinx.serialization.Serializable
 class DecodeTest {
 
     @Test
+    fun `a multi-line string in a CRLF file decodes with LF line breaks`() {
+        for (text in listOf("text = \"\"\"\r\na\r\nb\"\"\"\r\n", "text = '''\r\na\r\nb'''\r\n")) {
+            assertEquals(Text("a\nb"), Toml.decodeFromString<Text>(text).assertSuccess())
+        }
+    }
+
+    @Test
     fun `the owner's model reads every field`() {
         val text = """
             hostname = "example.org"

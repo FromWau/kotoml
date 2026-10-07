@@ -89,10 +89,11 @@ public class Item private constructor(
         fun adoptedBy(slot: Item) {
             when (this) {
                 is ValueContent -> when (value) {
+                    is Value.String -> value.holder = slot
                     is Value.Datetime -> value.holder = slot
                     is Value.Array -> value.value.holder = slot
                     is Value.InlineTable -> value.value.holder = slot
-                    is Value.String, is Value.Integer, is Value.Float, is Value.Boolean -> Unit
+                    is Value.Integer, is Value.Float, is Value.Boolean -> Unit
                 }
                 is TableContent -> table.holder = slot
                 is ArrayOfTablesContent -> array.holder = slot

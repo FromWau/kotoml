@@ -138,7 +138,9 @@ internal fun encodeValue(
     version: TomlVersion = TomlVersion.V1_1,
 ) {
     when (value) {
-        is Value.String -> encodeFormatted(buf, value.formatted, defaultPrefix, defaultSuffix, decor)
+        is Value.String -> {
+            encodeFormatted(buf, value.formatted, defaultPrefix, defaultSuffix, decor, value.displaySpelling)
+        }
         is Value.Integer -> encodeFormatted(buf, value.formatted, defaultPrefix, defaultSuffix, decor)
         is Value.Float -> encodeFormatted(buf, value.formatted, defaultPrefix, defaultSuffix, decor)
         is Value.Boolean -> encodeFormatted(buf, value.formatted, defaultPrefix, defaultSuffix, decor)

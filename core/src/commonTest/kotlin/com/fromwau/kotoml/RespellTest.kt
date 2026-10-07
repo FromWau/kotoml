@@ -57,6 +57,13 @@ class RespellTest {
     }
 
     @Test
+    fun `a multi-line string respelled in a CRLF document breaks its lines with CRLF`() {
+        val doc = respelled("a = '''\r\nx\r\ny'''\r\n")
+        assertPrints("a = \"\"\"\r\nx\r\ny\"\"\"\r\n", doc)
+        assertEquals("x\ny", doc["a"].assertSuccess().stringOrNull)
+    }
+
+    @Test
     fun `date-times print with a T an upper-case Z and seconds`() {
         val text = "a = 1979-05-27 07:32:00z\nb = 1979-05-27T07:32:00.500+01:00\nc = 1979-05-27T07:32\nd = 07:32\n" +
             "e = 1979-05-27\n"

@@ -78,7 +78,8 @@ in `spelling`, which `format()` keeps. `toString()` gives the value's text alone
 own prints in the shortest digits that read back as it, in exponent form such as `1e300` at 1e16 and above or below
 1e-5. The `OrNull` properties read a value of one kind, or `null` for any other kind. Every call that stores an
 integer takes an `Int` as well as a `Long`. An array's and an inline table's `value` is the container it wraps, as a
-scalar's `value` is the scalar.
+scalar's `value` is the scalar. A line break inside a multi-line string reads as `\n`, also where the file's lines end
+in `\r\n`, and a multi-line string without a spelling of its own breaks its lines as the document's lines end.
 
 ## Tables and arrays
 

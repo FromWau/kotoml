@@ -133,7 +133,11 @@ private fun Raw.stripStartNewline(start: Int, end: Int): Int = when {
     else -> start
 }
 
-/** `ml-literal-string = ml-literal-string-delim [ newline ] ml-literal-body ml-literal-string-delim` */
+/**
+ * `ml-literal-string = ml-literal-string-delim [ newline ] ml-literal-body ml-literal-string-delim`
+ *
+ * A CRLF inside the body decodes as LF, as the spec allows, so the value is the same whatever the file's line ending.
+ */
 internal fun decodeMlLiteralString(raw: Raw, output: DecodedStringBuilder, error: ErrorSink) {
     val invalidString = ParseErrorReason.InvalidString(Encoding.MultilineLiteralString)
     val length = raw.length
@@ -169,12 +173,16 @@ internal fun decodeMlLiteralString(raw: Raw, output: DecodedStringBuilder, error
         while (end > start && raw.byteAt(end - 1) == APOSTROPHE) end -= 1
     }
 
+    var segment = start
     for (offset in start until end) {
         val byte = raw.byteAt(offset)
         if (byte == APOSTROPHE || byte == '\n'.code) {
             continue
         } else if (byte == '\r'.code) {
-            if (offset + 1 >= end || raw.byteAt(offset + 1) != '\n'.code) {
+            if (offset + 1 < end && raw.byteAt(offset + 1) == '\n'.code) {
+                raw.pushText(output, segment, offset)
+                segment = offset + 1
+            } else {
                 error.reportError(
                     ParseError(
                         ParseErrorReason.LoneCarriageReturn,
@@ -196,7 +204,7 @@ internal fun decodeMlLiteralString(raw: Raw, output: DecodedStringBuilder, error
         }
     }
 
-    raw.pushText(output, start, end)
+    raw.pushText(output, segment, end)
 }
 
 /** A cursor over the bytes of a [Raw] that are still to be decoded. */
@@ -367,7 +375,11 @@ private fun hexEscape(stream: Stream, digits: Int, error: ErrorSink): Int {
     return value.toInt()
 }
 
-/** `ml-basic-string = ml-basic-string-delim [ newline ] ml-basic-body ml-basic-string-delim` */
+/**
+ * `ml-basic-string = ml-basic-string-delim [ newline ] ml-basic-body ml-basic-string-delim`
+ *
+ * A CRLF inside the body decodes as LF, as the spec allows, so the value is the same whatever the file's line ending.
+ */
 internal fun decodeMlBasicString(raw: Raw, output: DecodedStringBuilder, error: ErrorSink) {
     val invalidString = ParseErrorReason.InvalidString(Encoding.MultilineBasicString)
     val length = raw.length
@@ -430,7 +442,7 @@ internal fun decodeMlBasicString(raw: Raw, output: DecodedStringBuilder, error: 
                 1
             }
             stream.position += newlineLength
-            raw.pushText(output, newlineStart, stream.position)
+            if (newlineLength == 2) output.append("\n") else raw.pushText(output, newlineStart, stream.position)
         } else {
             val invalidStart = stream.takeWhile {
                 !(isBasicUnescaped(it) || it == '"'.code || it == '\n'.code || it == ESCAPE || it == '\r'.code)

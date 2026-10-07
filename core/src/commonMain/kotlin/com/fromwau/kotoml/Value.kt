@@ -41,6 +41,9 @@ public sealed interface Value {
             formatted.decor.set(decor)
         }
 
+        // The slot holding this value, whose document's line ending a multi-line default spelling breaks lines with.
+        internal var holder: Item? = null
+
         /** The string. */
         public val value: kotlin.String
             get() = formatted.value
@@ -49,12 +52,20 @@ public sealed interface Value {
         public val spelling: kotlin.String?
             get() = formatted.spelling
 
-        /** The text the value prints as: its [spelling], or the default one when it has none. */
+        /**
+         * The text the value prints as: its [spelling], or the default one when it has none, whose lines end in the
+         * line ending of the document the value is stored in.
+         */
         public val displaySpelling: kotlin.String
-            get() = formatted.displaySpelling
+            get() = formatted.spelling ?: defaultSpellingInDocument()
 
         /** The value as TOML, without its [decor]. */
         override fun toString(): kotlin.String = display()
+
+        private fun defaultSpellingInDocument(): kotlin.String {
+            val default = formatted.displaySpelling
+            return if (LINE_BREAK in default) default.replace(LINE_BREAK, lineEndingOf(this)) else default
+        }
     }
 
     /**

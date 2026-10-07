@@ -2,6 +2,7 @@ package com.fromwau.kotoml
 
 import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 
 /** What this port keeps beyond upstream so that unchanged text prints back byte for byte. */
@@ -20,6 +21,45 @@ class PreservationTest {
         val doc = parse("[t]\r\nb = 2\r\n")
         doc["t"]["c"] = 3L
         assertEquals("[t]\r\nb = 2\r\nc = 3\r\n", doc.toString())
+    }
+
+    @Test
+    fun `a multi-line string read with CRLF lines holds LF and prints back byte for byte`() {
+        val input = "a = \"\"\"\r\nx\r\ny\"\"\"\r\nb = '''\r\nx\r\ny'''\r\n"
+        val doc = parse(input)
+        assertEquals("x\ny", doc["a"].assertSuccess().stringOrNull)
+        assertEquals("x\ny", doc["b"].assertSuccess().stringOrNull)
+        assertEquals(input, doc.toString())
+    }
+
+    @Test
+    fun `the toml-test files with CRLF lines print back byte for byte`() {
+        for (file in listOf("newline-crlf.toml", "empty-crlf.toml", "string/multiline-escaped-crlf.toml")) {
+            val bytes = readBytes("../toml-test/tests/valid/$file")
+            val printed = TomlDocument.parse(bytes).assertSuccess().toString()
+            assertContentEquals(bytes, printed.encodeToByteArray(), file)
+        }
+    }
+
+    @Test
+    fun `a multi-line string stored in a CRLF document breaks its lines with CRLF`() {
+        val doc = parse("a = []\r\n")
+        doc["b"] = Value.String("x\ny")
+        doc["a"].assertSuccess().arrayOrNull!!.add("p\nq")
+        val expected = "a = [\"\"\"\r\np\r\nq\"\"\"]\r\nb = \"\"\"\r\nx\r\ny\"\"\"\r\n"
+        assertEquals(expected, doc.toString())
+        assertEquals("\"\"\"\r\nx\r\ny\"\"\"", doc["b"].assertSuccess().valueOrNull!!.toString())
+        val reread = parse(expected)
+        assertEquals("x\ny", reread["b"].assertSuccess().stringOrNull)
+        assertEquals("p\nq", reread["a"].assertSuccess()[0].assertSuccess().stringOrNull)
+    }
+
+    @Test
+    fun `a multi-line string built in code breaks its lines with LF until it is stored`() {
+        assertEquals("\"\"\"\nx\ny\"\"\"", Value.String("x\ny").displaySpelling)
+        val doc = parse("a = 1\n")
+        doc["b"] = Value.String("x\ny")
+        assertEquals("a = 1\nb = \"\"\"\nx\ny\"\"\"\n", doc.toString())
     }
 
     @Test

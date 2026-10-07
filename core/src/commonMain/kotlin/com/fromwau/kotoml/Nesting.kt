@@ -129,6 +129,7 @@ internal fun slotOf(container: Any): Item? {
         is InlineTable -> container.holder
         is TomlArray -> container.holder
         is ArrayOfTables -> container.holder
+        is Value.String -> container.holder
         is Value.Datetime -> container.holder
         else -> null
     }

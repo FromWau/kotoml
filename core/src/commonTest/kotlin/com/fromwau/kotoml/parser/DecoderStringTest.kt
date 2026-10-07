@@ -6,6 +6,7 @@ import com.fromwau.kotoml.Span
 import com.fromwau.kotoml.assertSnapshot
 import com.fromwau.kotoml.assertDebugSnapshot
 import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class DecoderStringTest {
 
@@ -391,6 +392,34 @@ Violets are blue
             assertSnapshot(expected, actual.toString())
             assertDebugSnapshot(expectedError, error.dbg())
         }
+    }
+
+    @Test
+    fun `a CRLF inside a multi-line string decodes as LF`() {
+        val cases = listOf(
+            Triple("\"\"\"\r\nx\r\ny\"\"\"", Encoding.MultilineBasicString, ::decodeMlBasicString),
+            Triple("'''\r\nx\r\ny'''", Encoding.MultilineLiteralString, ::decodeMlLiteralString),
+        )
+        for ((input, encoding, decode) in cases) {
+            val error = mutableListOf<ParseError>()
+            val actual = StringOutput()
+            decode(Raw(input, encoding, Span.EMPTY), actual, ErrorSink { error += it })
+            assertEquals("x\ny", actual.toString())
+            assertEquals(emptyList(), error)
+        }
+    }
+
+    @Test
+    fun `a backslash ending a CRLF line still joins the lines of a multi-line basic string`() {
+        val error = mutableListOf<ParseError>()
+        val actual = StringOutput()
+        decodeMlBasicString(
+            Raw("\"\"\"a \\\r\n  b\r\nc\\\r\n\r\n\"\"\"", Encoding.MultilineBasicString, Span.EMPTY),
+            actual,
+            ErrorSink { error += it },
+        )
+        assertEquals("a b\nc", actual.toString())
+        assertEquals(emptyList(), error)
     }
 
     @Test

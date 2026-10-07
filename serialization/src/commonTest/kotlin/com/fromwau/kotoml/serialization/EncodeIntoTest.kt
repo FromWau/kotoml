@@ -104,6 +104,16 @@ class EncodeIntoTest {
     }
 
     @Test
+    fun `a multi-line string in a CRLF file keeps its spelling and a changed one prints CRLF lines`() {
+        val text = "text = '''\r\na\r\nb'''\r\n"
+        val document = TomlDocument.parse(text).assertSuccess()
+        Toml.encodeInto(document, Toml.decodeFromDocument<Text>(document).assertSuccess()).assertSuccess()
+        assertEquals(text, document.toString())
+        Toml.encodeInto(document, Text("c\nd")).assertSuccess()
+        assertEquals("text = \"\"\"\r\nc\r\nd\"\"\"\r\n", document.toString())
+    }
+
+    @Test
     fun `new fields are appended to their table`() {
         val text = "# server\nhostname = \"h\" # name\nport = 1\n\n[extra]\nkept = true\n"
         val document = TomlDocument.parse(text).assertSuccess()
