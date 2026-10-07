@@ -14,6 +14,22 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
 
 ### Bugs against a goal
 
+- [ ] **104. An emptied dotted table made a header table loses its key into the comment above it.** Removing the
+  last key of `b.c` in `t = {\n  # about c\n  b.c = 1,\n}` and then `setLayout(Header, force = true)` on `t`
+  prints `[t]\n\n  # about c` + `b = {}` on one line: `  # about cb = {}`, so `b` reads back as part of the
+  comment. `format()` then prints that line twice. A comment kept from a removed dotted key also keeps its brace
+  indentation (`  # about d`) under the header. Found in the cleanup pass; present before todo 103.
+- [ ] **105. `ArrayOfTables.addAll` keeps the source table's comments and header line; `add` drops them.** Adding
+  `s[0]` of `# above\n[[s]] # head\nx = 1\n` to `[[t]]\ny = 0\n`: `add` prints `[[t]]\ny = 0\n\n[[t]]\nx = 1\n`,
+  `addAll` prints `[[t]]\ny = 0\n# above\n[[t]] # head\nx = 1\n`. `addAll` skips `copyToStore`.
+- [ ] **106. `Key.format()` keeps indentation that `TomlDocument.format()` removes.** On
+  `x = 0\n# c\n  a   = 1\n   b = 2\n`, `format()` on keys `a` and `b` prints `  a = 1\n  b = 2`, while the
+  document's `format()` prints `a = 1\nb = 2`. Its KDoc was reworded to the code's behaviour in the cleanup pass;
+  reword it back with the fix.
+- [ ] **107. A decode parse error on line 1 puts the rendered block in its message.** `decodeFromString` of
+  `a = 1 x\n` gives `line 1, column 7: TOML parse error at line 1, column 7`, then the gutter and caret lines, then
+  the reason; on line 2 it gives `line 2, column 7: unexpected key or value, expected newline, ...` alone.
+  `describe()` in TomlDecodeError.kt calls `render("")`, which draws the gutter for line 1.
 
 ### Layout no person would write
 
