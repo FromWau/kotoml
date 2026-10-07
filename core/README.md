@@ -127,16 +127,18 @@ slot.setLayout(TableLayout.MultilineInline) // keeps every comment
 //   a = 1, # one
 // }
 slot.setLayout(TableLayout.Inline, force = true)
-// t = { a = 1 }
+// t = { a = 1 } # t
 ```
 
 `Header` and `MultilineInline` reach the tables inside: with `Header` every inline table inside becomes a table under
 its own header (`[t.sub]`) and every array of only inline tables an array of tables (`[[t.list]]`); with
 `MultilineInline` every table inside goes in braces across lines, indented from the line holding `{` and ending as the
 document's lines do, and every comment stays. `Inline` puts the table and the tables inside on one line, so the
-comments inside the braces go, while the header comment prints after `}`. `Dotted` keeps the lines above the table's
-key and each value's same-line comment, and drops its header comment, the comment after its braces and the comment
-lines inside it; the tables under it keep their own layouts. A table stays the same `StandardTable` while it changes
+comments inside the braces go, the header comments of the tables inside too, while the table's header comment, the
+one after `[t]` or after `{`, prints after `}`, or after the table's comma in an array or an inline table across lines.
+A comment already there stays, and the header comment goes. `Dotted` keeps the lines above the table's key and each
+value's same-line comment, and drops its header comment, the comment after its braces and the comment lines inside
+it; the tables under it keep their own layouts. A table stays the same `StandardTable` while it changes
 between `Header` and `Dotted`, and the same `InlineTable` between the inline layouts. On an array of tables, or on an
 array of only inline tables, `Header` and the inline layouts change every table in it. A slot in an array or an
 inline table holds only values, so it takes no `Header`, and a slot in an array takes no `Dotted` either.
@@ -286,14 +288,15 @@ document parsed as 1.1 lets edits add 1.1-only syntax, such as a string spelled 
 trailing comma, even when the file held none. In a document of TOML 1.0 such an edit fails with
 `TomlEditError.NotInToml10`, naming the key and what only 1.1 reads, and changes nothing: storing a key or string
 spelled with `\e` or `\x` or an inline table across lines or with a trailing comma, `setLayout(MultilineInline)` and
-`setTrailingComma(true)`. A time without seconds is stored and prints with `:00`, which TOML 1.0 reads. So a 1.0
-document's `toString()` and `writeTo` always read back as TOML 1.0.
+`setTrailingComma(true)`. A time without seconds is stored with seconds of 0, so it reads back `second == 0` and
+prints with `:00`, which TOML 1.0 reads. So a 1.0 document's `toString()` and `writeTo` always read back as TOML 1.0.
 
 `doc.setVersion(version)` changes the version. To TOML 1.0 it converts the document: a time without seconds takes
 `:00`, a `\e` or `\x` escape in a key or string becomes the `\u` escape for it, an inline table across lines goes on
 one line and an inline table's trailing comma goes. Tables and values stay the same objects. Putting an inline table
-on one line drops the comments inside it, so then `setVersion` fails with `TomlEditError.CommentsWouldBeLost` and
-changes nothing, unless called with `force = true`. To TOML 1.1 nothing changes but the version.
+on one line keeps its header comment after `}` as `Inline` does and drops the other comments inside it, so then
+`setVersion` fails with `TomlEditError.CommentsWouldBeLost` and changes nothing, unless called with `force = true`.
+To TOML 1.1 nothing changes but the version.
 
 ```kotlin
 val doc = TomlDocument.parse("t = 07:32\ns = \"\\e\"\n").getOrElse { error(it) }

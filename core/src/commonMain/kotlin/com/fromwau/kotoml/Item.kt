@@ -170,6 +170,7 @@ public class Item private constructor(
         refusal(next)?.let { return Err(it) }
         tooDeepToHold(item)?.let { return Err(it) }
         owner?.let { notInToml10Error(it, storedKey, item) }?.let { return Err(it) }
+        owner?.let { giveSecondsInToml10(it, Item(next, Holds.Anything)) }
         valuePlace?.let { place -> (next as? Content.ValueContent)?.value?.fitFor(place) }
         val entry = entry
         if (entry == null) {
@@ -379,10 +380,12 @@ public class Item private constructor(
      * document whose [TomlDocument.version] is 1.0 refuses this layout.
      *
      * [TableLayout.Inline] puts the table in braces on one line, formatted anew, and every table inside with it: the
-     * comments inside the braces go, while the comment lines above the key stay and the header comment, or the comment
-     * after `}`, prints after `}`. An array of tables keeps the comments on and between its headers as an array across
-     * lines, each header comment after its table's comma. A table across lines put on one line drops the comments
-     * inside its braces; a value inside written across lines, such as an array, still spans lines.
+     * comments inside the braces go, while the comment lines above the key stay and the header comment, the one after
+     * the header or after `{`, prints after `}`; when a comment stands after `}` already, it stays and the header
+     * comment goes. A table in an array or in an inline table across lines takes its header comment after its comma,
+     * when its line ends there. The header comments of the tables inside go with the other comments inside the braces.
+     * An array of tables keeps the comments on and between its headers as an array across lines, each header comment
+     * after its table's comma. A value inside written across lines, such as an array, still spans lines.
      *
      * [TableLayout.Dotted] makes the table stand for the parts of dotted keys, `t.a = 1`: the lines above its key stay
      * and each value keeps the comment on its line, while its header comment, the comment after its braces and the
@@ -397,7 +400,7 @@ public class Item private constructor(
      * val slot = doc["t"].getOrElse { error(it) }
      * slot.setLayout(TableLayout.MultilineInline)
      * doc.toString() // "t = { # t\n  a = 1, # one\n}\n"
-     * slot.setLayout(TableLayout.Inline) // fails with CommentsWouldBeLost(["t"], 2): both comments are inside braces
+     * slot.setLayout(TableLayout.Inline) // fails with CommentsWouldBeLost(["t"], 1): "# one" is inside the braces
      * slot.setLayout(TableLayout.Header)
      * doc.toString() // "[t] # t\na = 1 # one\n"
      * ```
@@ -462,7 +465,9 @@ public class Item private constructor(
             table != null || arrayOfTablesOrNull != null -> return inline(multiline)
             inline != null -> return layOutInline(inline, layout)
             layout == TableLayout.Header -> return expand()
-            else -> inlineTablesOfArray().orEmpty().forEach { layOutInBraces(it, layout) }
+            else -> for (element in arrayOrNull?.values.orEmpty()) {
+                element.inlineTableOrNull?.let { element.layOutInBraces(it, layout) }
+            }
         }
         return Ok(Unit)
     }
@@ -498,7 +503,20 @@ public class Item private constructor(
         layout: TableLayout,
     ) {
         inline.layOutDotted(false)
-        if (layout == TableLayout.MultilineInline) inline.layOutAcrossLinesWithin() else inline.layOutOnOneLineWithin()
+        if (layout == TableLayout.MultilineInline) return inline.layOutAcrossLinesWithin()
+        val headerComment = inline.commentAfterOpeningBrace()
+        inline.layOutOnOneLineWithin()
+        if (headerComment.isNotEmpty()) keepCommentAfterValue(headerComment)
+    }
+
+    // A comment already after the value stays; inside braces or brackets on one line no comment fits after it.
+    private fun keepCommentAfterValue(comment: String) {
+        val value = valueOrNull ?: return
+        when (val owner = owner) {
+            is InlineTable -> owner.keepCommentAfter(value, comment)
+            is TomlArray -> owner.keepCommentAfter(value, comment)
+            else -> if (value.commentAfter().isEmpty()) value.rawDecor.suffix = KeptText.from(comment)
+        }
     }
 
     /** Puts [table], or the array of tables in this slot, in braces in place of what this slot holds. */

@@ -146,6 +146,42 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         rawTrailing = KeptText.from(carried + lineBreak + end + indent)
     }
 
+    /** The comment ending the line of `{` in a table across lines, with the spacing before it, or "" for none. */
+    internal fun commentAfterOpeningBrace(): String {
+        if (!isMultiline) return ""
+        val text = when (val first = bodyLines().firstOrNull()) {
+            is KeptLines -> first.text
+            is VisualValue -> (first.lineStart ?: first.path.last().rawLeafDecor.prefix)?.textOrNull.orEmpty()
+            null -> trailing
+        }
+        if ('\n' !in text) return ""
+        return text.substringBefore('\n').removeSuffix("\r").takeIf { '#' in it }.orEmpty()
+    }
+
+    /**
+     * Puts [comment] after the comma of [value], one of this table's values, when the line ends there with no comment;
+     * whether it did. A table on one line, or a dotted one, holds no comment after a value.
+     */
+    internal fun keepCommentAfter(
+        value: Value,
+        comment: String,
+    ): Boolean {
+        if (isDotted || !isMultiline) return false
+        val lines = visualValues()
+        val index = lines.indexOfFirst { it.value === value }
+        if (index < 0) return false
+        val next = lines.getOrNull(index + 1)
+        // A dotted key's first line can start with its first key's spacing, which putCommentAfter leaves alone.
+        if (next?.lineStart != null) return false
+        val after = when (next) {
+            null -> value.rawDecor.suffix?.textOrNull?.takeIf { '\n' in it }.orEmpty() + trailing
+            else -> next.path.last().rawLeafDecor.prefix?.textOrNull.orEmpty()
+        }
+        if (!after.endsLineWithoutComment()) return false
+        putCommentAfter(value, comment)
+        return true
+    }
+
     // On one line the entries take the default spacing, and no comment fits inside.
     private fun layOutOnOneLine() {
         forgetLineStarts()
@@ -545,6 +581,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         value: Value,
         comment: String = "",
     ): Value? {
+        giveSecondsInToml10(this, Item(value))
         val isNew = !items.containsKey(key.name)
         if (comment.isNotEmpty() && !isMultiline) {
             val lineBreak = lineEndingOf(this)

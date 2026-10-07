@@ -692,6 +692,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     private fun copyToStore(item: Item): Item {
         val stored = item.copyFor(ValuePlace.Line)
         placeStored(stored, copiesWithinDocument(item, this), this)
+        giveSecondsInToml10(this, stored)
         return stored
     }
 

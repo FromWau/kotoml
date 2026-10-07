@@ -107,7 +107,7 @@ c = { d = "hello" }
         slot.setLayout(TableLayout.MultilineInline).getOrFail()
         assertEquals("t = { # t\n  a = 1, # one\n}\n", doc.toString())
         slot.setLayout(TableLayout.Inline, force = true).getOrFail()
-        assertEquals("t = { a = 1 }\n", doc.toString())
+        assertEquals("t = { a = 1 } # t\n", doc.toString())
     }
 
     @Test
@@ -117,7 +117,7 @@ c = { d = "hello" }
         slot.setLayout(TableLayout.MultilineInline).getOrFail()
         assertEquals("t = { # t\n  a = 1, # one\n}\n", doc.toString())
         val error = slot.setLayout(TableLayout.Inline).errorOrFail()
-        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("t"), 2), error)
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("t"), 1), error)
         slot.setLayout(TableLayout.Header).getOrFail()
         assertEquals("[t] # t\na = 1 # one\n", doc.toString())
     }

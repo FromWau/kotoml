@@ -99,7 +99,7 @@ class LayoutChangeTest {
 
     @Test
     fun `a refused change leaves the layout as it was`() {
-        val doc = parse("t = { # open\n  a = 1,\n}\n")
+        val doc = parse("t = { # open\n  a = 1, # a\n}\n")
         val slot = doc["t"].getOrFail()
         slot.setLayout(TableLayout.Inline).errorOrFail()
         assertEquals(TableLayout.MultilineInline, slot.layout)

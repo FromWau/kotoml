@@ -143,6 +143,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
 
     // A copy from another place, in this document or another, leaves the comments of the header it was read under.
     private fun copyToStore(table: StandardTable): StandardTable = table.deepCopy().also { copy ->
+        giveSecondsInToml10(this, Item(copy))
         if (copiesFromElsewhere(table, this)) {
             copy.rawDecor.dropReadComments(isHeader = true)
             // It prints after the element before it, not where its source printed.
@@ -266,7 +267,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     public fun addAll(tables: Iterable<StandardTable>): EmptyResult<TomlEditError> {
         val added = tables.toList()
         for (table in added) storeError(this, null, Item(table))?.let { return Err(it) }
-        for (table in added) append(table.deepCopy())
+        for (table in added) append(table.deepCopy().also { giveSecondsInToml10(this, Item(it)) })
         return Ok(Unit)
     }
 

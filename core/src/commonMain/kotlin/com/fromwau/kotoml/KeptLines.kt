@@ -98,6 +98,9 @@ internal fun String.withCommentEndingLine(
     return comment + substring(lineEnd)
 }
 
+/** Whether this text, after a value, ends the value's line with no comment on it. */
+internal fun String.endsLineWithoutComment(): Boolean = '\n' in this && '#' !in substringBefore('\n')
+
 /**
  * This text between elements without its comment lines: the comment ending the line before stays when
  * [keepFirstLineComment], then the line break and the indentation of the line after.

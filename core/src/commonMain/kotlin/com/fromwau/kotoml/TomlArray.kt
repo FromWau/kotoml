@@ -113,7 +113,7 @@ public class TomlArray() : Iterable<Value> {
     public fun add(value: Value): EmptyResult<TomlEditError> {
         storeError(this, null, Item(value))?.let { return Err(it) }
         val comment = value.callerComment()
-        val stored = value.copyFor(ValuePlace.Array)
+        val stored = value.copyFor(ValuePlace.Array).also { giveSecondsInToml10(this, Item(it)) }
         if (comment.isNotEmpty()) spreadForComment(stored)
         if (stored.decor.prefix == null) {
             leaveLastLineForComma()
@@ -149,6 +149,34 @@ public class TomlArray() : Iterable<Value> {
         }
         val start = next.rawDecor.prefix?.textOrNull.orEmpty()
         next.rawDecor.prefix = KeptText.from(start.withCommentEndingLine(comment, lineBreak, INDENT))
+    }
+
+    /**
+     * Puts [comment] after [value], one of the elements, past its comma when one follows, when the line ends there
+     * with no comment; whether it did.
+     */
+    internal fun keepCommentAfter(
+        value: Value,
+        comment: String,
+    ): Boolean {
+        val printed = printedValues()
+        val index = printed.indexOfFirst { it === value }
+        if (index < 0) return false
+        val next = printed.getOrNull(index + 1)
+        val after = when {
+            next != null -> next.rawDecor.prefix?.textOrNull.orEmpty()
+            trailingComma -> trailing
+            // Without a comma after it the last element's line ends in its suffix or in the text before `]`.
+            else -> value.rawDecor.suffix?.textOrNull.orEmpty() + trailing
+        }
+        if (!after.endsLineWithoutComment()) return false
+        if (next != null || trailingComma) {
+            putCommentAfter(value, comment)
+        } else {
+            value.rawDecor.suffix = KeptText.from(after.withCommentEndingLine(comment, lineEndingOf(this), after))
+            trailing = ""
+        }
+        return true
     }
 
     // On one line the space before `]` goes with the last element, and the spacing after a comma is the array's own.
@@ -338,7 +366,7 @@ public class TomlArray() : Iterable<Value> {
         storeError(this, null, Item(value))?.let { return Err(it) }
         if (index == values.size) return add(value)
         val comment = value.callerComment()
-        val stored = value.copyFor(ValuePlace.Array)
+        val stored = value.copyFor(ValuePlace.Array).also { giveSecondsInToml10(this, Item(it)) }
         if (comment.isNotEmpty()) spreadForComment(stored)
         val next = values.subList(index, values.size).firstNotNullOfOrNull { it.valueOrNull }
         if (stored.rawDecor.prefix == null && next != null) takeLineStart(stored, next)
@@ -375,7 +403,7 @@ public class TomlArray() : Iterable<Value> {
         val old = getOrNull(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         storeError(this, null, Item(value))?.let { return Err(it) }
         val comment = value.callerComment()
-        val stored = value.copyFor(ValuePlace.Array)
+        val stored = value.copyFor(ValuePlace.Array).also { giveSecondsInToml10(this, Item(it)) }
         if (comment.isNotEmpty()) {
             spreadForComment(stored)
             if (old === printedValues().last()) leaveLastLineForComma()

@@ -73,6 +73,24 @@ class VersionTest {
     }
 
     @Test
+    fun `a time without seconds stored in a TOML 1_0 document reads its seconds`() {
+        val doc = parse("a = [1]\nt = { x = 1 }\n[[l]]\n", TomlVersion.V1_0)
+        val time = Value.Datetime(Datetime.LocalTime(Time.of(7, 32).getOrFail()))
+        doc.set("s", time).getOrFail()
+        doc["a"].getOrFail().valueOrNull!!.arrayOrNull!!.add(time).getOrFail()
+        doc["t"].getOrFail().inline().set("y", time).getOrFail()
+        doc["t"]["x"].getOrFail().assign(Item(time)).getOrFail()
+        val table = StandardTable().apply { set("z", time).getOrFail() }
+        doc["l"].getOrFail().arrayOfTablesOrNull!!.add(table).getOrFail()
+        val stored = listOf(doc["s"], doc["a"][1], doc["t"]["y"], doc["t"]["x"], doc["l"][1]["z"])
+        for (slot in stored) assertEquals(0, slot.getOrFail().valueOrNull!!.datetimeOrNull!!.time!!.second)
+        assertNull(time.value.time!!.second)
+        val expected = "a = [1, 07:32:00]\nt = { x = 07:32:00, y = 07:32:00 }\ns = 07:32:00\n" +
+            "[[l]]\n\n[[l]]\nz = 07:32:00\n"
+        assertEquals(expected, doc.toString())
+    }
+
+    @Test
     fun `times in arrays and inline tables take seconds`() {
         assertEquals("a = [07:32:00, { t = 08:15:00 }]\n", converted("a = [07:32, { t = 08:15 }]\n"))
     }
@@ -129,7 +147,7 @@ class VersionTest {
         val text = "s = \"\\e\"\nt0 = 07:32\n[a]\nt = { # one\n  x = 1, # two\n}\nu = {\n  y = 1, # three\n}\n"
         val doc = parse(text)
         val error = doc.setVersion(TomlVersion.V1_0).errorOrFail()
-        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("a", "t"), 3), error)
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("a", "t"), 2), error)
         assertEquals(text, doc.toString())
         assertEquals(TomlVersion.V1_1, doc.version)
         assertNull(doc["t0"].getOrFail().valueOrNull!!.datetimeOrNull!!.time!!.second)
@@ -142,6 +160,22 @@ class VersionTest {
         doc.setVersion(TomlVersion.V1_0, force = true).getOrFail()
         assertEquals("[a]\nt = { x = 1 } # three\n", doc.toString())
         assertEquals(TomlVersion.V1_0, doc.version)
+    }
+
+    @Test
+    fun `an inline table across lines keeps its header comment after the braces`() {
+        val doc = parse("[a]\nt = { # one\n  x = 1,\n}\nl = [\n  { # two\n    y = 1,\n  },\n]\n")
+        doc.setVersion(TomlVersion.V1_0).getOrFail()
+        assertEquals("[a]\nt = { x = 1 } # one\nl = [\n  { y = 1 }, # two\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `an inline table across lines drops the header comments of the inline tables inside when forced`() {
+        val doc = parse("t = { # one\n  u = { # two\n    x = 1,\n  },\n}\n")
+        val error = doc.setVersion(TomlVersion.V1_0).errorOrFail()
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("t"), 1), error)
+        doc.setVersion(TomlVersion.V1_0, force = true).getOrFail()
+        assertEquals("t = { u = { x = 1 } } # one\n", doc.toString())
     }
 
     @Test

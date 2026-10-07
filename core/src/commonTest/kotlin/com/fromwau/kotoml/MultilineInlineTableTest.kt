@@ -197,10 +197,10 @@ class MultilineInlineTableTest {
         val doc = parse("[t] # hc\na = 1 # ac\nb = 2\n")
         doc["t"].getOrFail().setLayout(TableLayout.MultilineInline).getOrFail()
         val error = doc.slotAt("t").setLayout(TableLayout.Inline).errorOrFail()
-        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("t"), 2), error)
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("t"), 1), error)
         assertEquals("t = { # hc\n  a = 1, # ac\n  b = 2,\n}\n", doc.toString())
         doc.slotAt("t").setLayout(TableLayout.Inline, force = true).getOrFail()
-        assertEquals("t = { a = 1, b = 2 }\n", doc.toString())
+        assertEquals("t = { a = 1, b = 2 } # hc\n", doc.toString())
     }
 
     @Test

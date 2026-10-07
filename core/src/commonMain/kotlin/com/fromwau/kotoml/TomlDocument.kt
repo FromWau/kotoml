@@ -68,7 +68,8 @@ public class TomlDocument internal constructor(
      * A TOML 1.0 document prints only what TOML 1.0 reads: an edit that would add what only TOML 1.1 reads is refused
      * with [TomlEditError.NotInToml10] and changes nothing. That is a key or string spelled with a `\e` or `\x`
      * escape, an inline table across lines, and a trailing comma in an inline table. A time without seconds, such as
-     * `07:32`, is stored as it is and prints with `:00` after its minutes, which TOML 1.0 reads.
+     * `07:32`, is stored with seconds of 0, as [setVersion] gives them, and prints with `:00` after its minutes, which
+     * TOML 1.0 reads; the value given to the store keeps no seconds.
      */
     public val version: TomlVersion
         get() = root.version

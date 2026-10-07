@@ -158,9 +158,11 @@ internal class Toml10Conversion {
     }
 
     private fun putOnOneLine(slot: Item) {
-        val before = commentsPrinted(slot)
+        // The header comment may move past the comma, into the text of the array or inline table holding the slot.
+        val scope = slot.owner?.takeIf { it is TomlArray || it is InlineTable } ?: slot
+        val before = commentsPrinted(scope)
         slot.setLayout(TableLayout.Inline, force = true)
-        val dropped = missing(before, commentsPrinted(slot))
+        val dropped = missing(before, commentsPrinted(scope))
         if (dropped > 0 && firstLoss == null) firstLoss = layoutKeyPathOf(slot)
         lost += dropped
     }
@@ -168,16 +170,38 @@ internal class Toml10Conversion {
     private fun Key.respell() {
         spelling?.let { written = Spelling(toml10Spelling(it)) }
     }
+}
 
-    private fun Value.Datetime.giveSeconds() {
-        val time = value.time?.takeIf { it.second == null } ?: return
-        val full = Time.of(time.hour, time.minute, 0).getOrElse { error("a time read or built is in range") }
-        val datetime = when (val old = value) {
-            is Datetime.OffsetDateTime -> old.copy(time = full)
-            is Datetime.LocalDateTime -> old.copy(time = full)
-            is Datetime.LocalTime -> old.copy(time = full)
-            is Datetime.LocalDate -> old
-        }
-        formatted = formatted.withValue(datetime, spelling?.let { Spelling(spellingWithSeconds(it, value)) })
+/**
+ * Gives each time without seconds in [stored], just stored in [container], seconds of 0 when [container] is in a TOML
+ * 1.0 document, which prints them; see [TomlDocument.setVersion].
+ */
+internal fun giveSecondsInToml10(
+    container: Any,
+    stored: Item,
+) {
+    if (documentVersionOf(container) == TomlVersion.V1_0) giveSecondsWithin(stored)
+}
+
+private fun giveSecondsWithin(slot: Item) {
+    slot.standardTableOrNull?.let { table -> return table.items.entries.forEach { giveSecondsWithin(it.item) } }
+    slot.arrayOfTablesOrNull?.let { tables -> return tables.values.forEach(::giveSecondsWithin) }
+    when (val value = slot.valueOrNull) {
+        is Value.Datetime -> value.giveSeconds()
+        is Value.Array -> value.value.values.forEach(::giveSecondsWithin)
+        is Value.InlineTable -> value.value.items.entries.forEach { giveSecondsWithin(it.item) }
+        else -> Unit
     }
+}
+
+private fun Value.Datetime.giveSeconds() {
+    val time = value.time?.takeIf { it.second == null } ?: return
+    val full = Time.of(time.hour, time.minute, 0).getOrElse { error("a time read or built is in range") }
+    val datetime = when (val old = value) {
+        is Datetime.OffsetDateTime -> old.copy(time = full)
+        is Datetime.LocalDateTime -> old.copy(time = full)
+        is Datetime.LocalTime -> old.copy(time = full)
+        is Datetime.LocalDate -> old
+    }
+    formatted = formatted.withValue(datetime, spelling?.let { Spelling(spellingWithSeconds(it, value)) })
 }

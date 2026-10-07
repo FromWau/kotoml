@@ -169,6 +169,82 @@ class LayoutTest {
     }
 
     @Test
+    fun `an inline table across lines put on one line keeps its header comment after the braces`() {
+        val text = "t = { # t header\n  a = 1, # one\n}\n"
+        val doc = parse(text)
+        val error = doc["t"].getOrFail().setLayout(TableLayout.Inline).errorOrFail()
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("t"), 1), error)
+        assertEquals(text, doc.toString())
+        doc["t"].getOrFail().setLayout(TableLayout.Inline, force = true).getOrFail()
+        assertEquals("t = { a = 1 } # t header\n", doc.toString())
+    }
+
+    @Test
+    fun `an inline table across lines with only a header comment goes on one line without force`() {
+        val doc = parse("t = { # t header\n  a = 1,\n}\nu = { # u header\n}\n")
+        doc["t"].getOrFail().setLayout(TableLayout.Inline).getOrFail()
+        doc["u"].getOrFail().setLayout(TableLayout.Inline).getOrFail()
+        assertEquals("t = { a = 1 } # t header\nu = {} # u header\n", doc.toString())
+    }
+
+    @Test
+    fun `an inline table across lines put on one line keeps the comment after the braces over its header comment`() {
+        val doc = parse("t = { # t header\n  a = 1,\n} # after\n")
+        val error = doc["t"].getOrFail().setLayout(TableLayout.Inline).errorOrFail()
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("t"), 1), error)
+        doc["t"].getOrFail().setLayout(TableLayout.Inline, force = true).getOrFail()
+        assertEquals("t = { a = 1 } # after\n", doc.toString())
+    }
+
+    @Test
+    fun `an inline table put on one line drops the header comments of the inline tables inside`() {
+        val doc = parse("t = { # t header\n  u = { # u header\n    x = 1,\n  },\n}\n")
+        val error = doc["t"].getOrFail().setLayout(TableLayout.Inline).errorOrFail()
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("t"), 1), error)
+        doc["t"].getOrFail().setLayout(TableLayout.Inline, force = true).getOrFail()
+        assertEquals("t = { u = { x = 1 } } # t header\n", doc.toString())
+    }
+
+    @Test
+    fun `an inline table inside one across lines put on one line keeps its header comment after its comma`() {
+        val doc = parse("p = {\n  t = { # t header\n    a = 1,\n  },\n  b = 2,\n}\n")
+        doc["p"]["t"].getOrFail().setLayout(TableLayout.Inline).getOrFail()
+        assertEquals("p = {\n  t = { a = 1 }, # t header\n  b = 2,\n}\n", doc.toString())
+    }
+
+    @Test
+    fun `inline tables in an array across lines put on one line keep their header comments after their commas`() {
+        val doc = parse("a = [\n  { # one\n    x = 1,\n  },\n  { # two\n    y = 2,\n  },\n]\n")
+        doc["a"].getOrFail().setLayout(TableLayout.Inline).getOrFail()
+        assertEquals("a = [\n  { x = 1 }, # one\n  { y = 2 }, # two\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `the last inline table in an array without a trailing comma keeps its header comment after its braces`() {
+        val doc = parse("a = [\n  { # one\n    x = 1,\n  }\n]\n")
+        doc["a"].getOrFail().setLayout(TableLayout.Inline).getOrFail()
+        assertEquals("a = [\n  { x = 1 } # one\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `an inline table in an array put on one line keeps the comment after its comma over its header comment`() {
+        val doc = parse("a = [\n  { # one\n    x = 1,\n  }, # after\n]\n")
+        val error = doc["a"].getOrFail().setLayout(TableLayout.Inline).errorOrFail()
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("a"), 1), error)
+        doc["a"].getOrFail().setLayout(TableLayout.Inline, force = true).getOrFail()
+        assertEquals("a = [\n  { x = 1 }, # after\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `an inline table in an array on one line put on one line drops its header comment`() {
+        val doc = parse("a = [{ # one\n  x = 1,\n}]\n")
+        val error = doc["a"].getOrFail().setLayout(TableLayout.Inline).errorOrFail()
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("a"), 1), error)
+        doc["a"].getOrFail().setLayout(TableLayout.Inline, force = true).getOrFail()
+        assertEquals("a = [{ x = 1 }]\n", doc.toString())
+    }
+
+    @Test
     fun `dotted keys made a header take the inline tables under them under headers`() {
         val doc = parse("x = 1\nt.a = 1\nt.u = { b = 2 }\n")
         doc["t"].getOrFail().setLayout(TableLayout.Header).getOrFail()
