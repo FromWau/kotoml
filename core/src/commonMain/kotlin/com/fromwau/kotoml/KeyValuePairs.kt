@@ -7,7 +7,13 @@ package com.fromwau.kotoml
  * of its section ([order]), and how its dotted path was spelled on that line ([pathSpelling]), so it prints
  * back as written even where a table shares one key between lines.
  */
-internal class KeyValue(var key: Key, item: Item) {
+internal class KeyValue(key: Key, item: Item) {
+    var key: Key = key
+        set(value) {
+            field = value
+            value.entry = this
+        }
+
     var item: Item = item
         set(value) {
             field = value
@@ -27,9 +33,19 @@ internal class KeyValue(var key: Key, item: Item) {
         get() = pairs?.getEntry(key.name) === this
 
     init {
+        key.entry = this
         item.entry = this
         item.adoptContent()
     }
+
+    /** Whether the key starts a `key = value` line among a table's lines, rather than one in braces or a header. */
+    val startsTableLine: Boolean
+        get() {
+            if (item.valueOrNull == null) return false
+            var container: Any? = pairs?.owner
+            while (container is InlineTable && container.isDotted) container = slotOf(container)?.owner
+            return container is StandardTable
+        }
 
     /**
      * Readies the key for [next] replacing its item: moving between a `key = value` line and a header leaves the

@@ -29,6 +29,9 @@ public class Key(
     internal val rawLeafDecor: RawDecor = RawDecor()
     internal val rawDottedDecor: RawDecor = RawDecor()
 
+    /** The entry this key last became the key of. */
+    internal var entry: KeyValue? = null
+
     init {
         rawLeafDecor.set(leafDecor)
         rawDottedDecor.set(dottedDecor)
@@ -89,14 +92,21 @@ public class Key(
 
     /**
      * Formats the key as [TomlDocument.format] formats keys: bare when it can be, `'q'` as `q`, while `"a b"` stays
-     * quoted; no space around its dots and one before `=`. Every line spelling a shared key, such as `a` of `a.b = 1`,
-     * prints it so.
+     * quoted; no space around its dots and one on each side of `=`. A key starting a line of a table leaves that line
+     * with no indentation, keeping the comment and blank lines above it. Every line spelling a shared key, such as
+     * `a` of `a.b = 1`, prints it so.
      */
     public fun format() {
         if (TomlKeyBuilder(name).asUnquoted() != null) written = null
         rawDottedDecor.clear()
         rawLeafDecor.suffix = null
-        if ('\n' !in rawLeafDecor.prefix?.textOrNull.orEmpty()) rawLeafDecor.prefix = null
+        val prefix = rawLeafDecor.prefix
+        rawLeafDecor.prefix = when {
+            entry?.takeIf { it.key === this && it.isStored }?.startsTableLine == true ->
+                KeptText.from(linesAbove(prefix))
+            '\n' in prefix?.textOrNull.orEmpty() -> prefix
+            else -> null
+        }
     }
 
     /** A copy of this key with its spelling and decor. */

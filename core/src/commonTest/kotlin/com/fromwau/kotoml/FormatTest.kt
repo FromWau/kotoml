@@ -202,6 +202,14 @@ class FormatTest {
     }
 
     @Test
+    fun `formatting a key removes the indentation of its line`() {
+        val doc = parse("x = 0\n# c\n  a   = 1\n   b = 2\n")
+        doc.root.keyOrNull("a")!!.format()
+        doc.root.keyOrNull("b")!!.format()
+        assertEquals("x = 0\n# c\na = 1\nb = 2\n", doc.toString())
+    }
+
+    @Test
     fun `a scalar value holds nothing to format`() {
         val value = Value.parse("'lit'").assertSuccess()
         value.format()
