@@ -64,6 +64,11 @@ its same-line comment into an array as into a table (C5 stands).
 - [ ] **99. No one call writes a value in its default spelling or puts an array on one line.** `resetFormatting()`
   did both; `format()` keeps value spellings and layouts by ruling, so `0x10` cannot become `16` and a multi-line
   array cannot go to one line without decor calls by hand.
+  **Ruling 2026-10-07:** two tools. Arrays get the table pattern: `TomlArray.isMultiline` read-only and
+  `setMultiline(value, force = false): EmptyResult<TomlEditError>`, one line refused with `CommentsWouldBeLost` unless
+  forced, across lines one element per line with a trailing comma. Spellings: `respell(): Unit`, deep like
+  `format()`, on the document, tables, `Item`, `Value` and arrays, writes every value in its default spelling
+  (`0x1F90` becomes `8080`, `'kotoml'` `"kotoml"`, `1e0` `1.0`, `07:32` `07:32:00`); keys keep theirs.
 
 - [ ] **100. An empty dotted table last in a multi-line inline table prints `{} ,`.** `b.d = {} ,`: a space before
   the comma, because the empty table's value is built anew on each read and loses its suffix. Valid TOML, no comment
