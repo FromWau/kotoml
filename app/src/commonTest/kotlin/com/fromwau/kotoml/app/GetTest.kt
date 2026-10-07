@@ -189,8 +189,12 @@ class GetTest {
     @Test
     fun `a step a value cannot take names its type in words`() {
         assertEquals(
-            "cannot apply .\"x\" to array of tables",
+            "cannot apply .x to array of tables",
             AppError.CannotApply(Step.Key("x"), TomlType.ArrayOfTables).describe(),
+        )
+        assertEquals(
+            "cannot apply .\"a b\" to array of tables",
+            AppError.CannotApply(Step.Key("a b"), TomlType.ArrayOfTables).describe(),
         )
     }
 

@@ -23,8 +23,13 @@ internal sealed interface Step {
     data object Iterate : Step
 }
 
+/** This step as jq writes it: a key bare when jq would read it bare, quoted otherwise. */
 internal fun Step.describe(): String = when (this) {
-    is Step.Key -> ".\"$key\""
+    is Step.Key -> if (key.isNotEmpty() && key.all { it.isBareKeyChar() }) {
+        ".$key"
+    } else {
+        ".\"" + key.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+    }
     is Step.Index -> ".[$index]"
     Step.Iterate -> ".[]"
 }

@@ -45,7 +45,7 @@ private fun Selected.apply(step: Step): Result<List<Selected>, AppError> {
     val tables = item.arrayOfTablesOrNull
     return when (step) {
         is Step.Key -> table?.let {
-            val at = trail + step.locate()
+            val at = trail + step.describe()
             val child = it.getItem(step.key) ?: return Err(AppError.NoSuchKey(at, step.key))
             Ok(listOf(Selected(child, path + step.key, at)))
         }
@@ -62,7 +62,7 @@ private fun Selected.apply(step: Step): Result<List<Selected>, AppError> {
         }
         Step.Iterate -> when {
             table != null -> Ok(
-                table.entries.map { (key, child) -> Selected(child, path + key, trail + Step.Key(key).locate()) },
+                table.entries.map { (key, child) -> Selected(child, path + key, trail + Step.Key(key).describe()) },
             )
             array != null -> Ok(array.mapIndexed { index, value -> Selected(Item(value), path, "$trail[$index]") })
             tables != null -> Ok(
@@ -71,10 +71,4 @@ private fun Selected.apply(step: Step): Result<List<Selected>, AppError> {
             else -> null
         }
     } ?: Err(AppError.CannotApply(step, item.type))
-}
-
-/** This key as a jq path step: bare when jq would read it bare, quoted otherwise. */
-private fun Step.Key.locate(): String {
-    val bare = key.isNotEmpty() && key.all { it.isBareKeyChar() }
-    return if (bare) ".$key" else ".\"" + key.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 }
