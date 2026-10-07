@@ -185,15 +185,15 @@ private fun graftReceiver(
             when {
                 owner is TomlArray || owner is InlineTable -> graftElement(receiver, read)
                 entry != null && readEntry != null ->
-                    graftEntry(entry, readEntry, keysFrom(owner), linePathOf(owner))
-                else -> graftItem(receiver, read, keysFrom(owner), emptyList())
+                    graftEntry(entry, readEntry, keysOf(owner), linePathOf(owner))
+                else -> graftItem(receiver, read, keysOf(owner), emptyList())
             }
         }
         receiver is StandardTable && read is StandardTable ->
-            graftTable(receiver, read, keysFrom(receiver), linePathOf(receiver))
+            graftTable(receiver, read, keysOf(receiver), linePathOf(receiver))
         receiver is TomlArray && read is TomlArray -> graftArray(receiver, read)
         receiver is InlineTable && read is InlineTable -> graftInlineTable(receiver, read, linePathOf(receiver))
-        receiver is ArrayOfTables && read is ArrayOfTables -> graftTables(receiver, read, keysFrom(receiver))
+        receiver is ArrayOfTables && read is ArrayOfTables -> graftTables(receiver, read, keysOf(receiver))
     }
 }
 
@@ -226,18 +226,6 @@ private fun graftElement(
             graftInlineTable(value.value, readValue.value, linePathOf(value.value))
         else -> Unit
     }
-}
-
-/** The keys from the root down to [container], its own key included. */
-private fun keysFrom(container: Any): List<Key> {
-    val keys = ArrayDeque<Key>()
-    var current = container
-    while (true) {
-        val slot = slotOf(current) ?: break
-        slot.entry?.takeIf { it.isStored }?.let { keys.addFirst(it.key) }
-        current = slot.owner ?: break
-    }
-    return keys
 }
 
 /** The keys of the dotted tables from the table printing [container]'s lines down to it, its own included. */

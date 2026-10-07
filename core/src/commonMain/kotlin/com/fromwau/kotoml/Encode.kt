@@ -283,7 +283,10 @@ private class KeptHeaderLines(
 ) : DocumentPart(slot)
 
 /** A whole document, tables in their original order: upstream's `Display for DocumentMut`. */
-internal fun encodeDocument(buf: StringBuilder, document: TomlDocument) {
+internal fun encodeDocument(
+    buf: StringBuilder,
+    document: TomlDocument,
+) {
     val root = document.root
     settleHeadersForDepth(root)
     val decor = root.rawDecor
@@ -335,7 +338,10 @@ internal fun encodeDocument(buf: StringBuilder, document: TomlDocument) {
  * Drops the blank lines ending the [kept] lines of a removed table when blank lines follow them or nothing does, so
  * removing a table leaves one blank line between its neighbours and none at the end of the file.
  */
-private fun dropBlankLinesMeeting(buf: StringBuilder, kept: IntRange) {
+private fun dropBlankLinesMeeting(
+    buf: StringBuilder,
+    kept: IntRange,
+) {
     val after = kept.last + 1
     if (after < buf.length && blankLinesAt(buf, after) == 0) return
     var blankStart = after
@@ -348,7 +354,10 @@ private fun dropBlankLinesMeeting(buf: StringBuilder, kept: IntRange) {
 }
 
 /** The length of the blank lines starting at [start], up to the line holding anything else. */
-private fun blankLinesAt(buf: CharSequence, start: Int): Int {
+private fun blankLinesAt(
+    buf: CharSequence,
+    start: Int,
+): Int {
     var end = start
     var index = start
     while (index < buf.length) {

@@ -12,7 +12,10 @@ import com.fromwau.kern.result.Result
  */
 internal sealed interface Nesting {
     /** In a standard table [parts] keys below the root, whose keys print after [dots] dotted keys on their lines. */
-    data class InTable(val parts: Int, val dots: Int) : Nesting
+    data class InTable(
+        val parts: Int,
+        val dots: Int,
+    ) : Nesting
 
     /** In an array of tables whose elements' headers have [parts] parts. */
     data class InTables(val parts: Int) : Nesting
@@ -170,12 +173,15 @@ internal fun slotOf(container: Any): Item? {
  * The keys from the document's root down to [container], or from the outermost table or array it is stored under
  * when that is stored nowhere; an element of an array adds none.
  */
-internal fun keyPathOf(container: Any): List<String> {
-    val keys = ArrayDeque<String>()
+internal fun keyPathOf(container: Any): List<String> = keysOf(container).map { it.name }
+
+/** The [Key]s along [keyPathOf]'s path. */
+internal fun keysOf(container: Any): List<Key> {
+    val keys = ArrayDeque<Key>()
     var current = container
     while (true) {
         val slot = slotOf(current) ?: break
-        slot.entry?.takeIf { it.isStored }?.key?.name?.let(keys::addFirst)
+        slot.entry?.takeIf { it.isStored }?.let { keys.addFirst(it.key) }
         current = slot.owner ?: break
     }
     return keys
@@ -255,13 +261,21 @@ private fun StandardTable.fitsDotted(
 
 // Iterative, so that measuring content of any depth takes no more stack than measuring a flat table.
 private class DepthWalk {
-    private data class Frame(val container: Any, val nesting: Nesting, val path: List<String>)
+    private data class Frame(
+        val container: Any,
+        val nesting: Nesting,
+        val path: List<String>,
+    )
 
     private val limit = TomlDocument.NESTING_LIMIT
     private val frames = ArrayDeque<Frame>()
     private var found: List<String>? = null
 
-    fun visit(container: Any, nesting: Nesting, path: List<String>) {
+    fun visit(
+        container: Any,
+        nesting: Nesting,
+        path: List<String>,
+    ) {
         frames.addLast(Frame(container, nesting, path))
     }
 

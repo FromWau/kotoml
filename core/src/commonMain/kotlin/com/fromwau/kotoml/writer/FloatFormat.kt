@@ -1,5 +1,7 @@
 package com.fromwau.kotoml.writer
 
+import kotlin.math.abs
+
 /**
  * The shortest decimal digits that read back as the same binary float, and where the decimal point goes:
  * the value is `0.digits × 10^exponent`.
@@ -29,14 +31,14 @@ internal fun toShortestDecimalString(value: Float): String {
  * 1e16 and above or below 1e-5, otherwise as [toShortestDecimalString].
  */
 internal fun toShortestTomlFloat(value: Double): String {
-    val magnitude = kotlin.math.abs(value)
+    val magnitude = abs(value)
     if (magnitude in EXPONENT_BELOW..<EXPONENT_FROM) return toShortestDecimalString(value)
     return (if (value.toRawBits() < 0) "-" else "") + exponentForm(shortestDigits(value))
 }
 
 /** A finite, non-zero `Float` in its shortest round-tripping digits, as for a `Double`. */
 internal fun toShortestTomlFloat(value: Float): String {
-    val magnitude = kotlin.math.abs(value.toDouble())
+    val magnitude = abs(value.toDouble())
     if (magnitude in EXPONENT_BELOW..<EXPONENT_FROM) return toShortestDecimalString(value)
     return (if (value.toRawBits() < 0) "-" else "") + exponentForm(shortestDigits(value))
 }
