@@ -30,8 +30,6 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
 
 ### Docs
 
-- [ ] **73. Document `isImplicit`, `position`, `leafDecor` and `Value.parse` for spellings.** And correct the sorting
-  sentence, which suggests tables move.
 
 ### Found while fixing
 
@@ -81,6 +79,13 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **73. Document `isImplicit`, `position`, `leafDecor` and `Value.parse` for spellings.** And correct the sorting
+  sentence, which suggests tables move.
+  **Verdict 2026-10-07:** fixed: `isImplicit`/`setImplicit`, a table's `position` and the sorting sentence were
+  already right after the API work; core/README.md gains "Choose spellings and comments": `Value.parse` to store a
+  spelling of your choice, a value's `decor`, a key's `leafDecor` and `dottedDecor`, a table's `decor`, and
+  `keyOrNull`, with an example mirrored in EditDocTest.
 
 - [x] **100. An empty dotted table last in a multi-line inline table prints `{} ,`.** `b.d = {} ,`: a space before
   the comma, because the empty table's value is built anew on each read and loses its suffix. Valid TOML, no comment

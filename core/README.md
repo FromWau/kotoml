@@ -254,6 +254,28 @@ and comments, layouts, spacing and line endings stay. A default spelling is one 
 TOML 1.0 stays one. `respell()` cannot fail. To put an array on one line or across lines, see `setMultiline` under
 [Tables and arrays](#tables-and-arrays).
 
+## Choose spellings and comments
+
+```kotlin
+val doc = TomlDocument()
+doc["license"] = Value.parse("'MIT'").getOrElse { error(it) }
+doc["mode"] = Value.parse("0o755").getOrElse { error(it) }
+doc.root.keyOrNull("mode")?.leafDecor = Decor(prefix = "# file mode\n")
+doc["port"] = Value.Integer(8080, Decor(suffix = " # default"))
+// license = 'MIT'
+// # file mode
+// mode = 0o755
+// port = 8080 # default
+```
+
+A value made by `Value.parse` keeps the text it was parsed from, so `Value.parse("'MIT'")` stores a literal string
+and `Value.parse("0o755")` an octal integer; `format()` keeps such spellings and `respell()` writes the default ones.
+A value's `decor` is the text around it, its `suffix` the spacing and comment after it on its line. A key's
+`leafDecor` is the text around it where it ends a line or a header: its `prefix` holds the comment lines above the
+key and the spacing before it, its `suffix` the spacing before `=`. `dottedDecor` is the text around one part of a
+dotted key. A table's `decor` is the text around its header: the comment and blank lines above `[t]`, and what
+follows the header on its line. `keyOrNull(name)` reads a key of a table.
+
 ## Items and their comments
 
 ```kotlin

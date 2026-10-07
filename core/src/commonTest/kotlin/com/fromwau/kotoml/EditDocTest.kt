@@ -552,4 +552,14 @@ table = { apple = "4.50" }
 
         assertEquals(output, document.toString())
     }
+
+    @Test
+    fun `the module README example of choosing spellings and comments prints them`() {
+        val doc = TomlDocument()
+        doc["license"] = Value.parse("'MIT'").getOrElse { error(it) }
+        doc["mode"] = Value.parse("0o755").getOrElse { error(it) }
+        doc.root.keyOrNull("mode")?.leafDecor = Decor(prefix = "# file mode\n")
+        doc["port"] = Value.Integer(8080, Decor(suffix = " # default"))
+        assertEquals("license = 'MIT'\n# file mode\nmode = 0o755\nport = 8080 # default\n", doc.toString())
+    }
 }
