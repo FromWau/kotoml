@@ -19,6 +19,8 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
   `[t]\nb.c = 1 # on y\n  # about d\nb.d = 2\nx = 0\n`: `# on y` twice, and `# about d` keeps its brace
   indentation. Expected `[t]\nb.c = 1\n# about d\nb.d = 2\nx = 0\n`. `takeOutOfBraces` reads the first line of
   each key's prefix as ending the line before. Found while fixing 118.
+  **Ruling 2026-10-07:** `# on y` belongs to `y` and stays out of a copy of `b`; `# about d` is copied because it
+  belongs to the key `b.d` it stands above.
 
 ### Cleanup pass rulings (2026-10-07)
 
