@@ -29,6 +29,9 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
   comments. It cannot fail: writing is `writeTo`'s.
   **Ruling 2026-10-05 (2):** `format()` fixes key quoting (`'q'` becomes `q`), blank lines between tables and
   spacing; it leaves the layout as it is (dotted stays dotted, inline stays inline).
+  **Ruling 2026-10-07:** value spellings stay (`'lit'`, `0x1F90`, `1e0`); comments get one space after `#` and a
+  same-line comment one space before it (`a = 1 # c`); indentation goes; a one-line array or inline table loses its
+  trailing comma; each line keeps its own line ending.
 - [ ] **70. CLI has no set, delete or in-place edit.** The only path, `decode | jq | encode`, drops every comment
   and writes all tables inline. `encode` reads only tagged JSON, not what `get --json` prints.
   **Ruling 2026-10-05:** `-i` writes back into the file. Low priority: do when nothing else is open. Plain JSON to
