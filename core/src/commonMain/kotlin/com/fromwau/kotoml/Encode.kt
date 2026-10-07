@@ -324,7 +324,7 @@ internal fun encodeDocument(
     encodeRaw(buf, document.rawTrailing.textOr(""))
     for (range in keptRanges.asReversed()) dropBlankLinesMeeting(buf, range)
     // Blank lines above the first table open the file only where it was read with them.
-    val head = buf.substring(0, headEnd).removePrefix("\uFEFF")
+    val head = buf.substring(0, headEnd).removePrefix(BYTE_ORDER_MARK.toString())
     if (head.isEmpty() && !rootPrinted && !document.readStartingBlank) {
         buf.deleteRange(headEnd, headEnd + blankLinesAt(buf, headEnd))
     }

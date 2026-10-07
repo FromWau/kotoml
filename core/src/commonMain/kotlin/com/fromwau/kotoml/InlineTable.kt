@@ -700,7 +700,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         val text = trailing
         val lineBreak = text.lastIndexOf('\n')
         if (lineBreak < 0) return
-        val closingLine = if (lineBreak > 0 && text[lineBreak - 1] == '\r') lineBreak - 1 else lineBreak
+        val closingLine = text.lineEndBefore(lineBreak)
         val indent = last.entry.key.rawLeafDecor.prefix?.textOrNull?.takeIf { '\n' in it }?.substringAfterLast('\n')
         key.rawLeafDecor.prefix = KeptText.from(text.substring(0, lineBreak + 1) + indent.orEmpty())
         if (value.rawDecor.suffix == null) value.rawDecor.suffix = KeptText.from("")

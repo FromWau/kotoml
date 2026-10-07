@@ -114,7 +114,7 @@ internal class SourceText(
         val found = lineStarts.binarySearch(offset)
         val line = if (found >= 0) found else -found - 2
         // A byte order mark shows nothing, so the first line's columns start after it.
-        val start = if (line == 0 && text.startsWith('\uFEFF')) BYTE_ORDER_MARK_BYTES else lineStarts[line]
+        val start = if (line == 0 && text.startsWith(BYTE_ORDER_MARK)) BYTE_ORDER_MARK_BYTES else lineStarts[line]
         var column = 1
         for (index in start until offset) {
             if ((bytes[index].toInt() and 0xC0) != 0x80) column++

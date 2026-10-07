@@ -629,7 +629,6 @@ private fun spaceBetween(
     else -> " "
 }
 
-private const val BYTE_ORDER_MARK = '\uFEFF'
 
 /** A comment with one space after its `#`s, unless a space or tab or nothing follows them, and none at its end. */
 private fun formatComment(raw: String): String {

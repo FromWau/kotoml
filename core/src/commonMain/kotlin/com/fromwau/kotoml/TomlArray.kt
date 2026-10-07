@@ -257,7 +257,7 @@ public class TomlArray() : Iterable<Value> {
         val last = printed.lastOrNull() ?: return
         val start = last.rawDecor.prefix?.textOrNull
         if (start != null && '\n' in start) {
-            val lineBreak = if ("\r\n" in start) "\r\n" else "\n"
+            val lineBreak = start.lineBreak()
             value.rawDecor.prefix = KeptText.from(lineBreak + start.substringAfterLast('\n'))
             return
         }
@@ -364,11 +364,11 @@ public class TomlArray() : Iterable<Value> {
         if ('#' !in start.substring(0, firstBreak)) {
             // In an array of one element per line, the new element takes a line of its own.
             val inLines = printedValues().firstOrNull()?.decor?.prefix?.contains('\n') == true
-            val lineBreak = if ("\r\n" in start) "\r\n" else "\n"
+            val lineBreak = start.lineBreak()
             if (inLines) value.rawDecor.prefix = KeptText.from(lineBreak + start.substringAfterLast('\n'))
             return
         }
-        val lineEnd = if (firstBreak > 0 && start[firstBreak - 1] == '\r') firstBreak - 1 else firstBreak
+        val lineEnd = start.lineEndBefore(firstBreak)
         value.rawDecor.prefix = KeptText.from(start.substring(0, firstBreak + 1) + start.substringAfterLast('\n'))
         next.rawDecor.prefix = KeptText.from(start.substring(lineEnd))
     }
@@ -377,7 +377,7 @@ public class TomlArray() : Iterable<Value> {
     private fun startOwnLine(value: Value) {
         val lineBreak = trailing.lastIndexOf('\n')
         if (lineBreak < 0) return
-        val closingLine = if (lineBreak > 0 && trailing[lineBreak - 1] == '\r') lineBreak - 1 else lineBreak
+        val closingLine = trailing.lineEndBefore(lineBreak)
         // Indented like the last element, or in an array holding only comments, like the last of them.
         val indent = values.lastOrNull()
             ?.valueOrNull

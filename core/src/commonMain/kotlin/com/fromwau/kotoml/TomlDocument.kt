@@ -419,7 +419,7 @@ public class TomlDocument internal constructor(
     }
 }
 
-private const val BYTE_ORDER_MARK: Char = '\uFEFF'
+internal const val BYTE_ORDER_MARK: Char = '\uFEFF'
 
 /** Whether this holds half of a surrogate pair without the other half, which no Unicode encoding can write. */
 internal fun String.hasLoneSurrogate(): Boolean = loneSurrogateIndex() >= 0

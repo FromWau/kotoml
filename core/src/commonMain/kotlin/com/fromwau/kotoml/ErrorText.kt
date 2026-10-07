@@ -79,7 +79,7 @@ private fun sourceLine(source: String, number: Int): String? {
     val lines = source.split('\n')
     val line = lines.getOrNull(number - 1) ?: return null
     val withoutBreak = if (number - 1 < lines.lastIndex) line.removeSuffix("\r") else line
-    return if (number == 1) withoutBreak.removePrefix("\uFEFF") else withoutBreak
+    return if (number == 1) withoutBreak.removePrefix(BYTE_ORDER_MARK.toString()) else withoutBreak
 }
 
 /** The characters of this text, a surrogate pair as one. */
