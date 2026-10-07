@@ -26,9 +26,6 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
 
 ### Cleanup pass rulings (2026-10-07)
 
-- [ ] **112. Split StandardTable.kt.** Move the out-of-braces body lines (`VisualValue`, `takeOutOfBraces`,
-  `inPrintOrder`), table placement (`placedParts`, `place*`) and the sort helpers into their own files; no API or
-  behaviour change. `FRICTION_LOG.md` stays tracked on `dev` (ruling, D5).
 
 ### Layout no person would write
 
@@ -94,6 +91,13 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **112. Split StandardTable.kt.** Move the out-of-braces body lines (`VisualValue`, `takeOutOfBraces`,
+  `inPrintOrder`), table placement (`placedParts`, `place*`) and the sort helpers into their own files; no API or
+  behaviour change. `FRICTION_LOG.md` stays tracked on `dev` (ruling, D5).
+  **Verdict 2026-10-07:** done: BodyLines.kt holds the out-of-braces body lines (`VisualValue`, `takeOutOfBraces`,
+  `inPrintOrder`, `emptyTableLine`) and TablePlacement.kt the table placement; moved line for line, StandardTable.kt
+  1299 to 1030 lines. The sort code stays: it is private members of the class.
 
 - [x] **104. `format()` prints a kept comment line twice.** Removing the last key of `b.c` in
   `t = {\n  # about c\n  b.c = 1,\n}` and then `setLayout(Header, force = true)` on `t` prints
