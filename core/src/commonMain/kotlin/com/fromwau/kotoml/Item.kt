@@ -249,7 +249,8 @@ public class Item private constructor(
         if (!force && inline != null && nextValue != null && key != null) {
             inline.lostComments(key, nextValue.rawDecor, above)?.let { return Err(it) }
         }
-        if (valuePlace == ValuePlace.Line) nextValue?.let { above += it.rawDecor.takeCommentLinesBelow() }
+        val onTableLine = valuePlace == ValuePlace.Line || inline?.printsOnTableLines() == true
+        if (onTableLine) nextValue?.let { above += it.rawDecor.takeCommentLinesBelow() }
         // In brackets or braces a comment after a value follows its comma, not its decor.
         val comment = nextValue?.takeIf { valuePlace.let { it != null && it != ValuePlace.Line } }?.broughtComment()
         valuePlace?.let { place -> nextValue?.fitFor(place) }

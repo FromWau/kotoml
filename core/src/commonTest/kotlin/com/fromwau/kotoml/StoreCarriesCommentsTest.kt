@@ -341,6 +341,34 @@ class StoreCarriesCommentsTest {
         assertEquals("${linesBelow}t = {\n  z = 0,\n  x = 2 # on 2\n  # more\n  ,\n}\n", doc.toString())
     }
 
+    private fun dottedOnTableLines(): TomlDocument {
+        val doc = parse("${linesBelow}t = { d.x = 1 }\n")
+        doc["t"].assertSuccess().setLayout(TableLayout.Header).assertSuccess()
+        return doc
+    }
+
+    @Test
+    fun `an element stored in a dotted table on a table's lines puts the comment lines below it above its key`() {
+        val doc = dottedOnTableLines()
+        doc["t"]["d"]["b"] = doc["a"][1].assertSuccess()
+        assertEquals("$linesBelow\n[t]\nd.x = 1\n# more\nd.b = 2 # on 2\n", doc.toString())
+    }
+
+    @Test
+    fun `an element value put in a dotted table on a table's lines puts the comment lines below it above its key`() {
+        val doc = dottedOnTableLines()
+        val element = doc["a"].assertSuccess().arrayOrNull!![1].assertSuccess()
+        doc["t"]["d"].assertSuccess().inlineTableOrNull!!.put("b", element).assertSuccess()
+        assertEquals("$linesBelow\n[t]\nd.x = 1\n# more\nd.b = 2 # on 2\n", doc.toString())
+    }
+
+    @Test
+    fun `an element replacing a dotted key on a table's lines puts the comment lines below it above the line`() {
+        val doc = dottedOnTableLines()
+        doc["t"]["d"]["x"] = doc["a"][1].assertSuccess()
+        assertEquals("$linesBelow\n[t]\n# more\nd.x = 2 # on 2\n", doc.toString())
+    }
+
     @Test
     fun `the comment on a line holding only the comma after an element goes along with it`() {
         val doc = parse("a = [\n  1,\n  2\n  , # c\n  3,\n]\n")

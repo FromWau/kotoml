@@ -108,8 +108,13 @@ internal class KeyValue(key: Key, item: Item) {
         val startsWithKey = inBraces && item.inlineTableOrNull?.isDotted == true && key.rawLeafDecor.prefix != null
         val lineKey = (if (startsWithKey) key else firstLineKey()) ?: return
         val start = lineKey.rawLeafDecor.prefix?.textOrNull
-        // Braces on one line have no line for a comment.
-        if (inBraces && '\n' !in start.orEmpty()) return
+        if (inBraces && '\n' !in start.orEmpty()) {
+            // Braces on one line have no line for a comment; dotted keys on a table's lines start lines of their own.
+            if ((pairs?.owner as? InlineTable)?.printsOnTableLines() != true) return
+            val lines = indentedCommentLines(block, "", lineBreak)
+            lineKey.rawLeafDecor.prefix = KeptText.from(lineBreak + lines + start.orEmpty())
+            return
+        }
         val indent = start?.substringAfterLast('\n') ?: indentOfLineBefore()
         val lines = indentedCommentLines(block, indent, lineBreak)
         // In braces the first break of a prefix ends the line before, whose comment stays with it.
