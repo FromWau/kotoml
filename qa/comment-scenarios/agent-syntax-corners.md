@@ -51,8 +51,9 @@ doc["p"] = "D"
 p = "D" # path
 ```
 
-### C-004: removing a multi-line basic string whose lines start with `#` keeps the comment above
+### C-004: removing a multi-line basic string whose lines start with `#` takes the comment above
 rule: 2   version: 1.0
+settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
 # above
 s = """
@@ -64,7 +65,6 @@ t = 1
 doc.remove("s")
 ```
 ```toml expected
-# above
 t = 1
 ```
 
@@ -165,8 +165,9 @@ doc["a"] = 2L
 	a = 2	# tabbed
 ```
 
-### C-012: an indented comment above a removed key stays, indentation intact
+### C-012: an indented comment above a removed key goes with it
 rule: 2   version: 1.0
+settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
 [t]
 	# about a
@@ -178,12 +179,12 @@ doc["t"].assertSuccess().standardTableOrNull!!.remove("a")
 ```
 ```toml expected
 [t]
-	# about a
 	b = 2
 ```
 
-### C-013: a comment indented deeper than its key survives removing the key after it
+### C-013: a comment indented deeper than its key goes with the key below it
 rule: 2   version: 1.0
+settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
 a = 1
         # deep note
@@ -195,7 +196,6 @@ doc.remove("b")
 ```
 ```toml expected
 a = 1
-        # deep note
 c = 3
 ```
 
@@ -271,8 +271,9 @@ doc["x#y"]["k"] = 2L
 k = 2 # one
 ```
 
-### C-019: removing an array-of-tables element with a glued header comment keeps the comment above the next one
+### C-019: removing an array-of-tables element with a glued header comment takes the comment above its header
 rule: 5, 2   version: 1.0
+settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
 # top
 [[x]]# first
@@ -285,14 +286,14 @@ n = 2
 doc["x"].assertSuccess().arrayOfTablesOrNull!!.removeAt(0)
 ```
 ```toml expected
-# top
 # between
 [[x]]# second
 n = 2
 ```
 
-### C-020: removing the last array-of-tables element keeps the comment above its header
+### C-020: removing the last array-of-tables element takes the comment above its header
 rule: 5, 2   version: 1.0
+settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
 # top
 [[x]]# first
@@ -308,7 +309,6 @@ doc["x"].assertSuccess().arrayOfTablesOrNull!!.removeAt(1)
 # top
 [[x]]# first
 n = 1
-# between
 ```
 
 ### C-021: a spaced `[[ x ]]` header keeps its spelling and comment when a middle element goes
@@ -333,9 +333,9 @@ n = 3
 
 ## Arrays of tables emptied and extended
 
-### C-022: an array of tables left empty prints `x = []` and drops comments between the removed tables
+### C-022: an array of tables emptied one table at a time keeps the comment above its last first header
 rule: 5, 7   version: 1.0
-settled: owner ruling 2026-10-05 (Q9): each removal keeps the lines above its own header where they print, unlike one clear().
+settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
 # top
 [[x]]
@@ -351,7 +351,6 @@ aot.removeAt(0)
 aot.removeAt(0)
 ```
 ```toml expected
-# top
 # mid
 x = []
 # tail
@@ -426,8 +425,9 @@ n = 2
 # tail
 ```
 
-### C-026: removing an array of tables whole keeps the lines above its first header only
+### C-026: removing an array of tables whole takes the comments above its headers
 rule: 2, 5   version: 1.0
+settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
 a = 1
 # about x
@@ -442,7 +442,6 @@ doc.remove("x")
 ```
 ```toml expected
 a = 1
-# about x
 ```
 
 ## Multi-line arrays
@@ -502,8 +501,9 @@ a = [
 ]
 ```
 
-### C-030: a comment above a removed element stays above the next element
+### C-030: a comment above a removed element goes with it
 rule: 6   version: 1.0
+settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
 a = [
   1,
@@ -518,13 +518,13 @@ doc["a"].assertSuccess().arrayOrNull!!.removeAt(1)
 ```toml expected
 a = [
   1,
-  # about two
   3,
 ]
 ```
 
-### C-031: a comment above the removed last element stays before `]`
+### C-031: a comment above the removed last element goes with it
 rule: 6   version: 1.0
+settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
 a = [
   1,
@@ -538,7 +538,6 @@ doc["a"].assertSuccess().arrayOrNull!!.removeAt(1)
 ```toml expected
 a = [
   1,
-  # about two
 ]
 ```
 
@@ -722,8 +721,9 @@ arr.removeAt(0)
 a = [2, 3] # c
 ```
 
-### C-042: removing a whole multi-line array key takes every comment inside it, keeps the one above
+### C-042: removing a whole multi-line array key takes every comment inside it and the one above
 rule: 2   version: 1.0
+settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
 # list of things
 a = [ # open
@@ -737,7 +737,6 @@ b = 1
 doc.remove("a")
 ```
 ```toml expected
-# list of things
 b = 1
 ```
 
@@ -899,8 +898,9 @@ t = {
 }
 ```
 
-### C-052: a comment above a removed inline-table key stays
+### C-052: a comment above a removed inline-table key goes with it
 rule: 2   version: 1.1
+settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
 t = {
   # about a
@@ -913,7 +913,6 @@ doc["t"].assertSuccess().inlineTableOrNull!!.remove("a")
 ```
 ```toml expected
 t = {
-  # about a
   b = 2,
 }
 ```
@@ -1018,8 +1017,9 @@ doc["t"].assertSuccess().inlineTableOrNull!!.remove("b")
 t = { a = 1, } # c
 ```
 
-### C-059: removing a whole multi-line inline table takes every comment inside it
+### C-059: removing a whole multi-line inline table takes the comment above it and every comment inside it
 rule: 2   version: 1.1
+settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
 # cfg
 t = { # open
@@ -1032,7 +1032,6 @@ x = 1
 doc.remove("t")
 ```
 ```toml expected
-# cfg
 x = 1
 ```
 
@@ -1072,6 +1071,7 @@ t = {
 
 ### C-062: a multi-line array of inline tables loses one entry with its comment
 rule: 6   version: 1.1
+settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
 deps = [
   { name = "a" }, # first
@@ -1085,7 +1085,6 @@ doc["deps"].assertSuccess().arrayOrNull!!.removeAt(1)
 ```toml expected
 deps = [
   { name = "a" }, # first
-  # about b
 ]
 ```
 
@@ -1132,8 +1131,9 @@ y = 3
 
 ## Dotted keys interleaved with comments
 
-### C-065: removing a dotted table removes the comments between its lines, keeps the one above its first line
+### C-065: removing a dotted table removes the comments between its lines and the one above its first line
 rule: 2   version: 1.0
+settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
 # a-block
 a.b = 1 # ab
@@ -1145,12 +1145,12 @@ d = 3
 doc.remove("a")
 ```
 ```toml expected
-# a-block
 d = 3
 ```
 
-### C-066: removing one dotted key keeps the comment above it
+### C-066: removing one dotted key takes the comment above it
 rule: 2   version: 1.0
+settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
 # a-block
 a.b = 1 # ab
@@ -1162,7 +1162,6 @@ d = 3
 doc["a"].assertSuccess().standardTableOrNull!!.remove("b")
 ```
 ```toml expected
-# a-block
 # between
 a.c = 2 # ac
 d = 3
@@ -1204,6 +1203,7 @@ d = 3
 
 ### C-069: dotted keys split by another key, one removed
 rule: 2   version: 1.0
+settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
 a.x = 1 # ax
 b = 2 # bee
@@ -1216,7 +1216,6 @@ doc["a"].assertSuccess().standardTableOrNull!!.remove("y")
 ```toml expected
 a.x = 1 # ax
 b = 2 # bee
-# about a.y
 ```
 
 ### C-070: a dotted table made a standard table keeps the lines above its first key
@@ -1272,6 +1271,7 @@ doc["a#b"] = 2L
 
 ### C-073: removing the key above a quoted `#` key leaves it untouched
 rule: 2   version: 1.0
+settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
 # top
 x = 0 # zero
@@ -1281,7 +1281,6 @@ x = 0 # zero
 doc.remove("x")
 ```
 ```toml expected
-# top
 'a # b' = 1 # c
 ```
 
@@ -1315,8 +1314,9 @@ a = 1 # c
 b = 2
 ```
 
-### C-076: CRLF: removing a key keeps the CRLF comment above it
+### C-076: CRLF: removing a key takes the CRLF comment above it
 rule: 9, 2   version: 1.0   line endings: CRLF
+settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
 # about a
 a = 1 # c
@@ -1326,7 +1326,6 @@ b = 2
 doc.remove("a")
 ```
 ```toml expected
-# about a
 b = 2
 ```
 
@@ -1493,8 +1492,9 @@ a = 1
 
 ## Blank-line runs
 
-### C-088: removing the first key keeps the blank-line run and comment that follow it
+### C-088: removing the first key keeps the comment that follows a blank line, without the blank lines above it
 rule: 2   version: 1.0
+settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
 a = 1
 
@@ -1508,16 +1508,15 @@ b = 2
 doc.remove("a")
 ```
 ```toml expected
-
-
 # c
 
 
 b = 2
 ```
 
-### C-089: removing the last key keeps the blank lines and comment above it
+### C-089: removing the last key keeps the comment above it, without blank lines after it
 rule: 2   version: 1.0
+settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
 a = 1
 
@@ -1535,8 +1534,6 @@ a = 1
 
 
 # c
-
-
 ```
 
 ### C-090: blank lines between keys survive a value replace
@@ -1617,9 +1614,9 @@ k = 1
 x = 1
 ```
 
-### C-094: removing an empty table removes everything after its header
+### C-094: removing an empty table takes its comment above and keeps the free comment after it
 rule: 2   version: 1.0
-settled: owner ruling 2026-10-05 (Q11): a comment after a table's last line belongs to what follows, even for an empty table.
+settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
 # about t
 [t] # empty
@@ -1632,16 +1629,15 @@ x = 1
 doc.remove("t")
 ```
 ```toml expected
-# about t
 # nothing here
 
 [u]
 x = 1
 ```
 
-### C-095: removing a table keeps the comment directly above the next table's header
+### C-095: removing a table takes its comment above and keeps the one directly above the next header
 rule: 2   version: 1.0
-settled: owner confirmed 2026-10-05: as kotoml prints it.
+settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
 # about t
 [t]
@@ -1654,15 +1650,14 @@ b = 2
 doc.remove("t")
 ```
 ```toml expected
-# about t
 # about u
 [u]
 b = 2
 ```
 
-### C-096: removing a table takes the comments above its sub-tables' headers
+### C-096: removing a table takes the comments above its headers and its sub-tables' headers
 rule: 2   version: 1.0
-settled: owner confirmed 2026-10-05: as kotoml prints it.
+settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
 # keep
 [a] # a
@@ -1678,7 +1673,6 @@ z = 3
 doc.remove("a")
 ```
 ```toml expected
-# keep
 # about c
 [c]
 z = 3
@@ -1706,6 +1700,7 @@ c = 3
 
 ### C-098: removing a key between two comment blocks
 rule: 2   version: 1.0
+settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
 [t]
 a = 1
@@ -1720,7 +1715,6 @@ doc["t"].assertSuccess().standardTableOrNull!!.remove("b")
 ```toml expected
 [t]
 a = 1
-# about b
 # about c
 c = 3
 ```

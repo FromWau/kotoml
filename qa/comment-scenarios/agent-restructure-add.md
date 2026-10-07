@@ -885,9 +885,9 @@ b = 2
 a = 2
 ```
 
-### S-044: an array of tables emptied entirely prints `key = []` and keeps the comment above
+### S-044: an array of tables emptied one table at a time prints `key = []` under its last first comment
 rule: 2, 5, 7   version: 1.0
-settled: owner ruling 2026-10-05 (Q9): each removal keeps the lines above its own header where they print, unlike one clear().
+settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
 a = 1
 
@@ -907,7 +907,6 @@ aot.removeAt(0)
 a = 1
 
 # xs
-# between
 x = []
 ```
 
@@ -1751,6 +1750,7 @@ url = "x"
 
 ### S-088: edit removes one key and adds another
 rule: 2, 9   version: 1.0
+settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
 # debug flag
 debug = true # remove me
@@ -1763,7 +1763,6 @@ doc.edit {
 }
 ```
 ```toml expected
-# debug flag
 name = "x" # n
 level = 2
 ```
@@ -2091,8 +2090,9 @@ b = 2
 
 ## Removing and adding again
 
-### S-106: a key removed and added again goes to the end; the comment above stays put
+### S-106: a key removed with its comment and added again goes to the end
 rule: 2, 9   version: 1.0
+settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
 # about a
 a = 1 # one
@@ -2103,14 +2103,13 @@ doc.remove("a")
 doc["a"] = 3L
 ```
 ```toml expected
-# about a
 b = 2
 a = 3
 ```
 
-### S-107: a table removed and added again goes below the comment that stayed
+### S-107: a table removed with its comment and added again prints without it
 rule: 2, 9   version: 1.0
-settled: owner confirmed 2026-10-05: as kotoml prints it.
+settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
 x = 1
 
@@ -2124,8 +2123,6 @@ doc["t"] = standardTableOf("k" to Item(Value.Integer(2L))).assertSuccess()
 ```
 ```toml expected
 x = 1
-
-# about t
 
 [t]
 k = 2
