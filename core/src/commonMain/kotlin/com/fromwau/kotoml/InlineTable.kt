@@ -137,7 +137,8 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         forgetLineStarts()
         var carried = comments.headerComment
         for (line in visualValues()) {
-            val above = indentedCommentLines(comments.above(line.path.last()), entryIndent, lineBreak)
+            val lines = comments.above(line.path.last())
+            val above = indentedCommentLines(lines, entryIndent, lineBreak, keepBlankLines = true)
             line.path.last().rawLeafDecor.prefix = KeptText.from(carried + lineBreak + above + entryIndent)
             line.value.rawDecor.suffix = KeptText.from("")
             carried = comments.after(line.path.last())
@@ -211,7 +212,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         for ((index, entry) in items.entries.withIndex()) {
             val decor = entry.key.rawLeafDecor
             val prefix = decor.prefix?.textOrNull ?: continue
-            decor.prefix = KeptText.from(prefix.withoutCommentLines(keepFirstLineComment = index > 0))
+            decor.prefix = KeptText.from(prefix.withoutCommentLines(index > 0, keepBlankLines = index > 0))
         }
         rawTrailing = KeptText.from(trailing.withoutCommentLines(keepFirstLineComment = true))
     }
@@ -443,23 +444,54 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     /**
      * Sorts the entries with [comparator], given each pair of key and value.
      *
-     * The parts of a dotted key are sorted the same way, and their order replaces the one they were read in. The
-     * sort is stable.
+     * Across lines each entry moves with its comments: the comment lines directly above it, with no blank line
+     * between, and the comment after it on its line, after its comma. Blank lines, comment lines a blank line sets
+     * apart from the entry below them, and the comment after `{` stay in place. On one line the spacing stays in
+     * place. The parts of a dotted key are sorted the same way, and their order replaces the one they were read in.
+     * The sort is stable.
      */
     public fun sortWith(comparator: Comparator<Pair<Key, Value>>) {
         // On one line the spacing belongs to the position, not to the entry, so it stays where it was.
-        val spacing = if (printsOnOneLine()) {
-            visualValues().map { it.path.last().rawLeafDecor.prefix to it.value.rawDecor.suffix }
-        } else {
-            null
+        if (printsOnOneLine()) {
+            val spacing = visualValues().map { it.path.last().rawLeafDecor.prefix to it.value.rawDecor.suffix }
+            forgetOrder()
+            sortEntriesWith(comparator)
+            for ((line, around) in visualValues().zip(spacing)) {
+                line.path.last().rawLeafDecor.prefix = around.first
+                line.value.rawDecor.suffix = around.second
+            }
+            return
         }
-        forgetOrder()
+        forgetOrderKeepingKeptLines()
+        val before = visualValues()
+        val prefixDecors = before.map { it.prefixDecor() }
+        if (before.isEmpty() || prefixDecors.any { it == null }) return sortEntriesWith(comparator)
+        val prefixes = prefixDecors.map { it?.prefix?.textOrNull ?: DEFAULT_INLINE_KEY_DECOR.first }
+        val suffixes = before.mapIndexed { index, line ->
+            val default = if (index == before.lastIndex) DEFAULT_TRAILING_VALUE_DECOR else DEFAULT_VALUE_DECOR
+            line.value.rawDecor.suffix?.textOrNull ?: default.second
+        }
+        val text = BracedText(prefixes, suffixes, rawTrailing.textOr(""))
         sortEntriesWith(comparator)
-        if (spacing == null) return
-        for ((line, around) in visualValues().zip(spacing)) {
-            line.path.last().rawLeafDecor.prefix = around.first
-            line.value.rawDecor.suffix = around.second
+        val after = visualValues()
+        val order = after.map { line -> before.indexOfFirst { it.entry === line.entry } }
+        if (order.any { it < 0 }) return
+        val sorted = reorderBraced(text, trailingComma, order)
+        for ((index, line) in after.withIndex()) {
+            val decor = line.prefixDecor() ?: continue
+            decor.prefix = decor.prefix.replacedBy(sorted.prefixes[index])
+            line.value.rawDecor.suffix = line.value.rawDecor.suffix.replacedBy(sorted.suffixes[index])
         }
+        rawTrailing = rawTrailing.replacedBy(sorted.trailing)
+    }
+
+    /**
+     * The decor whose prefix this line in braces starts with, or null for a line whose start no key holds, such as an
+     * emptied dotted table's `{}`.
+     */
+    private fun VisualValue.prefixDecor(): RawDecor? {
+        val start = lineStart ?: return entry.key.rawLeafDecor
+        return path.firstOrNull { it.rawLeafDecor.prefix === start }?.rawLeafDecor
     }
 
     private fun printsOnOneLine(): Boolean = '\n' !in StringBuilder().also { encodeInlineTable(it, this, "", "") }
@@ -1330,7 +1362,7 @@ private class TableLineComments(
         if ('#' in first) {
             if (before < 0) headerComment = first else after[before] = first
         }
-        above[linesFor] += indentedCommentLines(linesAboveOnTableLines(text), "", lineBreak)
+        above[linesFor] += indentedCommentLines(linesAboveOnTableLines(text), "", lineBreak, keepBlankLines = true)
     }
 
     fun applyTo(table: StandardTable) {
@@ -1344,7 +1376,8 @@ private class TableLineComments(
             }
             if (after[index].isNotEmpty()) line.value.rawDecor.suffix = KeptText.from(after[index])
         }
-        if (above[lines.size].isNotEmpty()) table.items.keptLines += KeptLines(above[lines.size], null)
+        val end = above[lines.size].withoutTrailingBlankLines()
+        if (end.isNotEmpty()) table.items.keptLines += KeptLines(end, null)
     }
 }
 

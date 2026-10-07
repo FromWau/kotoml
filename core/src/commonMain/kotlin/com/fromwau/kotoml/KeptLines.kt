@@ -38,11 +38,11 @@ internal fun linesAboveOnTableLines(prefix: KeptText?): String {
 }
 
 /**
- * The comment lines that lines kept in braces from removed keys, [kept], print as on lines of a table: those after
- * its first break, which ends the line before, unindented and without blank lines.
+ * The comment and blank lines that lines kept in braces from removed keys, [kept], print as on lines of a table: those
+ * after its first break, which ends the line before, unindented.
  */
 internal fun keptLinesOnTableLines(kept: String): String =
-    indentedCommentLines(kept.substringAfter('\n', ""), "", kept.lineBreak())
+    indentedCommentLines(kept.substringAfter('\n', ""), "", kept.lineBreak(), keepBlankLines = true)
 
 // Between the elements of an inline table or an array the break ending a line opens the next prefix, so the
 // lines above an element end before its prefix's last break.
@@ -177,15 +177,21 @@ internal fun String.endsLineWithoutComment(): Boolean = '\n' in this && '#' !in 
 
 /**
  * This text between elements without its comment lines: the comment ending the line before stays when
- * [keepFirstLineComment], then the line break and the indentation of the line after.
+ * [keepFirstLineComment], then the line break, the blank lines between when [keepBlankLines], and the indentation of
+ * the line after.
  */
-internal fun String.withoutCommentLines(keepFirstLineComment: Boolean): String {
+internal fun String.withoutCommentLines(
+    keepFirstLineComment: Boolean,
+    keepBlankLines: Boolean = false,
+): String {
     val firstBreak = indexOf('\n')
     if (firstBreak < 0) return if (keepFirstLineComment || '#' !in this) this else ""
     val lineEnd = lineEndBefore(firstBreak)
     val head = substring(0, lineEnd).let { if (keepFirstLineComment || '#' !in it) it else "" }
     val lineBreak = substring(lineEnd, firstBreak + 1)
-    return head + lineBreak + substringAfterLast('\n')
+    val between = substring(firstBreak + 1, lastIndexOf('\n') + 1)
+    val blankLines = if (keepBlankLines) between.split('\n').dropLast(1).count { it.isBlank() } else 0
+    return head + lineBreak + lineBreak.repeat(blankLines) + substringAfterLast('\n')
 }
 
 /** Where the line ended by the `\n` at [lineBreak] ends, before the `\r` of a CRLF. */

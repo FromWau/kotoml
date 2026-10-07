@@ -337,8 +337,8 @@ public class ArrayOfTables() : Iterable<StandardTable> {
 
     /**
      * Hands the places that copies of [old]'s tables brought along out again in array order, as printing does, and
-     * gives each table the lines that stood above the header at its place, which need not be about that table. Does
-     * nothing when a table holds a place [old] does not.
+     * gives each table the lines that stood above the header at its place up to the last blank one, below which it
+     * keeps the comment lines directly above its own header. Does nothing when a table holds a place [old] does not.
      *
      * @return whether the place of [old]'s first header was handed out.
      */
@@ -370,8 +370,12 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     }
 
     private fun StandardTable.takeLinesAboveOf(old: StandardTable) {
-        val onHeaderLine = rawDecor.prefix?.textOrNull?.substringAfterLast('\n').orEmpty()
-        rawDecor.prefix = old.rawDecor.prefix?.let { KeptText.from(linesAbove(it) + onHeaderLine) }
+        val onHeaderLine = rawDecor.prefix?.textOrNull.orEmpty().substringAfterLast('\n')
+        val oldText = old.rawDecor.prefix?.textOrNull.orEmpty()
+        val lineBreak = if ('\n' in oldText) oldText.lineBreak() else old.headerLineEnding ?: LINE_BREAK
+        val attached = indentedCommentLines(splitLinesAbove(linesAbove(rawDecor.prefix)).attached, "", lineBreak)
+        val text = splitLinesAbove(linesAbove(old.rawDecor.prefix)).free + attached + onHeaderLine
+        rawDecor.prefix = if (old.rawDecor.prefix == null && text.isEmpty()) null else KeptText.from(text)
         opensFile = old.opensFile
     }
 
@@ -438,10 +442,17 @@ public fun arrayOfTablesOf(vararg tables: StandardTable): Result<ArrayOfTables, 
 
 /**
  * An array of copies of these tables, in order. Each copy keeps its place among the document's tables, so
- * `doc["arr"] = arr.reversed().toArrayOfTables()` reorders the tables where they print. Each table takes its header
- * comment and the tables under it along. Stored in place of the array its tables were read from, the comment and blank
- * lines above each header stay where they print; stored anywhere else, each table read from a document brings the
- * comment lines right above its header, as [ArrayOfTables.add] says.
+ * `doc["arr"] = arr.reversed().toArrayOfTables()` reorders the tables where they print. Each table takes its comments
+ * along: the comment lines directly above its header, its header comment and the tables under it. Stored in place of
+ * the array its tables were read from, the blank lines above each header, and comment lines a blank line sets apart
+ * from it, stay where they print; stored anywhere else, each table read from a document brings the comment lines
+ * directly above its header, as [ArrayOfTables.add] says.
+ *
+ * ```kotlin
+ * val doc = TomlDocument.parse("# first\n[[a]]\nn = 1\n\n# second\n[[a]]\nn = 2\n").getOrElse { error(it) }
+ * doc["a"] = doc["a"].getOrNull()?.arrayOfTablesOrNull!!.reversed().toArrayOfTables().getOrElse { error(it) }
+ * doc.toString() // "# second\n[[a]]\nn = 2\n\n# first\n[[a]]\nn = 1\n"
+ * ```
  *
  * @return [TomlEditError.TooDeep] when a table would nest deeper than the parser reads in an array of tables under a
  *   document's root.

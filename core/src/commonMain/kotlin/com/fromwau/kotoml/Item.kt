@@ -283,7 +283,7 @@ public class Item private constructor(
         content = next
         entry.keepValueDecor(oldDecor)
         entry.keepHeaderComment(oldTable?.rawDecor)
-        val keptPlaces = entry.keepPlacesOf(oldArray)
+        val keptPlaces = entry.keepPlacesOf(oldArray, above.takeIf { inline == null }.orEmpty())
         if (!keptPlaces) entry.keepLinesAbove(linesAbove)
         entry.keepTablePlace(oldTable)
         if (inline == null) {
@@ -545,6 +545,10 @@ public class Item private constructor(
      * [TableLayout.Dotted] makes the table stand for the parts of dotted keys, `t.a = 1`: the lines above its key stay
      * and each value keeps the comment on its line, while its header comment, the comment after its braces and the
      * comment lines inside it go. The tables under a dotted table keep their own layouts.
+     *
+     * Blank lines between the table's entries stay wherever the new layout has lines for them: under a header, as
+     * dotted keys and in braces across lines; on one line they go. Comment lines a blank line sets apart from the entry
+     * below them keep their place among the lines around the table.
      *
      * A non-empty array holding only inline tables takes [TableLayout.Header] as a whole, becoming an array of tables,
      * and the inline layouts table by table. An array of tables takes the inline layouts as a whole, becoming an array

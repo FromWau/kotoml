@@ -76,7 +76,7 @@ internal class KeyValue(key: Key, item: Item) {
         old.entry = null
         keepValueDecor(oldDecor)
         keepHeaderComment(oldTable?.rawDecor)
-        val keptPlaces = keepPlacesOf(oldArray)
+        val keptPlaces = keepPlacesOf(oldArray, above)
         if (!keptPlaces) keepLinesAbove(lines)
         keepTablePlace(oldTable)
         if (!keptPlaces) takeAttachedAbove(above)
@@ -140,11 +140,19 @@ internal class KeyValue(key: Key, item: Item) {
         ItemComments(attachedAbove = splitLinesAbove(linesAbove(key.rawLeafDecor.prefix)).attached)
 
     /**
-     * Gives an array of tables now in the slot the places of [old]'s tables and the lines above them, as
-     * [ArrayOfTables.takePlacesOf] says; returns whether the lines above [old]'s first header stay at its place.
+     * Gives an array of tables now in the slot the places of [old]'s tables and the lines above them up to the last
+     * blank one, as [ArrayOfTables.takePlacesOf] says, with [above], the comment lines its first table brings, right
+     * above that table; returns whether the lines above [old]'s first header stay at its place.
      */
-    fun keepPlacesOf(old: ArrayOfTables?): Boolean =
-        old != null && item.arrayOfTablesOrNull?.takePlacesOf(old) == true
+    fun keepPlacesOf(
+        old: ArrayOfTables?,
+        above: String,
+    ): Boolean {
+        val array = item.arrayOfTablesOrNull ?: return false
+        if (old == null || !array.takePlacesOf(old)) return false
+        array.firstOrNull()?.putAttachedAbove(above)
+        return true
+    }
 
     /** Gives a table now in the slot the place among the document's tables of the table [old] it replaced. */
     fun keepTablePlace(old: StandardTable?) {
@@ -193,7 +201,9 @@ internal class KeyValue(key: Key, item: Item) {
         if (order == null) order = lines.firstOrNull()?.order
         // A dotted table made from a header keeps the lines that stood above it, printed above its first line.
         var carried = linesAbove(dottedTable?.rawDecor?.prefix).takeIf { '#' in it }.orEmpty()
+        var below = ""
         val firstValue = lines.firstOrNull { it is VisualValue }
+        val onLinesOfTable = pairs?.owner is StandardTable
         for ((index, line) in lines.withIndex()) {
             val text = when (line) {
                 is VisualValue -> above(line.entry.key.rawLeafDecor.prefix)
@@ -204,14 +214,33 @@ internal class KeyValue(key: Key, item: Item) {
             when {
                 text.isEmpty() -> continue
                 keptInside && line !== firstValue -> continue
-                index == 0 || order == null || pairs == null -> carried += text
+                index == 0 || pairs == null -> carried += text
+                order == null -> if (onLinesOfTable) below += text else carried += text
                 else -> pairs.keptLines += KeptLines(text, order, (line as? KeptLines)?.dropBlankLinesMeeting == true)
             }
         }
+        keepBelowLines(below)
         // The key's own prefix prints below a header's default spacing, as a replaced value's comment does.
         if (!next.isHeaderKind) return carried
         if (carried.isNotEmpty()) key.rawLeafDecor.prependToPrefix(carried, DEFAULT_KEY_DECOR.first)
         return ""
+    }
+
+    /**
+     * Keeps [lines], which stood among the lines the item prints with no place of their own among the table's lines,
+     * below what replaces them: above the line after the item's, or at the end of the table's lines.
+     */
+    private fun keepBelowLines(lines: String) {
+        val table = pairs?.owner as? StandardTable ?: return
+        if (lines.isEmpty()) return
+        val body = table.visualValues()
+        val last = body.indexOfLast { line -> line.path.firstOrNull() === key }
+        val next = body.getOrNull(last + 1)
+        if (last >= 0 && next != null) {
+            next.entry.key.rawLeafDecor.prependToPrefix(lines, DEFAULT_KEY_DECOR.first)
+        } else {
+            table.items.keptLines += KeptLines(lines, null, dropBlankLinesMeeting = true)
+        }
     }
 
     /** The comment and blank lines above the header the item prints, which stay when the item is replaced. */

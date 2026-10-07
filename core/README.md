@@ -126,13 +126,31 @@ the spacing already there. A comment an element or an inline table's value bring
 decor, such as `Decor(suffix = " # note")`, puts a one-line array or inline table on lines of its own, one entry per
 line, whether the entry is added, inserted at an index or replaces another; its comment takes the place of the one
 that stood after the entry it replaces, and the new lines end as the document's do. Comment lines between an element
-and its comma stay between them wherever the element goes, and on a line of a table they print below its key. TOML 1.0
-has no comments inside an inline table, and a dotted table prints its keys among other lines, so neither can hold
-the comments a value brings: `put`, `putAll`, `getOrPut`, `putItem` and `Item.assign` there return
+and its comma stay between them wherever the element goes, and on a line of a table, dotted keys' included, they print
+above its key, so they still belong to it. TOML 1.0 has no comments inside an inline table, so there the comments a
+value brings have no place: `put`, `putAll`, `getOrPut`, `putItem` and `Item.assign` return
 `TomlEditError.CommentsWouldBeLost` and change nothing, unless called with `force = true`, which stores the value
 without them. The `table[key] = value` form cannot take `force`: it does what `set` does without it, and throws when
-the store fails. Sorting, by key name with `sort()` or by your own order with `sortBy` and `sortWith`,
-moves each key and each table header with the comment lines right above it and leaves blank lines in place.
+the store fails.
+
+Sorting, by key name with `sort()` or by your own order with `sortBy` and `sortWith`, on a table, an inline table or an
+array, moves each item with its comments: the comment lines directly above it, the comment on its line, after its comma
+in braces or brackets, and for a table its header comment and the tables under it. Comment lines a blank line sets
+apart from the item below them, the blank lines themselves and the comment after `[` or `{` stay in place. Storing an
+array of tables in place of the one its tables were read from, such as
+`doc["a"] = arr.reversed().toArrayOfTables()`, reorders the tables the same way.
+
+```kotlin
+val doc = TomlDocument.parse("# first\n[[a]] # h1\nn = 1\n\n# second\n[[a]] # h2\nn = 2\n").getOrElse { error(it) }
+doc["a"] = doc["a"].getOrNull()?.arrayOfTablesOrNull!!.reversed().toArrayOfTables().getOrElse { error(it) }
+// # second
+// [[a]] # h2
+// n = 2
+//
+// # first
+// [[a]] # h1
+// n = 1
+```
 
 ```kotlin
 val doc = TomlDocument.parse("v = 1 # one\nt = { a = 1 }\n", TomlVersion.V1_0).getOrElse { error(it) }
@@ -170,7 +188,9 @@ A table prints in one of four layouts, the `TableLayout` objects: `Header` (`[t]
 TOML 1.1 reads). `layout` reads it, on a `StandardTable`, an `InlineTable` or the `Item` holding either, where it is
 null when the slot holds no table. `Item.setLayout(layout, force = false)` changes it. A change that would drop a
 comment changes nothing and returns `TomlEditError.CommentsWouldBeLost` with the key path and the number of comments;
-pass `force = true` to make it and drop them. Asking for the layout a table already has changes nothing.
+pass `force = true` to make it and drop them. Blank lines between the entries stay wherever the new layout has lines
+for them, under a header, as dotted keys or in braces across lines, and a free comment keeps its place among the
+lines around it; on one line blank lines go. Asking for the layout a table already has changes nothing.
 
 ```kotlin
 val doc = TomlDocument.parse("[t] # t\na = 1 # one\n").getOrElse { error(it) }

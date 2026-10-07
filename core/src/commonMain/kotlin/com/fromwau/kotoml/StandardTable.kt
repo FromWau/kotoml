@@ -514,29 +514,35 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     /**
      * Sorts the entries with [comparator], given each pair of key and item.
      *
-     * The key/value lines under this header move, each with the comment lines right above it. The sub-tables and
-     * arrays of tables move among each other the same way, each header with the comment lines right above it and the
-     * tables under it, those made by hand included: they share out the [position]s they held. Blank lines, and the
-     * comment block heading the file, stay in place. The parts of a dotted key are sorted the same way, and their
-     * order replaces the one they were read in. The sort is stable.
+     * Each key/value line under this header moves with its comments: the comment lines directly above it, with no
+     * blank line between, and the comment on its line. The sub-tables and arrays of tables move among each other the
+     * same way, each header with the comment lines directly above it, its header comment and the tables under it, those
+     * made by hand included: they share out the [position]s they held. Blank lines, and comment lines a blank line sets
+     * apart from the item below them, stay in place. The parts of a dotted key are sorted the same way, and their order
+     * replaces the one they were read in. The sort is stable.
+     *
+     * ```kotlin
+     * val doc = TomlDocument.parse("b = 1\n\n# free\n\n# about a\na = 2\n").getOrElse { error(it) }
+     * doc.root.sort()
+     * doc.toString() // "# about a\na = 2\n\n# free\n\nb = 1\n"
+     * ```
      */
     public fun sortWith(comparator: Comparator<Pair<Key, Item>>) {
-        forgetOrder()
+        forgetOrderKeepingKeptLines()
         sortEntriesWith(comparator)
     }
 
     private fun sortEntriesWith(comparator: Comparator<Pair<Key, Item>>) {
-        // Blank lines, and above the first line the comment block they set apart such as a file's head, stay in place.
-        val lineEntries = items.entries.filter { !it.item.printsOwnHeader && it.item.valueOrNull != null }
-        val places = lineEntries.mapIndexed { index, entry -> entry.splitLinesAbove(first = index == 0) }
-        val own = lineEntries.zip(places).associate { (entry, split) -> entry to split.second }
+        val linesBefore = items.entries.filter { it.lineDecor() != null }
+        val places = linesBefore.map { splitTextAbove(it.lineDecor()?.prefix?.textOrNull.orEmpty()) }
+        val own = linesBefore.zip(places).associate { (entry, split) -> entry to split.attached }
         val headersBefore = items.entries.filter { it.item.printsOwnHeader }
         items.sortBy { left, right -> comparator.compare(left.key to left.item, right.key to right.item) }
         reorderHeaders(headersBefore, items.entries.filter { it.item.printsOwnHeader })
-        val linesNow = items.entries.filter { !it.item.printsOwnHeader && it.item.valueOrNull != null }
-        for ((index, entry) in linesNow.withIndex()) {
-            val text = places[index].first + own.getValue(entry)
-            if (text != entry.key.rawLeafDecor.prefix?.textOrNull) entry.key.rawLeafDecor.prefix = KeptText.from(text)
+        for ((index, entry) in items.entries.filter { it.lineDecor() != null }.withIndex()) {
+            val decor = entry.lineDecor() ?: continue
+            val text = places[index].free + own.getValue(entry)
+            if (text != decor.prefix?.textOrNull) decor.prefix = KeptText.from(text)
         }
         for (entry in items.entries) {
             val table = entry.item.standardTableOrNull
@@ -545,9 +551,20 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     }
 
     /**
+     * The decor whose prefix starts the first line this entry prints among the table's lines, or null when it prints
+     * none of its own: a header, or a dotted table printing `{}`.
+     */
+    private fun KeyValue.lineDecor(): RawDecor? {
+        if (item.printsOwnHeader) return null
+        if (item.valueOrNull != null) return key.rawLeafDecor
+        val dotted = item.standardTableOrNull?.takeIf { it.printsDotted && it.items.size > 0 } ?: return null
+        return dotted.visualValues().firstOrNull()?.entry?.key?.rawLeafDecor
+    }
+
+    /**
      * Prints the tables under their own headers, [before] in their order before a sort, in the order [after]: they
-     * share out the positions they and the tables under them held, and the blank lines above each header, with the
-     * comment block heading the file, stay in place while the comment lines right above it go with it.
+     * share out the positions they and the tables under them held, and the lines above each header up to the last
+     * blank one stay in place while the comment lines directly above it go with it.
      */
     private fun reorderHeaders(
         before: List<KeyValue>,
@@ -579,13 +596,13 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         after: List<StandardTable>,
     ) {
         // A null place is a header's default spacing.
-        val places = printed.map { table -> table.rawDecor.prefix?.textOrNull?.splitLinesAbove(table.opensFile) }
+        val places = printed.map { table -> table.rawDecor.prefix?.textOrNull?.let(::splitTextAbove) }
         val opensFile = printed.map { it.opensFile }
         val own = printed
             .zip(places)
-            .associate { (table, split) -> table to split?.second.orEmpty() }
+            .associate { (table, split) -> table to split?.attached.orEmpty() }
         for ((index, table) in after.withIndex()) {
-            val place = places[index]?.first
+            val place = places[index]?.free
             val text = own.getValue(table)
             table.rawDecor.prefix = when {
                 place != null -> KeptText.from(place + text)
@@ -1080,28 +1097,6 @@ public fun Iterable<Pair<String, Item>>.toStandardTable(): Result<StandardTable,
 }
 
 /**
- * The text above this entry's line split into what belongs to its place and what belongs to it: the blank lines
- * above it, and when it is the [first] line also a comment block those set apart from it, stay in place; the comment
- * lines right above it and its indentation go with it.
- */
-private fun KeyValue.splitLinesAbove(first: Boolean): Pair<String, String> =
-    key.rawLeafDecor.prefix?.textOrNull.orEmpty().splitLinesAbove(first)
-
-/** As [KeyValue.splitLinesAbove] says, for the text above a line. */
-private fun String.splitLinesAbove(first: Boolean): Pair<String, String> {
-    val text = this
-    val lineStarts = listOf(0) + text.indices.filter { text[it] == '\n' }.map { it + 1 }
-    val fullLines = lineStarts.zipWithNext()
-    val blank = fullLines.filter { (start, end) -> text.substring(start, end).isBlank() }
-    val placeEnd = if (first) {
-        blank.lastOrNull()?.second ?: 0
-    } else {
-        fullLines.takeWhile { it in blank }.lastOrNull()?.second ?: 0
-    }
-    return text.substring(0, placeEnd) to text.substring(placeEnd)
-}
-
-/**
  * How [Item.setLayout] lays out each inline table it makes: across lines when [multiline], otherwise on one line. The
  * lines it adds end in [lineBreak], and in [version] 1.1 the last entry of a table across lines takes a comma.
  */
@@ -1111,15 +1106,24 @@ internal class InlineLayout(
     val multiline: Boolean,
 )
 
-/** The comment lines of [lines], each indented by [indent] and ended by [lineBreak]; blank lines go. */
+/**
+ * The comment lines of [lines], each indented by [indent] and ended by [lineBreak]; blank lines go, unless
+ * [keepBlankLines], which keeps each as an empty line.
+ */
 internal fun indentedCommentLines(
     lines: String,
     indent: String,
     lineBreak: String,
-): String = lines
-    .lines()
-    .filter { it.isNotBlank() }
-    .joinToString("") { indent + it.trim() + lineBreak }
+    keepBlankLines: Boolean = false,
+): String {
+    val whole = lines.lines()
+    // Only a line ended by a break is a blank line; what follows the last break is the start of another line.
+    val keptBlank = if (keepBlankLines) whole.dropLast(1).map { it.isBlank() } + false else whole.map { false }
+    return whole
+        .zip(keptBlank)
+        .filter { (line, blank) -> blank || line.isNotBlank() }
+        .joinToString("") { (line, blank) -> if (blank) lineBreak else indent + line.trim() + lineBreak }
+}
 
 /** The comment after this value, with the spacing before it, or "" when there is none. */
 internal fun Value.commentAfter(): String = rawDecor.suffix?.textOrNull?.takeIf { '#' in it }.orEmpty()

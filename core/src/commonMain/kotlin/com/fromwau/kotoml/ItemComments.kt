@@ -43,6 +43,17 @@ internal fun splitLinesAbove(lines: String): LinesAbove {
     return LinesAbove(lines.substring(0, cut), lines.substring(cut))
 }
 
+/**
+ * Cuts [text], what prints above an item's line and on that line before it, into the lines its place keeps when the
+ * item moves, [LinesAbove.free], and what moves with the item: the comment lines directly above it and the spacing
+ * on its line.
+ */
+internal fun splitTextAbove(text: String): LinesAbove {
+    val lineStart = text.lastIndexOf('\n') + 1
+    val above = splitLinesAbove(text.substring(0, lineStart))
+    return LinesAbove(above.free, above.attached + text.substring(lineStart))
+}
+
 /** The comments the item in [this] entry's slot owns: for one printing several lines, those of its first. */
 internal fun KeyValue.itemComments(): ItemComments {
     val table = item.standardTableOrNull
@@ -119,8 +130,7 @@ internal fun StandardTable.putAttachedAbove(block: String) {
  * its lines together wherever it is stored, not among others by the order they were read in.
  */
 internal fun StandardTable.keepOnlyAttachedAboveFirstLine() {
-    keepKeptLinesInFront(bodyLines(), keptLineLists(), DEFAULT_KEY_DECOR.first) { it.path.last().rawLeafDecor }
-    forgetOrder()
+    forgetOrderKeepingKeptLines()
     firstLineDecor()?.let { it.prefix = it.prefix?.withLinesAbove(attachedOnly = true, spacedForBraces = false) }
 }
 
@@ -130,13 +140,27 @@ internal fun StandardTable.takeAttachedAboveFirstLine(): String =
 
 /** As [StandardTable.keepOnlyAttachedAboveFirstLine], for dotted keys in braces. */
 internal fun InlineTable.keepOnlyAttachedAboveFirstLine() {
+    forgetOrderKeepingKeptLines()
+    firstLineDecor()?.let { it.prefix = it.prefix?.withLinesAbove(attachedOnly = true, spacedForBraces = true) }
+}
+
+/**
+ * Forgets the order this table's lines were read in, keeping the lines kept from removed keys where they print: in
+ * front of the line after them.
+ */
+internal fun StandardTable.forgetOrderKeepingKeptLines() {
+    keepKeptLinesInFront(bodyLines(), keptLineLists(), DEFAULT_KEY_DECOR.first) { it.path.last().rawLeafDecor }
+    forgetOrder()
+}
+
+/** As [StandardTable.forgetOrderKeepingKeptLines], for dotted keys in braces. */
+internal fun InlineTable.forgetOrderKeepingKeptLines() {
     keepKeptLinesInFront(bodyLines(), keptLineLists(), DEFAULT_INLINE_KEY_DECOR.first) { line ->
         val start = line.lineStart
         line.path.firstOrNull { start != null && it.rawLeafDecor.prefix === start }?.rawLeafDecor
             ?: line.entry.key.rawLeafDecor
     }
     forgetOrder()
-    firstLineDecor()?.let { it.prefix = it.prefix?.withLinesAbove(attachedOnly = true, spacedForBraces = true) }
 }
 
 private fun StandardTable.keptLineLists(): List<MutableList<KeptLines>> = listOf(items.keptLines) +
@@ -444,3 +468,136 @@ private fun String.firstLine(): String {
 }
 
 private fun KeptText?.text(): String = this?.textOrNull.orEmpty()
+
+/** [text] in place of this text, read from a document when this one was, so a copy treats it as this one. */
+internal fun KeptText?.replacedBy(text: String): KeptText = when {
+    this != null && textOrNull == text -> this
+    this?.isRead == true -> KeptText.read(text)
+    else -> KeptText.from(text)
+}
+
+/** The text around the items in brackets or braces: before each item, after each, and before the closing one. */
+internal class BracedText(
+    val prefixes: List<String>,
+    val suffixes: List<String>,
+    val trailing: String,
+)
+
+/**
+ * [text] with its items in [order], each given by the index it stood at, each moved with the comments it owns: the
+ * comment lines directly above it, what stands between it and its comma, and the comment ending the line its comma
+ * stands on. The comment after the opening bracket, the line breaks, the lines above an item up to the last blank one
+ * and the indentation stay at their place. A comment that comes to stand before another item on its line ends the
+ * line instead.
+ */
+internal fun reorderBraced(
+    text: BracedText,
+    trailingComma: Boolean,
+    order: List<Int>,
+): BracedText {
+    val count = text.prefixes.size
+    val places = text.prefixes.map(::BracedPlace)
+    val lineBreak = (text.prefixes + text.suffixes + text.trailing).firstOrNull { '\n' in it }?.lineBreak() ?: "\n"
+    val indent = places.firstOrNull { it.lineBreak.isNotEmpty() }?.indent.orEmpty()
+    // What follows each item up to its comma, and after the comma to the end of its line.
+    val beforeComma = text.suffixes.toMutableList()
+    val afterComma = MutableList(count) { index -> places.getOrNull(index + 1)?.lineEnd.orEmpty() }
+    val closing: String
+    if (trailingComma) {
+        val end = BracedPlace(text.trailing)
+        afterComma[count - 1] = end.lineEnd
+        closing = text.trailing.substring(end.lineEnd.length)
+    } else {
+        val last = text.suffixes[count - 1]
+        val firstLine = last.firstLine()
+        val ownsLineEnd = '#' in firstLine
+        beforeComma[count - 1] = ""
+        afterComma[count - 1] = if (ownsLineEnd) firstLine else ""
+        closing = if (ownsLineEnd) last.substring(firstLine.length) else last
+    }
+    val prefixes = order.mapIndexed { position, index ->
+        val place = places[position]
+        val lineEnd = if (position == 0) place.lineEnd else afterComma[order[position - 1]]
+        val attached = places[index].attached
+        when {
+            place.lineBreak.isNotEmpty() -> lineEnd + place.lineBreak + place.free + attached + place.indent
+            '#' in lineEnd || attached.isNotEmpty() -> lineEnd + lineBreak + attached + indent
+            else -> lineEnd + place.spacing
+        }
+    }
+    val suffixes = order.mapIndexed { position, index ->
+        if (position < count - 1 || trailingComma) {
+            beforeComma[index]
+        } else {
+            val end = afterComma[index]
+            endingLine(withoutCommaLine(beforeComma[index]), end, lineBreak) + breakBefore(closing, end, lineBreak)
+        }
+    }
+    val trailing = if (trailingComma) {
+        val lineEnd = afterComma[order.last()]
+        lineEnd + breakBefore(closing, lineEnd, lineBreak)
+    } else {
+        text.trailing
+    }
+    return BracedText(prefixes, suffixes, trailing)
+}
+
+/**
+ * The text before an item in brackets or braces, cut at its place: [lineEnd] ends the line before, which belongs to
+ * the item before or to the opening bracket, then [lineBreak], the [free] lines, the [attached] lines and [indent];
+ * with no line break it is [spacing] alone.
+ */
+private class BracedPlace(text: String) {
+    val lineEnd: String
+    val lineBreak: String
+    val free: String
+    val attached: String
+    val indent: String
+    val spacing: String
+
+    init {
+        val firstBreak = text.indexOf('\n')
+        if (firstBreak < 0) {
+            lineEnd = ""
+            lineBreak = ""
+            free = ""
+            attached = ""
+            indent = ""
+            spacing = text
+        } else {
+            val lastBreak = text.lastIndexOf('\n')
+            lineEnd = text.substring(0, text.lineEndBefore(firstBreak))
+            lineBreak = text.substring(lineEnd.length, firstBreak + 1)
+            val above = splitLinesAbove(text.substring(firstBreak + 1, lastBreak + 1))
+            free = above.free
+            attached = above.attached
+            indent = text.substring(lastBreak + 1)
+            spacing = ""
+        }
+    }
+}
+
+// With no comma after it, an item's text ends with its last comment, not on the line where its comma stood.
+private fun withoutCommaLine(text: String): String {
+    val lastBreak = text.lastIndexOf('\n')
+    if (lastBreak < 0 || text.substring(lastBreak + 1).isNotBlank()) return text
+    return text.substring(0, text.lineEndBefore(lastBreak))
+}
+
+// A comment after a line that already ends in one goes on a line of its own.
+private fun endingLine(
+    text: String,
+    comment: String,
+    lineBreak: String,
+): String {
+    val lastLine = text.substringAfterLast('\n')
+    if ('#' !in comment || '#' !in lastLine) return text + comment
+    return text + lineBreak + lastLine.takeWhile { it == ' ' || it == '\t' } + comment.trimStart()
+}
+
+// A comment ends its line, so what printed right after it starts the next.
+private fun breakBefore(
+    text: String,
+    lineEnd: String,
+    lineBreak: String,
+): String = if ('#' in lineEnd && !text.startsWith('\n') && !text.startsWith("\r\n")) lineBreak + text else text

@@ -4,6 +4,7 @@ import com.fromwau.kern.result.Result
 import com.fromwau.kern.result.assertError
 import com.fromwau.kern.result.assertSuccess
 import com.fromwau.kern.result.getOrElse
+import com.fromwau.kern.result.getOrNull
 import kotlin.math.round
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -82,6 +83,27 @@ c = { d = "hello" }
         val doc = TomlDocument.parse("port = 0x1F90 # http\nname = 'kotoml'\nat = [07:32, 1e0]\n").assertSuccess()
         doc.respell()
         assertEquals("port = 8080 # http\nname = \"kotoml\"\nat = [07:32:00, 1.0]\n", doc.toString())
+    }
+
+    @Test
+    fun `the module README reorder example moves each table with its comments`() {
+        val doc = TomlDocument.parse("# first\n[[a]] # h1\nn = 1\n\n# second\n[[a]] # h2\nn = 2\n").assertSuccess()
+        doc["a"] = doc["a"].getOrNull()?.arrayOfTablesOrNull!!.reversed().toArrayOfTables().assertSuccess()
+        assertEquals("# second\n[[a]] # h2\nn = 2\n\n# first\n[[a]] # h1\nn = 1\n", doc.toString())
+    }
+
+    @Test
+    fun `the table sortWith KDoc example leaves the free comment in place`() {
+        val doc = TomlDocument.parse("b = 1\n\n# free\n\n# about a\na = 2\n").assertSuccess()
+        doc.root.sort()
+        assertEquals("# about a\na = 2\n\n# free\n\nb = 1\n", doc.toString())
+    }
+
+    @Test
+    fun `the array sortWith KDoc example moves each value with its comments`() {
+        val doc = TomlDocument.parse("a = [\n  3, # three\n  # one\n  1,\n]\n").assertSuccess()
+        doc["a"].getOrNull()?.arrayOrNull?.sortBy { it.longOrNull }
+        assertEquals("a = [\n  # one\n  1,\n  3, # three\n]\n", doc.toString())
     }
 
     @Test

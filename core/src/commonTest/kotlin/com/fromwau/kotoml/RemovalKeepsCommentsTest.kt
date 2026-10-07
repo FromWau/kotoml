@@ -507,7 +507,7 @@ class RemovalKeepsCommentsTest {
     fun `free lines kept above a later key of a dotted table in braces stay above that key in a table`() {
         val text = "s = {\n  b.c = 1,\n  # about d\n\n  b.d = 2,\n  b.e = 3,\n}\n[t]\nx = 0\n"
         val doc = storedAfterRemoving(text, "d")
-        assertEquals("[t]\nx = 0\nb.c = 1\n# about d\nb.e = 3\n", doc.toString().substringAfter("}\n"))
+        assertEquals("[t]\nx = 0\nb.c = 1\n# about d\n\nb.e = 3\n", doc.toString().substringAfter("}\n"))
     }
 
     @Test
@@ -530,10 +530,10 @@ class RemovalKeepsCommentsTest {
     }
 
     @Test
-    fun `free lines kept in a stored dotted table stay on their own line when the table is put on one line`() {
+    fun `free lines kept in a stored dotted table stay below its line when the table is put on one line`() {
         val doc = storedAfterRemoving("s = {\n  b.c = 1,\n  # about d\n\n  b.d = 2,\n}\n[t]\nx = 0\n", "d")
         doc["t"]["b"].assertSuccess().setLayout(TableLayout.Inline).assertSuccess()
-        assertEquals("[t]\nx = 0\n# about d\nb = { c = 1 }\n", doc.toString().substringAfter("}\n"))
+        assertEquals("[t]\nx = 0\nb = { c = 1 }\n# about d\n", doc.toString().substringAfter("}\n"))
     }
 
     @Test

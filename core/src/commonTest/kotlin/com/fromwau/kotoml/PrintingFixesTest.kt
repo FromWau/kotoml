@@ -70,32 +70,32 @@ class PrintingFixesTest {
     }
 
     @Test
-    fun `reordered tables leave the lines above their headers in place and take their header comments along`() {
+    fun `reordered tables move with the comment lines above their headers and their header comments`() {
         val doc = parse("# first\n[[a]] # h1\nn = 1 #one\n\n# second\n[[a]] # h2\nn = 2 #two\n")
 
         doc["a"] = doc["a"].assertSuccess().arrayOfTablesOrNull!!.reversed().toArrayOfTables().assertSuccess()
 
-        assertEquals("# first\n[[a]] # h2\nn = 2 #two\n\n# second\n[[a]] # h1\nn = 1 #one\n", doc.toString())
+        assertEquals("# second\n[[a]] # h2\nn = 2 #two\n\n# first\n[[a]] # h1\nn = 1 #one\n", doc.toString())
     }
 
     @Test
-    fun `reordered tables of a CRLF document leave the lines above their headers in place`() {
+    fun `reordered tables of a CRLF document move with the comment lines above their headers`() {
         val doc = parse("# first\r\n[[a]] # h1\r\nn = 1\r\n\r\n# second\r\n[[a]] # h2\r\nn = 2\r\n")
 
         doc["a"] = doc["a"].assertSuccess().arrayOfTablesOrNull!!.reversed().toArrayOfTables().assertSuccess()
 
-        assertEquals("# first\r\n[[a]] # h2\r\nn = 2\r\n\r\n# second\r\n[[a]] # h1\r\nn = 1\r\n", doc.toString())
+        assertEquals("# second\r\n[[a]] # h2\r\nn = 2\r\n\r\n# first\r\n[[a]] # h1\r\nn = 1\r\n", doc.toString())
     }
 
     @Test
-    fun `three rotated tables each print under the lines above the place they take`() {
+    fun `three rotated tables each move with their comments while the blank lines stay`() {
         val doc = parse("# one\n[[arr]]\nx = 1 # c1\n\n# two\n[[arr]] # h2\nx = 2\n\n\n# three\n[[arr]]\nx = 3\n")
         val tables = doc["arr"].assertSuccess().arrayOfTablesOrNull!!.toList()
 
         doc["arr"] = listOf(tables[1], tables[2], tables[0]).toArrayOfTables().assertSuccess()
 
         assertEquals(
-            "# one\n[[arr]] # h2\nx = 2\n\n# two\n[[arr]]\nx = 3\n\n\n# three\n[[arr]]\nx = 1 # c1\n",
+            "# two\n[[arr]] # h2\nx = 2\n\n# three\n[[arr]]\nx = 3\n\n\n# one\n[[arr]]\nx = 1 # c1\n",
             doc.toString(),
         )
     }
@@ -106,16 +106,16 @@ class PrintingFixesTest {
 
         doc["arr"] = doc["arr"].assertSuccess().arrayOfTablesOrNull!!.reversed().toArrayOfTables().assertSuccess()
 
-        assertEquals("# one\n[[arr]]\nx = 2\n\n# b\n[b]\n\n# two\n[[arr]]\nx = 1\n", doc.toString())
+        assertEquals("# two\n[[arr]]\nx = 2\n\n# b\n[b]\n\n# one\n[[arr]]\nx = 1\n", doc.toString())
     }
 
     @Test
-    fun `a table under a reordered element moves with it while the lines above each place stay`() {
+    fun `a table under a reordered element moves with it and its comments while the blank lines stay`() {
         val doc = parse("# one\n[[arr]]\nx = 1\n# sub\n[arr.sub]\ny = 1\n\n# two\n[[arr]]\nx = 2\n")
 
         doc["arr"] = doc["arr"].assertSuccess().arrayOfTablesOrNull!!.reversed().toArrayOfTables().assertSuccess()
 
-        assertEquals("# one\n[[arr]]\nx = 2\n# sub\n[[arr]]\nx = 1\n\n# two\n[arr.sub]\ny = 1\n", doc.toString())
+        assertEquals("# two\n[[arr]]\nx = 2\n# one\n[[arr]]\nx = 1\n\n# sub\n[arr.sub]\ny = 1\n", doc.toString())
     }
 
     @Test

@@ -186,13 +186,13 @@ class LayoutChangeTest {
     @Test
     fun `a comment kept above an emptied dotted table prints on its own line above it under a header`() {
         val doc = removedThenMadeHeader("t = {\n  # about c\n\n  b.c = 1,\n}\n", "b", "c")
-        assertEquals("[t]\n# about c\nb = {}\n", doc.toString())
+        assertEquals("[t]\n# about c\n\nb = {}\n", doc.toString())
     }
 
     @Test
     fun `a comment kept above an emptied dotted table stays above it with a key after it under a header`() {
         val doc = removedThenMadeHeader("t = {\n  # about c\n\n  b.c = 1,\n  d = 2,\n}\n", "b", "c")
-        assertEquals("[t]\n# about c\nb = {}\nd = 2\n", doc.toString())
+        assertEquals("[t]\n# about c\n\nb = {}\nd = 2\n", doc.toString())
     }
 
     @Test
@@ -204,13 +204,13 @@ class LayoutChangeTest {
     @Test
     fun `a comment kept in a dotted table prints on its own CRLF line under a header`() {
         val doc = removedThenMadeHeader("t = {\r\n  # about c\r\n\r\n  b.c = 1,\r\n}\r\n", "b", "c")
-        assertEquals("[t]\r\n# about c\r\nb = {}\r\n", doc.toString())
+        assertEquals("[t]\r\n# about c\r\n\r\nb = {}\r\n", doc.toString())
     }
 
     @Test
     fun `the comment after the value before a removed dotted key ends that value's line under a header`() {
         val doc = removedThenMadeHeader("t = {\n  x = 0, # on x\n  # about c\n\n  b.c = 1,\n}\n", "b", "c")
-        assertEquals("[t]\nx = 0 # on x\n# about c\nb = {}\n", doc.toString())
+        assertEquals("[t]\nx = 0 # on x\n# about c\n\nb = {}\n", doc.toString())
     }
 
     @Test
@@ -218,7 +218,7 @@ class LayoutChangeTest {
         val doc = parse("a = [\n  {\n    x = 0,\n    # about c\n\n    b.c = 1,\n  },\n]\n")
         doc["a"][0]["b"].assertSuccess().valueOrNull!!.inlineTableOrNull!!.remove("c", force = true)
         doc["a"].assertSuccess().setLayout(TableLayout.Header, force = true).assertSuccess()
-        assertEquals("[[a]]\nx = 0\n# about c\nb = {}\n", doc.toString())
+        assertEquals("[[a]]\nx = 0\n# about c\n\nb = {}\n", doc.toString())
     }
 
     @Test

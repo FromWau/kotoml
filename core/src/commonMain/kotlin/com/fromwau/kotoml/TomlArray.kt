@@ -659,12 +659,27 @@ public class TomlArray() : Iterable<Value> {
         values.removeAt(index).leaveArray()
     }
 
-    /** Sorts the values with [comparator]. The sort is stable. */
+    /**
+     * Sorts the values with [comparator]. The sort is stable.
+     *
+     * Across lines each value moves with its comments: the comment lines directly above it, with no blank line
+     * between, and the comment after it on its line, after its comma. Blank lines, comment lines a blank line sets
+     * apart from the value below them, and the comment after `[` stay in place. On one line the spacing stays in place.
+     *
+     * ```kotlin
+     * val doc = TomlDocument.parse("a = [\n  3, # three\n  # one\n  1,\n]\n").getOrElse { error(it) }
+     * doc["a"].getOrNull()?.arrayOrNull?.sortBy { it.longOrNull }
+     * doc.toString() // "a = [\n  # one\n  1,\n  3, # three\n]\n"
+     * ```
+     */
     public fun sortWith(comparator: Comparator<Value>) {
         sortItemsWith(compareBy(nullsFirst(comparator)) { item: Item -> item.valueOrNull })
     }
 
-    /** Sorts the values in the natural order of what [selector] returns for each. The sort is stable, nulls first. */
+    /**
+     * Sorts the values in the natural order of what [selector] returns for each, moving their comments as [sortWith]
+     * says. The sort is stable, nulls first.
+     */
     public fun <R : Comparable<R>> sortBy(selector: (Value) -> R?) {
         sortItemsWith(compareBy(nullsFirst()) { item: Item -> item.valueOrNull?.let(selector) })
     }
@@ -677,39 +692,32 @@ public class TomlArray() : Iterable<Value> {
 
     private fun sortItemsWith(comparator: Comparator<Item>) {
         // On one line the spacing belongs to the position, not to the value, so it stays where it was.
-        val spacing = if (printsOnOneLine()) printedValues().map { it.rawDecor.prefix to it.rawDecor.suffix } else null
-        val formerLast = printedValues().lastOrNull()
-        values.sortWith(comparator)
-        if (spacing == null) {
-            if (formerLast != null && !trailingComma) keepEndInPlace(formerLast)
+        if (printsOnOneLine()) {
+            val spacing = printedValues().map { it.rawDecor.prefix to it.rawDecor.suffix }
+            values.sortWith(comparator)
+            for ((value, around) in printedValues().zip(spacing)) {
+                value.rawDecor.prefix = around.first
+                value.rawDecor.suffix = around.second
+            }
             return
         }
-        for ((value, around) in printedValues().zip(spacing)) {
-            value.rawDecor.prefix = around.first
-            value.rawDecor.suffix = around.second
+        val before = printedValues()
+        if (before.isEmpty()) return
+        val prefixes = before.mapIndexed { index, value -> value.rawDecor.prefix?.textOrNull ?: defaultPrefixAt(index) }
+        val suffixes = before.map { it.rawDecor.suffix?.textOrNull ?: DEFAULT_VALUE_DECOR.second }
+        val text = BracedText(prefixes, suffixes, rawTrailing.textOr(""))
+        values.sortWith(comparator)
+        val after = printedValues()
+        val sorted = reorderBraced(text, trailingComma, after.map { value -> before.indexOfFirst { it === value } })
+        for ((index, value) in after.withIndex()) {
+            value.rawDecor.prefix = value.rawDecor.prefix.replacedBy(sorted.prefixes[index])
+            value.rawDecor.suffix = value.rawDecor.suffix.replacedBy(sorted.suffixes[index])
         }
+        rawTrailing = rawTrailing.replacedBy(sorted.trailing)
     }
 
-    /**
-     * Without a trailing comma the line break before `]` ends the last value's suffix. It belongs to the end, so
-     * it goes to the value now last; what stood after [formerLast] on its line, such as a comment, follows its comma.
-     */
-    private fun keepEndInPlace(formerLast: Value) {
-        val printed = printedValues()
-        val newLast = printed.last()
-        if (newLast === formerLast) return
-        val suffix = formerLast.rawDecor.suffix?.textOrNull ?: return
-        val lineBreak = suffix.indexOf('\n')
-        if (lineBreak < 0) return
-        val onItsLine = suffix.substring(0, lineBreak)
-        formerLast.rawDecor.suffix = KeptText()
-        if (onItsLine.isNotEmpty()) {
-            val next = printed[printed.indexOfFirst { it === formerLast } + 1]
-            next.rawDecor.prependToPrefix(onItsLine, DEFAULT_VALUE_DECOR.first)
-        }
-        val lastSuffix = newLast.rawDecor.suffix?.textOrNull.orEmpty()
-        newLast.rawDecor.suffix = KeptText.from(lastSuffix + suffix.substring(lineBreak))
-    }
+    private fun defaultPrefixAt(index: Int): String =
+        if (index == 0) DEFAULT_LEADING_VALUE_DECOR.first else DEFAULT_VALUE_DECOR.first
 
     /**
      * Appends a copy of every value of [values], keeping their formatting.

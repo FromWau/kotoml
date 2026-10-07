@@ -337,7 +337,7 @@ class LayoutTest {
         val doc = parse("a.b.c = 1\n# about e\n\na.b.d.e = true\na.f = 2\n")
         doc["a"]["b"]["d"].assertSuccess().standardTableOrNull!!.remove("e", force = true)
         doc["a"].assertSuccess().setLayout(TableLayout.MultilineInline).assertSuccess()
-        assertEquals("a = {\n  b.c = 1,\n  # about e\n  b.d = {},\n  f = 2,\n}\n", doc.toString())
+        assertEquals("a = {\n  b.c = 1,\n  # about e\n\n  b.d = {},\n  f = 2,\n}\n", doc.toString())
     }
 
     @Test
