@@ -297,8 +297,9 @@ public class Item private constructor(
      * Stores a copy of [item] at [key], as [StandardTable.set] or [InlineTable.set] does.
      *
      * @return [TomlEditError.NotATable] when this item holds neither a table nor an inline table,
-     *   [TomlEditError.NotAValue] when this is an inline table and [item] holds no value, or [TomlEditError.TooDeep]
-     *   when [item] would nest deeper than the parser reads.
+     *   [TomlEditError.NotAValue] when this is an inline table and [item] holds no value, [TomlEditError.TooDeep]
+     *   when [item] would nest deeper than the parser reads, or [TomlEditError.NotInToml10] when [item] holds what
+     *   only TOML 1.1 reads and this item is in a document whose [TomlDocument.version] is 1.0.
      */
     public operator fun set(
         key: String,
@@ -342,9 +343,9 @@ public class Item private constructor(
     ): EmptyResult<TomlEditError> = tableOrNull?.rename(old, new) ?: Err(TomlEditError.NotATable(old, type))
 
     /**
-     * Stores a copy of [item] at [index] of this array or array of tables. Fails when there is no such position,
-     * when [item] does not hold a value for an array or a table for an array of tables, or when it would nest
-     * deeper than the parser reads.
+     * Stores a copy of [item] at [index] of this array or array of tables. Fails as [assign] does, with
+     * [TomlEditError.IndexOutOfBounds] when there is no such position, and with [TomlEditError.NotAnArray] when this
+     * holds neither kind of array.
      */
     public operator fun set(
         index: Int,
@@ -709,27 +710,15 @@ public class Item private constructor(
         content = Content.ValueContent(value)
     }
 
-    /** This item as a table, moving an inline table's entries into one; null for anything else. */
-    internal fun moveToStandardTable(): StandardTable? = when (val content = content) {
-        is Content.TableContent -> content.table
-        is Content.ValueContent -> content.value.inlineTableOrNull?.moveToStandardTable()
-        else -> null
-    }
-
     /**
      * This item as an array of tables, moving a non-empty array of inline tables into one; null for anything
      * else.
      */
     internal fun moveToArrayOfTables(): ArrayOfTables? = when (val content = content) {
         is Content.ArrayOfTablesContent -> content.array
-        is Content.ValueContent -> {
-            val array = content.value.arrayOrNull
-            if (array == null || array.isEmpty() || !array.all { it is Value.InlineTable }) {
-                null
-            } else {
-                ArrayOfTables().also { tables ->
-                    for (value in array) value.inlineTableOrNull?.moveToStandardTable()?.let(tables::append)
-                }
+        is Content.ValueContent -> inlineTablesOfArray()?.let { inlines ->
+            ArrayOfTables().also { tables ->
+                for (inline in inlines) tables.append(inline.moveToStandardTable())
             }
         }
         else -> null

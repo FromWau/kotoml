@@ -424,7 +424,7 @@ private const val BYTE_ORDER_MARK: Char = '\uFEFF'
 /** Whether this holds half of a surrogate pair without the other half, which no Unicode encoding can write. */
 internal fun String.hasLoneSurrogate(): Boolean = loneSurrogateIndex() >= 0
 
-/** Where this holds the first half of a surrogate pair without the other half, or -1 when it holds none. */
+/** Where this first holds half of a surrogate pair without the other half, or -1 when it holds none. */
 internal fun String.loneSurrogateIndex(): Int {
     var index = 0
     while (index < length) {

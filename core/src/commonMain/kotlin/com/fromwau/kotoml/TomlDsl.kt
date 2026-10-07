@@ -50,8 +50,9 @@ public fun buildTomlDocument(block: TableScope.() -> Unit): Result<TomlDocument,
  * An edit replaces the document's content with the edited one, so an [Item] taken from the document before a
  * successful edit no longer belongs to it; index the document again afterwards.
  *
- * @return [TomlEditError.TypeMismatch] when the block opened a key holding another kind, or [TomlEditError.TooDeep]
- *   when it wrote something nesting deeper than the parser reads, with nothing changed.
+ * @return [TomlEditError.TypeMismatch] when the block opened a key holding another kind, [TomlEditError.TooDeep]
+ *   when it wrote something nesting deeper than the parser reads, or [TomlEditError.NotInToml10] when it wrote what
+ *   only TOML 1.1 reads into a document of TOML 1.0, with nothing changed.
  */
 public fun TomlDocument.edit(block: TableScope.() -> Unit): EmptyResult<TomlEditError> {
     val edited = copy()

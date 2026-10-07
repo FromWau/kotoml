@@ -54,7 +54,7 @@ public sealed interface Value {
         public val value: kotlin.String
             get() = formatted.value
 
-        /** The text the value was written as, such as `0x10` for 16, or null when it has none of its own. */
+        /** The text the value was written as, such as `'kotoml'` for kotoml, or null when it has none of its own. */
         public val spelling: kotlin.String?
             get() = formatted.spelling
 
@@ -130,7 +130,7 @@ public sealed interface Value {
         public val value: Double
             get() = formatted.value
 
-        /** The text the value was written as, such as `0x10` for 16, or null when it has none of its own. */
+        /** The text the value was written as, such as `1e0` for 1.0, or null when it has none of its own. */
         public val spelling: kotlin.String?
             get() = formatted.spelling
 
@@ -161,7 +161,7 @@ public sealed interface Value {
         public val value: kotlin.Boolean
             get() = formatted.value
 
-        /** The text the value was written as, such as `0x10` for 16, or null when it has none of its own. */
+        /** The text the value was written as, or null when it has none of its own. */
         public val spelling: kotlin.String?
             get() = formatted.spelling
 
@@ -198,7 +198,7 @@ public sealed interface Value {
         public val value: TomlDatetime
             get() = formatted.value
 
-        /** The text the value was written as, such as `0x10` for 16, or null when it has none of its own. */
+        /** The text the value was written as, such as `1979-05-27 07:32Z`, or null when it has none of its own. */
         public val spelling: kotlin.String?
             get() = formatted.spelling
 
@@ -477,6 +477,5 @@ internal fun Value.callerComment(): String {
     return commentAfter().substringBefore('\n').trimEnd('\r')
 }
 
-// An array or inline table spread over lines: one entry per line, indented like a table across lines.
 internal const val LINE_BREAK: String = "\n"
 internal const val INDENT: String = "  "

@@ -89,8 +89,8 @@ public class Key(
 
     /**
      * Formats the key as [TomlDocument.format] formats keys: bare when it can be, `'q'` as `q`, while `"a b"` stays
-     * quoted; no space around its dots or before `=`; and no spacing before it but the lines above it. Every line
-     * spelling a shared key, such as `a` of `a.b = 1`, prints it so.
+     * quoted; no space around its dots and one before `=`. Every line spelling a shared key, such as `a` of `a.b = 1`,
+     * prints it so.
      */
     public fun format() {
         if (TomlKeyBuilder(name).asUnquoted() != null) written = null
