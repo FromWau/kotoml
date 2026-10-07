@@ -66,6 +66,12 @@ its same-line comment into an array as into a table (C5 stands).
   the comma, because the empty table's value is built anew on each read and loses its suffix. Valid TOML, no comment
   lost.
 
+- [ ] **101. Two indents for arrays, and LF lines in a CRLF file.** The spreading a caller's comment triggers indents
+  two spaces from column 0, while `setMultiline(true)` indents from the array's line; and a multi-line string written in
+  its default spelling (by `respell()` or built in code) breaks its lines with LF in a CRLF document.
+  **Ruling 2026-10-07:** one rule: every spread array indents from its own line; and every line kotoml writes takes the
+  document's line ending (item 79), multi-line strings included.
+
 Settled the same day, no change: a copied table prints where its key stands (item 38 over 29's "after the tables
 already there"); a moved table gets the default blank line (spacing is not kept across operations); a bare value's
 same-line comment travels with it; `makeValue` on a 1.0 array of tables keeps header comments and comment lines
