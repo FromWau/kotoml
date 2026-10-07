@@ -14,15 +14,10 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
 
 ### Bugs against a goal
 
-- [ ] **114. A comment above a dotted key in braces glues onto the line before once the table is a header.**
-  `t = {\n  x = 0,\n  b.c = 1,\n  # about d\n  b.d = 2,\n}` made a header prints `b.c = 1# about d\nb.d = 2`;
-  after `format()` the comment ends the line of `c` instead of standing above `d`. Likewise making
-  `t = {\n  # about c\n  b.c = 1,\n  d = 2,\n}` a header and then removing `c` from `b` prints `b = {}# about c`.
-  `TableLineComments.applyTo` writes table-style prefixes onto keys in dotted inline tables, which
-  `takeOutOfBraces` reads as brace-style. Found while fixing 104; already on dev before it.
-- [ ] **115. `KeyValuePairs.takeAll()` leaves the kept lines behind.** `moveToDottedTable()` and
-  `takeReadDottedTable()` move only the entries, so a dotted table's kept comment lines, `emptyTableDecor` and
-  `emptyLineKeyDecor` may be lost on that conversion. Not yet reproduced.
+- [ ] **116. Storing a dotted inline table holding kept lines into a standard table swallows the next line.**
+  `s = {\n  b.c = 1,\n  # about d\n  b.d = 2,\n}\n[t]\nx = 0\n`, remove `d` from `s.b`, then `t["b"] = s.b`
+  prints `[t]\nb.c = 1\n\n  # about dx = 0\n`: the kept brace-style text prints raw on the table's lines, so
+  `x = 0` reads back as part of the comment. Found while fixing 114; already on dev before it.
 
 ### Cleanup pass rulings (2026-10-07)
 
@@ -91,6 +86,24 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **115. `KeyValuePairs.takeAll()` leaves the kept lines behind.** `moveToDottedTable()` and
+  `takeReadDottedTable()` move only the entries, so a dotted table's kept comment lines, `emptyTableDecor` and
+  `emptyLineKeyDecor` may be lost on that conversion. Not yet reproduced.
+  **Verdict 2026-10-07:** no change: no loss reproduced. Kept lines of an inline table are brace-style and a standard
+  table's table-style, so moving them unchanged would print them wrongly; the callers that need them read them into
+  comments. The one path that holds such lines is 116.
+
+- [x] **114. A comment above a dotted key in braces glues onto the line before once the table is a header.**
+  `t = {\n  x = 0,\n  b.c = 1,\n  # about d\n  b.d = 2,\n}` made a header prints `b.c = 1# about d\nb.d = 2`;
+  after `format()` the comment ends the line of `c` instead of standing above `d`. Likewise making
+  `t = {\n  # about c\n  b.c = 1,\n  d = 2,\n}` a header and then removing `c` from `b` prints `b = {}# about c`.
+  `TableLineComments.applyTo` writes table-style prefixes onto keys in dotted inline tables, which
+  `takeOutOfBraces` reads as brace-style. Found while fixing 104; already on dev before it.
+  **Verdict 2026-10-07:** fixed: keys under a dotted key in braces hold their comment lines brace-style on both sides,
+  the text read into comments is cleared from the dotted tables inside, and an emptied dotted table on a table's lines
+  prints the lines above its keys above its `{}`; comments stay above their keys, print once, and survive removals.
+  Pinned in LayoutChangeTest and FormatTest.
 
 - [x] **112. Split StandardTable.kt.** Move the out-of-braces body lines (`VisualValue`, `takeOutOfBraces`,
   `inPrintOrder`), table placement (`placedParts`, `place*`) and the sort helpers into their own files; no API or
