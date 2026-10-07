@@ -67,6 +67,12 @@ its same-line comment into an array as into a table (C5 stands).
   lost.
 
 
+- [ ] **102. `displaySpelling` follows the document for strings but not date-times; a detached string forgets its
+  file.**
+  **Ruling 2026-10-07:** `Value.Datetime.displaySpelling` follows its document's version, as a string's follows the line
+  ending; a string taken out of a document (removed, or a detached handle) keeps the line ending of the document it came
+  from; one built in code and never stored uses `\n`.
+
 Settled the same day, no change: a copied table prints where its key stands (item 38 over 29's "after the tables
 already there"); a moved table gets the default blank line (spacing is not kept across operations); a bare value's
 same-line comment travels with it; `makeValue` on a 1.0 array of tables keeps header comments and comment lines
