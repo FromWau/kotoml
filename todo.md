@@ -23,15 +23,6 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
 
 ### API gaps and ergonomics
 
-- [ ] **65. `resetFormatting` is shallow and differs per kind.** A table keeps its values' spellings and key quoting,
-  an array resets its layout but not its elements, and on the root it deletes comments. No document-wide reset.
-  **Ruling 2026-10-05:** rename to `format(): Unit` on `Item`, `Value`, the tables and the document; deep; keeps
-  comments. It cannot fail: writing is `writeTo`'s.
-  **Ruling 2026-10-05 (2):** `format()` fixes key quoting (`'q'` becomes `q`), blank lines between tables and
-  spacing; it leaves the layout as it is (dotted stays dotted, inline stays inline).
-  **Ruling 2026-10-07:** value spellings stay (`'lit'`, `0x1F90`, `1e0`); comments get one space after `#` and a
-  same-line comment one space before it (`a = 1 # c`); indentation goes; a one-line array or inline table loses its
-  trailing comma; each line keeps its own line ending.
 - [ ] **70. CLI has no set, delete or in-place edit.** The only path, `decode | jq | encode`, drops every comment
   and writes all tables inline. `encode` reads only tagged JSON, not what `get --json` prints.
   **Ruling 2026-10-05:** `-i` writes back into the file. Low priority: do when nothing else is open. Plain JSON to
@@ -70,6 +61,14 @@ its same-line comment into an array as into a table (C5 stands).
 
 
 
+- [ ] **98. A forced layout change drops the comment lines above a table's first sub-header.** At ten times the
+  seeds, `CommentPropertyTest` finds `setLayout(force = true)` dropping comments that removing the same table keeps:
+  `# [x] you\n[x.y.z.w] # ...\n[x]\nd = 4`, then `setLayout(Inline, force = true)` on `x` drops the line above the
+  first header. Reproduced with `format()` a no-op, so it predates item 65.
+- [ ] **99. No one call writes a value in its default spelling or puts an array on one line.** `resetFormatting()`
+  did both; `format()` keeps value spellings and layouts by ruling, so `0x10` cannot become `16` and a multi-line
+  array cannot go to one line without decor calls by hand.
+
 Settled the same day, no change: a copied table prints where its key stands (item 38 over 29's "after the tables
 already there"); a moved table gets the default blank line (spacing is not kept across operations); a bare value's
 same-line comment travels with it; `makeValue` on a 1.0 array of tables keeps header comments and comment lines
@@ -86,6 +85,22 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **65. `resetFormatting` is shallow and differs per kind.** A table keeps its values' spellings and key quoting,
+  an array resets its layout but not its elements, and on the root it deletes comments. No document-wide reset.
+  **Ruling 2026-10-05:** rename to `format(): Unit` on `Item`, `Value`, the tables and the document; deep; keeps
+  comments. It cannot fail: writing is `writeTo`'s.
+  **Ruling 2026-10-05 (2):** `format()` fixes key quoting (`'q'` becomes `q`), blank lines between tables and
+  spacing; it leaves the layout as it is (dotted stays dotted, inline stays inline).
+  **Ruling 2026-10-07:** value spellings stay (`'lit'`, `0x1F90`, `1e0`); comments get one space after `#` and a
+  same-line comment one space before it (`a = 1 # c`); indentation goes; a one-line array or inline table loses its
+  trailing comma; each line keeps its own line ending.
+  **Verdict 2026-10-07:** fixed: `format()` on the document, both tables, both arrays, Item, Value and Key replaces
+  `resetFormatting`; deep, cannot fail, keeps comments, line endings, layouts and value spellings, and fixes key
+  quoting, spacing, blank lines (a single one between key lines stays, runs collapse), indentation, comment spacing (a
+  missing space after `#` is added) and one-line trailing commas; objects stay the same ones. FormatTest (every valid
+  toml-test file reads back the same, keeps every comment, formats stably); format edits in both property tests. Found
+  on the way: the lexer refused `[[j ."#"]]` (fixed, ParseFixesTest).
 
 - [x] **61. No rename.** `put("new", remove("old"))` moves the key to the end and leaves its comment above the next
   key; a key built from the old key's decor duplicates the comment.
