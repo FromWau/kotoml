@@ -121,7 +121,6 @@ public class TomlArray() : Iterable<Value> {
             value.decorate(prefix, suffix)
             index++
         }
-        // Everything is on one line now, so a trailing comma and trailing text go too.
         trailingComma = false
         trailing = ""
     }
@@ -325,8 +324,7 @@ public class TomlArray() : Iterable<Value> {
         for ((index, text) in texts.withIndex()) {
             val raw = text.takeIf { '\n' in it } ?: continue
             lineComments[index] = raw.substringBefore('\n').removeSuffix("\r").takeIf { '#' in it }.orEmpty()
-            val rest = raw.substringAfter('\n')
-            linesAbove[index] = indentedCommentLines(rest.substring(0, rest.lastIndexOf('\n') + 1), "", lineBreak)
+            linesAbove[index] = indentedCommentLines(linesAboveOnTableLines(KeptText.from(raw)), "", lineBreak)
         }
         linesAbove[0] = indentedCommentLines(lineComments[0], "", lineBreak) + linesAbove[0]
         val closingLines = indentedCommentLines(closingComment, "", lineBreak)
@@ -530,8 +528,9 @@ public class TomlArray() : Iterable<Value> {
     }
 
     private fun removeSlot(index: Int) {
-        val decor = values[index].valueOrNull?.rawDecor
-        if (decor != null) {
+        val removed = values[index].valueOrNull
+        if (removed != null) {
+            val decor = removed.rawDecor
             val next = values
                 .subList(index + 1, values.size)
                 .firstNotNullOfOrNull { it.valueOrNull }
@@ -543,8 +542,7 @@ public class TomlArray() : Iterable<Value> {
             )
             val previous = values.subList(0, index).lastOrNull { it.valueOrNull != null }?.valueOrNull
             val isFirst = previous == null
-            val removed = values[index].valueOrNull
-            if (replacement == null && next == null && previous != null && removed != null && !trailingComma) {
+            if (replacement == null && next == null && previous != null && !trailingComma) {
                 passClosingSpace(removed, previous)
             }
             if (replacement != null && next != null) {
@@ -555,7 +553,7 @@ public class TomlArray() : Iterable<Value> {
             } else if (replacement != null) {
                 trailing = replacement
                 // The comma before the removed element ends its line now, ahead of the lines kept.
-                if (values.subList(0, index).any { it.valueOrNull != null }) trailingComma = true
+                if (previous != null) trailingComma = true
             }
         }
         values.removeAt(index).leaveArray()

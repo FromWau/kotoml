@@ -315,7 +315,11 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     }
 
     /** Appends the lines this dotted table prints under [entry]'s key at [path]. */
-    internal fun appendDottedValues(path: MutableList<Key>, values: MutableList<BodyLine>, entry: KeyValue) {
+    internal fun appendDottedValues(
+        path: MutableList<Key>,
+        values: MutableList<BodyLine>,
+        entry: KeyValue,
+    ) {
         appendValues(path, values)
         if (items.size == 0) values.add(emptyTableLine(path, entry, items))
     }
@@ -1010,8 +1014,7 @@ private class TableLineComments(
         if ('#' in first) {
             if (before < 0) headerComment = first else after[before] = first
         }
-        val rest = raw.substringAfter('\n')
-        above[linesFor] += indentedCommentLines(rest.substring(0, rest.lastIndexOf('\n') + 1), "", lineBreak)
+        above[linesFor] += indentedCommentLines(linesAboveOnTableLines(text), "", lineBreak)
     }
 
     fun applyTo(table: StandardTable) {

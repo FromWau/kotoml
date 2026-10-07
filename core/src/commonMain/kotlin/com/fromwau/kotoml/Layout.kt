@@ -8,7 +8,7 @@ import com.fromwau.kotoml.parser.TomlSource
 
 /**
  * Gives [target], a table or a slot, a new layout with [change], unless that would drop a comment and [force] is
- * false: then nothing changes and the result is [TomlEditError.CommentsWouldBeLost] at [keyPathOf]'s path for it.
+ * false: then nothing changes and the result is [TomlEditError.CommentsWouldBeLost] at [layoutKeyPathOf].
  * [change] runs first on a copy of the tree holding [target], so a failure it returns changes nothing either.
  */
 internal fun <T : Any> changeLayout(
@@ -69,7 +69,6 @@ private class Trial<T : Any>(val top: Any, val target: T) {
             @Suppress("UNCHECKED_CAST")
             return Trial(top, node as T)
         }
-
 
         private fun copyOfTop(top: Any): Any = when (top) {
             is StandardTable -> top.deepCopy().also { copy ->
