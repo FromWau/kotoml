@@ -253,7 +253,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     /** Moves the entries into a new standard table, formatted anew but keeping comments, leaving this table empty. */
     internal fun moveToStandardTable(): StandardTable {
         val comments = if (isDotted) null else commentsOnTableLines()
-        if (comments != null) dropKeptLinesWithin()
+        if (comments != null) dropTextReadIntoComments()
         val table = StandardTable(items.takeAll())
         table.useDefaultSpacing()
         comments?.applyTo(table)
@@ -296,7 +296,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         val texts = lines.flatMap { listOf(it.path.last().rawLeafDecor.prefix, it.value.rawDecor.suffix) } +
             rawTrailing + body.filterIsInstance<KeptLines>().map { KeptText.from(it.text) }
         val lineBreak = if (texts.any { "\r\n" in it?.textOrNull.orEmpty() }) "\r\n" else "\n"
-        val comments = TableLineComments(lines.map { it.path.last() to it.value }, lineBreak)
+        val comments = TableLineComments(lines, lineBreak)
         var kept = ""
         var index = 0
         for (line in body) {
@@ -315,10 +315,11 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         return comments
     }
 
-    // Read into the comments of the lines below them, the kept lines would print a second time.
-    private fun dropKeptLinesWithin() {
+    // Read into the comments of the table's lines, the kept lines and the spacing within would print them twice.
+    private fun dropTextReadIntoComments() {
         items.keptLines.clear()
-        for (entry in items.entries) entry.item.inlineTableOrNull?.takeIf { it.isDotted }?.dropKeptLinesWithin()
+        useDefaultSpacing()
+        for (entry in items.entries) entry.item.inlineTableOrNull?.takeIf { it.isDotted }?.dropTextReadIntoComments()
     }
 
     /** The values visually under this table with the key path that reaches each, dotted keys followed. */
@@ -1008,7 +1009,7 @@ internal class LineComments(val headerComment: String = "") {
  * after the last value stay at the end of its lines.
  */
 private class TableLineComments(
-    private val lines: List<Pair<Key, Value>>,
+    private val lines: List<VisualValue>,
     private val lineBreak: String,
 ) {
     private var headerComment = ""
@@ -1040,9 +1041,13 @@ private class TableLineComments(
     fun applyTo(table: StandardTable) {
         if (headerComment.isNotEmpty()) table.rawDecor.suffix = KeptText.from(headerComment)
         for ((index, line) in lines.withIndex()) {
-            val (key, value) = line
-            if (above[index].isNotEmpty()) key.rawLeafDecor.prefix = KeptText.from(above[index])
-            if (after[index].isNotEmpty()) value.rawDecor.suffix = KeptText.from(after[index])
+            // A key under a dotted key stays in braces, where the break ending the line before starts its prefix.
+            val underDottedKey = line.path.size > 1
+            if (above[index].isNotEmpty()) {
+                val prefix = if (underDottedKey) lineBreak + above[index] else above[index]
+                line.path.last().rawLeafDecor.prefix = KeptText.from(prefix)
+            }
+            if (after[index].isNotEmpty()) line.value.rawDecor.suffix = KeptText.from(after[index])
         }
         if (above[lines.size].isNotEmpty()) table.items.keptLines += KeptLines(above[lines.size], null)
     }

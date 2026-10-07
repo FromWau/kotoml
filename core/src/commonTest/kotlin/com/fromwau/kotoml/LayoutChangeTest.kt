@@ -220,4 +220,72 @@ class LayoutChangeTest {
         doc["a"].assertSuccess().setLayout(TableLayout.Header, force = true).assertSuccess()
         assertEquals("[[a]]\nx = 0\n# about c\nb = {}\n", doc.toString())
     }
+
+    @Test
+    fun `a comment above a later dotted key in braces stays above that key under a header`() {
+        val doc = parse("t = {\n  x = 0,\n  b.c = 1,\n  # about d\n  b.d = 2,\n}\n")
+        doc["t"].assertSuccess().setLayout(TableLayout.Header).assertSuccess()
+        assertEquals("[t]\nx = 0\nb.c = 1\n# about d\nb.d = 2\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment above a dotted key in braces stays above its emptied table when made a header first`() {
+        val doc = madeHeaderThenRemoved("t = {\n  # about c\n  b.c = 1,\n  d = 2,\n}\n", listOf("b"), "c")
+        assertEquals("[t]\n# about c\nb = {}\nd = 2\n", doc.toString())
+    }
+
+    @Test
+    fun `a CRLF comment above a later dotted key in braces stays above that key under a header`() {
+        val doc = parse("t = {\r\n  b.c = 1,\r\n  # about d\r\n  b.d = 2,\r\n}\r\n")
+        doc["t"].assertSuccess().setLayout(TableLayout.Header).assertSuccess()
+        assertEquals("[t]\r\nb.c = 1\r\n# about d\r\nb.d = 2\r\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment after a value under a dotted key in braces prints once under a header`() {
+        val doc = parse("t = {\n  b.c = 1, # on c\n  b.d = 2,\n}\n")
+        doc["t"].assertSuccess().setLayout(TableLayout.Header).assertSuccess()
+        assertEquals("[t]\nb.c = 1 # on c\nb.d = 2\n", doc.toString())
+    }
+
+    // Makes `t` a header, then removes [removed] from the dotted table at [dottedPath] under it.
+    private fun madeHeaderThenRemoved(
+        text: String,
+        dottedPath: List<String>,
+        removed: String,
+    ): TomlDocument {
+        val doc = parse(text)
+        doc["t"].assertSuccess().setLayout(TableLayout.Header).assertSuccess()
+        val dotted = dottedPath.fold(doc["t"].assertSuccess()) { item, key -> item[key].assertSuccess() }
+        dotted.valueOrNull!!.inlineTableOrNull!!.remove(removed)
+        return doc
+    }
+
+    @Test
+    fun `a comment above a dotted key in braces stays above the next line when the key before is removed`() {
+        val doc = madeHeaderThenRemoved("t = {\n  b.c = 1,\n  # about d\n  b.d = 2,\n}\n", listOf("b"), "c")
+        assertEquals("[t]\n# about d\nb.d = 2\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment above a removed dotted key in braces ends the dotted table's lines under a header`() {
+        val doc = madeHeaderThenRemoved("t = {\n  b.c = 1,\n  # about d\n  b.d = 2,\n}\n", listOf("b"), "d")
+        assertEquals("[t]\nb.c = 1\n# about d\n", doc.toString())
+    }
+
+    @Test
+    fun `comments above every removed key of a dotted table stay above its emptied line under a header`() {
+        val doc = parse("t = {\n  # about c\n  b.c = 1,\n  # about d\n  b.d = 2,\n  x = 0,\n}\n")
+        doc["t"].assertSuccess().setLayout(TableLayout.Header).assertSuccess()
+        val b = doc["t"]["b"].assertSuccess().valueOrNull!!.inlineTableOrNull!!
+        b.remove("c")
+        b.remove("d")
+        assertEquals("[t]\n# about c\n# about d\nb = {}\nx = 0\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment above the key of a nested dotted table stays above that table once emptied under a header`() {
+        val doc = madeHeaderThenRemoved("t = {\n  b.c = 1,\n  # about e\n  b.d.e = 2,\n}\n", listOf("b", "d"), "e")
+        assertEquals("[t]\nb.c = 1\n# about e\nb.d = {}\n", doc.toString())
+    }
 }

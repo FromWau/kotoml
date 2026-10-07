@@ -395,4 +395,12 @@ class FormatTest {
     fun `a CRLF comment line kept above an emptied key prints once after formatting`() {
         assertRemovedThenMadeHeaderFormatsOnce("t = {\r\n  # about c\r\n  b.c = 1,\r\n}\r\n", "b", "c")
     }
+
+    @Test
+    fun `a comment above a later dotted key in braces stays above that key after a header and formatting`() {
+        val doc = parse("t = {\n  x = 0,\n  b.c = 1,\n  # about d\n  b.d = 2,\n}\n")
+        doc["t"].assertSuccess().setLayout(TableLayout.Header).assertSuccess()
+        doc.format()
+        assertEquals("[t]\nx = 0\nb.c = 1\n# about d\nb.d = 2\n", doc.toString())
+    }
 }

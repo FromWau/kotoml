@@ -4,7 +4,8 @@ package com.fromwau.kotoml
  * Turns the lines from [start] on, spaced for the braces of the dotted inline table [inline], into lines of a table.
  * The lines above [entry]'s key, which holds the table, print above the first; a comment that followed the opening
  * brace prints on a line of its own above it, and one that followed a comma ends the line before. The comments before
- * and after the closing brace end the last line.
+ * and after the closing brace end the last line. An emptied dotted table's text before its `}`, what was above its
+ * removed keys, is read as the lines above its `{}`.
  */
 internal fun MutableList<BodyLine>.takeOutOfBraces(
     start: Int,
@@ -31,11 +32,11 @@ internal fun MutableList<BodyLine>.takeOutOfBraces(
     val seen = HashSet<Key>()
     val aboves = MutableList(lines.size) { "" }
     for ((position, index) in lines.withIndex()) {
-        val path = (this[index] as VisualValue).path
+        val line = this[index] as VisualValue
+        val path = line.path
         val keys = path.subList(path.indexOfFirst { it === entry.key } + 1, path.size)
-        for (key in keys) {
-            if (!seen.add(key)) continue
-            val prefix = key.rawLeafDecor.prefix?.textOrNull.orEmpty()
+        val keyPrefixes = keys.filter { seen.add(it) }.map { it.rawLeafDecor.prefix?.textOrNull.orEmpty() }
+        for (prefix in keyPrefixes + listOfNotNull(line.emptiedDottedTable()?.rawTrailing?.textOrNull)) {
             val carried = prefix.commentBeforeBreak()
             when {
                 carried.isEmpty() -> {}
@@ -56,7 +57,7 @@ internal fun MutableList<BodyLine>.takeOutOfBraces(
         endLine(position, text.commentBeforeBreak(), text.lineBreak())
     }
     val last = lines.lastIndex
-    val trailing = inline.value.rawTrailing.textOrNull.orEmpty()
+    val trailing = if (inline.value.items.size == 0) "" else inline.value.rawTrailing.textOrNull.orEmpty()
     val lineBreak = trailing.lineBreak()
     endLine(last, trailing.commentBeforeBreak(), lineBreak)
     val linesBefore = linesAboveOnTableLines(KeptText.from(trailing)).removeSuffix(lineBreak)
@@ -68,6 +69,10 @@ internal fun MutableList<BodyLine>.takeOutOfBraces(
         this[index] = line.outOfBraces(above, ends[position])
     }
 }
+
+/** The dotted table this line prints empty as `{}`, or null when it prints a value. */
+private fun VisualValue.emptiedDottedTable(): InlineTable? =
+    entry.item.inlineTableOrNull?.takeIf { it.isDotted && it.items.size == 0 }
 
 /** The comment that ends the line this text starts on, with its spacing, or "" when it holds none. */
 private fun String.commentBeforeBreak(): String {
