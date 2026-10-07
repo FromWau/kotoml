@@ -24,11 +24,6 @@ it. This reverses README rules 2 and 4, the 105 ruling on `add`/`addAll`, and th
 
 - [ ] **120. Write the comment ownership rule down.** GOALS.md goal 4 holds it (done with this item's filing);
   core/README.md's "Items and their comments" changes wave by wave with the code (121 to 125), never ahead of it.
-- [ ] **121. One place decides an item's comments.** An internal function gives, for any item in any container, its
-  attached comment lines (the block directly above, no blank line between, and its same-line comment) and the free
-  lines around it. No behaviour change; tests pin the classification: a block right under a header belongs to the
-  first key, not the header; a comment between two items belongs to the one below; the file's head comment set
-  apart by a blank line is free; brace and table-line styles; CRLF.
 - [ ] **122. Removing takes an item's comments and refuses without force.**
   `remove(key: String, force: Boolean = false): Result<Item, TomlEditError>`: `NotFound` when absent;
   `CommentsWouldBeLost(keyPath, count)` when the item holds attached comments or comments inside it, changing
@@ -118,6 +113,15 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **121. One place decides an item's comments.** An internal function gives, for any item in any container, its
+  attached comment lines (the block directly above, no blank line between, and its same-line comment) and the free
+  lines around it. No behaviour change; tests pin the classification: a block right under a header belongs to the
+  first key, not the header; a comment between two items belongs to the one below; the file's head comment set
+  apart by a blank line is free; brace and table-line styles; CRLF.
+  **Verdict 2026-10-07:** done: ItemComments.kt holds `ItemComments` (free above, attached above, after the opening
+  bracket, same line, free below), `splitLinesAbove`, `KeyValue.itemComments()`, `StandardTable.headerComments()` and
+  `TomlArray.elementComments(index)`; no behaviour change. Pinned in CommentOwnershipTest (24 tests).
 
 - [x] **119. Storing a dotted table out of braces takes a sibling's comma comment along.** With no removal,
   `s = {\n  b.c = 1,\n  y = 5, # on y\n  # about d\n  b.d = 2,\n}\n[t]\nx = 0\n` and `t["b"] = s["b"]` prints
