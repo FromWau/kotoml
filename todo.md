@@ -22,14 +22,32 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
 - [ ] **105. `ArrayOfTables.addAll` keeps the source table's comments and header line; `add` drops them.** Adding
   `s[0]` of `# above\n[[s]] # head\nx = 1\n` to `[[t]]\ny = 0\n`: `add` prints `[[t]]\ny = 0\n\n[[t]]\nx = 1\n`,
   `addAll` prints `[[t]]\ny = 0\n# above\n[[t]] # head\nx = 1\n`. `addAll` skips `copyToStore`.
+  **Ruling 2026-10-07:** `addAll` stores each table as `add` does.
 - [ ] **106. `Key.format()` keeps indentation that `TomlDocument.format()` removes.** On
   `x = 0\n# c\n  a   = 1\n   b = 2\n`, `format()` on keys `a` and `b` prints `  a = 1\n  b = 2`, while the
   document's `format()` prints `a = 1\nb = 2`. Its KDoc was reworded to the code's behaviour in the cleanup pass;
   reword it back with the fix.
+  **Ruling 2026-10-07:** `Key.format()` removes the indentation as `TomlDocument.format()` does; the KDoc says so again.
 - [ ] **107. A decode parse error on line 1 puts the rendered block in its message.** `decodeFromString` of
   `a = 1 x\n` gives `line 1, column 7: TOML parse error at line 1, column 7`, then the gutter and caret lines, then
   the reason; on line 2 it gives `line 2, column 7: unexpected key or value, expected newline, ...` alone.
   `describe()` in TomlDecodeError.kt calls `render("")`, which draws the gutter for line 1.
+  **Ruling 2026-10-07:** line 1 gives the one-line message, as every other line does.
+
+### Cleanup pass rulings (2026-10-07)
+
+- [ ] **108. CLI error text writes a key bare when jq reads it bare.** `get .servers.a` on an array of tables says
+  `cannot apply ."a" to array of tables`, while a missing key says `no key "nope" at .nope`. **Ruling:** both bare
+  where jq allows it: `cannot apply .a to array of tables`.
+- [ ] **109. Document how `get` prints header paths.** `get .a` prints `[[srv]]` and `[c]` relative to `.a`;
+  `get .a.srv` prints `[[a.srv]]`. **Ruling:** keep both; app/README.md says so.
+- [ ] **110. One "too deep" wording.** Serialization's `nests deeper than kotoml writes` becomes core's
+  `nests deeper than 128 levels, so it would not parse back`.
+- [ ] **111. CommentScenariosTest prints only scenarios that differ from their expected output.** It prints a
+  block for all 330 on every run.
+- [ ] **112. Split StandardTable.kt.** Move the out-of-braces body lines (`VisualValue`, `takeOutOfBraces`,
+  `inPrintOrder`), table placement (`placedParts`, `place*`) and the sort helpers into their own files; no API or
+  behaviour change. `FRICTION_LOG.md` stays tracked on `dev` (ruling, D5).
 
 ### Layout no person would write
 
