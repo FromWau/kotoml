@@ -72,10 +72,11 @@ private const val SHOWN_CHARACTERS = 80
 private const val CUT = "…"
 
 /**
- * The 1-based line [number] of [source] without its line break, or null when there is none. The column does not
- * count a byte order mark, so the first line is given without it.
+ * The 1-based line [number] of [source] without its line break, or null when there is none, as in an empty [source].
+ * The column does not count a byte order mark, so the first line is given without it.
  */
 private fun sourceLine(source: String, number: Int): String? {
+    if (source.isEmpty()) return null
     val lines = source.split('\n')
     val line = lines.getOrNull(number - 1) ?: return null
     val withoutBreak = if (number - 1 < lines.lastIndex) line.removeSuffix("\r") else line

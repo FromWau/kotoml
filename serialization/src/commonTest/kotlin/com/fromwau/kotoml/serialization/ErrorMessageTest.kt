@@ -76,6 +76,14 @@ class ErrorMessageTest {
     }
 
     @Test
+    fun `a parse error on the first line gives its place and reason`() {
+        assertEquals(
+            "line 1, column 7: unexpected key or value, expected newline, `#`",
+            Toml.decodeFromString<Ports>("a = 1 x\n").assertError<TomlDecodeError.Parse>().message,
+        )
+    }
+
+    @Test
     fun `a decode error has the position of the key it names`() {
         val error = Toml.decodeFromString<App>(app).assertError<TomlDecodeError.TypeMismatch>()
         assertIs<TomlDecodeError.Located>(error)

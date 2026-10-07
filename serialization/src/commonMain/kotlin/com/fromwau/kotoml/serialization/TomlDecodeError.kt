@@ -240,7 +240,7 @@ public enum class DatetimeKind {
 private fun TomlDecodeError.describe(): String = when (this) {
     is TomlDecodeError.Parse -> {
         val at = error.position?.let { "line ${it.line}, column ${it.column}: " }.orEmpty()
-        // Without the parsed text, render gives the reason alone.
+        // The error holds no text, and render against empty text gives the reason alone, on any line.
         at + error.render("").trimEnd()
     }
     is TomlDecodeError.UnsupportedRoot -> "$serialName cannot be read from a document, which is a table"

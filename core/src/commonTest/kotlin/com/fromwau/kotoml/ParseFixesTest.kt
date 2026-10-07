@@ -97,6 +97,13 @@ bytes that are not UTF-8
     }
 
     @Test
+    fun `rendering an error on the first line against empty text gives only the message`() {
+        val error = TomlDocument.parse("a = 1 x\n").assertError<TomlParseError>()
+        assertEquals(1, error.position?.line)
+        assertEquals(error.copy(span = null, position = null).render(""), error.render(""))
+    }
+
+    @Test
     fun `V1_0 refuses a malformed x escape as a TOML 1_1 escape at its backslash`() {
         val error = TomlDocument.parse("a = \"\\xZ1\"\n", TomlVersion.V1_0).assertError<TomlParseError>()
         assertEquals(TomlParseError.Reason.NotInToml10(Toml11Feature.HexEscape), error.reason)
