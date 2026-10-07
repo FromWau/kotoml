@@ -34,6 +34,13 @@ Rulings on removal (2026-10-07): emptying an array of tables keeps the comment a
 stays. A comment on a line holding only a comma belongs to the value before the comma. `clear(force = false)`
 follows the removal contract. `remove` of a missing key inside `edit {}` aborts the block with `NotFound`.
 
+Rulings on copy and store (2026-10-08): only the item API carries the comments that live in its slot; a bare
+`Value` carries its same-line comment, not the lines above its key, and `arr.replace(0, value)` keeps the slot's
+comment. A copy of an array element carries its same-line comment and the comments between it and its comma.
+Storing where the target cannot hold the item's comments (an inline table under TOML 1.0, braces on one line)
+returns `CommentsWouldBeLost` unless forced; the store APIs take `force = false`. The six QA scenarios S-052 to
+S-055, S-057 and C-048 are approved as wave 3 prints them.
+
 - [ ] **120. Write the comment ownership rule down.** GOALS.md goal 4 holds it (done with this item's filing);
   core/README.md's "Items and their comments" changes wave by wave with the code (121 to 125), never ahead of it.
 - [ ] **123. Copying and storing carry an item's comments; replacing follows the item.** A store or copy takes the
