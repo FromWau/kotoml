@@ -22,6 +22,13 @@ line; comment lines set apart by a blank line are free and stay in place. Items 
 headers, array elements and inline-table entries, recursively. An item's comments move, copy and are removed with
 it. This reverses README rules 2 and 4, the 105 ruling on `add`/`addAll`, and the 113 ruling on reordering.
 
+Rulings on edge cases (2026-10-07): a comment after an opening bracket (`arr = [ # open`) belongs to the item on
+that line, `arr`. Several items on one line: the comment belongs to the last (`1, 2, # pair` is `2`'s). A comment
+between a value and its comma (`2 # on 2\n  # more\n  , 3`) belongs to the value before the comma, `2`. A comment
+directly above a header belongs to that header (`# end of a` above `[b]` leaves with `[b]`). Comments with no item
+below (`# last note` before `]`, `# end of file`) belong to no item; one inside a container goes only when the
+container goes. A comment above `a.b = 1` belongs to both `a` and `a.b`, so removing `b` takes it.
+
 - [ ] **120. Write the comment ownership rule down.** GOALS.md goal 4 holds it (done with this item's filing);
   core/README.md's "Items and their comments" changes wave by wave with the code (121 to 125), never ahead of it.
 - [ ] **122. Removing takes an item's comments and refuses without force.**
