@@ -33,6 +33,26 @@ port = 8081
   is printed keeps the file's comments, spacing and spelling:
   - a table prints as its key/value lines, without its own header, each line ending as it does in the file;
   - an array of tables prints as written, each element under its `[[name]]` header;
+  - a header inside a selected table is written from that table, while a selected array of tables keeps its whole
+    header path:
+    ```console
+    $ cat nested.toml
+    [a]
+    x = 1
+    [[a.srv]]
+    h = 1
+    [a.c]
+    d = 2
+    $ kotoml get .a nested.toml
+    x = 1
+    [[srv]]
+    h = 1
+    [c]
+    d = 2
+    $ kotoml get .a.srv nested.toml
+    [[a.srv]]
+    h = 1
+    ```
   - `.[]` over tables prints one after another, separated by a blank line;
   - a value prints as TOML on a line ending in `\n`, also from a file with CRLF line endings, and `-r` prints
     strings without quotes;

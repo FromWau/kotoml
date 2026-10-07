@@ -123,6 +123,12 @@ class GetTest {
     }
 
     @Test
+    fun `a header inside a selected table is written from that table`() {
+        val text = "[a]\nx = 1\n[[a.srv]]\nh = 1\n[a.c]\nd = 2\n"
+        assertEquals("x = 1\n[[srv]]\nh = 1\n[c]\nd = 2", get(".a", text = text))
+    }
+
+    @Test
     fun `iterating tables separates them with a blank line`() {
         assertEquals(
             "host = \"alpha\"\nport = 8080\n\nhost = \"beta\"\nport = 8081",
