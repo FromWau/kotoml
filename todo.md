@@ -61,13 +61,13 @@ its same-line comment into an array as into a table (C5 stands).
 
 
 
-- [ ] **98. A forced layout change drops the comment lines above a table's first sub-header.** At ten times the
-  seeds, `CommentPropertyTest` finds `setLayout(force = true)` dropping comments that removing the same table keeps:
-  `# [x] you\n[x.y.z.w] # ...\n[x]\nd = 4`, then `setLayout(Inline, force = true)` on `x` drops the line above the
-  first header. Reproduced with `format()` a no-op, so it predates item 65.
 - [ ] **99. No one call writes a value in its default spelling or puts an array on one line.** `resetFormatting()`
   did both; `format()` keeps value spellings and layouts by ruling, so `0x10` cannot become `16` and a multi-line
   array cannot go to one line without decor calls by hand.
+
+- [ ] **100. An empty dotted table last in a multi-line inline table prints `{} ,`.** `b.d = {} ,`: a space before
+  the comma, because the empty table's value is built anew on each read and loses its suffix. Valid TOML, no comment
+  lost.
 
 Settled the same day, no change: a copied table prints where its key stands (item 38 over 29's "after the tables
 already there"); a moved table gets the default blank line (spacing is not kept across operations); a bare value's
@@ -85,6 +85,16 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **98. A forced layout change drops the comment lines above a table's first sub-header.** At ten times the
+  seeds, `CommentPropertyTest` finds `setLayout(force = true)` dropping comments that removing the same table keeps:
+  `# [x] you\n[x.y.z.w] # ...\n[x]\nd = 4`, then `setLayout(Inline, force = true)` on `x` drops the line above the
+  first header. Reproduced with `format()` a no-op, so it predates item 65.
+  **Verdict 2026-10-07:** fixed: three causes: a sub-header printing before the table's own lost the lines above it
+  into the braces, also when a table in between had no position yet; and an empty dotted table across lines lost its
+  kept lines because line comments matched a value built anew. The lines now go above the key (KeptLines, Item,
+  LineComments matched by key). Four LayoutTest cases; CommentPropertyTest clean at 100 times the seeds,
+  EditPropertyTest at 10 times.
 
 - [x] **65. `resetFormatting` is shallow and differs per kind.** A table keeps its values' spellings and key quoting,
   an array resets its layout but not its elements, and on the root it deletes comments. No document-wide reset.
