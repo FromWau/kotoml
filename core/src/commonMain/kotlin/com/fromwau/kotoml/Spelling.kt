@@ -211,18 +211,60 @@ internal class RawDecor(
 
     /**
      * Drops the sides of a value's decor that cannot stand where a copy of it is stored: a line break before a value
-     * after `=`, or a comment after a value inside brackets or braces, which would run over what closes them.
+     * after `=`, or a comment after a value inside brackets or braces, which would run over what closes them. The
+     * comment lines between a value and its comma stay: on a line of a table they print below it, and in brackets or
+     * braces the place lays them out.
      */
     fun fitFor(place: ValuePlace) {
         val before = prefix?.textOrNull.orEmpty()
         val after = suffix?.textOrNull.orEmpty()
         if (place != ValuePlace.Array && '\n' in before) prefix = null
+        val below = commentLinesBelow()
+        if (place == ValuePlace.Line && below.isNotEmpty()) {
+            val lineBreak = after.lineBreak()
+            suffix = KeptText.read(commentOnLine() + below.joinToString("") { lineBreak + it })
+            return
+        }
         val unfit = when (place) {
             ValuePlace.Line -> '\n' in after
-            ValuePlace.InlineTable -> '\n' in after || '#' in after
-            ValuePlace.Array -> '#' in after
+            ValuePlace.InlineTable -> below.isEmpty() && ('\n' in after || '#' in after)
+            ValuePlace.Array -> below.isEmpty() && '#' in after
         }
         if (unfit) suffix = null
+    }
+
+    /** The comment lines this decor of a value holds below its line, before the comma after it, unindented. */
+    fun commentLinesBelow(): List<String> {
+        val text = suffix?.textOrNull.orEmpty()
+        val firstBreak = text.indexOf('\n')
+        if (firstBreak < 0) return emptyList()
+        return text
+            .substring(firstBreak + 1)
+            .lines()
+            .map { it.trim() }
+            .filter { it.startsWith('#') }
+    }
+
+    /** The comment ending the line of the value this decor surrounds, with the spacing before it; "" for none. */
+    fun commentOnLine(): String {
+        val text = suffix?.textOrNull.orEmpty()
+        val firstBreak = text.indexOf('\n')
+        val line = if (firstBreak < 0) text else text.substring(0, text.lineEndBefore(firstBreak))
+        return line.takeIf { '#' in it }.orEmpty()
+    }
+
+    /**
+     * Lays the comment lines below a value out for brackets or braces across lines, whose entries start with
+     * [indent]: each on a line of its own, and the comma after them on the next.
+     */
+    fun indentCommentLinesBelow(
+        indent: String,
+        lineBreak: String,
+    ) {
+        val below = commentLinesBelow()
+        if (below.isEmpty()) return
+        val lines = below.joinToString("") { indent + it + lineBreak }
+        suffix = KeptText.read(commentOnLine() + lineBreak + lines + indent)
     }
 
     fun prefixEncode(buf: StringBuilder, default: String) {

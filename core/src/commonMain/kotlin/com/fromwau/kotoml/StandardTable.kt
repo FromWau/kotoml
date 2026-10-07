@@ -752,9 +752,11 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         return stored
     }
 
+    // Lines of a table hold every comment an item brings, so there is nothing to force.
     override fun putItem(
         key: String,
         item: Item,
+        force: Boolean,
     ): Result<Item?, TomlEditError> = put(key, item)
 
     /**

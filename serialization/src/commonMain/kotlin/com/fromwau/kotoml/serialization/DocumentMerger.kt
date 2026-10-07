@@ -259,7 +259,8 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
     ) {
         when (table) {
             is StandardTable -> table.set(key, item).fits()
-            is InlineTable -> item.valueOrNull?.let { table.set(key, it).fits() }
+            // The encoded value replaces what the file held there, so comments the table cannot hold go.
+            is InlineTable -> item.valueOrNull?.let { table.put(key, it, force = true).fits() }
         }
     }
 }

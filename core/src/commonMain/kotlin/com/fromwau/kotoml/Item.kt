@@ -135,6 +135,7 @@ public class Item private constructor(
         fun keepOwnComments(comments: ItemComments): String = when (this) {
             is ValueContent -> {
                 value.rawDecor.keepSameLineComment(comments.sameLine)
+                value.rawDecor.keepCommaLineComment(comments.commaLine)
                 // A dotted table holds the lines above its first line, which it brings as a table brings its header's.
                 val dotted = value.inlineTableOrNull?.takeIf { it.isDotted }
                 dotted?.keepOnlyAttachedAboveFirstLine()
@@ -224,9 +225,14 @@ public class Item private constructor(
      * [StandardTable.put] says. Fails when this slot is in an array or an inline table and [item] holds no value, or in
      * an array of tables and [item] holds no table, with [TomlEditError.TooDeep] when [item] would nest deeper than the
      * parser reads, and with [TomlEditError.NotInToml10] when it holds what only TOML 1.1 reads and this slot is in a
-     * document whose [TomlDocument.version] is 1.0.
+     * document whose [TomlDocument.version] is 1.0. In an inline table that cannot hold the comments [item] brings, as
+     * [InlineTable.put] says, it fails with [TomlEditError.CommentsWouldBeLost] unless [force] stores it without them.
+     * Each failure changes nothing.
      */
-    public fun assign(item: Item): EmptyResult<TomlEditError> {
+    public fun assign(
+        item: Item,
+        force: Boolean = false,
+    ): EmptyResult<TomlEditError> {
         val within = owner?.let { copiesWithinDocument(item, it) } ?: false
         val next = item.content
             .copyOutOfBraces()
@@ -238,9 +244,15 @@ public class Item private constructor(
         owner?.let { notInToml10Error(it, storedKey, item) }?.let { return Err(it) }
         owner?.let { giveSecondsInToml10(it, Item(next, Holds.Anything)) }
         val nextValue = (next as? Content.ValueContent)?.value
+        val inline = owner as? InlineTable
+        val key = storedKey
+        if (!force && inline != null && nextValue != null && key != null) {
+            inline.lostComments(key, nextValue.rawDecor, above)?.let { return Err(it) }
+        }
         // In brackets or braces a comment after a value follows its comma, not its decor.
         val comment = nextValue?.takeIf { valuePlace.let { it != null && it != ValuePlace.Line } }?.broughtComment()
         valuePlace?.let { place -> nextValue?.fitFor(place) }
+        if (nextValue != null) inline?.dropCommentsItCannotHold(nextValue)
         val entry = entry
         if (entry == null) {
             val oldElement = standardTableOrNull?.takeIf { arrayOwner is ArrayOfTables }
@@ -255,8 +267,9 @@ public class Item private constructor(
             if (array != null && nextValue != null && oldDecor != null) {
                 // The element takes the slot's place on its line, as [TomlArray.replace] puts it.
                 nextValue.rawDecor.keepAttachedAboveIn(oldDecor)
-                nextValue.rawDecor.suffix = oldDecor.suffix
+                if (!nextValue.bringsCommentLinesBelow()) nextValue.rawDecor.suffix = oldDecor.suffix
                 array.takeBroughtComments(nextValue, above, comment.orEmpty())
+                array.layOutCommentLinesBelow(nextValue)
             }
             return Ok(Unit)
         }
@@ -271,7 +284,6 @@ public class Item private constructor(
         val keptPlaces = entry.keepPlacesOf(oldArray)
         if (!keptPlaces) entry.keepLinesAbove(linesAbove)
         entry.keepTablePlace(oldTable)
-        val inline = owner as? InlineTable
         if (inline == null) {
             if (!keptPlaces) entry.takeAttachedAbove(above)
         } else if (nextValue != null) {
@@ -353,8 +365,10 @@ public class Item private constructor(
      *
      * @return [TomlEditError.NotATable] when this item holds neither a table nor an inline table,
      *   [TomlEditError.NotAValue] when this is an inline table and [item] holds no value, [TomlEditError.TooDeep]
-     *   when [item] would nest deeper than the parser reads, or [TomlEditError.NotInToml10] when [item] holds what
-     *   only TOML 1.1 reads and this item is in a document whose [TomlDocument.version] is 1.0.
+     *   when [item] would nest deeper than the parser reads, [TomlEditError.NotInToml10] when [item] holds what
+     *   only TOML 1.1 reads and this item is in a document whose [TomlDocument.version] is 1.0, or
+     *   [TomlEditError.CommentsWouldBeLost] when this is an inline table that cannot hold the comments [item] brings;
+     *   call [InlineTable.putItem] with `force = true` to store it without them.
      */
     public operator fun set(
         key: String,

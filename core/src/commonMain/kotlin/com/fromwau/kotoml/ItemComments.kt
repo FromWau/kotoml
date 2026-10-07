@@ -225,6 +225,22 @@ internal fun RawDecor.keepSameLineComment(comment: String) {
     if ('#' !in suffix?.textOrNull.orEmpty() && '#' in comment) suffix = KeptText.read(comment)
 }
 
+/**
+ * Puts [comment], the comment on a line holding only the comma after this copy's source, after it: on its line when
+ * no comment is there or below it, otherwise as the last of the comment lines below it.
+ */
+internal fun RawDecor.keepCommaLineComment(comment: String) {
+    if ('#' !in comment) return
+    val text = suffix?.textOrNull.orEmpty()
+    if ('#' !in text) {
+        suffix = KeptText.read(comment)
+        return
+    }
+    val lineBreak = text.lineBreak()
+    val below = commentLinesBelow() + comment.trim()
+    suffix = KeptText.read(commentOnLine() + lineBreak + below.joinToString("") { it + lineBreak })
+}
+
 /** The same-line comment the slot holding [container] owns, or "" when it is stored nowhere. */
 internal fun sameLineCommentOf(container: Any): String = slotOf(container)?.let(::ownCommentsOf)?.sameLine.orEmpty()
 

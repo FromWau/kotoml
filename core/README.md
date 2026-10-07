@@ -125,10 +125,24 @@ takes the indentation of the key above it, and an element or key added to an arr
 the spacing already there. A comment an element or an inline table's value brings, read with it or given in its
 decor, such as `Decor(suffix = " # note")`, puts a one-line array or inline table on lines of its own, one entry per
 line, whether the entry is added, inserted at an index or replaces another; its comment takes the place of the one
-that stood after the entry it replaces, and the new lines end as the document's do. In a document of TOML 1.0, which
-has no comments inside an inline table, an inline table's value drops it. Sorting, by key name
-with `sort()` or by your own order with `sortBy` and `sortWith`, moves each key and each table header with the
-comment lines right above it and leaves blank lines in place.
+that stood after the entry it replaces, and the new lines end as the document's do. Comment lines between an element
+and its comma stay between them wherever the element goes, and on a line of a table they print below its key. TOML 1.0
+has no comments inside an inline table, and a dotted table prints its keys among other lines, so neither can hold
+the comments a value brings: `put`, `putAll`, `getOrPut`, `putItem` and `Item.assign` there return
+`TomlEditError.CommentsWouldBeLost` and change nothing, unless called with `force = true`, which stores the value
+without them. The `table[key] = value` form cannot take `force`: it does what `set` does without it, and discards the
+failure, so nothing changes. Sorting, by key name with `sort()` or by your own order with `sortBy` and `sortWith`,
+moves each key and each table header with the comment lines right above it and leaves blank lines in place.
+
+```kotlin
+val doc = TomlDocument.parse("v = 1 # one\nt = { a = 1 }\n", TomlVersion.V1_0).getOrElse { error(it) }
+val t = doc["t"].getOrNull()?.inlineTableOrNull!!
+val v = doc["v"].getOrNull()?.valueOrNull!!
+t.put("v", v) // Err(CommentsWouldBeLost(keyPath = [t, v], count = 1)), nothing changed
+t.put("v", v, force = true)
+// v = 1 # one
+// t = { a = 1, v = 1 }
+```
 
 ```kotlin
 val doc = TomlDocument.parse("# db\n[old] # main\nurl = 1\n\n[cache]\n[old.pool]\nsize = 2\n").getOrElse { error(it) }
@@ -312,7 +326,8 @@ An item handed out by indexing, and the comments that go with it, follow five ru
    stored with the comments that belong to it: the comment lines right above it, with no blank line between, and its
    same-line comment, for a table those of its header, and every comment inside it, blank lines included. Comment
    lines set apart from it by a blank line belong to no item and stay in its source. Stored in place of another item,
-   it keeps the comments of that slot unless it brings comments of its own, which take their place. Editing the
+   it keeps the comments of that slot unless it brings comments of its own, which take their place. Where the place
+   cannot hold its comments, the store returns `CommentsWouldBeLost` and changes nothing, unless forced. Editing the
    original afterwards does not change the copy.
 3. **`copy()` is exactly what a store would store.** With `val db = src["db"].getOrElse { error(it) }`,
    `dst.set("db", db.copy())` prints the same as `dst.set("db", db)`, in another document or the same one. The same

@@ -547,9 +547,11 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     override fun getItem(key: String): Item? = items.get(key)
 
     /**
-     * Sets [key] to a copy of [value], keeping the key's position and formatting when it is already there.
+     * Sets [key] to a copy of [value], keeping the key's position and formatting when it is already there, as [put]
+     * does without force. In the `table[key] = value` form a failure is discarded and nothing changes; call [put] to
+     * see it or to force the store.
      *
-     * @return [TomlEditError.TooDeep], storing nothing, when [value] would nest deeper than the parser reads.
+     * @return [TomlEditError.TooDeep] or [TomlEditError.CommentsWouldBeLost], storing nothing, as [put] says.
      */
     public operator fun set(
         key: String,
@@ -566,24 +568,28 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
      * The value at [key], first storing a copy of what [default] makes when there is none. [default] is called
      * only then.
      *
-     * @return the stored value, to change in place; or [TomlEditError.TooDeep], storing nothing, when what [default]
-     *   makes would nest deeper than the parser reads.
+     * @param force stores the value even when this table cannot hold its comments, as [put] says.
+     * @return the stored value, to change in place; or, storing nothing, [TomlEditError.TooDeep] when what [default]
+     *   makes would nest deeper than the parser reads, or [TomlEditError.CommentsWouldBeLost] as [put] says.
      */
     public fun getOrPut(
         key: String,
+        force: Boolean = false,
         default: () -> Value,
-    ): Result<Value, TomlEditError> = getOrPut(Key(key), default)
+    ): Result<Value, TomlEditError> = getOrPut(Key(key), force, default)
 
     /** As [getOrPut], an inserted key keeping the spelling and decor of [key]. */
     public fun getOrPut(
         key: Key,
+        force: Boolean = false,
         default: () -> Value,
     ): Result<Value, TomlEditError> {
         getOrNull(key.name)?.let { return Ok(it) }
         val made = default()
         val value = made.copyFor(ValuePlace.InlineTable)
         storeError(this, key.name, Item(value), key)?.let { return Err(it) }
-        putEntry(key.copy(), value, commentToKeep(made))
+        if (!force) lostComments(key.name, made.rawDecor, "")?.let { return Err(it) }
+        putEntry(key.copy(), value, commentToKeep(made.rawDecor))
         return Ok(value)
     }
 
@@ -593,56 +599,101 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
      *
      * A comment in [value]'s decor suffix, read with it or given, such as `Decor(suffix = " # note")`, puts a table on
      * one line across lines, as [Item.setLayout] does for [TableLayout.MultilineInline], and prints after the value's
-     * comma, in place of the comment that stood there. The lines it adds end as the document's lines do, in `\r\n` in
-     * a document read with them. TOML 1.0 has no comments inside an inline table, so in a document whose
-     * [TomlDocument.version] is 1.0 the comment is dropped.
+     * comma, in place of the comment that stood there; comment lines between [value] and its comma print below it, the
+     * comma below them. The lines it adds end as the document's lines do, in `\r\n` in a document read with them.
      *
-     * @return the value [key] held before, or null when it held none; or [TomlEditError.TooDeep], storing nothing,
-     *   when [value] would nest deeper than the parser reads.
+     * TOML 1.0 has no comments inside an inline table, and a dotted table prints its keys among other lines, so
+     * neither can hold the comments [value] brings: storing it there fails with [TomlEditError.CommentsWouldBeLost]
+     * and changes nothing, unless [force] stores it without them.
+     *
+     * ```kotlin
+     * val doc = TomlDocument.parse("v = 1 # one\nt = { a = 1 }\n", TomlVersion.V1_0).getOrElse { error(it) }
+     * val t = doc["t"].getOrNull()?.inlineTableOrNull!!
+     * val v = doc["v"].getOrNull()?.valueOrNull!!
+     * t.put("v", v) // Err(CommentsWouldBeLost(keyPath = [t, v], count = 1)), nothing changed
+     * t.put("v", v, force = true) // t = { a = 1, v = 1 }
+     * ```
+     *
+     * @param force stores [value] even when this table cannot hold its comments, which then go.
+     * @return the value [key] held before, or null when it held none; or, storing nothing,
+     *   [TomlEditError.TooDeep] when [value] would nest deeper than the parser reads, or
+     *   [TomlEditError.CommentsWouldBeLost] when this table cannot hold the comments [value] brings and [force] is
+     *   false.
      */
     public fun put(
         key: String,
         value: Value,
-    ): Result<Value?, TomlEditError> = checkedStore(key, value.copyFor(ValuePlace.InlineTable), commentToKeep(value))
+        force: Boolean = false,
+    ): Result<Value?, TomlEditError> = store(Key(key), value.copyFor(ValuePlace.InlineTable), value.rawDecor, "", force)
 
     /**
      * Sets [key], with its spelling and decor, to a copy of [value]. A key already there keeps its position but
      * takes the spelling and decor of [key].
      *
-     * @return the value the key held before, or null when it held none; or [TomlEditError.TooDeep], as [put] says.
+     * @return the value the key held before, or null when it held none; or [TomlEditError.TooDeep] or
+     *   [TomlEditError.CommentsWouldBeLost], storing nothing, as [put] says.
      */
     public fun put(
         key: Key,
         value: Value,
+        force: Boolean = false,
     ): Result<Value?, TomlEditError> {
         storeError(this, key.name, Item(value), key)?.let { return Err(it) }
+        if (!force) lostComments(key.name, value.rawDecor, "")?.let { return Err(it) }
         items.getEntry(key.name)?.key = key.copy()
-        return Ok(putEntry(key.copy(), value.copyFor(ValuePlace.InlineTable), commentToKeep(value)))
+        return store(key.copy(), value.copyFor(ValuePlace.InlineTable), value.rawDecor, "", force = true)
     }
 
+    /**
+     * Sets [key] to a copy of [item], which holds a value, as [put] does; the comment lines right above the value where
+     * it was read come along onto a line of their own.
+     */
     override fun putItem(
         key: String,
         item: Item,
+        force: Boolean,
     ): Result<Item?, TomlEditError> {
         if (item.valueOrNull == null) return Err(TomlEditError.NotAValue(item.type))
         val copy = item.copy()
         val above = copy.takeCarriedAbove()
         val value = copy.moveToValue()
-        val comment = commentToKeep(value)
+        val brought = value.rawDecor.copy()
         value.fitFor(ValuePlace.InlineTable)
-        storeError(this, key, Item(value))?.let { return Err(it) }
-        val linesAbove = if (holdsComments()) above else ""
-        return Ok(putEntry(Key(key), value, comment, linesAbove)?.let { Item(it) })
+        return store(Key(key), value, brought, above, force).map { old -> old?.let { Item(it) } }
     }
 
-    // Stores the value itself, so only for one nothing else holds.
-    private fun checkedStore(
-        key: String,
+    /**
+     * Stores [value], a copy no one else holds, at [key] with the comments after it that [brought], the decor of the
+     * value it was copied from, holds and [linesAbove] above it; or [TomlEditError.CommentsWouldBeLost] when this table
+     * cannot hold them and not [force].
+     */
+    private fun store(
+        key: Key,
         value: Value,
-        comment: String = "",
+        brought: RawDecor,
+        linesAbove: String,
+        force: Boolean,
     ): Result<Value?, TomlEditError> {
-        storeError(this, key, Item(value))?.let { return Err(it) }
-        return Ok(putEntry(Key(key), value, comment))
+        storeError(this, key.name, Item(value))?.let { return Err(it) }
+        if (!force) lostComments(key.name, brought, linesAbove)?.let { return Err(it) }
+        dropCommentsItCannotHold(value)
+        val above = if (holdsComments()) linesAbove else ""
+        return Ok(putEntry(key, value, commentToKeep(brought), above))
+    }
+
+    /**
+     * [TomlEditError.CommentsWouldBeLost] for storing at [key] a value whose decor is [decor] with [linesAbove] above
+     * it when this table cannot hold the comments they bring, or null.
+     */
+    internal fun lostComments(
+        key: String,
+        decor: RawDecor,
+        linesAbove: String,
+    ): TomlEditError.CommentsWouldBeLost? {
+        if (holdsComments()) return null
+        val onLine = if (decor.commentOnLine().isEmpty()) 0 else 1
+        val count = linesAbove.lines().count { '#' in it } + onLine + decor.commentLinesBelow().size
+        return if (count == 0) null else TomlEditError.CommentsWouldBeLost(keyPathOf(this) + key, count)
     }
 
     private fun putEntry(
@@ -653,14 +704,15 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     ): Value? {
         giveSecondsInToml10(this, Item(value))
         val isNew = !items.containsKey(key.name)
-        if ((comment.isNotEmpty() || linesAbove.isNotEmpty()) && !isMultiline) {
-            val lineBreak = lineEndingOf(this)
+        val linesBelow = holdsComments() && value.bringsCommentLinesBelow()
+        val lineBreak = lineEndingOf(this)
+        if ((comment.isNotEmpty() || linesAbove.isNotEmpty() || linesBelow) && !isMultiline) {
             val indent = lineIndentOf(this)
             layOutAcrossLines(lineBreak, indent, documentVersionOf(this))
             if (isNew && key.rawLeafDecor.prefix == null) {
                 key.rawLeafDecor.prefix = KeptText.from(lineBreak + indent + INDENT)
             }
-            value.rawDecor.suffix = KeptText.from("")
+            if (!linesBelow) value.rawDecor.suffix = KeptText.from("")
         }
         if (isNew) {
             takeClosingSpace(value)
@@ -668,8 +720,21 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
             takeSpacingOfLast(key, value)
         }
         val old = items.put(key, Item.inInlineTable(value), linesAbove)?.valueOrNull
+        if (linesBelow) layOutCommentLinesBelow(value, lineBreak)
         if (comment.isNotEmpty()) putCommentAfter(value, comment)
         return old
+    }
+
+    // The comma after [value] goes below the comment lines it brings, so a last entry takes one too.
+    private fun layOutCommentLinesBelow(
+        value: Value,
+        lineBreak: String,
+    ) {
+        val line = visualValues().firstOrNull { it.value === value } ?: return
+        val start = line.start()
+        val indent = if ('\n' in start) start.substringAfterLast('\n') else lineIndentOf(this) + INDENT
+        value.rawDecor.indentCommentLinesBelow(indent, lineBreak)
+        if (visualValues().lastOrNull()?.value === value) trailingComma = true
     }
 
     /**
@@ -689,7 +754,12 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     }
 
     // The comment [value] brings, which a table of key/value lines or one in TOML 1.0 cannot hold after it.
-    private fun commentToKeep(value: Value): String = if (holdsComments()) value.broughtComment() else ""
+    private fun commentToKeep(decor: RawDecor): String = if (holdsComments()) decor.broughtComment() else ""
+
+    /** Drops the comments after [value], going in, that this table cannot hold; see [put]. */
+    internal fun dropCommentsItCannotHold(value: Value) {
+        if (!holdsComments() && '#' in value.rawDecor.suffix?.textOrNull.orEmpty()) value.rawDecor.suffix = null
+    }
 
     // A dotted table prints its keys among other lines, and TOML 1.0 has no comments in braces.
     private fun holdsComments(): Boolean = !isDotted && documentVersionOf(this) != TomlVersion.V1_0
@@ -1048,14 +1118,25 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     }
 
     /**
-     * Sets the key of every pair of [pairs] to a copy of its value, in order, as `table[key] = value` does.
+     * Sets the key of every pair of [pairs] to a copy of its value, in order, as [put] does.
      *
-     * @return [TomlEditError.TooDeep], storing none of them, when one would nest deeper than the parser reads.
+     * @param force stores the pairs even when this table cannot hold their comments, which then go.
+     * @return [TomlEditError.TooDeep], storing none of them, when one would nest deeper than the parser reads; or
+     *   [TomlEditError.CommentsWouldBeLost], storing none, when [force] is false and this table cannot hold their
+     *   comments, naming the first such key and counting the comments of all.
      */
-    public fun putAll(pairs: Iterable<Pair<String, Value>>): EmptyResult<TomlEditError> {
+    public fun putAll(
+        pairs: Iterable<Pair<String, Value>>,
+        force: Boolean = false,
+    ): EmptyResult<TomlEditError> {
         val stored = pairs.toList()
         for ((key, value) in stored) storeError(this, key, Item(value))?.let { return Err(it) }
-        for ((key, value) in stored) put(key, value)
+        if (!force) {
+            val lost = stored.mapNotNull { (key, value) -> lostComments(key, value.rawDecor, "") }
+            val count = lost.sumOf { it.count }
+            lost.firstOrNull()?.let { return Err(TomlEditError.CommentsWouldBeLost(it.keyPath, count)) }
+        }
+        for ((key, value) in stored) put(key, value, force = true)
         return Ok(Unit)
     }
 

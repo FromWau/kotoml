@@ -1,5 +1,6 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.assertError
 import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -204,10 +205,98 @@ class StoreCarriesCommentsTest {
     }
 
     @Test
-    fun `a value stored in an inline table of TOML 1 0 leaves its comments`() {
+    fun `a value stored in an inline table of TOML 1 0 is refused and forced goes without its comments`() {
         val doc = parse("t = { a = 0 }\n", TomlVersion.V1_0)
-        doc["t"]["x"] = parse("# about x\nx = 1 # one\n")["x"].assertSuccess()
+        val x = parse("# about x\nx = 1 # one\n")["x"].assertSuccess()
+        val table = doc["t"].assertSuccess().inlineTableOrNull!!
+        val error = doc["t"].set("x", x).assertError<TomlEditError.CommentsWouldBeLost>()
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("t", "x"), 2), error)
+        assertEquals("t = { a = 0 }\n", doc.toString())
+        table.putItem("x", x, force = true).assertSuccess()
         assertEquals("t = { a = 0, x = 1 }\n", doc.toString())
+    }
+
+    @Test
+    fun `a value with a same-line comment put in an inline table of TOML 1 0 is refused and forced goes without it`() {
+        val doc = parse("v = 1 # one\nt = { a = 1 }\n", TomlVersion.V1_0)
+        val table = doc["t"].assertSuccess().inlineTableOrNull!!
+        val v = doc["v"].assertSuccess().valueOrNull!!
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("t", "v"), 1), table.put("v", v).assertError())
+        assertEquals("v = 1 # one\nt = { a = 1 }\n", doc.toString())
+        table.put("v", v, force = true).assertSuccess()
+        assertEquals("v = 1 # one\nt = { a = 1, v = 1 }\n", doc.toString())
+    }
+
+    @Test
+    fun `a value assigned to a slot of an inline table of TOML 1 0 is refused and forced goes without its comments`() {
+        val doc = parse("t = { a = 0 }\n", TomlVersion.V1_0)
+        val x = parse("# about x\nx = 1 # one\n")["x"].assertSuccess()
+        val slot = doc["t"]["a"].assertSuccess()
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("t", "a"), 2), slot.assign(x).assertError())
+        assertEquals("t = { a = 0 }\n", doc.toString())
+        slot.assign(x, force = true).assertSuccess()
+        assertEquals("t = { a = 1 }\n", doc.toString())
+    }
+
+    @Test
+    fun `putAll on an inline table of TOML 1 0 stores none of the pairs when one brings a comment`() {
+        val doc = parse("v = 1 # one\nt = { a = 1 }\n", TomlVersion.V1_0)
+        val table = doc["t"].assertSuccess().inlineTableOrNull!!
+        val pairs = listOf("w" to Value.Integer(2L), "v" to doc["v"].assertSuccess().valueOrNull!!)
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("t", "v"), 1), table.putAll(pairs).assertError())
+        assertEquals("v = 1 # one\nt = { a = 1 }\n", doc.toString())
+    }
+
+    @Test
+    fun `a dotted table stored in braces on one line keeps the comment above it`() {
+        val doc = parse("t = {\n  # about b\n  b.c = 1,\n}\nu = { x = 1 }\n")
+        doc["u"].set("b", doc["t"]["b"].assertSuccess()).assertSuccess()
+        assertEquals("t = {\n  # about b\n  b.c = 1,\n}\nu = {\n  x = 1,\n  # about b\n  b.c = 1,\n}\n", doc.toString())
+    }
+
+    private val linesBelow = "a = [\n  1,\n  2 # on 2\n  # more\n  , 3,\n]\n"
+
+    @Test
+    fun `an element stored on a line of a table brings its same-line comment and the comment lines below it`() {
+        val doc = parse(linesBelow)
+        doc.set("b", doc["a"][1].assertSuccess()).assertSuccess()
+        assertEquals("${linesBelow}b = 2 # on 2\n# more\n", doc.toString())
+    }
+
+    @Test
+    fun `an element value stored on a line of a table brings its same-line comment and the comment lines below it`() {
+        val doc = parse(linesBelow)
+        doc.set("b", doc["a"].assertSuccess().arrayOrNull!![1].assertSuccess()).assertSuccess()
+        assertEquals("${linesBelow}b = 2 # on 2\n# more\n", doc.toString())
+    }
+
+    @Test
+    fun `an element added to another array keeps the comment lines between it and its comma`() {
+        val doc = parse("${linesBelow}c = [9]\n")
+        val element = doc["a"].assertSuccess().arrayOrNull!![1].assertSuccess()
+        doc["c"].assertSuccess().arrayOrNull!!.add(element).assertSuccess()
+        assertEquals("${linesBelow}c = [\n  9,\n  2 # on 2\n  # more\n  ,\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `an element assigned by index into another array keeps the comment lines between it and its comma`() {
+        val doc = parse("${linesBelow}c = [8, 9]\n")
+        doc["c"][0] = doc["a"][1].assertSuccess()
+        assertEquals("${linesBelow}c = [\n  2 # on 2\n  # more\n  ,\n  9,\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `an element stored in an inline table keeps the comment lines between it and its comma`() {
+        val doc = parse("${linesBelow}t = { z = 0 }\n")
+        doc["t"].set("x", doc["a"][1].assertSuccess()).assertSuccess()
+        assertEquals("${linesBelow}t = {\n  z = 0,\n  x = 2 # on 2\n  # more\n  ,\n}\n", doc.toString())
+    }
+
+    @Test
+    fun `the comment on a line holding only the comma after an element goes along with it`() {
+        val doc = parse("a = [\n  1,\n  2\n  , # c\n  3,\n]\n")
+        doc.set("b", doc["a"][1].assertSuccess()).assertSuccess()
+        assertEquals("a = [\n  1,\n  2\n  , # c\n  3,\n]\nb = 2 # c\n", doc.toString())
     }
 
     @Test

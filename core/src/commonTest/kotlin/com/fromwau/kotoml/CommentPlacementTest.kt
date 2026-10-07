@@ -87,10 +87,14 @@ class CommentPlacementTest {
     }
 
     @Test
-    fun `a comment given to a value in a TOML 1_0 document leaves the inline table on one line`() {
+    fun `a comment given to a value for an inline table of TOML 1_0 is refused and forced stays off the line`() {
         val doc = parse("t = { a = 1 }\n", TomlVersion.V1_0)
         val value = Value.Integer(2L).also { it.decor = Decor(suffix = " # c") }
-        doc["t"].assertSuccess().valueOrNull!!.inlineTableOrNull!!.set("b", value).assertSuccess()
+        val table = doc["t"].assertSuccess().valueOrNull!!.inlineTableOrNull!!
+        val error = table.set("b", value).assertError<TomlEditError.CommentsWouldBeLost>()
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("t", "b"), 1), error)
+        assertEquals("t = { a = 1 }\n", doc.toString())
+        table.put("b", value, force = true).assertSuccess()
         assertEquals("t = { a = 1, b = 2 }\n", doc.toString())
     }
 

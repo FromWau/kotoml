@@ -103,9 +103,11 @@ internal class KeyValue(key: Key, item: Item) {
             }
             return
         }
-        val lineKey = firstLineKey() ?: return
-        val start = lineKey.rawLeafDecor.prefix?.textOrNull
         val inBraces = pairs?.owner is InlineTable
+        // In braces a dotted key's first line starts with this key's spacing when it has one, not its first key's.
+        val startsWithKey = inBraces && item.inlineTableOrNull?.isDotted == true && key.rawLeafDecor.prefix != null
+        val lineKey = (if (startsWithKey) key else firstLineKey()) ?: return
+        val start = lineKey.rawLeafDecor.prefix?.textOrNull
         // Braces on one line have no line for a comment.
         if (inBraces && '\n' !in start.orEmpty()) return
         val indent = start?.substringAfterLast('\n') ?: indentOfLineBefore()

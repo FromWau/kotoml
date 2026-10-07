@@ -201,7 +201,7 @@ public class InlineTableScope internal constructor(private val table: InlineTabl
     }
 
     override fun storedOrPut(key: String, value: () -> Value): Item {
-        table.getOrPut(key, value).orAbort()
+        table.getOrPut(key, default = value).orAbort()
         return checkNotNull(table.getItem(key))
     }
 

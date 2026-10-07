@@ -478,10 +478,17 @@ internal fun Value.copyFor(place: ValuePlace): Value = copyOutOfBraces().fitFor(
 internal fun Value.fitFor(place: ValuePlace): Value = also { rawDecor.fitFor(place) }
 
 /**
- * The comment this value brings to print after it, read with it or given by a caller, with the spacing before it; ""
- * when there is none.
+ * The comment this value brings to print after its comma, read with it or given by a caller, with the spacing before
+ * it; "" when there is none, or when comment lines below the value come with it, which keep it before the comma.
  */
-internal fun Value.broughtComment(): String = commentAfter().substringBefore('\n').trimEnd('\r')
+internal fun Value.broughtComment(): String = rawDecor.broughtComment()
+
+/** The comment the value this decor surrounds brings to print after its comma; see [Value.broughtComment]. */
+internal fun RawDecor.broughtComment(): String =
+    if (commentLinesBelow().isNotEmpty()) "" else commentOnLine().trimEnd('\r')
+
+/** Whether this value brings comment lines between it and the comma after it; see [RawDecor.commentLinesBelow]. */
+internal fun Value.bringsCommentLinesBelow(): Boolean = rawDecor.commentLinesBelow().isNotEmpty()
 
 internal const val LINE_BREAK: String = "\n"
 internal const val INDENT: String = "  "

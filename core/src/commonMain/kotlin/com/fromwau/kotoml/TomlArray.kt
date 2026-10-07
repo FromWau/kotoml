@@ -184,8 +184,8 @@ public class TomlArray() : Iterable<Value> {
      *
      * A comment in [value]'s decor suffix, read with it or given, such as `Decor(suffix = " # note")`, puts an array on
      * one line on lines of its own, one element per line with a comma after each, and prints after the new element's
-     * comma. The lines it
-     * adds end as the document's lines do, in `\r\n` in a document read with them.
+     * comma. Comment lines between [value] and its comma, where it was read, stay between them, each on a line of its
+     * own. The lines it adds end as the document's lines do, in `\r\n` in a document read with them.
      *
      * @return [TomlEditError.TooDeep], storing nothing, when [value] would nest deeper than the parser reads.
      */
@@ -200,8 +200,27 @@ public class TomlArray() : Iterable<Value> {
         }
         if (stored.decor.prefix == null) takeSpacingOfLast(stored)
         append(stored)
+        layOutCommentLinesBelow(stored)
         if (comment.isNotEmpty()) putCommentAfter(stored, comment)
         return Ok(Unit)
+    }
+
+    /**
+     * Puts the comment lines [value], one of the elements, brings between it and its comma on lines of their own,
+     * indented as it is, with its comma below them; an array on one line goes across lines first.
+     */
+    internal fun layOutCommentLinesBelow(value: Value) {
+        if (!value.bringsCommentLinesBelow()) return
+        val brought = value.rawDecor.suffix
+        spreadForComment(value)
+        value.rawDecor.suffix = brought
+        val start = value.rawDecor.prefix?.textOrNull?.takeIf { '\n' in it }
+        val indent = start?.substringAfterLast('\n') ?: (lineIndentOf(this) + INDENT)
+        value.rawDecor.indentCommentLinesBelow(indent, lineEndingOf(this))
+        if (value === printedValues().lastOrNull()) {
+            trailingComma = true
+            if ('\n' !in trailing) trailing = lineEndingOf(this) + lineIndentOf(this)
+        }
     }
 
     /**
@@ -227,7 +246,12 @@ public class TomlArray() : Iterable<Value> {
 
     // A comment after an element needs one element per line; [value], going in, starts a line when it has no prefix.
     private fun spreadForComment(value: Value) {
-        if (!printsOnOneLine()) return
+        // [value] may already stand here with the lines it brings, which do not make the array print across lines.
+        val brought = value.rawDecor.copy()
+        value.rawDecor.clear()
+        val oneLine = printsOnOneLine()
+        value.rawDecor.assign(brought)
+        if (!oneLine) return
         val elementStart = spreadOverLines()
         // Spacing for a place on a line goes; a value starting a line of its own keeps its lines above.
         if ('\n' !in value.decor.prefix.orEmpty()) value.rawDecor.prefix = KeptText.from(elementStart)
@@ -475,6 +499,7 @@ public class TomlArray() : Iterable<Value> {
         val next = values.subList(index, values.size).firstNotNullOfOrNull { it.valueOrNull }
         if (stored.rawDecor.prefix == null && next != null) takeLineStart(stored, next)
         values.add(index, Item.inArray(stored, this))
+        layOutCommentLinesBelow(stored)
         if (comment.isNotEmpty()) putCommentAfter(stored, comment)
         return Ok(Unit)
     }
@@ -515,9 +540,10 @@ public class TomlArray() : Iterable<Value> {
         }
         if (keepDecor) {
             stored.rawDecor.keepAttachedAboveIn(old.rawDecor)
-            stored.rawDecor.suffix = old.rawDecor.suffix
+            if (!stored.bringsCommentLinesBelow()) stored.rawDecor.suffix = old.rawDecor.suffix
         }
         values.set(index, Item.inArray(stored, this)).leaveArray()
+        layOutCommentLinesBelow(stored)
         if (comment.isNotEmpty()) putCommentAfter(stored, comment)
         return Ok(old)
     }

@@ -19,15 +19,19 @@ public sealed interface Table {
     public fun getItem(key: String): Item?
 
     /**
-     * Sets [key] to a copy of [item].
+     * Sets [key] to a copy of [item], as [StandardTable.put] and [InlineTable.put] do.
      *
-     * @return the item [key] held before, or null when it held none; [TomlEditError.NotAValue] when this is an
-     *   inline table and [item] holds no value; or [TomlEditError.TooDeep], storing nothing, when [item] would nest
-     *   deeper than the parser reads.
+     * @param force stores [item] even when this table cannot hold its comments, which then go; a [StandardTable] holds
+     *   every comment.
+     * @return the item [key] held before, or null when it held none; or, storing nothing, [TomlEditError.NotAValue]
+     *   when this is an inline table and [item] holds no value, [TomlEditError.TooDeep] when [item] would nest deeper
+     *   than the parser reads, or [TomlEditError.CommentsWouldBeLost] when this is an inline table that cannot hold
+     *   the comments [item] brings and [force] is false.
      */
     public fun putItem(
         key: String,
         item: Item,
+        force: Boolean = false,
     ): Result<Item?, TomlEditError>
 
     /**
