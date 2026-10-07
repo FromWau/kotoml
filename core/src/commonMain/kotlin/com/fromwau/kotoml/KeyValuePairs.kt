@@ -268,6 +268,9 @@ internal class KeyValuePairs {
     /** The spacing around the `{}` these pairs print as while empty under a dotted key; see [emptyTableLine]. */
     val emptyTableDecor: RawDecor = RawDecor()
 
+    /** The spacing the line these pairs print as while empty on a table's lines starts with and puts before `=`. */
+    val emptyLineKeyDecor: RawDecor = RawDecor()
+
     val size: Int get() = byName.size
 
     fun get(key: String): Item? = byName[key]?.item
@@ -339,6 +342,7 @@ internal class KeyValuePairs {
         }
         keptLines.mapTo(copy.keptLines) { it.copy() }
         copy.emptyTableDecor.assign(emptyTableDecor)
+        copy.emptyLineKeyDecor.assign(emptyLineKeyDecor)
         return copy
     }
 

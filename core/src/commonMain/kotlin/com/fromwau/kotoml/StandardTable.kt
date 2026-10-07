@@ -843,6 +843,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     }
 
     private fun keepLinesAbove(removed: Collection<KeyValue>) {
+        if (isDotted && removed.size == items.size) spaceEmptyLineLike(visualValues())
         keepLinesAbove(
             lines = bodyLines(),
             removed = RemovedLines(removed),
@@ -852,6 +853,22 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
             keep = { items.keptLines += it },
         )
         for (entry in removed) keepHeaderLinesOf(entry.item, keptHeaderLines)
+    }
+
+    /**
+     * Spaces the `{}` line this dotted table prints once emptied as its [lines] were: starting as the first started
+     * below the lines above it, which stay where they are, and ending as the last ended without its comment, which
+     * goes.
+     */
+    private fun spaceEmptyLineLike(lines: List<VisualValue>) {
+        val first = lines.firstOrNull() ?: return
+        val firstKey = first.path.last().rawLeafDecor
+        val start = (first.lineStart ?: firstKey.prefix)?.textOrNull
+        items.emptyLineKeyDecor.prefix = start?.let { KeptText.from(it.substringAfterLast('\n')) }
+        items.emptyLineKeyDecor.suffix = firstKey.suffix
+        val end = lines.last().value.rawDecor.suffix?.textOrNull
+        items.emptyTableDecor.prefix = first.value.rawDecor.prefix
+        items.emptyTableDecor.suffix = end?.let { KeptText.from(it.withoutCommentLines(keepFirstLineComment = false)) }
     }
 
     /**
@@ -1089,6 +1106,8 @@ internal class VisualValue(
     val lineEnd: String = "",
     // Whether the key takes the default spacing before `=`, its own being a header's.
     val defaultKeySpacing: Boolean = false,
+    // The spacing before `=` in place of its key's.
+    val keySpacing: KeptText? = null,
 ) : BodyLine {
     override val order: Long?
         get() = placedAt ?: entry.order
@@ -1104,7 +1123,7 @@ internal class VisualValue(
 
     /** This line starting with [spacing] in place of its key's own. */
     fun startingWith(spacing: KeptText): VisualValue =
-        VisualValue(path, value, entry, placedAt, spacing, spacedForBraces, lineEnd, defaultKeySpacing)
+        VisualValue(path, value, entry, placedAt, spacing, spacedForBraces, lineEnd, defaultKeySpacing, keySpacing)
 
     /** This line with [above] over its lines above, or in their place when not [ownLinesAbove], and [end] ending it. */
     fun withLines(
@@ -1112,7 +1131,7 @@ internal class VisualValue(
         end: String,
         ownLinesAbove: Boolean,
     ): VisualValue {
-        val own = if (ownLinesAbove) (lineStart ?: path.last().rawLeafDecor.prefix)?.textOrNull.orEmpty() else ""
+        val own = (if (ownLinesAbove) lineStart ?: path.last().rawLeafDecor.prefix else lineStart)?.textOrNull.orEmpty()
         val start = above + own
         // A line under the table's own key, made empty, has that key's header spacing.
         val defaultKey = !ownLinesAbove || defaultKeySpacing
@@ -1125,6 +1144,7 @@ internal class VisualValue(
             spacedForBraces,
             lineEnd + end,
             defaultKey,
+            keySpacing,
         )
     }
 
@@ -1169,7 +1189,9 @@ internal fun emptyTableLine(
 ): VisualValue {
     val belowKept = pairs.keptLines.mapNotNull { it.order }.maxOrNull()
     // A new table on each read, so what a caller puts in it never prints; only its spacing lasts.
-    return VisualValue(path.toList(), Value.InlineTable(InlineTable(pairs.emptyTableDecor)), entry, belowKept)
+    val value = Value.InlineTable(InlineTable(pairs.emptyTableDecor))
+    val keyDecor = pairs.emptyLineKeyDecor
+    return VisualValue(path.toList(), value, entry, belowKept, keyDecor.prefix, keySpacing = keyDecor.suffix)
 }
 
 /** The tables under [start] and the lines kept among their headers: what has a position among a document's tables. */

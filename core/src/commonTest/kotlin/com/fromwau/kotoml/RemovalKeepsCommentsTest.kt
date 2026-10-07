@@ -24,6 +24,36 @@ class RemovalKeepsCommentsTest {
     }
 
     @Test
+    fun `a dotted table on a table's lines left empty prints its empty table spaced as its removed line`() {
+        val cases = listOf(
+            Triple("[a]\nx=1\nb.d.e=2 # e\ny=3\n", listOf("a", "b", "d"), "[a]\nx=1\nb.d={}\ny=3\n"),
+            Triple("[a]\n  # about e\n  b.d.e  =  2\n", listOf("a", "b", "d"), "[a]\n  # about e\n  b.d  =  {}\n"),
+            Triple("b.d.e=2\nx=1\nb.d.f=3\n", listOf("b", "d"), "b.d={}\nx=1\n"),
+        )
+        for ((text, path, expected) in cases) {
+            val doc = TomlDocument.parse(text).assertSuccess()
+            val table = path.drop(1).fold(doc[path.first()]) { slot, key -> slot[key] }.assertSuccess()
+            table.standardTableOrNull!!.removeAll { true }
+            assertEquals(expected, doc.toString(), text)
+            val formatted = TomlDocument.parse(expected).assertSuccess()
+            formatted.format()
+            doc.format()
+            assertEquals(formatted.toString(), doc.toString(), text)
+        }
+    }
+
+    @Test
+    fun `a header table made dotted and left empty keeps its header spacing when made a header again`() {
+        val doc = TomlDocument.parse("[a.b.d]\ne=2\n").assertSuccess()
+        val d = doc["a"]["b"]["d"].assertSuccess()
+        d.setLayout(TableLayout.Dotted).assertSuccess()
+        d.standardTableOrNull!!.remove("e")
+        assertEquals("[a.b]\nd={}\n", doc.toString())
+        d.setLayout(TableLayout.Header).assertSuccess()
+        assertEquals("[a.b.d]\n", doc.toString())
+    }
+
+    @Test
     fun `a dotted table in an inline table left empty prints its key as an empty table`() {
         val doc = TomlDocument.parse("a = { a.b = 1 }\n").assertSuccess()
         doc["a"].assertSuccess().inlineTableOrNull!!.getItem("a")!!.inlineTableOrNull!!.remove("b")

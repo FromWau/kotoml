@@ -183,7 +183,7 @@ private fun encodeKeyValueLine(
     var leafDecor = keyPath.last().rawLeafDecor
     var valueDecor = value.rawDecor
     visual.lineStart?.let { start ->
-        leafDecor = RawDecor(start, leafDecor.suffix.takeUnless { visual.defaultKeySpacing })
+        leafDecor = RawDecor(start, visual.keySpacing ?: leafDecor.suffix.takeUnless { visual.defaultKeySpacing })
     }
     if (visual.spacedForBraces) {
         // After a value in braces only a comment carries over; the space before `}` does not.

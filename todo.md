@@ -80,6 +80,14 @@ a block (it propagates and the document is left as it was); an array added into 
 
 ## Done
 
+- [x] **103. An emptied dotted table on a table's lines took the default spacing.** Removing the last key of a dotted
+  table under a header or at the top level printed `b.d.e=2` as `b.d = {}`, where inside an inline table (item 100) the
+  `{}` line keeps the spacing of the line it replaced.
+  **Verdict 2026-10-07:** fixed: the emptied table keeps the removed line's indentation, spacing before `=` and value
+  spacing, without its comment, so `b.d.e=2 # e` leaves `b.d={}`; the spacing is held on the table, not on its key, so a
+  header table made dotted and emptied prints `[a.b.d]` again when made a header. `format()` still rewrites the spacing.
+  Pinned in RemovalKeepsCommentsTest.
+
 - [x] **73. Document `isImplicit`, `position`, `leafDecor` and `Value.parse` for spellings.** And correct the sorting
   sentence, which suggests tables move.
   **Verdict 2026-10-07:** fixed: `isImplicit`/`setImplicit`, a table's `position` and the sorting sentence were
