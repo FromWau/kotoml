@@ -424,4 +424,57 @@ class RemovalKeepsCommentsTest {
         val inBraces = "u = {\n  b.c = 1,\n  # about d\n  y = 1,\n}\n"
         assertEquals("[t]\nb.c = 1\n# about d\n$inBraces", doc.toString().substringAfter("}\n"))
     }
+
+    private fun assertFormatsTo(
+        expected: String,
+        doc: TomlDocument,
+    ) {
+        doc.format()
+        assertEquals(expected, doc.toString())
+        doc.format()
+        assertEquals(expected, doc.toString())
+    }
+
+    @Test
+    fun `a comment after a sibling's comma stays with that sibling when a dotted key in braces below it is removed`() {
+        val text = "s = {\n  b.c = 1,\n  y = 5, # on y\n  # about d\n  b.d = 2,\n}\n[t]\nx = 0\n"
+        val doc = storedAfterRemoving(text, "d")
+        val s = "s = {\n  b.c = 1,\n  y = 5, # on y\n  # about d\n}\n"
+        assertEquals("$s[t]\nb.c = 1\n# about d\nx = 0\n", doc.toString())
+        assertFormatsTo("$s\n[t]\nb.c = 1\n# about d\nx = 0\n", doc)
+    }
+
+    @Test
+    fun `a comment after a sibling's comma stays with that sibling in braces after the dotted key below it goes`() {
+        val doc = TomlDocument.parse("s = {\n  b.c = 1,\n  y = 5, # on y\n  # about d\n  b.d = 2,\n}\n").assertSuccess()
+        doc["s"]["b"].assertSuccess().valueOrNull!!.inlineTableOrNull!!.remove("d")
+        val expected = "s = {\n  b.c = 1,\n  y = 5, # on y\n  # about d\n}\n"
+        assertEquals(expected, doc.toString())
+        assertFormatsTo(expected, doc)
+    }
+
+    @Test
+    fun `a comment after a sibling's comma alone above a removed dotted key in braces stays with that sibling`() {
+        val doc = storedAfterRemoving("s = {\n  b.c = 1,\n  y = 5, # on y\n  b.d = 2,\n}\n[t]\nx = 0\n", "d")
+        assertEquals("[t]\nb.c = 1\nx = 0\n", doc.toString().substringAfter("}\n"))
+        assertEquals("s = {\n  b.c = 1,\n  y = 5, # on y\n}\n", doc.toString().substringBefore("[t]"))
+    }
+
+    @Test
+    fun `a comment after a sibling's comma in a CRLF document stays with that sibling when a dotted key is removed`() {
+        val text = "s = {\r\n  b.c = 1,\r\n  y = 5, # on y\r\n  # about d\r\n  b.d = 2,\r\n}\r\n[t]\r\nx = 0\r\n"
+        val doc = storedAfterRemoving(text, "d")
+        val s = "s = {\r\n  b.c = 1,\r\n  y = 5, # on y\r\n  # about d\r\n}\r\n"
+        assertEquals("$s[t]\r\nb.c = 1\r\n# about d\r\nx = 0\r\n", doc.toString())
+        assertFormatsTo("$s\r\n[t]\r\nb.c = 1\r\n# about d\r\nx = 0\r\n", doc)
+    }
+
+    @Test
+    fun `a comment after the comma of a key of the same dotted table prints once after that key when stored`() {
+        val text = "s = {\n  b.c = 1, # on c\n  # about d\n  b.d = 2,\n}\n[t]\nx = 0\n"
+        val doc = storedAfterRemoving(text, "d")
+        val s = "s = {\n  b.c = 1, # on c\n  # about d\n}\n"
+        assertEquals("$s[t]\nb.c = 1 # on c\n# about d\nx = 0\n", doc.toString())
+        assertFormatsTo("$s\n[t]\nb.c = 1 # on c\n# about d\nx = 0\n", doc)
+    }
 }

@@ -809,14 +809,52 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
             return
         }
         if (removed.size == items.size) spaceEmptyLineLike(visualValues())
+        val removedLines = RemovedLines(removed)
+        leaveCommentsWithLinesBefore(removedLines)
         keepLinesAbove(
             lines = bodyLines(),
-            removed = RemovedLines(removed),
+            removed = removedLines,
             isDotted = true,
             linesAbove = { linesAboveElement(it.entry.key.rawLeafDecor.prefix) },
             keyDefault = DEFAULT_INLINE_KEY_DECOR.first,
             keep = { items.keptLines += it },
         )
+    }
+
+    /**
+     * Gives the comment a [removed] key's prefix starts with to the entry printed before it in the braces when that
+     * entry is not under this dotted table: it ends that entry's line, after its comma, so it stays with the entry.
+     */
+    private fun leaveCommentsWithLinesBefore(removed: RemovedLines) {
+        val values = visualValues()
+        val own = values.mapTo(HashSet()) { it.entry }
+        val removedEntries = values.filter { it in removed }.mapTo(HashSet()) { it.entry }
+        var before: BodyLine? = null
+        for (line in outermostBraces().bodyLines()) {
+            val previous = before
+            before = line
+            if (line !is VisualValue || line.entry !in removedEntries) continue
+            if (previous !is VisualValue || previous.entry in own) continue
+            val pairs = previous.entry.pairs ?: continue
+            val order = previous.order ?: continue
+            val decor = line.entry.key.rawLeafDecor
+            val prefix = decor.prefix?.textOrNull ?: continue
+            val firstBreak = prefix.indexOf('\n')
+            if (firstBreak < 0) continue
+            val lineEnd = prefix.lineEndBefore(firstBreak)
+            if ('#' !in prefix.substring(0, lineEnd)) continue
+            pairs.keptLines += KeptLines(prefix.substring(0, lineEnd), order)
+            decor.prefix = KeptText.from(prefix.substring(lineEnd))
+        }
+    }
+
+    /** The table whose braces this one prints in: the first holding it that is not a dotted table, or this one. */
+    private fun outermostBraces(): InlineTable {
+        var table = this
+        while (table.isDotted) {
+            table = table.holder?.takeIf { it.holdsContainer(table) }?.owner as? InlineTable ?: return table
+        }
+        return table
     }
 
     /**
