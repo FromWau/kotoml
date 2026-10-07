@@ -1,6 +1,7 @@
 package com.fromwau.kotoml.serialization
 
 import com.fromwau.kern.result.IError
+import com.fromwau.kotoml.TomlDocument
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -87,7 +88,7 @@ public sealed interface TomlEncodeError : IError {
 
     /**
      * The value at [path] nests deeper than kotoml writes: classes, lists and maps one level less than
-     * [com.fromwau.kotoml.TomlDocument.NESTING_LIMIT], so that what it writes reads back in either list style.
+     * [TomlDocument.NESTING_LIMIT], so that what it writes reads back in either list style.
      */
     @Serializable
     @SerialName("TooDeep")
@@ -119,6 +120,7 @@ private fun TomlEncodeError.describe(): String = when (this) {
     is TomlEncodeError.DiscriminatorConflict ->
         at(path, "the value cannot carry its type key $key: it is not a class, or has a field of that name")
     is TomlEncodeError.NotUnicode -> at(path, "half of a surrogate pair, which is not Unicode text")
-    is TomlEncodeError.TooDeep -> at(path, "nests deeper than kotoml writes")
+    is TomlEncodeError.TooDeep ->
+        at(path, "nests deeper than ${TomlDocument.NESTING_LIMIT} levels, so it would not parse back")
     is TomlEncodeError.Serializer -> at(path, detail ?: "refused by its serializer")
 }

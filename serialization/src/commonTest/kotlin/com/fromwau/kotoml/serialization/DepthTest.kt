@@ -39,6 +39,13 @@ class DepthTest {
     }
 
     @Test
+    fun `TooDeep names the nesting limit as core's edit error does`() {
+        val error = Toml.encodeToString(nested(TomlDocument.NESTING_LIMIT + 20)).assertError<TomlEncodeError.TooDeep>()
+        val reason = "nests deeper than ${TomlDocument.NESTING_LIMIT} levels, so it would not parse back"
+        assertEquals("${error.path}: $reason", error.message)
+    }
+
+    @Test
     fun `a model nested thousands deep is TooDeep instead of overflowing the stack`() {
         Toml.encodeToString(nested(6000)).assertError<TomlEncodeError.TooDeep>()
     }
