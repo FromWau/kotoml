@@ -14,10 +14,11 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
 
 ### Bugs against a goal
 
-- [ ] **118. A comment after a sibling's comma is kept in a dotted table's text when its next key is removed.**
-  In `s = {\n  b.c = 1,\n  y = 5, # on y\n  # about d\n  b.d = 2,\n}`, removing `d` from `s.b` puts `# on y` in
-  `b`'s kept text as well, so storing `s.b` elsewhere prints `b.c = 1 # on y` while `s` still prints it after
-  `y = 5`. Found while fixing 116.
+- [ ] **119. Storing a dotted table out of braces takes a sibling's comma comment along.** With no removal,
+  `s = {\n  b.c = 1,\n  y = 5, # on y\n  # about d\n  b.d = 2,\n}\n[t]\nx = 0\n` and `t["b"] = s["b"]` prints
+  `[t]\nb.c = 1 # on y\n  # about d\nb.d = 2\nx = 0\n`: `# on y` twice, and `# about d` keeps its brace
+  indentation. Expected `[t]\nb.c = 1\n# about d\nb.d = 2\nx = 0\n`. `takeOutOfBraces` reads the first line of
+  each key's prefix as ending the line before. Found while fixing 118.
 
 ### Cleanup pass rulings (2026-10-07)
 
@@ -86,6 +87,14 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **118. A comment after a sibling's comma is kept in a dotted table's text when its next key is removed.**
+  In `s = {\n  b.c = 1,\n  y = 5, # on y\n  # about d\n  b.d = 2,\n}`, removing `d` from `s.b` puts `# on y` in
+  `b`'s kept text as well, so storing `s.b` elsewhere prints `b.c = 1 # on y` while `s` still prints it after
+  `y = 5`. Found while fixing 116.
+  **Verdict 2026-10-07:** fixed: removing a dotted key in braces leaves the comment ending the line before with the
+  entry printed there, so `t` prints `[t]\nb.c = 1\n# about d\nx = 0\n` and `s` keeps `y = 5, # on y` once. Pinned in
+  RemovalKeepsCommentsTest.
 
 - [x] **117. Removing a key below a comment in braces of a CRLF document leaves a lone carriage return.**
   `s = {\r\n  b.c = 1,\r\n  # about d\r\n  b.d = 2,\r\n}\r\n`, remove `d` from `s.b`, printed `  # about d\r\r\n}`,
