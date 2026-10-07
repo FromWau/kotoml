@@ -152,7 +152,7 @@ class HandleRulesTest {
 
     @Test
     fun `a copy of a removed table keeps its header comment`() {
-        val table = parse(banneredSource).remove("db")!!.standardTableOrNull!!.copy()
+        val table = parse(banneredSource).remove("db", force = true).assertSuccess().standardTableOrNull!!.copy()
         val doc = parse("[app]\nname = 1\n")
         doc.set("db", table).assertSuccess()
         assertEquals("[app]\nname = 1\n\n[db] # db hdr\nurl = 1 # url c\n", doc.toString())
@@ -176,7 +176,7 @@ class HandleRulesTest {
     @Test
     fun `a table removed from a document keeps its header comment when stored in another`() {
         val source = parse(banneredSource)
-        val table = source.remove("db")!!
+        val table = source.remove("db", force = true).assertSuccess()
         val doc = parse("[app]\nname = 1\n")
         doc.set("db", table).assertSuccess()
         assertEquals("[app]\nname = 1\n\n[db] # db hdr\nurl = 1 # url c\n", doc.toString())
@@ -185,7 +185,7 @@ class HandleRulesTest {
 
     @Test
     fun `a value removed from a document keeps its same-line comment when stored in another`() {
-        val value = parse("a = 1 # mine\n").remove("a")!!
+        val value = parse("a = 1 # mine\n").remove("a", force = true).assertSuccess()
         val doc = parse("x = 1\n")
         doc.set("a", value).assertSuccess()
         assertEquals("x = 1\na = 1 # mine\n", doc.toString())
@@ -195,7 +195,9 @@ class HandleRulesTest {
     fun `tables moved with removeAt and add keep their header comments`() {
         val doc = parse("[[arr]] # one\nx = 1\n[[arr]] # two\nx = 2\n[[arr]] # three\nx = 3\n")
         val tables = doc["arr"].assertSuccess().arrayOfTablesOrNull!!
-        for (index in 1 until tables.size) tables.add(0, tables.removeAt(index).assertSuccess()).assertSuccess()
+        for (index in 1 until tables.size) {
+            tables.add(0, tables.removeAt(index, force = true).assertSuccess()).assertSuccess()
+        }
         assertEquals("[[arr]] # three\nx = 3\n[[arr]] # two\nx = 2\n[[arr]] # one\nx = 1\n", doc.toString())
     }
 
@@ -230,7 +232,7 @@ class HandleRulesTest {
     @Test
     fun `an item removed from a document no longer writes through to it`() {
         val doc = parse("[t]\nk = 1\n")
-        val removed = doc.remove("t")!!
+        val removed = doc.remove("t", force = true).assertSuccess()
         removed["k"] = 2L
         assertEquals("", doc.toString())
     }

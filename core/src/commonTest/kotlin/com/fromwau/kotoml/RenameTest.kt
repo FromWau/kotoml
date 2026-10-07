@@ -193,7 +193,7 @@ class RenameTest {
         doc.rename("t", "u").assertSuccess()
         inline.setLayout(TableLayout.Header).assertSuccess()
         assertEquals("b = 1 # one\n\n[u]\nx = 1\n", doc.toString())
-        assertSame(value, doc.remove("b"))
+        assertSame(value, doc.remove("b", force = true).assertSuccess())
         value.assign(Item(Value.Integer(2L))).assertSuccess()
         assertEquals("[u]\nx = 1\n", doc.toString())
     }

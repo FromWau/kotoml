@@ -194,10 +194,25 @@ public class TomlDocument internal constructor(
     public fun putAll(pairs: Iterable<Pair<String, Item>>): EmptyResult<TomlEditError> = root.putAll(pairs)
 
     /**
-     * Removes [key] from the root table and returns its item, or null when it held none. The comment and blank
-     * lines above the key, or above a table's first header, stay where they print; see [StandardTable.remove].
+     * Removes [key] from the root table and returns its item, with the comments that belong to it: the comment lines
+     * right above the key or its first header, with no blank line between, and every comment on its lines and inside
+     * it. Comment lines set apart by a blank line stay where they print; see [StandardTable.remove].
+     *
+     * ```kotlin
+     * val doc = TomlDocument.parse("# free\n\n# about x\nx = 1 # one\ny = 2\n").getOrElse { error(it) }
+     * doc.remove("x") // Err(CommentsWouldBeLost(keyPath = [x], count = 2)), nothing changed
+     * doc.remove("x", force = true) // Ok(item)
+     * doc.toString() // "# free\n\ny = 2\n"
+     * ```
+     *
+     * @param force removes the key even when comments would go with it.
+     * @return the removed item; [TomlEditError.NotFound] when there is no [key]; or
+     *   [TomlEditError.CommentsWouldBeLost], changing nothing, when [force] is false and comments would go with it.
      */
-    public fun remove(key: String): Item? = root.remove(key)
+    public fun remove(
+        key: String,
+        force: Boolean = false,
+    ): Result<Item, TomlEditError> = root.remove(key, force)
 
     /**
      * Renames the key [old] of the root table to [new], keeping its place, comments, spacing and item, and the
@@ -212,16 +227,28 @@ public class TomlDocument internal constructor(
     ): EmptyResult<TomlEditError> = root.rename(old, new)
 
     /**
-     * Keeps only the root table's pairs [predicate] accepts, and returns whether any was removed; see
+     * Keeps only the root table's pairs [predicate] accepts, each removed pair taking its comments, all or none; see
      * [StandardTable.retainAll].
+     *
+     * @return whether any pair was removed, or [TomlEditError.CommentsWouldBeLost], removing none, when [force] is
+     *   false and comments would go with them.
      */
-    public fun retainAll(predicate: (Pair<String, Item>) -> Boolean): Boolean = root.retainAll(predicate)
+    public fun retainAll(
+        force: Boolean = false,
+        predicate: (Pair<String, Item>) -> Boolean,
+    ): Result<Boolean, TomlEditError> = root.retainAll(force, predicate)
 
     /**
-     * Removes the root table's pairs [predicate] accepts, and returns whether any was; see
+     * Removes the root table's pairs [predicate] accepts, each taking its comments, all or none; see
      * [StandardTable.removeAll].
+     *
+     * @return whether any pair was removed, or [TomlEditError.CommentsWouldBeLost], removing none, when [force] is
+     *   false and comments would go with them.
      */
-    public fun removeAll(predicate: (Pair<String, Item>) -> Boolean): Boolean = root.removeAll(predicate)
+    public fun removeAll(
+        force: Boolean = false,
+        predicate: (Pair<String, Item>) -> Boolean,
+    ): Result<Boolean, TomlEditError> = root.removeAll(force, predicate)
 
     /** Removes every key of the root table, keeping the lines above each; see [StandardTable.clear]. */
     public fun clear() {

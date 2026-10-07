@@ -153,12 +153,14 @@ internal class Edits(
             add("table set $key" to { table.set(key, item()) })
             add("table put $key" to { table.put(Key(key), item()) })
             add("table getOrPut $key" to { table.getOrPut(key) { item() } })
-            table.keys.randomOrNull(random)?.let { old -> add("table remove $old" to { table.remove(old) }) }
+            table.keys.randomOrNull(random)?.let { old ->
+                add("table remove $old force $force" to { table.remove(old, force) })
+            }
             table.keys.randomOrNull(random)?.let { old ->
                 add("table rename $old to $key" to { table.rename(old, key) })
             }
             add("table sort" to { table.sortWith(compareBy { it.first.name }) })
-            add("table retainAll" to { table.retainAll { random.nextBoolean() } })
+            add("table retainAll force $force" to { table.retainAll(force) { random.nextBoolean() } })
             add("table clear" to { table.clear() })
             val spelled = toml11Spellings.random(random)
             add("table set $key to $spelled" to { table.set(key, Value.parse(spelled).assertSuccess()) })
@@ -173,7 +175,9 @@ internal class Edits(
                 val inlineKey = keyFor(inline.keys)
                 add("inline set $inlineKey" to { inline.set(inlineKey, value()) })
                 add("inline putItem $inlineKey" to { inline.putItem(inlineKey, item()) })
-                inline.keys.randomOrNull(random)?.let { old -> add("inline remove $old" to { inline.remove(old) }) }
+                inline.keys.randomOrNull(random)?.let { old ->
+                    add("inline remove $old force $force" to { inline.remove(old, force) })
+                }
                 inline.keys.randomOrNull(random)?.let { old ->
                     add("inline rename $old to $inlineKey" to { inline.rename(old, inlineKey) })
                 }
@@ -184,7 +188,7 @@ internal class Edits(
                 add("array add" to { array.add(value()) })
                 add("array add at $index" to { array.add(index, value()) })
                 add("array replace $index" to { array.replace(index, value(), random.nextBoolean()) })
-                add("array removeAt $index" to { array.removeAt(index) })
+                add("array removeAt $index force $force" to { array.removeAt(index, force) })
                 add("array clear" to { array.clear() })
                 add("array format" to { array.format() })
                 val multiline = random.nextBoolean()
@@ -196,7 +200,7 @@ internal class Edits(
                 add("tables add" to { tables.add(table()) })
                 add("tables add at $index" to { tables.add(index, table()) })
                 add("tables replace $index" to { tables.replace(index, table(), random.nextBoolean()) })
-                add("tables removeAt $index" to { tables.removeAt(index) })
+                add("tables removeAt $index force $force" to { tables.removeAt(index, force) })
                 add("tables clear" to { tables.clear() })
             }
             slots.randomOrNull(random)?.let { slot ->

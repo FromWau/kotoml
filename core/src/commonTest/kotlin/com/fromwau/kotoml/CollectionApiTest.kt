@@ -122,31 +122,31 @@ class CollectionApiTest {
     }
 
     @Test
-    fun `removeAll on a table removes the pairs it accepts and keeps the comment above them`() {
+    fun `removeAll on a table with force removes the pairs it accepts with their comments`() {
         val doc = parse("# about a\na = 1 # one\nb = 2\n")
-        assertTrue(doc.root.removeAll { (key, _) -> key == "a" })
-        assertEquals("# about a\nb = 2\n", doc.toString())
+        assertTrue(doc.root.removeAll(force = true) { (key, _) -> key == "a" }.assertSuccess())
+        assertEquals("b = 2\n", doc.toString())
     }
 
     @Test
     fun `removeAll on a table that accepts nothing returns false and changes nothing`() {
         val text = "# about a\na = 1 # one\nb = 2\n"
         val doc = parse(text)
-        assertFalse(doc.root.removeAll { false })
+        assertFalse(doc.root.removeAll { false }.assertSuccess())
         assertEquals(text, doc.toString())
     }
 
     @Test
     fun `retainAll on a table returns true when it removes a pair`() {
         val doc = parse("a = 1\n# about b\nb = 2 # two\n")
-        assertTrue(doc.root.retainAll { (key, _) -> key == "a" })
-        assertEquals("a = 1\n# about b\n", doc.toString())
+        assertTrue(doc.root.retainAll(force = true) { (key, _) -> key == "a" }.assertSuccess())
+        assertEquals("a = 1\n", doc.toString())
     }
 
     @Test
     fun `retainAll on a table that keeps every pair returns false`() {
         val doc = parse("a = 1\nb = 2\n")
-        assertFalse(doc.root.retainAll { true })
+        assertFalse(doc.root.retainAll { true }.assertSuccess())
         assertEquals("a = 1\nb = 2\n", doc.toString())
     }
 
@@ -162,12 +162,12 @@ class CollectionApiTest {
     }
 
     @Test
-    fun `removeAll on an inline table removes the entries it accepts and keeps the comment above them`() {
+    fun `removeAll on an inline table with force removes the entries it accepts with their comments`() {
         val doc = parse("t = {\n  # about a\n  a = 1, # one\n  b = 2,\n}\n")
         val table = doc["t"].assertSuccess().inlineTableOrNull!!
-        assertTrue(table.removeAll { (key, _) -> key == "a" })
-        assertFalse(table.removeAll { (_, value) -> value.longOrNull == 9L })
-        assertEquals("t = {\n  # about a\n  b = 2,\n}\n", doc.toString())
+        assertTrue(table.removeAll(force = true) { (key, _) -> key == "a" }.assertSuccess())
+        assertFalse(table.removeAll { (_, value) -> value.longOrNull == 9L }.assertSuccess())
+        assertEquals("t = {\n  b = 2,\n}\n", doc.toString())
     }
 
     @Test
@@ -179,45 +179,45 @@ class CollectionApiTest {
             table.retainAll { (key, value) ->
                 visited += key
                 value.longOrNull == 2L
-            },
+            }.assertSuccess(),
         )
-        assertFalse(table.retainAll { true })
+        assertFalse(table.retainAll { true }.assertSuccess())
         assertEquals(listOf("b", "a"), visited)
         assertEquals("t = { a = 2 }\n", doc.toString())
     }
 
     @Test
-    fun `removeAll on an array removes the values it accepts and keeps the comment above them`() {
+    fun `removeAll on an array with force removes the values it accepts with their comments`() {
         val doc = parse("ports = [\n  # plain\n  80, # http\n  443,\n]\n")
         val array = doc["ports"].assertSuccess().arrayOrNull!!
-        assertTrue(array.removeAll { it.longOrNull == 80L })
-        assertFalse(array.removeAll { it.longOrNull == 80L })
-        assertEquals("ports = [\n  # plain\n  443,\n]\n", doc.toString())
+        assertTrue(array.removeAll(force = true) { it.longOrNull == 80L }.assertSuccess())
+        assertFalse(array.removeAll { it.longOrNull == 80L }.assertSuccess())
+        assertEquals("ports = [\n  443,\n]\n", doc.toString())
     }
 
     @Test
     fun `retainAll on an array returns whether it removed a value`() {
         val array = tomlArrayOf(Value.Integer(1L), Value.Integer(2L), Value.Integer(3L)).assertSuccess()
-        assertFalse(array.retainAll { true })
-        assertTrue(array.retainAll { it.longOrNull != 2L })
+        assertFalse(array.retainAll { true }.assertSuccess())
+        assertTrue(array.retainAll { it.longOrNull != 2L }.assertSuccess())
         assertEquals("[1, 3]", array.toString())
     }
 
     @Test
-    fun `removeAll on an array of tables removes the tables it accepts and keeps the comment above them`() {
+    fun `removeAll on an array of tables with force removes the tables it accepts with their comments`() {
         val doc = parse("# first\n[[x]]\nn = 1\n# second\n[[x]]\nn = 2\n")
         val tables = doc["x"].assertSuccess().arrayOfTablesOrNull!!
-        assertTrue(tables.removeAll { it["n"].assertSuccess().longOrNull == 1L })
-        assertFalse(tables.removeAll { it["n"].assertSuccess().longOrNull == 1L })
-        assertEquals("# first\n# second\n[[x]]\nn = 2\n", doc.toString())
+        assertTrue(tables.removeAll(force = true) { it["n"].assertSuccess().longOrNull == 1L }.assertSuccess())
+        assertFalse(tables.removeAll { it["n"].assertSuccess().longOrNull == 1L }.assertSuccess())
+        assertEquals("# second\n[[x]]\nn = 2\n", doc.toString())
     }
 
     @Test
     fun `retainAll on an array of tables returns whether it removed a table`() {
         val doc = parse("[[x]]\nn = 1\n[[x]]\nn = 2\n")
         val tables = doc["x"].assertSuccess().arrayOfTablesOrNull!!
-        assertFalse(tables.retainAll { true })
-        assertTrue(tables.retainAll { it["n"].assertSuccess().longOrNull == 2L })
+        assertFalse(tables.retainAll { true }.assertSuccess())
+        assertTrue(tables.retainAll { it["n"].assertSuccess().longOrNull == 2L }.assertSuccess())
         assertEquals("[[x]]\nn = 2\n", doc.toString())
     }
 
@@ -325,9 +325,9 @@ class CollectionApiTest {
     @Test
     fun `a document retains and removes root pairs by a predicate`() {
         val doc = parse("a = 1\nb = 2\nc = 3\n")
-        assertTrue(doc.retainAll { (key, _) -> key != "a" })
-        assertTrue(doc.removeAll { (_, item) -> item.longOrNull == 3L })
-        assertFalse(doc.removeAll { false })
+        assertTrue(doc.retainAll { (key, _) -> key != "a" }.assertSuccess())
+        assertTrue(doc.removeAll { (_, item) -> item.longOrNull == 3L }.assertSuccess())
+        assertFalse(doc.removeAll { false }.assertSuccess())
         assertEquals("b = 2\n", doc.toString())
     }
 

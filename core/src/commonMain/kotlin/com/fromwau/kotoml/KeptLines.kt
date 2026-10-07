@@ -8,13 +8,16 @@ internal sealed interface BodyLine {
 
 /**
  * Comment and blank lines that stay where they printed after the key or table below them was removed. In a
- * table body [order] places them among the key/value lines; among the tables it is a table position.
+ * table body [order] places them among the key/value lines; among the tables it is a table position. Lines that
+ * [dropBlankLinesMeeting] lose the blank lines ending them when blank lines or the end of the document follow, as
+ * the lines kept above a removed header do.
  */
 internal class KeptLines(
     var text: String,
     override var order: Long?,
+    val dropBlankLinesMeeting: Boolean = false,
 ) : BodyLine {
-    fun copy(): KeptLines = KeptLines(text, order)
+    fun copy(): KeptLines = KeptLines(text, order, dropBlankLinesMeeting)
 }
 
 /** The whole lines [prefix] holds above the line it ends on, line breaks included: everything to its last break. */
@@ -49,9 +52,64 @@ internal fun linesAboveElement(prefix: KeptText?): String {
 }
 
 /**
+ * The part of [linesAboveElement]'s [text] that belongs to no element: the end of the line before, and the lines up
+ * to the last blank one, without the comment lines right above the element, which belong to it.
+ */
+internal fun freeLinesAboveElement(text: String): String {
+    val firstBreak = text.indexOf('\n')
+    if (firstBreak < 0) return text
+    var cut = text.lineEndBefore(firstBreak)
+    var start = firstBreak + 1
+    while (start <= text.length) {
+        val lineBreak = text.indexOf('\n', start).let { if (it < 0) text.length else it }
+        val end = if (lineBreak < text.length) text.lineEndBefore(lineBreak) else lineBreak
+        if (text.substring(start, end).isBlank()) cut = end
+        start = lineBreak + 1
+    }
+    return text.substring(0, cut)
+}
+
+/** This text of [linesAboveElement]'s shape, each line opened by the break before it, without blank lines ending it. */
+internal fun String.withoutTrailingBlankElementLines(): String {
+    var text = this
+    while (true) {
+        val lastBreak = text.lastIndexOf('\n')
+        if (lastBreak < 0 || text.substring(lastBreak + 1).isNotBlank()) return text
+        text = text.substring(0, text.lineEndBefore(lastBreak))
+    }
+}
+
+/** This text of whole lines without the blank lines that end it. */
+internal fun String.withoutTrailingBlankLines(): String {
+    var end = length
+    while (end > 0) {
+        val lineStart = lastIndexOf('\n', end - 2) + 1
+        if (substring(lineStart, end).isNotBlank()) break
+        end = lineStart
+    }
+    return substring(0, end)
+}
+
+/** Whether this text starts with a blank line, one that ends in a line break. */
+internal fun String.startsWithBlankLine(): Boolean {
+    val lineBreak = indexOf('\n')
+    return lineBreak >= 0 && substring(0, lineBreak).isBlank()
+}
+
+/** This text without the blank lines it starts with. */
+internal fun String.withoutLeadingBlankLines(): String {
+    var start = 0
+    while (substring(start).startsWithBlankLine()) start = indexOf('\n', start) + 1
+    return substring(start)
+}
+
+/**
  * The text that takes the place of [next] once an element of an array or inline table is removed, or null when
  * the element shares its line with what comes before it and only its own prefix, value, suffix and comma go.
  * An element on a line of its own leaves the lines above it and takes the rest of its line, its comment included.
+ * One that [takesAttached] leaves only the lines above it up to the last blank one, and takes the comment lines
+ * right above it, those between it and a comma on a later line, and the comment ending its line when it is the last
+ * element on a line it shares.
  *
  * @param prefix the removed element's prefix; its last line break ends the lines above it.
  * @param suffix the removed element's suffix, which holds its comment when no comma follows it.
@@ -63,16 +121,37 @@ internal fun textAfterRemovedElement(
     suffix: String,
     next: String,
     nextIsElement: Boolean,
+    takesAttached: Boolean = false,
 ): String? {
     val lastBreak = prefix.lastIndexOf('\n')
-    if (lastBreak < 0) return null
+    if (lastBreak < 0) return if (takesAttached && '\n' !in suffix) next.withoutCommentEndingFirstLine() else null
+    if (!takesAttached) {
+        val rest = when {
+            '\n' in suffix -> suffix.substringAfter('\n') + next
+            '\n' in next -> next.substringAfter('\n')
+            nextIsElement -> prefix.substring(lastBreak + 1)
+            else -> next
+        }
+        return prefix.substring(0, lastBreak + 1) + rest
+    }
     val rest = when {
-        '\n' in suffix -> suffix.substringAfter('\n') + next
         '\n' in next -> next.substringAfter('\n')
+        '\n' in suffix -> suffix.substringAfterLast('\n') + next.trimStart(' ', '\t')
         nextIsElement -> prefix.substring(lastBreak + 1)
         else -> next
     }
-    return prefix.substring(0, lastBreak + 1) + rest
+    val firstBreak = prefix.indexOf('\n')
+    val free = splitLinesAbove(prefix.substring(firstBreak + 1, lastBreak + 1)).free
+    val meetsBlankOrEnd = rest.startsWithBlankLine() || (!nextIsElement && rest.isBlank())
+    val kept = if (meetsBlankOrEnd) free.withoutTrailingBlankLines() else free
+    return prefix.substring(0, firstBreak + 1) + kept + rest
+}
+
+// The comment ending the line an element shares with the one before belongs to the last element on that line.
+private fun String.withoutCommentEndingFirstLine(): String? {
+    val lineBreak = indexOf('\n')
+    if (lineBreak < 0 || '#' !in substring(0, lineBreak)) return null
+    return substring(lineEndBefore(lineBreak))
 }
 
 /**
@@ -164,9 +243,10 @@ internal class RemovedLines(removed: Collection<KeyValue>) {
  * goes in front of the line printed next, or to [keep] when none follows. In a dotted table, lines read from text
  * each stay at their own place in the reading order instead: it cannot see the lines of the table it prints in. A
  * removed key that prints several lines in a row, a dotted table, keeps only the lines above the first of them: those
- * between them go with it.
+ * between them go with it. A removal that [setsBlankLines] leaves one blank line where the removed lines had one
+ * above and one below them, and none at the start of a body that [startsDocument].
  *
- * @param linesAbove the lines above a value's own line.
+ * @param linesAbove the lines above a value's own line that stay.
  * @param keyDefault the prefix a key prints while it has none of its own.
  */
 internal fun keepLinesAbove(
@@ -176,12 +256,17 @@ internal fun keepLinesAbove(
     linesAbove: (VisualValue) -> String,
     keyDefault: String,
     keep: (KeptLines) -> Unit,
+    setsBlankLines: Boolean = false,
+    startsDocument: Boolean = false,
 ) {
     val inPlace = isDotted && lines.any { it in removed && it.order != null }
+    val spaces = setsBlankLines && !inPlace
     var pending = ""
     var pendingOrder: Long? = null
+    var runStartsDocument = false
     for ((index, line) in lines.withIndex()) {
         if (line in removed) {
+            if (index == 0) runStartsDocument = startsDocument
             val before = lines.getOrNull(index - 1)
             val continues = line is VisualValue && before is VisualValue && before in removed &&
                 before.path.first().name == line.path.first().name
@@ -190,20 +275,47 @@ internal fun keepLinesAbove(
                 is KeptLines -> line.text
             }
             if (inPlace) {
-                if (text.isNotEmpty()) keep(KeptLines(text, line.order))
+                if (text.isNotEmpty()) keep(KeptLines(text, line.order, dropBlankLinesMeeting = setsBlankLines))
             } else {
                 pending += text
                 pendingOrder = line.order ?: pendingOrder
             }
-        } else if (pending.isNotEmpty()) {
-            when (line) {
-                is VisualValue -> line.entry.key.rawLeafDecor.prependToPrefix(pending, keyDefault)
-                is KeptLines -> line.text = pending + line.text
+        } else {
+            if (spaces) pending = spaceAbove(line, pending, runStartsDocument)
+            if (pending.isNotEmpty()) {
+                when (line) {
+                    is VisualValue -> line.entry.key.rawLeafDecor.prependToPrefix(pending, keyDefault)
+                    is KeptLines -> line.text = pending + line.text
+                }
             }
             pending = ""
+            runStartsDocument = false
         }
     }
-    if (pending.isNotEmpty()) keep(KeptLines(pending, pendingOrder))
+    if (pending.isNotEmpty()) keep(KeptLines(pending, pendingOrder, dropBlankLinesMeeting = spaces))
+}
+
+/**
+ * The [kept] lines of removed lines that go above [line], without the blank lines ending them when [line] starts
+ * with one; with nothing kept and the removed lines starting the document, [line] loses the blank lines it starts with.
+ */
+private fun spaceAbove(
+    line: BodyLine,
+    kept: String,
+    removedStartedDocument: Boolean,
+): String {
+    val text = when (line) {
+        is VisualValue -> (line.lineStart ?: line.entry.key.rawLeafDecor.prefix)?.textOrNull.orEmpty()
+        is KeptLines -> line.text
+    }
+    if (!text.startsWithBlankLine()) return kept
+    if (kept.isNotEmpty() || !removedStartedDocument) return kept.withoutTrailingBlankLines()
+    when {
+        line is KeptLines -> line.text = text.withoutLeadingBlankLines()
+        line is VisualValue && line.lineStart == null ->
+            line.entry.key.rawLeafDecor.prefix = KeptText.from(text.withoutLeadingBlankLines())
+    }
+    return kept
 }
 
 /**
@@ -214,21 +326,26 @@ internal fun keepLinesAbove(
 internal fun keepHeaderLinesOf(
     item: Item,
     kept: MutableList<KeptLines>,
+    takesAttached: Boolean = false,
 ) {
     val parts = mutableListOf<HeaderPart>()
     collectHeaderParts(item, parts)
-    keepAboveFirstHeader(parts, kept)
+    keepAboveFirstHeader(parts, kept, takesAttached = takesAttached)
 }
 
-/** Keeps the lines above the header of [table], removed alone, in [kept]; see the [Item] overload. */
+/**
+ * Keeps the lines above the header of [table], removed alone, in [kept]; see the [Item] overload. A removal that
+ * [takesAttached] keeps only those up to the last blank line, and the table keeps the comment lines right above it.
+ */
 internal fun keepHeaderLinesOf(
     table: StandardTable,
     isArrayOfTables: Boolean,
     kept: MutableList<KeptLines>,
+    takesAttached: Boolean = false,
 ) {
     val parts = mutableListOf<HeaderPart>()
     collectHeaderParts(table, isArrayOfTables, parts)
-    keepAboveFirstHeader(parts, kept)
+    keepAboveFirstHeader(parts, kept, takesAttached = takesAttached)
 }
 
 /**
@@ -247,13 +364,13 @@ internal fun keepLinesAboveEarlierHeaders(
 
 /**
  * A header a removal takes out of the document with the lines above it, or lines kept from an earlier removal;
- * [leave] takes those lines from the removed item once the document keeps them.
+ * [leave] takes the lines it is given, those the document keeps, from the start of the removed item's.
  */
 private class HeaderPart(
     val position: Long?,
     val linesAbove: String,
     val isHeader: Boolean,
-    val leave: () -> Unit,
+    val leave: (String) -> Unit,
 )
 
 private fun collectHeaderParts(
@@ -275,8 +392,8 @@ private fun collectHeaderParts(
     if (!table.printsDotted && table.printsHeader(isArrayOfTables)) {
         val decor = table.rawDecor
         val above = linesAbove(decor.prefix)
-        parts += HeaderPart(table.position, above, isHeader = true) {
-            decor.prefix = KeptText.from(decor.prefix?.textOrNull.orEmpty().removePrefix(above))
+        parts += HeaderPart(table.position, above, isHeader = true) { left ->
+            decor.prefix = KeptText.from(decor.prefix?.textOrNull.orEmpty().removePrefix(left))
         }
     }
     collectKeptParts(table.keptHeaderLines, parts)
@@ -297,6 +414,7 @@ private fun keepAboveFirstHeader(
     parts: List<HeaderPart>,
     kept: MutableList<KeptLines>,
     printedBefore: Long = Long.MAX_VALUE,
+    takesAttached: Boolean = false,
 ) {
     var previous = Long.MIN_VALUE
     val printed = parts
@@ -307,8 +425,9 @@ private fun keepAboveFirstHeader(
     val firstHeader = printed.indexOfFirst { it.isHeader }
     val above = if (firstHeader < 0) printed else printed.subList(0, firstHeader + 1)
     for (part in above) {
-        if (part.linesAbove.isEmpty()) continue
-        kept += KeptLines(part.linesAbove, part.position)
-        part.leave()
+        val left = if (takesAttached && part.isHeader) splitLinesAbove(part.linesAbove).free else part.linesAbove
+        if (left.isEmpty()) continue
+        kept += KeptLines(left, part.position)
+        part.leave(left)
     }
 }

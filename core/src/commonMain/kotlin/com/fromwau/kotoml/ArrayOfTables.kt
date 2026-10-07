@@ -123,7 +123,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
      * comments between the tables go with them.
      */
     public fun clear() {
-        removeSlots(values.toList())
+        removeSlots(values.toList(), takesAttached = false)
     }
 
     /** The table at [index], or null when the index is out of bounds. */
@@ -215,46 +215,80 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     }
 
     /**
-     * Removes the table at [index]: its `[[header]]` line and its body, with the tables under it and the comment and
-     * blank lines above their headers. The lines above its own `[[header]]` stay where they print, now above
-     * whatever follows. Upstream drops those lines with the table.
+     * Removes the table at [index], with the comments that belong to it: the comment lines right above its
+     * `[[header]]` with no blank line between, the comment after the header, its body, and the tables under it with
+     * the comment and blank lines above their headers. Comment lines set apart from the header by a blank line stay
+     * where they print.
      *
-     * @return the removed table, or [TomlEditError.IndexOutOfBounds] when there is no table at [index].
+     * @param force removes the table even when comments would go with it.
+     * @return the removed table; [TomlEditError.IndexOutOfBounds] when there is no table at [index]; or
+     *   [TomlEditError.CommentsWouldBeLost], changing nothing, when [force] is false and comments would leave the
+     *   document with the table, naming the array of tables and how many comments.
      */
-    public fun removeAt(index: Int): Result<StandardTable, TomlEditError> {
+    public fun removeAt(
+        index: Int,
+        force: Boolean = false,
+    ): Result<StandardTable, TomlEditError> {
         val removed = getOrNull(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
-        keepHeaderLinesOf(removed, isArrayOfTables = true, keptHeaderLines)
-        values.removeAt(index).leaveArray()
+        if (!force) refusalToRemove(listOf(index))?.let { return Err(it) }
+        removeSlots(listOf(values[index]), takesAttached = true)
         return Ok(removed)
     }
 
     /**
-     * Keeps only the tables [predicate] accepts, in order, visiting each once. The lines above the `[[header]]` of a
-     * removed table stay, as [removeAt] keeps them, unless the table before it is removed too: the comments between
-     * removed tables go with them.
+     * Keeps only the tables [predicate] accepts, in order, visiting each once. Each removed table takes its comments,
+     * as [removeAt] says, and all of them go or none does.
      *
-     * @return whether any table was removed.
+     * @param force removes the tables even when comments would go with them.
+     * @return whether any table was removed; or [TomlEditError.CommentsWouldBeLost], removing none, when [force] is
+     *   false and comments would leave the document, counting the comments of all.
      */
-    public fun retainAll(predicate: (StandardTable) -> Boolean): Boolean = removeSlots(slotsWhere { !predicate(it) })
+    public fun retainAll(
+        force: Boolean = false,
+        predicate: (StandardTable) -> Boolean,
+    ): Result<Boolean, TomlEditError> = removeChecked(slotsWhere { !predicate(it) }, force)
 
     /**
-     * Removes the tables [predicate] accepts, in order, visiting each once. The lines above the `[[header]]` of a
-     * removed table stay, as [removeAt] keeps them, unless the table before it is removed too: the comments between
-     * removed tables go with them.
+     * Removes the tables [predicate] accepts, in order, visiting each once. Each removed table takes its comments, as
+     * [removeAt] says, and all of them go or none does.
      *
-     * @return whether any table was removed.
+     * @param force removes the tables even when comments would go with them.
+     * @return whether any table was removed; or [TomlEditError.CommentsWouldBeLost], removing none, when [force] is
+     *   false and comments would leave the document, counting the comments of all.
      */
-    public fun removeAll(predicate: (StandardTable) -> Boolean): Boolean = removeSlots(slotsWhere(predicate))
+    public fun removeAll(
+        force: Boolean = false,
+        predicate: (StandardTable) -> Boolean,
+    ): Result<Boolean, TomlEditError> = removeChecked(slotsWhere(predicate), force)
 
     private fun slotsWhere(predicate: (StandardTable) -> Boolean): List<Item> =
         values.filter { item -> item.standardTableOrNull?.let(predicate) ?: false }
 
-    private fun removeSlots(removed: List<Item>): Boolean {
+    private fun removeChecked(
+        removed: List<Item>,
+        force: Boolean,
+    ): Result<Boolean, TomlEditError> {
+        if (!force) refusalToRemove(removed.map { slot -> values.indexOfFirst { it === slot } })?.let { return Err(it) }
+        return Ok(removeSlots(removed, takesAttached = true))
+    }
+
+    private fun refusalToRemove(indices: List<Int>): TomlEditError? =
+        lostByRemoving(this, indices, keyPathTo = { keyPathOf(this) }) { copy, at ->
+            copy.removeSlots(at.map { copy.values[it] }, takesAttached = true)
+        }
+
+    // A removal a caller asks for keeps the free lines above each removed header; clearing keeps the run's first only.
+    private fun removeSlots(
+        removed: List<Item>,
+        takesAttached: Boolean,
+    ): Boolean {
         val removedSlots = removed.toHashSet()
         for ((index, item) in values.withIndex()) {
             val startsRun = index == 0 || values[index - 1] !in removedSlots
-            if (item in removedSlots && startsRun) {
-                item.standardTableOrNull?.let { keepHeaderLinesOf(it, isArrayOfTables = true, keptHeaderLines) }
+            if (item in removedSlots && (startsRun || takesAttached)) {
+                item.standardTableOrNull?.let {
+                    keepHeaderLinesOf(it, isArrayOfTables = true, keptHeaderLines, takesAttached)
+                }
             }
         }
         for (item in removed) item.leaveArray()

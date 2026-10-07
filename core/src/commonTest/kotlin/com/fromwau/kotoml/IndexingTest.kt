@@ -63,11 +63,11 @@ class IndexingTest {
     @Test
     fun `a removed key is gone and written again it is added at the end`() {
         val doc = parse("# about port\nport = 1\nhost = \"x\"\n")
-        doc.remove("port")
+        doc.remove("port", force = true)
         assertEquals(TomlEditError.NotFound("port"), doc["port"].assertError<TomlEditError.NotFound>())
         assertEquals(setOf("host"), doc.keys)
         doc["port"] = 2L
-        assertEquals("# about port\nhost = \"x\"\nport = 2\n", doc.toString())
+        assertEquals("host = \"x\"\nport = 2\n", doc.toString())
     }
 
     @Test

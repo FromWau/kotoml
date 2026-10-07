@@ -54,7 +54,7 @@ class TomlDocumentTest {
         assertTrue("a" in document)
         assertEquals(2, document.size)
         assertEquals(1L, document.root["a"].assertSuccess().longOrNull)
-        assertEquals(2L, document.remove("b")?.longOrNull)
+        assertEquals(2L, document.remove("b").assertSuccess().longOrNull)
         assertEquals("a = 1\n", document.toString())
     }
 

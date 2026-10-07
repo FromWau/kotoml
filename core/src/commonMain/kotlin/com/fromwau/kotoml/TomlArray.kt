@@ -158,9 +158,9 @@ public class TomlArray() : Iterable<Value> {
     /** Whether the array has an element. */
     public fun isNotEmpty(): Boolean = !isEmpty()
 
-    /** Removes every element, keeping the lines above each as [removeAt] does. */
+    /** Removes every element, keeping the comment and blank lines above each where they print. */
     public fun clear() {
-        removeSlots(values.indices.toList())
+        removeSlots(values.indices.toList(), takesAttached = false)
     }
 
     /** The value at [index], or null when the index is out of bounds. */
@@ -489,45 +489,92 @@ public class TomlArray() : Iterable<Value> {
     }
 
     /**
-     * Removes the element at [index].
+     * Removes the element at [index], with the comments that belong to it.
      *
-     * Only the element's own text goes: the value, its comma and, for an element on a line of its own, the rest of
-     * that line with the comment on it. The comment and blank lines above the element stay where they print, now
-     * above the next element or before the closing `]`. Upstream drops those lines with the element.
+     * What belongs to the element goes with it: the value, its comma, the comment lines right above it with no blank
+     * line between, the comment ending its line when it is the last element on that line, the comment lines between
+     * the value and a comma on a later line, and every comment inside the value. Comment lines set apart from it by a
+     * blank line stay where they print, and so do those before the closing `]` with no element below them and the
+     * comment after the opening `[`, which belongs to the array.
      *
-     * @return the removed element, or [TomlEditError.IndexOutOfBounds] when there is no element at [index].
+     * ```kotlin
+     * val doc = TomlDocument.parse("a = [\n  # one\n  1,\n  2,\n]\n").getOrElse { error(it) }
+     * val array = doc["a"].getOrNull()?.arrayOrNull ?: error("not an array")
+     * array.removeAt(0) // Err(CommentsWouldBeLost(keyPath = [a], count = 1)), nothing changed
+     * array.removeAt(0, force = true) // Ok(1)
+     * doc.toString() // "a = [\n  2,\n]\n"
+     * ```
+     *
+     * @param force removes the element even when comments would go with it.
+     * @return the removed element; [TomlEditError.IndexOutOfBounds] when there is no element at [index]; or
+     *   [TomlEditError.CommentsWouldBeLost], changing nothing, when [force] is false and comments would leave the
+     *   document with the element, naming the array and how many comments.
      */
-    public fun removeAt(index: Int): Result<Value, TomlEditError> {
+    public fun removeAt(
+        index: Int,
+        force: Boolean = false,
+    ): Result<Value, TomlEditError> {
         val removed = getOrNull(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
-        removeSlot(index)
+        if (!force) refusalToRemove(listOf(index))?.let { return Err(it) }
+        removeSlot(index, takesAttached = true)
         return Ok(removed)
     }
 
     /**
-     * Keeps only the values [predicate] accepts, in order, visiting each once. A removed value's own text goes and
-     * the lines above it stay, as [removeAt] says.
+     * Keeps only the values [predicate] accepts, in order, visiting each once. Each removed value takes its comments,
+     * as [removeAt] says, and all of them go or none does.
      *
-     * @return whether any value was removed.
+     * @param force removes the values even when comments would go with them.
+     * @return whether any value was removed; or [TomlEditError.CommentsWouldBeLost], removing none, when [force] is
+     *   false and comments would leave the document, counting the comments of all.
      */
-    public fun retainAll(predicate: (Value) -> Boolean): Boolean = removeSlots(indicesWhere { !predicate(it) })
+    public fun retainAll(
+        force: Boolean = false,
+        predicate: (Value) -> Boolean,
+    ): Result<Boolean, TomlEditError> = removeChecked(indicesWhere { !predicate(it) }, force)
 
     /**
-     * Removes the values [predicate] accepts, in order, visiting each once. A removed value's own text goes and the
-     * lines above it stay, as [removeAt] says.
+     * Removes the values [predicate] accepts, in order, visiting each once. Each removed value takes its comments, as
+     * [removeAt] says, and all of them go or none does.
      *
-     * @return whether any value was removed.
+     * @param force removes the values even when comments would go with them.
+     * @return whether any value was removed; or [TomlEditError.CommentsWouldBeLost], removing none, when [force] is
+     *   false and comments would leave the document, counting the comments of all.
      */
-    public fun removeAll(predicate: (Value) -> Boolean): Boolean = removeSlots(indicesWhere(predicate))
+    public fun removeAll(
+        force: Boolean = false,
+        predicate: (Value) -> Boolean,
+    ): Result<Boolean, TomlEditError> = removeChecked(indicesWhere(predicate), force)
 
     private fun indicesWhere(predicate: (Value) -> Boolean): List<Int> =
         values.indices.filter { index -> values[index].valueOrNull?.let(predicate) ?: false }
 
-    private fun removeSlots(indices: List<Int>): Boolean {
-        for (index in indices.asReversed()) removeSlot(index)
+    private fun removeChecked(
+        indices: List<Int>,
+        force: Boolean,
+    ): Result<Boolean, TomlEditError> {
+        if (!force) refusalToRemove(indices)?.let { return Err(it) }
+        return Ok(removeSlots(indices, takesAttached = true))
+    }
+
+    private fun refusalToRemove(indices: List<Int>): TomlEditError? =
+        lostByRemoving(this, indices, keyPathTo = { keyPathOf(this) }) { copy, at ->
+            copy.removeSlots(at, takesAttached = true)
+        }
+
+    // Clearing keeps every line above what it removes; a removal of chosen elements takes the comments they own.
+    private fun removeSlots(
+        indices: List<Int>,
+        takesAttached: Boolean,
+    ): Boolean {
+        for (index in indices.asReversed()) removeSlot(index, takesAttached)
         return indices.isNotEmpty()
     }
 
-    private fun removeSlot(index: Int) {
+    private fun removeSlot(
+        index: Int,
+        takesAttached: Boolean,
+    ) {
         val removed = values[index].valueOrNull
         if (removed != null) {
             val decor = removed.rawDecor
@@ -539,6 +586,7 @@ public class TomlArray() : Iterable<Value> {
                 suffix = decor.suffix?.textOrNull.orEmpty(),
                 next = next?.rawDecor?.prefix?.textOrNull ?: trailing,
                 nextIsElement = next != null,
+                takesAttached = takesAttached,
             )
             val previous = values.subList(0, index).lastOrNull { it.valueOrNull != null }?.valueOrNull
             val isFirst = previous == null

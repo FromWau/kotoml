@@ -116,7 +116,7 @@ class ListMergeTest {
     }
 
     @Test
-    fun `a removed element keeps the comment above it`() {
+    fun `a removed element takes the comment above it`() {
         val result = merged(fleet) { it.copy(servers = listOf(it.servers[0])) }
         assertEquals(
             """
@@ -125,7 +125,6 @@ class ListMergeTest {
             [[servers]]
             host = "a" # primary
             port = 80
-            # fallback box
 
             """.trimIndent(),
             result,

@@ -43,10 +43,10 @@ class ListLayoutTest {
     }
 
     @Test
-    fun `a number removed from a multi-line list keeps the comment above it`() {
+    fun `a number removed from a multi-line list takes the comment above it`() {
         val text = "ports = [\n  # web\n  8080,\n  # secure\n  8443, # tls\n]\n"
         val result = merged<PortNumbers>(text) { PortNumbers(listOf(8080)) }
-        assertEquals("ports = [\n  # web\n  8080,\n  # secure\n]\n", result)
+        assertEquals("ports = [\n  # web\n  8080,\n]\n", result)
     }
 
     @Test

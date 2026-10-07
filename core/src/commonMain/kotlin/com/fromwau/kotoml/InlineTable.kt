@@ -526,9 +526,9 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     /** Whether the table has a key/value pair. */
     override fun isNotEmpty(): Boolean = !isEmpty()
 
-    /** Removes every entry, keeping the lines above each as [remove] does. */
+    /** Removes every entry, keeping the comment and blank lines above each where they print. */
     override fun clear() {
-        removeEntries(items.snapshot())
+        removeEntries(items.snapshot(), takesAttached = false)
     }
 
     /** The value at [key], or null when there is none. */
@@ -737,21 +737,34 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     }
 
     /**
-     * Removes [key] and returns its value, or null when it held none.
+     * Removes [key] and returns its value, with the comments that belong to it.
      *
-     * Only the entry's own text goes: the key, its value, its comma and, for an entry on a line of its own, the
-     * rest of that line with the comment on it. The comment and blank lines above the entry stay where they print,
-     * now above the next entry or before the closing `}`. Upstream drops those lines with the key.
+     * What belongs to the entry goes with it: the key, its value, its comma, the comment lines right above it with no
+     * blank line between, the comment ending its line when it is the last entry on that line, the comment lines
+     * between its value and a comma on a later line, and every comment inside its value. Comment lines set apart from
+     * it by a blank line stay where they print, and so do those before the closing `}` with no entry below them.
+     *
+     * @param force removes the key even when comments would go with it.
+     * @return the removed value; [TomlEditError.NotFound] when there is no [key]; or
+     *   [TomlEditError.CommentsWouldBeLost], changing nothing, when [force] is false and comments would leave the
+     *   document with the entry, naming the key and how many comments.
      */
-    public fun remove(key: String): Value? {
-        val entry = items.getEntry(key) ?: return null
-        keepLinesAbove(listOf(entry))
-        items.remove(key)
-        return entry.item.valueOrNull
+    public fun remove(
+        key: String,
+        force: Boolean = false,
+    ): Result<Value, TomlEditError> {
+        val entry = items.getEntry(key) ?: return Err(TomlEditError.NotFound(key))
+        val value = checkNotNull(entry.item.valueOrNull)
+        if (!force) refusalToRemove(listOf(key))?.let { return Err(it) }
+        removeEntries(listOf(entry), takesAttached = true)
+        return Ok(value)
     }
 
-    /** Removes [key] and returns its value as an item, or null when it held none; see [remove]. */
-    override fun removeItem(key: String): Item? = remove(key)?.let { Item(it) }
+    /** Removes [key] and returns its value as an item, as [remove] does. */
+    override fun removeItem(
+        key: String,
+        force: Boolean,
+    ): Result<Item, TomlEditError> = remove(key, force).map { Item(it) }
 
     /**
      * Renames the key [old] to [new]. The entry keeps its place, the comment lines above it, the comment after its
@@ -768,54 +781,98 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     ): EmptyResult<TomlEditError> = renameIn(this, items, old, new)
 
     /**
-     * Keeps only the pairs [predicate] accepts, visiting each pair of key and value once, in order. A removed
-     * pair's own text goes and the lines above it stay, as [remove] says.
+     * Keeps only the pairs [predicate] accepts, visiting each pair of key and value once, in order. Each removed pair
+     * takes its comments, as [remove] says, and all of them go or none does.
      *
      * ```kotlin
      * inlineTable.retainAll { (_, value) -> value.stringOrNull != "" }
      * ```
      *
-     * @return whether any pair was removed.
+     * @param force removes the pairs even when comments would go with them.
+     * @return whether any pair was removed; or [TomlEditError.CommentsWouldBeLost], removing none, when [force] is
+     *   false and comments would leave the document, naming the first such key and counting the comments of all.
      */
-    public fun retainAll(predicate: (Pair<String, Value>) -> Boolean): Boolean =
-        removeEntries(entriesWhere { !predicate(it) })
+    public fun retainAll(
+        force: Boolean = false,
+        predicate: (Pair<String, Value>) -> Boolean,
+    ): Result<Boolean, TomlEditError> = removeChecked(entriesWhere { !predicate(it) }, force)
 
     /**
-     * Removes the pairs [predicate] accepts, visiting each pair of key and value once, in order. A removed pair's
-     * own text goes and the lines above it stay, as [remove] says.
+     * Removes the pairs [predicate] accepts, visiting each pair of key and value once, in order. Each removed pair
+     * takes its comments, as [remove] says, and all of them go or none does.
      *
-     * @return whether any pair was removed.
+     * @param force removes the pairs even when comments would go with them.
+     * @return whether any pair was removed; or [TomlEditError.CommentsWouldBeLost], removing none, when [force] is
+     *   false and comments would leave the document, naming the first such key and counting the comments of all.
      */
-    public fun removeAll(predicate: (Pair<String, Value>) -> Boolean): Boolean =
-        removeEntries(entriesWhere(predicate))
+    public fun removeAll(
+        force: Boolean = false,
+        predicate: (Pair<String, Value>) -> Boolean,
+    ): Result<Boolean, TomlEditError> = removeChecked(entriesWhere(predicate), force)
+
+    private fun removeChecked(
+        removed: List<KeyValue>,
+        force: Boolean,
+    ): Result<Boolean, TomlEditError> {
+        if (!force) refusalToRemove(removed.map { it.key.name })?.let { return Err(it) }
+        return Ok(removeEntries(removed, takesAttached = true))
+    }
+
+    private fun refusalToRemove(keys: List<String>): TomlEditError? =
+        lostByRemoving(this, keys, keyPathTo = { keyPathOf(this) + it }) { copy, names ->
+            copy.removeEntries(names.mapNotNull { copy.items.getEntry(it) }, takesAttached = true)
+        }
 
     private fun entriesWhere(predicate: (Pair<String, Value>) -> Boolean): List<KeyValue> =
         items.entries.filter { entry ->
             entry.item.valueOrNull?.let { predicate(entry.key.name to it) } ?: false
         }
 
-    private fun removeEntries(removed: List<KeyValue>): Boolean {
+    // Clearing keeps every line above what it removes; a removal of chosen entries takes the comments they own.
+    private fun removeEntries(
+        removed: List<KeyValue>,
+        takesAttached: Boolean,
+    ): Boolean {
         if (removed.isEmpty()) return false
-        keepLinesAbove(removed)
+        keepLinesAbove(removed, takesAttached)
         val names = removed.mapTo(HashSet()) { it.key.name }
         items.retainAll { it.key.name !in names }
         return true
     }
 
-    private fun keepLinesAbove(removed: Collection<KeyValue>) {
+    private fun keepLinesAbove(
+        removed: Collection<KeyValue>,
+        takesAttached: Boolean,
+    ) {
         // On a table's lines the text keeps its braces' shape, which printing turns into lines.
         if (!isDotted || printsOnTableLines()) {
-            leaveTextAfterRemoved(bodyLines(), RemovedLines(removed))
+            leaveTextAfterRemoved(bodyLines(), RemovedLines(removed), takesAttached)
             return
         }
-        if (removed.size == items.size) spaceEmptyLineLike(visualValues())
+        val emptied = removed.size == items.size
+        if (emptied) spaceEmptyLineLike(visualValues())
         val removedLines = RemovedLines(removed)
         leaveCommentsWithLinesBefore(removedLines)
+        val braces = outermostBraces().bodyLines()
+        // Lines kept before the closing brace lose the blank lines ending them, as at the end of a document; an
+        // emptied table still prints its `{}` line below them.
+        fun endsBraces(line: VisualValue): Boolean {
+            if (emptied) return false
+            val at = braces.indexOfFirst { it is VisualValue && it.entry === line.entry }
+            return braces.drop(at + 1).none { it is VisualValue && it !in removedLines }
+        }
         keepLinesAbove(
             lines = bodyLines(),
             removed = removedLines,
             isDotted = true,
-            linesAbove = { linesAboveElement(it.entry.key.rawLeafDecor.prefix) },
+            linesAbove = { line ->
+                val above = linesAboveElement(line.entry.key.rawLeafDecor.prefix)
+                when {
+                    !takesAttached -> above
+                    endsBraces(line) -> freeLinesAboveElement(above).withoutTrailingBlankElementLines()
+                    else -> freeLinesAboveElement(above)
+                }
+            },
             keyDefault = DEFAULT_INLINE_KEY_DECOR.first,
             keep = { items.keptLines += it },
         )
@@ -913,6 +970,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     private fun leaveTextAfterRemoved(
         lines: List<BodyLine>,
         removed: RemovedLines,
+        takesAttached: Boolean,
     ) {
         var next: BodyLine? = null
         for ((index, line) in lines.withIndex().reversed()) {
@@ -927,6 +985,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
                     suffix = line.value.rawDecor.suffix?.textOrNull.orEmpty(),
                     next = textBefore(next),
                     nextIsElement = next is VisualValue,
+                    takesAttached = takesAttached,
                 ) ?: run {
                     val before = lines.subList(0, index).lastOrNull { it is VisualValue && it !in removed }
                     if (next == null && before is VisualValue) passClosingSpace(line.value, before.value)

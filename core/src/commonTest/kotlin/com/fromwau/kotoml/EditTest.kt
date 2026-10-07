@@ -565,7 +565,7 @@ name = "dep"
     }
 
     @Test
-    fun `removing a sub-table keeps the comment above its header`() {
+    fun `removing a sub-table takes the comment above its header`() {
         given(
             "\n        [servers]\n\n        # Indentation (tabs and/or spaces) is allowed but not required\n[servers." +
             "alpha]\n        ip = \"10.0.0.1\"\n        dc = \"eqdc10\"\n\n        [servers.beta]\n        ip = \"10." +
@@ -573,13 +573,11 @@ name = "dep"
             .running { root ->
                 val servers = root.getOrNull("servers")!!
                 val serversTable = servers.standardTableOrNull!!
-                assertNotNull(serversTable.remove("alpha"))
+                serversTable.remove("alpha", force = true).assertSuccess()
             }
             .prints("""
 
         [servers]
-
-        # Indentation (tabs and/or spaces) is allowed but not required
 
         [servers.beta]
         ip = "10.0.0.2"
@@ -588,7 +586,7 @@ name = "dep"
     }
 
     @Test
-    fun `removing a table removes its sub-tables and keeps only the comment above its first header`() {
+    fun `removing a table removes its sub-tables and the comments above their headers`() {
         given("""
         title = "not relevant"
 
@@ -623,13 +621,12 @@ name = "dep"
 
     """)
             .running { root ->
-                    assertNotNull(root.remove("a"))
+                    root.remove("a", force = true).assertSuccess()
             }
             .prints("""
 
         title = "not relevant"
 
-        # comment 1
         # comment 2
         [b] # comment 2.1
         key2 = 2 # comment 2.2
@@ -652,7 +649,7 @@ name = "dep"
                 val dmp = root.getOrNull("bin")!!
                 val dmpArray = assertNotNull(dmp.arrayOfTablesOrNull)
                 assertEquals(2, dmpArray.size)
-                dmpArray.removeAt(1)
+                dmpArray.removeAt(1, force = true).assertSuccess()
                 assertEquals(1, dmpArray.size)
             }
             .prints("""
@@ -678,7 +675,7 @@ name = "dep"
             "\" # future is here\n\n        [[bin]]\n        name = \"delete me please\"\n        path = \"src/bin/dm" +
             "p/main.rs\"")
             .running { root ->
-                    assertNotNull(root.remove("bin"))
+                    root.remove("bin", force = true).assertSuccess()
             }
             .prints("""
 
@@ -692,13 +689,12 @@ name = "dep"
     }
 
     @Test
-    fun `removing a key returns its value and keeps the comment above it`() {
+    fun `removing a key with force returns its value and takes the comment above it`() {
         given(
             "\n        name = \"hello\"\n        # delete this\n        version = \"1.0.0\" # please\n        documen" +
             "tation = \"https://docs.rs/hello\"")
             .running { root ->
-                val value = root.remove("version")
-                assertNotNull(value)
+                val value = root.remove("version", force = true).assertSuccess()
                 val version = assertNotNull(value.valueOrNull)
                 assertIs<Value.String>(version)
                 assertSnapshot("1.0.0", version.stringOrNull!!)
@@ -706,7 +702,6 @@ name = "dep"
             .prints("""
 
         name = "hello"
-        # delete this
         documentation = "https://docs.rs/hello"
 """)
     }
@@ -720,8 +715,7 @@ name = "dep"
                 val a = root.getOrNull("a")!!
                 val aTable = assertNotNull(a.standardTableOrNull)
                 aTable.setImplicit(true)
-                val value = aTable.remove("b")
-                assertNotNull(value)
+                val value = aTable.remove("b").assertSuccess()
                 assertEquals(1L, assertNotNull(value.valueOrNull).longOrNull)
             }
             .prints("\n\n        [a]\n")
@@ -1016,12 +1010,12 @@ edition = "2024"
                 run {
                     val a = root.getOrNull("a")!!.inlineTableOrNull!!
                     assertEquals(3, a.size)
-                    assertNotNull(a.remove("c"))
+                    a.remove("c", force = true).assertSuccess()
                     assertEquals(2, a.size)
                 }
                 val b = root.getOrNull("b")!!.inlineTableOrNull!!
                 assertEquals(1, b.size)
-                assertNotNull(b.remove("hello"))
+                b.remove("hello", force = true).assertSuccess()
                 assertTrue(b.isEmpty())
             }
             .prints("""
@@ -1168,7 +1162,7 @@ other = "world"
             "table = { string = \"value\", array = [1, 2, 3], inline = { \"1\" = 1, \"2\" = 2 }, child = { other = \"" +
             "world\" } }\n"
         val doc = TomlDocument.parse(toml).assertSuccess()
-        val t = doc.remove("table")!!
+        val t = doc.remove("table").assertSuccess()
         val inline = t.inlineTableOrNull ?: fail("Unexpected $t")
         val table = inline.toStandardTable()
         doc.put("table", Item(table))

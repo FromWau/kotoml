@@ -25,9 +25,9 @@ import com.fromwau.kern.result.Result
  * taken from a place in a document, this one or another, leaves its source's own comments behind (its same-line
  * comment, its header comment and the comment lines above its header) and takes the comments inside it; a table
  * copied within one document prints after the tables already there. [copy] gives exactly what a store would store.
- * An item stored nowhere, built in code or returned by `remove`, keeps what it holds, its comments included;
- * `remove` leaves the lines above in the document, so storing the item again prints them once. A comment a caller
- * set through `decor` travels with every store and copy.
+ * An item stored nowhere, built in code or returned by `remove`, keeps what it holds, its comments included, and a
+ * removed table the comment lines right above its header. A comment a caller set through `decor` travels with every
+ * store and copy.
  *
  * A slot inside an array or an inline table holds only a value, and one inside an array of tables only a table;
  * writing anything else there fails with [TomlEditError.NotAValue] or [TomlEditError.NotATableElement].

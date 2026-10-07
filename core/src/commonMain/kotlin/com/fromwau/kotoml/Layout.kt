@@ -27,6 +27,37 @@ internal fun <T : Any> changeLayout(
     return change(target)
 }
 
+/**
+ * [TomlEditError.CommentsWouldBeLost] for removing the items at [steps] from [container] with [remove], or null when
+ * no comment would leave the document: it counts every comment that would go and names the first of [steps] that
+ * takes one. [remove] runs on a copy of the tree holding [container] only.
+ */
+internal fun <T : Any, S> lostByRemoving(
+    container: T,
+    steps: List<S>,
+    keyPathTo: (S) -> List<String>,
+    remove: (T, List<S>) -> Unit,
+): TomlEditError.CommentsWouldBeLost? {
+    if (steps.isEmpty()) return null
+    val lost = commentsLostBy(container) { remove(it, steps) }
+    if (lost == 0) return null
+    val first = steps.singleOrNull()
+        ?: steps.firstOrNull { step -> commentsLostBy(container) { remove(it, listOf(step)) } > 0 }
+        ?: steps.first()
+    return TomlEditError.CommentsWouldBeLost(keyPathTo(first), lost)
+}
+
+/** How many comments the tree holding [target] would no longer print once [change] ran on it. */
+private fun <T : Any> commentsLostBy(
+    target: T,
+    change: (T) -> Unit,
+): Int {
+    val trial = Trial.of(target)
+    val before = trial.comments()
+    change(trial.target)
+    return missing(before, trial.comments())
+}
+
 /** The keys to [target], a table or a slot, as [TomlEditError.CommentsWouldBeLost] names them. */
 internal fun layoutKeyPathOf(target: Any): List<String> {
     if (target !is Item) return keyPathOf(target)

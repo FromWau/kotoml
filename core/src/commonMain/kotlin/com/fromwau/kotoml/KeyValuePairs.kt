@@ -140,7 +140,7 @@ internal class KeyValue(key: Key, item: Item) {
                 text.isEmpty() -> continue
                 keptInside && line !== firstValue -> continue
                 index == 0 || order == null || pairs == null -> carried += text
-                else -> pairs.keptLines += KeptLines(text, order)
+                else -> pairs.keptLines += KeptLines(text, order, (line as? KeptLines)?.dropBlankLinesMeeting == true)
             }
         }
         // The key's own prefix prints below a header's default spacing, as a replaced value's comment does.

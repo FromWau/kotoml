@@ -67,7 +67,7 @@ class PreservationTest {
         val doc = parse("a = []\r\n")
         doc["s"] = Value.String("x\ny")
         doc["a"].assertSuccess().arrayOrNull!!.add("p\nq")
-        val removed = doc.remove("s")!!.valueOrNull as Value.String
+        val removed = doc.remove("s").assertSuccess().valueOrNull as Value.String
         val removedAt = doc["a"].assertSuccess().arrayOrNull!!.removeAt(0).assertSuccess() as Value.String
         assertEquals("\"\"\"\r\nx\r\ny\"\"\"", removed.displaySpelling)
         assertEquals("\"\"\"\r\nx\r\ny\"\"\"", removed.toString())
@@ -98,7 +98,7 @@ class PreservationTest {
     fun `a table removed from a CRLF document prints its strings and lines with CRLF`() {
         val doc = parse("[t]\r\na = 1\r\n")
         doc["t"]["s"] = Value.String("x\ny")
-        val removed = doc.remove("t")!!
+        val removed = doc.remove("t").assertSuccess()
         removed["b"] = 2L
         val expected = "a = 1\r\ns = \"\"\"\r\nx\r\ny\"\"\"\r\nb = 2\r\n"
         assertEquals(expected, removed.toString())
@@ -118,7 +118,7 @@ class PreservationTest {
     fun `a multi-line string removed from a CRLF document takes the line ending of the document it is stored in`() {
         val crlf = parse("a = 1\r\n")
         crlf["s"] = Value.String("x\ny")
-        val removed = crlf.remove("s")!!
+        val removed = crlf.remove("s").assertSuccess()
         val lf = parse("a = 1\n")
         lf["s"] = removed
         assertEquals("a = 1\ns = \"\"\"\nx\ny\"\"\"\n", lf.toString())
@@ -132,7 +132,7 @@ class PreservationTest {
     fun `a multi-line string built in code or removed from an LF document breaks its lines with LF`() {
         val doc = parse("a = 1\n")
         doc["s"] = Value.String("x\ny")
-        assertEquals("\"\"\"\nx\ny\"\"\"", doc.remove("s")!!.toString())
+        assertEquals("\"\"\"\nx\ny\"\"\"", doc.remove("s").assertSuccess().toString())
         assertEquals("\"\"\"\nx\ny\"\"\"", Value.String("x\ny").toString())
         assertEquals("\"\"\"\nx\ny\"\"\"", Item(Value.String("x\ny")).toString())
         val array = tomlArrayOf(Value.String("x\ny")).assertSuccess()

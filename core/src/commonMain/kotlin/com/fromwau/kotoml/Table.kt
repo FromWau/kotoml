@@ -31,10 +31,17 @@ public sealed interface Table {
     ): Result<Item?, TomlEditError>
 
     /**
-     * Removes [key] and returns its item, or null when it held none. Only the key's own text goes; the comment and
-     * blank lines above it stay where they print, as [StandardTable.remove] and [InlineTable.remove] keep them.
+     * Removes [key] and returns its item, with the comments that belong to it, as [StandardTable.remove] and
+     * [InlineTable.remove] do.
+     *
+     * @param force removes the key even when comments would go with it.
+     * @return the removed item; [TomlEditError.NotFound] when there is no [key]; or
+     *   [TomlEditError.CommentsWouldBeLost], changing nothing, when [force] is false and comments would go with it.
      */
-    public fun removeItem(key: String): Item?
+    public fun removeItem(
+        key: String,
+        force: Boolean = false,
+    ): Result<Item, TomlEditError>
 
     /**
      * Renames the key [old] to [new], as [StandardTable.rename] and [InlineTable.rename] do.

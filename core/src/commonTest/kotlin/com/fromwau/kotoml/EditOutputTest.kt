@@ -51,8 +51,8 @@ class EditOutputTest {
     @Test
     fun `a table added to a new element of a new array of tables prints under the element`() {
         val doc = parse("# first\n[a]\n# between\n[b]\n")
-        doc.remove("a")
-        doc.remove("b")
+        doc.remove("a", force = true).assertSuccess()
+        doc.remove("b", force = true).assertSuccess()
         doc.set("x", arrayOfTablesOf(StandardTable()).assertSuccess()).assertSuccess()
         doc["x"][0].assertSuccess().standardTableOrNull!!.getOrPut("y") { Item(StandardTable()) }.assertSuccess()
         assertReadsBack(doc)

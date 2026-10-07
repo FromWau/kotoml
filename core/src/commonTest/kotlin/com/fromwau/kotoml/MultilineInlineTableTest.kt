@@ -232,7 +232,7 @@ class MultilineInlineTableTest {
     }
 
     private fun TomlDocument.removeFromDotted(vararg path: String) {
-        slotAt(*path.dropLast(1).toTypedArray()).inlineTableOrNull!!.remove(path.last())
+        slotAt(*path.dropLast(1).toTypedArray()).inlineTableOrNull!!.remove(path.last(), force = true)
     }
 
     @Test
@@ -248,7 +248,7 @@ class MultilineInlineTableTest {
     @Test
     fun `an empty dotted table last in a table made multi-line inline from a header takes the trailing comma`() {
         val doc = parse("[t]\na = 1\nb.d.e = 2\n")
-        doc["t"]["b"]["d"].assertSuccess().standardTableOrNull!!.remove("e")
+        doc["t"]["b"]["d"].assertSuccess().standardTableOrNull!!.remove("e", force = true)
         doc["t"].assertSuccess().setLayout(TableLayout.MultilineInline).assertSuccess()
         assertEquals("t = {\n  a = 1,\n  b.d = {},\n}\n", doc.toString())
     }
@@ -261,10 +261,11 @@ class MultilineInlineTableTest {
             Triple("t = {\n  a = 1,\n  b.d.e = 2\n}\n", "t = {\n  a = 1,\n  b.d = {}\n}\n", last),
             Triple("t = {\n  a = 1,\n  b.d.e=2,\n}\n", "t = {\n  a = 1,\n  b.d={},\n}\n", last),
             Triple("t = {\n  b.d.e = 2,\n  a = 1,\n}\n", "t = {\n  b.d = {},\n  a = 1,\n}\n", null),
+            Triple("t = {\n  a = 1,\n  # about e\n  b.d.e = 2 # e\n}\n", "t = {\n  a = 1,\n  b.d = {}\n}\n", last),
             Triple(
-                "t = {\n  a = 1,\n  # about e\n  b.d.e = 2 # e\n}\n",
-                "t = {\n  a = 1,\n  # about e\n  b.d = {}\n}\n",
-                "t = {\n  a = 1,\n  # about e\n  b.d = {},\n}\n",
+                "t = {\n  a = 1,\n  # note\n\n  b.d.e = 2 # e\n}\n",
+                "t = {\n  a = 1,\n  # note\n\n  b.d = {}\n}\n",
+                "t = {\n  a = 1,\n  # note\n\n  b.d = {},\n}\n",
             ),
         )
         for ((text, expected, formatted) in cases) {
@@ -280,10 +281,10 @@ class MultilineInlineTableTest {
     fun `a key put in an emptied dotted table across lines and removed again leaves the empty table on its line`() {
         val doc = parse("t = {\n  a = 1,\n  b.d.e = 2,\n  c = 3,\n}\n")
         val d = doc.slotAt("t", "b", "d").inlineTableOrNull!!
-        d.remove("e")
+        d.remove("e", force = true)
         d["x"] = Value.Integer(5L)
         assertEquals("t = {\n  a = 1,\n  b.d.x = 5,\n  c = 3,\n}\n", doc.toString())
-        d.remove("x")
+        d.remove("x", force = true)
         assertEquals("t = {\n  a = 1,\n  b.d = {},\n  c = 3,\n}\n", doc.toString())
     }
 

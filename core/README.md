@@ -100,10 +100,24 @@ doc["client"] = standardTableOf("retries" to Item(Value.Integer(3L))).getOrElse 
 ```
 
 `StandardTable`, `InlineTable`, `TomlArray` and `ArrayOfTables` read like Kotlin collections: `size`, `isNotEmpty`,
-`keys`, `put`, `getOrPut`, `remove`, `add`, `removeAt`, `retainAll`, `removeAll` and iteration. Removing keeps the
-comment and blank lines above what it removes, and takes what belongs to it: the comment on its line, every comment
-inside its value, and for a table everything after its first header, the comments above its sub-tables' headers
-included. Where a removed table leaves two blank lines meeting, one stays, and none at the start or end of the file.
+`keys`, `put`, `getOrPut`, `remove`, `add`, `removeAt`, `retainAll`, `removeAll` and iteration. Removing takes what
+belongs to the item: the comment lines right above it with no blank line between, the comment on its line, every
+comment inside its value, and for a table everything after its first header, the comments above its sub-tables'
+headers included. Comment lines set apart from it by a blank line stay where they print. A removal that would take a
+comment out of the document returns `TomlEditError.CommentsWouldBeLost` and changes nothing, unless called with
+`force = true`; `retainAll` and `removeAll` remove all the items they pick or none. Removing a key that is not there
+returns `NotFound`, an index past the end `IndexOutOfBounds`. Where a removal leaves two blank lines meeting, one
+stays, and none at the start or end of the file.
+
+```kotlin
+val doc = TomlDocument.parse("# free\n\n# about x\nx = 1 # one\ny = 2\n").getOrElse { error(it) }
+doc.remove("x") // Err(CommentsWouldBeLost(keyPath = [x], count = 2)), nothing changed
+doc.remove("x", force = true) // Ok(item)
+// # free
+//
+// y = 2
+```
+
 Replacing a value keeps its spacing and the comment after it. An array of tables left with no tables prints
 `key = []`. A new key takes the indentation of the key above it, and an element or key added to an array or
 inline table on one line takes the spacing already there. A comment a caller gives an element or an inline table's
@@ -298,10 +312,12 @@ An item handed out by indexing, and the comments that go with it, follow five ru
    holds for the `copy()` of what an item holds: `db.standardTableOrNull!!.copy()` stores as `db.copy()` does, and
    so do the copies of an `InlineTable`, a `TomlArray`, an `ArrayOfTables` and a `Value`. A `TomlDocument.copy()` is
    a whole document and keeps every comment and its version.
-4. **Removing is a move.** An item returned by `remove` or `removeAt` keeps its own comments, its same-line and header
-   comment included, and stores with them. The comment lines above it stay in the document it left, so storing it
-   there again prints them once. A comment a caller set through `decor` is the item's own too, so it travels with
-   every store and copy.
+4. **Removing is a move.** `remove` and `removeAt` take the item's comments with it: the comment lines right above
+   it, its same-line and header comment, and every comment inside it. When that would take a comment out of the
+   document they return `CommentsWouldBeLost` and change nothing, unless called with `force = true`. The returned
+   item keeps its same-line and header comment, and a table the comment lines right above its header, and stores
+   with them. Comment lines set apart from it by a blank line stay in the document it left. A comment a caller set
+   through `decor` is the item's own too, so it travels with every store and copy.
 5. **A replaced or removed item is detached.** It keeps what it held, but writing through it no longer changes the
    document; index again. It prints, and takes edits, as in the document it left, with that document's line ending
    and TOML version, and so does a `copy()`; stored again, it takes those of the document it is stored in.

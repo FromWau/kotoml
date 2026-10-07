@@ -149,8 +149,8 @@ class EncodeIntoFixesTest {
     )
 
     @Test
-    fun `a map emptied in a dotted key keeps the comments above its lines`() = assertEquals(
-        "z = 0\n# about a\nm = {}\n# about b\n",
+    fun `a map emptied in a dotted key takes the comments above its lines`() = assertEquals(
+        "z = 0\nm = {}\n",
         encoded("z = 0\n# about a\nm.a = 1\n# about b\nm.b = 2\n", TallyMap.serializer(), TallyMap(emptyMap())),
     )
 

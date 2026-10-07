@@ -14,13 +14,13 @@ import kotlin.test.assertEquals
 
 /**
  * Edits keep every comment they do not own. Adding, replacing a value with a value, renaming, sorting, formatting,
- * respelling and changing how a table prints keep them all; removing a value takes only the comment on its own line,
- * and giving a table a new layout with `setLayout(force = true)` may take its comments, all but the lines above its
- * key, as `setVersion(force = true)` may take those of inline tables across lines and `setMultiline(false, force =
- * true)` those between an array's brackets. Without force a layout or version change keeps every comment or is
- * refused and changes nothing. Removing or replacing whole tables is covered by
- * `RemovalPropertyTest` and the comment scope tests, which state what those take. Comments compare as `format()`
- * spells them.
+ * respelling and changing how a table prints keep them all; removing a value with force takes only the comments that
+ * belong to it, the comment lines right above it and the comment on its line; and giving a table a new layout with
+ * `setLayout(force = true)` may take its comments, all but the lines above its key, as `setVersion(force = true)` may
+ * take those of inline tables across lines and `setMultiline(false, force = true)` those between an array's brackets.
+ * Without force a layout or version change keeps every comment or is refused and changes nothing. Removing or
+ * replacing whole tables is covered by `RemovalPropertyTest` and the comment scope tests, which state what those
+ * take. Comments compare as `format()` spells them.
  */
 class CommentPropertyTest {
 
@@ -237,10 +237,11 @@ class CommentPropertyTest {
             }
         }
         when (val last = path.last()) {
-            is String -> (parent as StandardTable).remove(last)
-            else -> (parent as ArrayOfTables).removeAt(last as Int)
+            is String -> (parent as StandardTable).remove(last, force = true)
+            else -> (parent as ArrayOfTables).removeAt(last as Int, force = true)
         }
-        return comments(doc.toString()).minusAll(comments(copy.toString()))
+        val aboveHeader = comments(table.headerComments().attachedAbove)
+        return comments(doc.toString()).minusAll(comments(copy.toString())).minusAll(aboveHeader)
     }
 
     /** The keys and array indices leading from [from] to [target], or null when it is not under [from]. */
@@ -261,25 +262,28 @@ class CommentPropertyTest {
         return null
     }
 
-    /** Removes the value at [key], returning the comment on its line, which goes with it. */
+    /** Removes the value at [key] with force, returning the comments that belong to it, which go with it. */
     private fun removedValue(
         table: StandardTable,
         key: String,
     ): List<String> {
-        val owned = comments(table.getOrNull(key)!!.valueOrNull!!.decor.suffix.orEmpty())
-        table.remove(key)
+        val own = table.items.getEntry(key)!!.itemComments()
+        val owned = comments(own.attachedAbove) + comments(table.getOrNull(key)!!.valueOrNull!!.decor.suffix.orEmpty())
+        table.remove(key, force = true).assertSuccess()
         return owned
     }
 
-    /** Removes the element at [index], returning the comment on the rest of its line, which goes with it. */
+    /** Removes the element at [index] with force, returning the comments that belong to it, which go with it. */
     private fun removedElement(
         array: TomlArray,
         index: Int,
     ): List<String> {
+        val own = array.elementComments(index)
         val suffix = array[index].assertSuccess().decor.suffix.orEmpty()
         val next = array.getOrNull(index + 1)?.decor?.prefix ?: array.trailing
-        val owned = comments(suffix) + comments(next.orEmpty().substringBefore('\n'))
-        array.removeAt(index)
+        val owned = comments(suffix) + comments(next.orEmpty().substringBefore('\n')) +
+            comments(own.attachedAbove + own.sameLine + own.attachedBelow)
+        array.removeAt(index, force = true).assertSuccess()
         return owned
     }
 

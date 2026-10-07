@@ -101,7 +101,7 @@ class ValueTextTest {
                     val stored = doc["k$index"].assertSuccess().valueOrNull!!
                     assertEquals(printed, stored.toString(), "k$index in $version")
                     displaySpelling(stored)?.let { assertEquals(printed, it, "k$index in $version") }
-                    val removed = doc.remove("k$index")!!.valueOrNull!!
+                    val removed = doc.remove("k$index").assertSuccess().valueOrNull!!
                     assertEquals(printed, removed.toString(), "removed k$index in $version")
                     displaySpelling(removed)?.let { assertEquals(printed, it, "removed k$index in $version") }
                 }

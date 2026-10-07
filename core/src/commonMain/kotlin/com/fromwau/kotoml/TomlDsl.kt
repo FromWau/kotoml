@@ -26,8 +26,9 @@ public annotation class TomlDsl
  * }.getOrElse { error(it) }
  * ```
  *
- * @return the document, or the [TomlEditError.TypeMismatch] of a block that opened a key holding another kind, or the
- *   [TomlEditError.TooDeep] of one that wrote something nesting deeper than the parser reads.
+ * @return the document, or the [TomlEditError.TypeMismatch] of a block that opened a key holding another kind, the
+ *   [TomlEditError.TooDeep] of one that wrote something nesting deeper than the parser reads, or the error of a
+ *   `remove` that failed.
  */
 public fun buildTomlDocument(block: TableScope.() -> Unit): Result<TomlDocument, TomlEditError> {
     val document = TomlDocument()
@@ -51,8 +52,8 @@ public fun buildTomlDocument(block: TableScope.() -> Unit): Result<TomlDocument,
  * successful edit no longer belongs to it; index the document again afterwards.
  *
  * @return [TomlEditError.TypeMismatch] when the block opened a key holding another kind, [TomlEditError.TooDeep]
- *   when it wrote something nesting deeper than the parser reads, or [TomlEditError.NotInToml10] when it wrote what
- *   only TOML 1.1 reads into a document of TOML 1.0, with nothing changed.
+ *   when it wrote something nesting deeper than the parser reads, [TomlEditError.NotInToml10] when it wrote what
+ *   only TOML 1.1 reads into a document of TOML 1.0, or the error of a `remove` that failed, with nothing changed.
  */
 public fun TomlDocument.edit(block: TableScope.() -> Unit): EmptyResult<TomlEditError> {
     val edited = copy()
@@ -141,8 +142,15 @@ public sealed class KeyedScope {
         InlineTableScope(table).block()
     }
 
-    /** Removes [key], keeping the comment and blank lines above it. */
-    public abstract fun remove(key: String)
+    /**
+     * Removes [key] with the comments that belong to it, as [StandardTable.remove] does. The block fails with
+     * [TomlEditError.NotFound] when there is no [key], and with [TomlEditError.CommentsWouldBeLost] when [force] is
+     * false and comments would go with it.
+     */
+    public abstract fun remove(
+        key: String,
+        force: Boolean = false,
+    )
 }
 
 /** A block writing into a standard table, or the document root. */
@@ -153,8 +161,11 @@ public class TableScope internal constructor(private val table: StandardTable) :
 
     override fun storedOrPut(key: String, value: () -> Value): Item = table.getOrPut(key) { Item(value()) }.orAbort()
 
-    override fun remove(key: String) {
-        table.remove(key)
+    override fun remove(
+        key: String,
+        force: Boolean,
+    ) {
+        table.remove(key, force).orAbort()
     }
 
     /**
@@ -194,8 +205,11 @@ public class InlineTableScope internal constructor(private val table: InlineTabl
         return checkNotNull(table.getItem(key))
     }
 
-    override fun remove(key: String) {
-        table.remove(key)
+    override fun remove(
+        key: String,
+        force: Boolean,
+    ) {
+        table.remove(key, force).orAbort()
     }
 }
 

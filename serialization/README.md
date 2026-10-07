@@ -102,7 +102,7 @@ document.toString()
 - A key the document lacks is appended to its table.
 - A key no field names stays, whatever `ignoreUnknownKeys` says.
 - A nested class updates its table, recursively. A map accounts for every key of its table, so a key the map
-  no longer has is removed.
+  no longer has is removed, with the comment lines right above it.
 - A list is merged into the document's list element by element, in the form the document wrote it: an array of
   tables stays one, and an inline array keeps its layout and the comment after it. An element equal to one the
   document holds keeps that element's text and comments, even when it moved; the blank lines above a moved table
@@ -110,8 +110,8 @@ document.toString()
   element sharing the most values with it, as a nested class updates its table; in a list of scalars, it takes
   the next old element left over. A new element is inserted at its place. Where an old element was removed
   there, it takes over the lines above that element; elsewhere a table gets default formatting and an element
-  of an inline array a line like its neighbours'. Any other old element no new one takes is removed, while the
-  comment lines above it stay.
+  of an inline array a line like its neighbours'. Any other old element no new one takes is removed with the
+  comment lines right above it; comment lines set apart from it by a blank line stay.
 - A field at its default, with `encodeDefaults` off, updates a key the document has and adds none.
 - The serializer runs once. With `encodeDefaults` off, it runs a second time when a field at its default has a
   key in the document, to get the value that key is updated to.

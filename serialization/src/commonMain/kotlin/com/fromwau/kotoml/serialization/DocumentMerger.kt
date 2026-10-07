@@ -140,7 +140,7 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
             isSame = { new, index -> oldInputs[index].sameAs(full.elements[new], defaults.element(new)) },
             similarity = { new, index -> oldInputs[index].sharedValues(full.elements[new], defaults.element(new)) },
         )
-        for (index in plan.removed.asReversed()) tables.removeAt(index)
+        for (index in plan.removed.asReversed()) tables.removeAt(index, force = true)
         val merged = plan.sources.mapIndexed { new, source ->
             val node = full.elements[new] as TomlNode.Struct
             val elementDefaults = defaults.element(new)
@@ -184,7 +184,7 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
             },
         )
         val leadingPrefix = old.firstOrNull()?.decor?.prefix
-        for (index in plan.removed.asReversed()) array.removeAt(index)
+        for (index in plan.removed.asReversed()) array.removeAt(index, force = true)
         val placed = plan.sources.mapIndexed { new, source ->
             val node = full.elements[new]
             val elementDefaults = defaults.element(new)
@@ -268,11 +268,11 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
 private val Table.isHiddenWhenEmpty: Boolean
     get() = layout == TableLayout.Dotted || (this is StandardTable && isImplicit)
 
-/** Removes the keys outside [kept] in one pass, so the lines above each removed key stay where they print. */
+/** Removes the keys outside [kept], each with the comments that belong to it, in one pass. */
 private fun Table.removeKeysOutside(kept: Set<String>) {
     when (this) {
-        is StandardTable -> removeAll { (key, _) -> key !in kept }
-        is InlineTable -> removeAll { (key, _) -> key !in kept }
+        is StandardTable -> removeAll(force = true) { (key, _) -> key !in kept }
+        is InlineTable -> removeAll(force = true) { (key, _) -> key !in kept }
     }
 }
 

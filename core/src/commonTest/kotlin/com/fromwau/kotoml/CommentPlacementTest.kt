@@ -18,7 +18,7 @@ class CommentPlacementTest {
         val text = "x = 1\n\n# about t\n[t]\nk = 1\n"
         val doc = parse(text)
         repeat(3) {
-            val table = doc.remove("t")!!
+            val table = doc.remove("t", force = true).assertSuccess()
             doc.set("t", table).assertSuccess()
         }
         assertEquals(text, doc.toString())
@@ -65,7 +65,7 @@ class CommentPlacementTest {
     @Test
     fun `a key added after the last table is removed prints below the document's head`() {
         val doc = parse("# banner\n\n[db]\nurl = 1\n")
-        doc.remove("db")
+        doc.remove("db", force = true)
         doc["x"] = 1L
         assertEquals("# banner\n\nx = 1\n", doc.toString())
     }
@@ -359,16 +359,16 @@ class CommentPlacementTest {
     fun `a removed table stored again in a document with CRLF line breaks prints the comment above it once`() {
         val text = "x = 1\r\n\r\n# about t\r\n[t]\r\nk = 1\r\n"
         val doc = parse(text)
-        doc.set("t", doc.remove("t")!!).assertSuccess()
+        doc.set("t", doc.remove("t", force = true).assertSuccess()).assertSuccess()
         assertEquals(text, doc.toString())
     }
 
     @Test
-    fun `a key added after the last key is removed prints below the comment above it`() {
-        val doc = parse("# c\na = 1\n")
-        doc.remove("a")
+    fun `a key added after the last key is removed prints below the free lines above it`() {
+        val doc = parse("# c\n\na = 1\n")
+        doc.remove("a", force = true)
         doc["x"] = 1L
-        assertEquals("# c\nx = 1\n", doc.toString())
+        assertEquals("# c\n\nx = 1\n", doc.toString())
     }
 
     private fun commented(value: Long): Value = Value.Integer(value).also { it.decor = Decor(suffix = " # c") }

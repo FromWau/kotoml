@@ -263,13 +263,13 @@ class LayoutTest {
 
     @Test
     fun `a dotted table holding lines kept from removed keys goes across lines keeping every comment once`() {
-        val doc = parse("# about a.x\na.x = 1 # x\n# about b\nb = 2\n# about a.y\na.y = 3 # y\n")
+        val doc = parse("# about a.x\na.x = 1 # x\n# about b\n\nb = 2\n# about a.y\n\na.y = 3 # y\n")
         val a = doc["a"].assertSuccess()
-        a.standardTableOrNull!!.remove("y")
+        a.standardTableOrNull!!.remove("y", force = true)
         a.setLayout(TableLayout.Header, force = true).assertSuccess()
         a.standardTableOrNull!!.setImplicit(true)
         a.setLayout(TableLayout.Dotted, force = true).assertSuccess()
-        doc.remove("b")
+        doc.remove("b", force = true)
         val before = doc.toString()
         doc["a"].assertSuccess().setLayout(TableLayout.MultilineInline).assertSuccess()
         assertEquals("# about a.x\na = {\n  x = 1, # x\n  # about b\n  # about a.y\n}\n", doc.toString())
@@ -278,17 +278,17 @@ class LayoutTest {
 
     @Test
     fun `a dotted table holding lines kept from removed keys put on one line keeps them below it`() {
-        val doc = parse("# about a.x\na.x = 1 # x\n# about b\nb = 2\n# about a.y\na.y = 3 # y\n")
+        val doc = parse("# about a.x\na.x = 1 # x\n# about b\n\nb = 2\n# about a.y\n\na.y = 3 # y\n")
         val a = doc["a"].assertSuccess()
-        a.standardTableOrNull!!.remove("y")
+        a.standardTableOrNull!!.remove("y", force = true)
         a.setLayout(TableLayout.Header, force = true).assertSuccess()
         a.standardTableOrNull!!.setImplicit(true)
         a.setLayout(TableLayout.Dotted, force = true).assertSuccess()
-        doc.remove("b")
+        doc.remove("b", force = true)
         val error = doc["a"].assertSuccess().setLayout(TableLayout.Inline).assertError<TomlEditError.CommentsWouldBeLost>()
         assertEquals(TomlEditError.CommentsWouldBeLost(listOf("a"), 1), error)
         doc["a"].assertSuccess().setLayout(TableLayout.Inline, force = true).assertSuccess()
-        assertEquals("# about a.x\na = { x = 1 }\n# about b\n# about a.y\n", doc.toString())
+        assertEquals("# about a.x\na = { x = 1 }\n# about b\n\n# about a.y\n", doc.toString())
     }
 
     @Test
@@ -334,8 +334,8 @@ class LayoutTest {
 
     @Test
     fun `an empty dotted table across lines keeps the lines kept above it from a removed key`() {
-        val doc = parse("a.b.c = 1\n# about e\na.b.d.e = true\na.f = 2\n")
-        doc["a"]["b"]["d"].assertSuccess().standardTableOrNull!!.remove("e")
+        val doc = parse("a.b.c = 1\n# about e\n\na.b.d.e = true\na.f = 2\n")
+        doc["a"]["b"]["d"].assertSuccess().standardTableOrNull!!.remove("e", force = true)
         doc["a"].assertSuccess().setLayout(TableLayout.MultilineInline).assertSuccess()
         assertEquals("a = {\n  b.c = 1,\n  # about e\n  b.d = {},\n  f = 2,\n}\n", doc.toString())
     }

@@ -163,6 +163,9 @@ internal class LineWriter(
     private var lastEnding: String,
     val version: TomlVersion,
 ) {
+    /** Where lines kept from removed keys stand in [buf], whose blank lines go where blank lines meet them. */
+    val keptRanges: MutableList<IntRange> = mutableListOf()
+
     /** How the line before ended, which a line made by hand ends with too. */
     val ending: String
         get() = lastEnding
@@ -215,7 +218,12 @@ private fun encodeBodyLines(
                     encodeKeyValueLine(writer, line)
                 }
             }
-            is KeptLines -> writer.buf.append(line.text)
+            is KeptLines -> {
+                val start = writer.buf.length
+                writer.buf.append(line.text)
+                val end = writer.buf.length
+                if (line.dropBlankLinesMeeting && end > start) writer.keptRanges += start until end
+            }
         }
     }
 }
@@ -322,7 +330,8 @@ internal fun encodeDocument(
     val printedBelowHead = buf.length > headEnd
     decor.suffixEncode(buf, DEFAULT_ROOT_DECOR.second)
     encodeRaw(buf, document.rawTrailing.textOr(""))
-    for (range in keptRanges.asReversed()) dropBlankLinesMeeting(buf, range)
+    keptRanges += writer.keptRanges
+    for (range in keptRanges.sortedBy { it.first }.asReversed()) dropBlankLinesMeeting(buf, range)
     // Blank lines above the first table open the file only where it was read with them.
     val head = buf.substring(0, headEnd).removePrefix(BYTE_ORDER_MARK.toString())
     if (head.isEmpty() && !rootPrinted && !document.readStartingBlank) {

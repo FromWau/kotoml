@@ -194,13 +194,13 @@ class VersionTest {
     fun `a value removed from a converted document keeps its TOML 1_0 spelling`() {
         val doc = parse("s = \"\\e\"\n")
         doc.setVersion(TomlVersion.V1_0).assertSuccess()
-        assertEquals("\"\\u001B\"", doc.remove("s")!!.valueOrNull!!.toString())
+        assertEquals("\"\\u001B\"", doc.remove("s").assertSuccess().valueOrNull!!.toString())
     }
 
     @Test
     fun `a table removed from a TOML 1_0 document takes edits as that document does`() {
         val doc = parse("[a]\nt = { x = 1 }\n", TomlVersion.V1_0)
-        val removed = doc.remove("a")!!
+        val removed = doc.remove("a").assertSuccess()
         val inline = removed["t"].assertSuccess().inline()
         val error = inline.setTrailingComma(true).assertError<TomlEditError.NotInToml10>()
         assertEquals(TomlEditError.NotInToml10(listOf("t"), Toml11Feature.InlineTableTrailingComma), error)
@@ -213,7 +213,7 @@ class VersionTest {
 
     @Test
     fun `a table removed from a TOML 1_0 document takes TOML 1_1 edits once stored in a TOML 1_1 document`() {
-        val removed = parse("[a]\nt = { x = 1 }\n", TomlVersion.V1_0).remove("a")!!
+        val removed = parse("[a]\nt = { x = 1 }\n", TomlVersion.V1_0).remove("a").assertSuccess()
         val doc = parse("b = 1\n")
         doc["a"] = removed
         doc["a"]["t"].assertSuccess().inline().setTrailingComma(true).assertSuccess()
@@ -253,7 +253,7 @@ class VersionTest {
 
     @Test
     fun `a document made from a table removed from a TOML 1_0 document holds TOML 1_0`() {
-        val removed = parse("[a]\nx = 1\n", TomlVersion.V1_0).remove("a")!!.standardTableOrNull!!
+        val removed = parse("[a]\nx = 1\n", TomlVersion.V1_0).remove("a").assertSuccess().standardTableOrNull!!
         assertEquals(TomlVersion.V1_0, TomlDocument(removed).version)
         val built = StandardTable()
         assertEquals(TomlVersion.V1_1, TomlDocument(built).version)

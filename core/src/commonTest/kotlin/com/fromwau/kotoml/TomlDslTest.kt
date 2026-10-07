@@ -83,10 +83,29 @@ class TomlDslTest {
     }
 
     @Test
-    fun `an edit removes a key and keeps the comment above it`() {
+    fun `an edit removes a key with force and the comment above it`() {
         val doc = parse("# about debug\ndebug = true\nport = 1\n")
-        doc.edit { remove("debug") }.assertSuccess()
-        assertEquals("# about debug\nport = 1\n", doc.toString())
+        doc.edit { remove("debug", force = true) }.assertSuccess()
+        assertEquals("port = 1\n", doc.toString())
+    }
+
+    @Test
+    fun `an edit removing a key that holds comments without force fails and changes nothing`() {
+        val text = "# about debug\ndebug = true\nport = 1\n"
+        val doc = parse(text)
+        val error = doc.edit { remove("debug") }.assertError<TomlEditError.CommentsWouldBeLost>()
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("debug"), 1), error)
+        assertEquals(text, doc.toString())
+    }
+
+    @Test
+    fun `an edit removing a key that is not there fails and changes nothing`() {
+        val doc = parse("port = 1\n")
+        doc.edit {
+            "host" to "x"
+            remove("debug")
+        }.assertError<TomlEditError.NotFound>()
+        assertEquals("port = 1\n", doc.toString())
     }
 
     @Test

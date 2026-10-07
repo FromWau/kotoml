@@ -12,20 +12,21 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Removing any top-level key from a document with comments prints the original text with exactly that key's own
- * lines taken out and every other byte unchanged.
+ * Removing any top-level key from a document with comments, with force, prints the original text with exactly that
+ * key's own lines taken out and every other byte unchanged.
  *
  * A key's own lines are worked out from the parser's events, apart from the document model:
- * - a key/value line before the first header that starts with the key: from the start of the line its key is on
- *   to the end of the line its value ends on, the comment after it included. A line right after another of the same
- *   key takes the comment and blank lines between them too;
- * - a header whose path starts with the key, and its body: from the start of the header's line to the end of
- *   the last key/value line under it. The comment and blank lines after that line belong to what follows;
+ * - a key/value line before the first header that starts with the key: from the start of the comment lines right
+ *   above it, with no blank line between, to the end of the line its value ends on, the comment after it included. A
+ *   line right after another of the same key takes the comment and blank lines between them too;
+ * - a header whose path starts with the key, and its body: from the start of the comment lines right above the first
+ *   such header to the end of the last key/value line under it. The comment and blank lines after that line belong to
+ *   what follows;
  * - the comment and blank lines above every such header but the first, which sit inside what the key removes.
  *
- * Where a removed header leaves blank lines meeting blank lines, or the end of the file, the blank lines above it go,
- * and a file not read starting with a blank line does not print its first table below one once no key/value line
- * stands above it.
+ * Where removed lines leave blank lines meeting blank lines, or the end of the file, the blank lines above them go;
+ * removed key/value lines that started the file take the blank lines after them; and a file not read starting with a
+ * blank line does not print its first table below one once no key/value line stands above it.
  */
 class RemovalPropertyTest {
 
@@ -72,16 +73,16 @@ class RemovalPropertyTest {
             .map { it.first }
         return keys.filter { key ->
             val document = TomlDocument.parse(text, version).assertSuccess()
-            document.remove(key)
+            document.remove(key, force = true).assertSuccess()
             val tablesFirst = document.root.all { (_, item) -> item.printsOwnHeader }
             !printsWithout(text, document.toString(), ownLines(text, version, key), tablesFirst)
         }
     }
 
     /**
-     * Whether [printed] is [text] without the byte ranges [removed], with the blank lines a removed header leaves
-     * meeting others dropped. A document that was read without a final newline keeps none, so when its last line
-     * goes, the line break ending the line before it goes too.
+     * Whether [printed] is [text] without the byte ranges [removed], with the blank lines removed lines leave meeting
+     * others dropped. A document that was read without a final newline keeps none, so when its last line goes, the
+     * line break ending the line before it goes too.
      */
     private fun printsWithout(
         text: String,
@@ -91,12 +92,14 @@ class RemovalPropertyTest {
     ): Boolean {
         val bytes = text.encodeToByteArray()
         val kept = StringBuilder()
-        val headerCuts = mutableListOf<Int>()
+        val cuts = mutableListOf<Int>()
+        var keyLinesStartFile = false
         var index = 0
         while (index < bytes.size) {
             val cut = removed.firstOrNull { index in it.range }
             if (cut != null) {
-                if (cut.isHeader) headerCuts += kept.length
+                cuts += kept.length
+                if (!cut.isHeader && kept.isEmpty()) keyLinesStartFile = true
                 index = cut.range.last + 1
                 continue
             }
@@ -107,11 +110,12 @@ class RemovalPropertyTest {
             kept.append(bytes.decodeToString(index, next))
             index = next
         }
-        for (cut in headerCuts.distinct().asReversed()) {
+        for (cut in cuts.distinct().asReversed()) {
             val blankAfter = cut == kept.length || BLANK_LINES_AT_START.containsMatchIn(kept.substring(cut))
             val blankBefore = BLANK_LINES_AT_END.find(kept.substring(0, cut)) ?: continue
             if (blankAfter) kept.deleteRange(cut - blankBefore.groupValues[2].length, cut)
         }
+        if (keyLinesStartFile) BLANK_LINES_AT_START.find(kept)?.let { kept.deleteRange(0, it.value.length) }
         val readStartingBlank = text.substringBefore('\n', "x").isBlank()
         val expected = if (readStartingBlank || !tablesFirst) {
             kept.toString()
@@ -143,7 +147,8 @@ class RemovalPropertyTest {
             if (!statement.isHeader) {
                 val before = statements.getOrNull(index - 1)
                 val continues = before != null && !before.isHeader && before.owner == statement.owner
-                val start = if (continues) before.end else statement.lineStart
+                val floor = before?.end ?: 0
+                val start = if (continues) floor else commentLinesAbove(text, statement.lineStart, floor)
                 if (statement.owner == key) ranges += OwnLines(start until statement.end, isHeader = false)
                 index++
                 continue
@@ -151,13 +156,33 @@ class RemovalPropertyTest {
             var last = index
             while (last + 1 < statements.size && !statements[last + 1].isHeader) last++
             if (statement.owner == key) {
-                val start = if (seenHeader) statements.getOrNull(index - 1)?.end ?: 0 else statement.lineStart
+                val start = if (seenHeader) {
+                    statements.getOrNull(index - 1)?.end ?: 0
+                } else {
+                    commentLinesAbove(text, statement.lineStart, floor = statements.getOrNull(index - 1)?.end ?: 0)
+                }
                 ranges += OwnLines(start until statements[last].end, isHeader = true)
                 seenHeader = true
             }
             index = last + 1
         }
         return ranges
+    }
+
+    /** Where the comment lines right above the line at [lineStart] start, no blank line between, from [floor] on. */
+    private fun commentLinesAbove(
+        text: String,
+        lineStart: Int,
+        floor: Int,
+    ): Int {
+        val bytes = text.encodeToByteArray()
+        var start = lineStart
+        while (start > floor) {
+            val above = bytes.lastIndexOf('\n'.code.toByte(), start - 1) + 1
+            if (!bytes.decodeToString(above, start).trimStart().startsWith("#")) break
+            start = above
+        }
+        return start
     }
 
     private fun statements(

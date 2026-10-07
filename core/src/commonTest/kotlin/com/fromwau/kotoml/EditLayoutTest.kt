@@ -35,7 +35,7 @@ class EditLayoutTest {
     @Test
     fun `a table moved under another prints after its new parent`() {
         val doc = parse("[a]\nk = 1\n\n[b]\nm = 2\n\n[c]\nn = 3\n")
-        val moved = doc.remove("a")!!
+        val moved = doc.remove("a").assertSuccess()
         doc["b"].assertSuccess().set("a", moved).assertSuccess()
         assertEquals("[b]\nm = 2\n\n[b.a]\nk = 1\n\n[c]\nn = 3\n", doc.toString())
     }
@@ -94,10 +94,17 @@ class EditLayoutTest {
     }
 
     @Test
-    fun `removing a table keeps both blank lines around a comment kept from it`() {
-        val doc = parse("[a]\nx = 1\n\n# about b\n[b]\ny = 2\n\n[c]\nz = 3\n")
-        doc.remove("b")
+    fun `removing a table keeps both blank lines around the free lines kept from it`() {
+        val doc = parse("[a]\nx = 1\n\n# about b\n\n[b]\ny = 2\n\n[c]\nz = 3\n")
+        doc.remove("b", force = true)
         assertEquals("[a]\nx = 1\n\n# about b\n\n[c]\nz = 3\n", doc.toString())
+    }
+
+    @Test
+    fun `removing a table takes the comment above its header and leaves one blank line`() {
+        val doc = parse("[a]\nx = 1\n\n# about b\n[b]\ny = 2\n\n[c]\nz = 3\n")
+        doc.remove("b", force = true)
+        assertEquals("[a]\nx = 1\n\n[c]\nz = 3\n", doc.toString())
     }
 
     @Test
@@ -187,7 +194,7 @@ class EditLayoutTest {
     @Test
     fun `a table removed then stored under another key prints right after the tables before its key`() {
         val doc = parse("[a]\nk = 1\n\n[b]\nm = 2\n\n[b.x]\nn = 3\n\n[c]\no = 4\n")
-        val moved = doc.remove("a")!!
+        val moved = doc.remove("a").assertSuccess()
         doc["b"].assertSuccess().set("a", moved).assertSuccess()
         assertEquals("[b]\nm = 2\n\n[b.x]\nn = 3\n\n[b.a]\nk = 1\n\n[c]\no = 4\n", doc.toString())
     }
