@@ -30,7 +30,10 @@ class CommentScenariosTest {
                 actual == s.expected -> "pass"
                 else -> "differs"
             }
-            println("@@@ " + s.id + " " + status + (if (s.open) " open" else "") + "\n" + actual + "\n<<<expected>>>\n" + s.expected)
+            if (status != "pass") {
+                val openMark = if (s.open) " open" else ""
+                println("@@@ " + s.id + " " + status + openMark + "\n" + actual + "\n<<<expected>>>\n" + s.expected)
+            }
             if (!valid || (status == "differs" && !s.open)) failures += s.id
         }
         assertEquals(emptyList(), failures)
