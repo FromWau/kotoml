@@ -39,7 +39,11 @@ Rulings on copy and store (2026-10-08): only the item API carries the comments t
 comment. A copy of an array element carries its same-line comment and the comments between it and its comma.
 Storing where the target cannot hold the item's comments (an inline table under TOML 1.0, braces on one line)
 returns `CommentsWouldBeLost` unless forced; the store APIs take `force = false`. The six QA scenarios S-052 to
-S-055, S-057 and C-048 are approved as wave 3 prints them.
+S-055, S-057 and C-048 are approved as wave 3 prints them. C-049 is approved: the refused store leaves the 1.0
+inline table unchanged. An element's comment lines below it, copied to a key/value line, print above the key so they
+still belong to it when read back (`# more\nb = 2 # on 2`). `[]=` throws when the store is refused, carrying the
+typed error; `put`/`set` return the `Result`. A dotted inline table refuses a commented value only where its lines
+cannot hold the comment (TOML 1.0, or one-line braces that cannot spread).
 
 - [ ] **120. Write the comment ownership rule down.** GOALS.md goal 4 holds it (done with this item's filing);
   core/README.md's "Items and their comments" changes wave by wave with the code (121 to 125), never ahead of it.
