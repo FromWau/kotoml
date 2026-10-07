@@ -30,28 +30,28 @@ official toml-test runner for TOML 1.0 and 1.1.
    Check: `EditPropertyTest` applies random sequences of public edits to every valid toml-test file and to
    hand-written documents, and reads each step's output back as the data the document holds; `EditOutputTest` pins
    what it found. `RemovalPropertyTest` checks removal byte for byte, `PrintingFixesTest` covers `NotUnicode`.
-4. **An edit touches only what it changes.** Comments and formatting are kept, except:
-   - a comment inside a structure whose key is removed or replaced goes with it, the comments between the lines of a
-     removed dotted-key table included; a value replaced by a table takes the comment above it to its header;
-   - a removed key's same-line comment goes with it, while a replaced value keeps its spacing and same-line comment;
+4. **An edit touches only what it changes.** A comment belongs to the item directly below it, with no blank line
+   between, or to the item on its line; comment lines set apart by a blank line belong to no item and stay where they
+   are. An item is a key/value, a `[t]` or `[[a]]` header, an array element or an inline-table entry, and inside a
+   table or array the same rule applies again. Comments and formatting are kept, except:
+   - an item's comments move, copy and are removed with it; removing an item that holds comments, its own or those
+     inside it, returns `CommentsWouldBeLost` and changes nothing unless forced, and removing what is not there
+     returns `NotFound`;
+   - replacing a value keeps the slot's comments, unless the new item brings comments of its own, which take their
+     place;
    - a layout change (`setLayout`: a header, dotted keys, an inline table on one line or across lines) keeps every
-     comment the new layout can hold, and when it cannot hold one returns `CommentsWouldBeLost` and changes nothing,
-     unless forced. Forced, it drops only what the new layout cannot hold: dotted keys keep the lines above the key and
-     each value's same-line comment; across lines every comment stays; on one line the header comment stands after `}`
-     and the comments inside the braces go; a header keeps every comment, the one after `{`, or else after `}`, on the
-     header. A header layout and a multi-line one reach the tables inside;
+     comment and blank line the new layout can hold, and when it cannot hold a comment returns `CommentsWouldBeLost`
+     and changes nothing, unless forced. Forced, it drops only what the new layout cannot hold: dotted keys keep the
+     lines above the key and each value's same-line comment; across lines every comment stays; on one line the header
+     comment stands after `}` and the comments inside the braces go; a header keeps every comment, the one after `{`,
+     or else after `}`, on the header. A header layout and a multi-line one reach the tables inside;
    - `setVersion` converts what TOML 1.0 cannot spell under the same comment rule, and under 1.0 an edit that would add
      1.1-only syntax is refused with `NotInToml10`;
-   - a table replaced by a table keeps its header comment;
-   - in an array of tables, removing elements drops the comments between them and keeps the one above the first
-     and the one after the last; one left empty prints `key = []` under the comment that was above its first header;
+   - an array of tables left empty prints `key = []` under the free comments that were above its first header;
    - dotted keys turned into a header put the comment above their first line above the header;
-   - a copy stored elsewhere takes only the comments inside it, not its source's same-line comment, header comment
-     or the comment lines above its header; a decor a caller gives a value is kept;
    - in a document that is only comments, new content goes below them; a new header gets its blank line above the
      comment that introduces it, and the header that opened the file gets one once key/value lines print above it;
-   - sorting moves each key with the comment lines right above it, while blank lines, and the comment block heading
-     the file, stay in place.
+   - sorting and reordering move each item with its comments, while free comments and blank lines stay in place.
 
    Check: `CommentPropertyTest` applies random comment-keeping edits (adding, replacing a value with a value, removing a
    value, sorting, `setLayout`, `setImplicit` and `setVersion`) and checks that every comment survives but those the

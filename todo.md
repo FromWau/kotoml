@@ -15,6 +15,42 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
 ### Bugs against a goal
 
 
+### Comment ownership (owner, 2026-10-07)
+
+The rule (GOALS.md goal 4): a comment belongs to the item directly below it (no blank line between) or on its
+line; comment lines set apart by a blank line are free and stay in place. Items are key/values, `[t]` and `[[a]]`
+headers, array elements and inline-table entries, recursively. An item's comments move, copy and are removed with
+it. This reverses README rules 2 and 4, the 105 ruling on `add`/`addAll`, and the 113 ruling on reordering.
+
+- [ ] **120. Write the comment ownership rule down.** GOALS.md goal 4 holds it (done with this item's filing);
+  core/README.md's "Items and their comments" changes wave by wave with the code (121 to 125), never ahead of it.
+- [ ] **121. One place decides an item's comments.** An internal function gives, for any item in any container, its
+  attached comment lines (the block directly above, no blank line between, and its same-line comment) and the free
+  lines around it. No behaviour change; tests pin the classification: a block right under a header belongs to the
+  first key, not the header; a comment between two items belongs to the one below; the file's head comment set
+  apart by a blank line is free; brace and table-line styles; CRLF.
+- [ ] **122. Removing takes an item's comments and refuses without force.**
+  `remove(key: String, force: Boolean = false): Result<Item, TomlEditError>`: `NotFound` when absent;
+  `CommentsWouldBeLost(keyPath, count)` when the item holds attached comments or comments inside it, changing
+  nothing; forced, `Ok(item)` holding its comments, the free lines staying. Same for `removeAt`, `removeAll`,
+  `retainAll` on documents, tables, inline tables, arrays and arrays of tables; serialization and app callers follow.
+- [ ] **123. Copying and storing carry an item's comments; replacing follows the item.** A store or copy takes the
+  attached comments, the header's included (`# about db\n[db] # primary` comes along; a free `# loose note` does
+  not). Replacing a value keeps the slot's comments (`# about x\nx = 1 # one`, `doc["x"] = 2L` gives
+  `# about x\nx = 2 # one`) unless the new item brings its own, which take their place (`doc["x"] = other["y"]`
+  with `# about y\ny = 5 # five` gives `# about y\nx = 5 # five`). `add`/`addAll` and `toArrayOfTables` follow the
+  same rule. Folds in the 119 leftovers: a copy of `b` from `s = {\n  b.c = 1, # on c\n  y = 5,\n}` loses
+  `# on c`; a comment after `s = { # on s` goes along with a copy of `b`; two copies of one dotted table stored in
+  one table interleave their lines (`b.c, e.c, b.d, e.d`); a copied inline table printed alone has no line break
+  before `}`.
+- [ ] **124. Reordering, sorting and layout changes move items with their comments and keep blank lines.**
+  `arr.reversed().toArrayOfTables()` moves `# first` with its `[[a]] # h1` (reverses 113); sort moves each item's
+  block; free comments and blank lines stay. Conversions from braces to table lines keep blank lines between items
+  (119 drops them).
+- [ ] **125. Review the QA scenarios and docs against the rule.** List every `qa/comment-scenarios` scenario whose
+  expected output changes for the owner to confirm; update core/README.md's comment rules, CommentPropertyTest and
+  the removal tests.
+
 ### Cleanup pass rulings (2026-10-07)
 
 
