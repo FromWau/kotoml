@@ -360,6 +360,14 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         formatInPlace(this)
     }
 
+    /**
+     * Writes every value in the braces, and in the arrays and inline tables inside them, in its default spelling, as
+     * [TomlDocument.respell] does.
+     */
+    override fun respell() {
+        for (entry in items.entries) entry.item.respell()
+    }
+
     /** Drops the formatting of every key and value, for the default `{ a = 1, b = 2 }` layout. */
     internal fun useDefaultSpacing() {
         for (entry in items.entries) {

@@ -13,11 +13,12 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Edits keep every comment they do not own. Adding, replacing a value with a value, renaming, sorting, formatting and
- * changing how a table prints keep them all; removing a value takes only the comment on its own line, and giving a
- * table a new layout with `setLayout(force = true)` may take its comments, all but the lines above its key, as
- * `setVersion(force = true)` may take those of inline tables across lines. Without force a layout or version change
- * keeps every comment or is refused and changes nothing. Removing or replacing whole tables is covered by
+ * Edits keep every comment they do not own. Adding, replacing a value with a value, renaming, sorting, formatting,
+ * respelling and changing how a table prints keep them all; removing a value takes only the comment on its own line,
+ * and giving a table a new layout with `setLayout(force = true)` may take its comments, all but the lines above its
+ * key, as `setVersion(force = true)` may take those of inline tables across lines and `setMultiline(false, force =
+ * true)` those between an array's brackets. Without force a layout or version change keeps every comment or is
+ * refused and changes nothing. Removing or replacing whole tables is covered by
  * `RemovalPropertyTest` and the comment scope tests, which state what those take. Comments compare as `format()`
  * spells them.
  */
@@ -118,6 +119,11 @@ class CommentPropertyTest {
                 add(Edit("slot format") { slot.format().let { emptyList() } })
             }
             add(Edit("doc format") { doc.format().let { emptyList() } })
+            add(Edit("doc respell") { doc.respell().let { emptyList() } })
+            add(Edit("table respell") { table.respell().let { emptyList() } })
+            edits.slots.randomOrNull(random)?.let { slot ->
+                add(Edit("slot respell") { slot.respell().let { emptyList() } })
+            }
             if (table !== edits.tables.first()) {
                 add(Edit("table setImplicit") { table.setImplicit(!table.isImplicit).let { emptyList() } })
             }
@@ -132,6 +138,19 @@ class CommentPropertyTest {
                     })
                     add(Edit("array removeAt $scalarIndex") { removedElement(array, scalarIndex) })
                 }
+                val multiline = random.nextBoolean()
+                val force = random.nextBoolean()
+                add(Edit("array setMultiline $multiline force $force") {
+                    if (force) {
+                        // On one line the comments in the array's own text go; those inside its elements stay.
+                        val owned = if (multiline) emptyList() else commentsBetweenBrackets(array)
+                        array.setMultiline(multiline, force = true)
+                        owned
+                    } else {
+                        keptOrRefused(doc) { array.setMultiline(multiline) }
+                    }
+                })
+                add(Edit("array respell") { array.respell().let { emptyList() } })
             }
             edits.tableArrays.randomOrNull(random)?.let { tables ->
                 add(Edit("tables add") { tables.add(edits.table()).let { emptyList() } })
@@ -263,6 +282,11 @@ class CommentPropertyTest {
         array.removeAt(index)
         return owned
     }
+
+    /** The comments before and after each of [array]'s elements and before its `]`, not those inside an element. */
+    private fun commentsBetweenBrackets(array: TomlArray): List<String> =
+        array.flatMap { comments(it.decor.prefix.orEmpty()) + comments(it.decor.suffix.orEmpty()) } +
+            comments(array.trailing)
 
     /** The comments in [text], in order, each as [commentsIn] gives it. */
     private fun comments(text: String): List<String> = commentsIn(text)

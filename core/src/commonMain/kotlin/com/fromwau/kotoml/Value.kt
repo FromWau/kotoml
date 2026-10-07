@@ -298,6 +298,26 @@ public sealed interface Value {
     }
 
     /**
+     * Writes this value, and every value inside an array or inline table, in its default spelling, as
+     * [TomlDocument.respell] does: `0x1F90` as `8080`, `'kotoml'` as `"kotoml"`, `1e0` as `1.0`, and `07:32` as
+     * `07:32:00`, the time taking seconds of 0. The text around it stays.
+     */
+    public fun respell() {
+        when (this) {
+            is String -> formatted.written = null
+            is Integer -> formatted.written = null
+            is Float -> formatted.written = null
+            is Boolean -> formatted.written = null
+            is Datetime -> {
+                giveSeconds()
+                formatted.written = null
+            }
+            is Array -> value.respell()
+            is InlineTable -> value.respell()
+        }
+    }
+
+    /**
      * A deep copy of this value, with its spelling, stored nowhere: exactly what storing this value would store. A
      * copy of an array or inline table read from a document leaves the comment after it on its line behind, as
      * [TomlArray.copy] and [com.fromwau.kotoml.InlineTable.copy] say; any other value keeps its decor, comment

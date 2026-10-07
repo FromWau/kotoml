@@ -279,6 +279,11 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         formatInPlace(this)
     }
 
+    /** Writes every value under every table of the array in its default spelling, as [TomlDocument.respell] does. */
+    public fun respell() {
+        for (slot in values) slot.standardTableOrNull?.respell()
+    }
+
     /**
      * A deep copy, stored nowhere: exactly what storing this array of tables would store. A copy of an array of
      * tables read from a document leaves the comment after its first header and the comment lines above that header

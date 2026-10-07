@@ -194,7 +194,8 @@ private fun giveSecondsWithin(slot: Item) {
     }
 }
 
-private fun Value.Datetime.giveSeconds() {
+/** Gives this value's time, when it has no seconds, seconds of 0, adding `:00` to its spelling. */
+internal fun Value.Datetime.giveSeconds() {
     val time = value.time?.takeIf { it.second == null } ?: return
     val full = Time.of(time.hour, time.minute, 0).getOrElse { error("a time read or built is in range") }
     val datetime = when (val old = value) {

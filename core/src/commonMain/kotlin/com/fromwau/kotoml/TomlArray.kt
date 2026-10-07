@@ -56,6 +56,59 @@ public class TomlArray() : Iterable<Value> {
         formatInPlace(this)
     }
 
+    /**
+     * Whether a line break stands in the array's own text: before or after an element, or before `]`. A line break
+     * inside an element, such as in an array across lines or a multi-line string it holds, does not count, so
+     * `[[1,\n2]]` is not multi-line while the array inside it is. [format] keeps it, and [setMultiline] changes it.
+     */
+    public val isMultiline: Boolean
+        get() = '\n' in trailing ||
+            printedValues().any { value ->
+                val decor = value.rawDecor
+                '\n' in decor.prefix?.textOrNull.orEmpty() || '\n' in decor.suffix?.textOrNull.orEmpty()
+            }
+
+    /**
+     * Puts the array on one line, `[1, 2]`, or across lines, one element per line with a comma after each, the
+     * elements indented two spaces more than the line holding `[` and `]` on a line of its own, `[\n]` when the array
+     * is empty. The new lines end as the document's lines do. Only the array itself changes: an array or inline table
+     * inside it keeps its own layout, and an array already laid out so stays as it is.
+     *
+     * On one line the comments inside the brackets have no place, so the array changes only with [force]; the comment
+     * after `]` stays, as do the comments inside the arrays and inline tables it holds.
+     *
+     * ```kotlin
+     * val doc = TomlDocument.parse("a = [\n  1, # one\n  2,\n] # a\n").getOrElse { error(it) }
+     * val array = doc["a"].getOrNull()?.arrayOrNull!!
+     * array.setMultiline(false) // Err(CommentsWouldBeLost(keyPath = [a], count = 1)), nothing changed
+     * array.setMultiline(false, force = true)
+     * doc.toString() // "a = [1, 2] # a\n"
+     * array.setMultiline(true)
+     * doc.toString() // "a = [\n  1,\n  2,\n] # a\n"
+     * ```
+     *
+     * @return [TomlEditError.CommentsWouldBeLost], changing nothing, when putting the array on one line would drop a
+     *   comment and [force] is false.
+     */
+    public fun setMultiline(
+        value: Boolean,
+        force: Boolean = false,
+    ): EmptyResult<TomlEditError> {
+        if (isMultiline == value) return Ok(Unit)
+        return changeLayout(this, force) { array ->
+            if (value) array.spreadOverLines(lineEndingOf(array), lineIndentOf(array)) else array.useDefaultSpacing()
+            Ok(Unit)
+        }
+    }
+
+    /**
+     * Writes every value in the array, and in the arrays and inline tables inside it, in its default spelling, as
+     * [TomlDocument.respell] does.
+     */
+    public fun respell() {
+        for (slot in values) slot.valueOrNull?.respell()
+    }
+
     /** Drops the formatting of every element and of the end, putting the array on one line. */
     internal fun useDefaultSpacing() {
         var index = 0
@@ -214,14 +267,17 @@ public class TomlArray() : Iterable<Value> {
         }
     }
 
-    // One element per line, indented, with a comma after each, as a comment after an element needs.
-    private fun spreadOverLines(lineBreak: String) {
+    // One element per line, indented two spaces more than [indent], with a comma after each and `]` at [indent].
+    private fun spreadOverLines(
+        lineBreak: String,
+        indent: String = "",
+    ) {
         for (element in printedValues()) {
-            element.rawDecor.prefix = KeptText.from(lineBreak + INDENT)
+            element.rawDecor.prefix = KeptText.from(lineBreak + indent + INDENT)
             element.rawDecor.suffix = KeptText.from("")
         }
         trailingComma = isNotEmpty()
-        trailing = lineBreak
+        trailing = lineBreak + indent
     }
 
     // A last element without a comma after it holds the rest of its line, its comment included; a comma after it

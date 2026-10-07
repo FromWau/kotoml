@@ -281,6 +281,22 @@ public class TomlDocument internal constructor(
         formatInPlace(this)
     }
 
+    /**
+     * Writes every value in the document in its default spelling, the one a value made in code prints in: `0x1F90` as
+     * `8080`, `'kotoml'` as `"kotoml"`, `1e0` as `1.0`, and a time without seconds such as `07:32` as `07:32:00`, which
+     * then holds seconds of 0. Keys keep their spelling, and comments, layouts, spacing and line endings stay. A
+     * default spelling is one TOML 1.0 reads, so a document of TOML 1.0 stays one. It cannot fail.
+     *
+     * ```kotlin
+     * val doc = TomlDocument.parse("port = 0x1F90 # http\nname = 'kotoml'\nat = 07:32\n").getOrElse { error(it) }
+     * doc.respell()
+     * doc.toString() // "port = 8080 # http\nname = \"kotoml\"\nat = 07:32:00\n"
+     * ```
+     */
+    public fun respell() {
+        root.respell()
+    }
+
     /** A deep copy of the whole document, which keeps every comment, its version and its line ending. */
     public fun copy(): TomlDocument {
         val copy = TomlDocument(root.deepCopy(), rawTrailing, lineEnding, null)

@@ -78,6 +78,12 @@ public sealed interface Table {
     public fun format()
 
     /**
+     * Writes every value under this table in its default spelling, as [TomlDocument.respell] does; the rest of the
+     * document stays as it is.
+     */
+    public fun respell()
+
+    /**
      * How the table prints: [TableLayout.Header] or [TableLayout.Dotted] for a [StandardTable], and
      * [TableLayout.Inline], [TableLayout.MultilineInline] or [TableLayout.Dotted] for an [InlineTable]. A document's
      * root and an element of an array of tables read [TableLayout.Header]. [Item.setLayout] changes it through the

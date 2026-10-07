@@ -176,6 +176,28 @@ A table put under a header prints where a table stored at that key would, keepin
 `toInlineTable` and `toStandardTable` build the converted table without touching the document. The full set of rules
 is goal 4 in [GOALS.md](../GOALS.md).
 
+An array prints on one line or across lines. `TomlArray.isMultiline` reads whether a line break stands between its
+brackets outside its elements, so `[[1,\n2]]` is on one line while the array inside it is not, and
+`setMultiline(value, force = false)` changes it for the array itself, the arrays and inline tables inside keeping
+theirs. Across lines each element takes a line of its own, indented two spaces more than the line holding `[`, with a
+comma after each and `]` on a line of its own, the new lines ending as the document's do. On one line, `[1, 2]`, the
+comments between the brackets have no place, so the change returns `TomlEditError.CommentsWouldBeLost` and changes
+nothing unless forced; forced, they go and the comment after `]` stays. Asking for the layout an array has changes
+nothing.
+
+```kotlin
+val doc = TomlDocument.parse("a = [\n  1, # one\n  2,\n] # a\n").getOrElse { error(it) }
+val array = doc["a"].getOrNull()?.arrayOrNull!!
+array.setMultiline(false) // Err(CommentsWouldBeLost(keyPath = [a], count = 1)), nothing changed
+array.setMultiline(false, force = true)
+// a = [1, 2] # a
+array.setMultiline(true)
+// a = [
+//   1,
+//   2,
+// ] # a
+```
+
 A document's top-level keys live in its `root` table. The document itself offers the map calls (`get`, `set`,
 `getOrNull`, `contains`, `keys`, `put`, `putAll`, `getOrPut`, `remove`, `rename`, `retainAll`, `removeAll`,
 `clear`, `size`) and iterates over the root's pairs; everything else a `StandardTable` does, such as
@@ -213,6 +235,21 @@ across lines. Every table and value stays the same object, but for a slot whose 
 such as an empty dotted table printing `key = {}` or a dotted inline table printing on a table's lines, which then
 holds what reading its text gives. `format()` cannot fail. On a `Key` it makes the key bare when it can be and
 drops the spacing around its dots and before `=`.
+
+```kotlin
+val doc = TomlDocument.parse("port = 0x1F90 # http\nname = 'kotoml'\nat = [07:32, 1e0]\n").getOrElse { error(it) }
+doc.respell()
+// port = 8080 # http
+// name = "kotoml"
+// at = [07:32:00, 1.0]
+```
+
+`respell()` changes the spellings `format()` keeps: on the same receivers and on a `Value`, it writes every value
+under it in its default spelling, the one a value made in code prints in, such as `0x1F90` as `8080`, `'kotoml'` as
+`"kotoml"`, `1e0` as `1.0` and `07:32` as `07:32:00`, the time then holding seconds of 0. Keys keep their spelling,
+and comments, layouts, spacing and line endings stay. A default spelling is one TOML 1.0 reads, so a document of
+TOML 1.0 stays one. `respell()` cannot fail. To put an array on one line or across lines, see `setMultiline` under
+[Tables and arrays](#tables-and-arrays).
 
 ## Items and their comments
 

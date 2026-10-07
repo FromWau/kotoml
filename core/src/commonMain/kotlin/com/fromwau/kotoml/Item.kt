@@ -761,6 +761,18 @@ public class Item private constructor(
     }
 
     /**
+     * Writes what this slot holds in its default spelling, as [TomlDocument.respell] does: its value, and every value
+     * inside it or under the table or array of tables it holds. Keys and the text around the value stay.
+     */
+    public fun respell() {
+        when (val content = content) {
+            is Content.ValueContent -> content.value.respell()
+            is Content.TableContent -> content.table.respell()
+            is Content.ArrayOfTablesContent -> content.array.respell()
+        }
+    }
+
+    /**
      * A deep copy of this item, stored nowhere and free to be put anywhere: exactly what storing this item would
      * store. A copy of an item read from a place in a document leaves that place's own comments behind, its same-line
      * comment, its header comment and the comment lines above its header, and takes the comments inside it, so with

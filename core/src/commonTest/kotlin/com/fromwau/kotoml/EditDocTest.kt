@@ -78,6 +78,26 @@ c = { d = "hello" }
     }
 
     @Test
+    fun `the module README respell example writes every value in its default spelling`() {
+        val doc = TomlDocument.parse("port = 0x1F90 # http\nname = 'kotoml'\nat = [07:32, 1e0]\n").assertSuccess()
+        doc.respell()
+        assertEquals("port = 8080 # http\nname = \"kotoml\"\nat = [07:32:00, 1.0]\n", doc.toString())
+    }
+
+    @Test
+    fun `the setMultiline example of the module README and the KDoc goes on one line and back across lines`() {
+        val doc = TomlDocument.parse("a = [\n  1, # one\n  2,\n] # a\n").assertSuccess()
+        val array = doc["a"].assertSuccess().arrayOrNull!!
+        val error = array.setMultiline(false).assertError<TomlEditError.CommentsWouldBeLost>()
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("a"), 1), error)
+        assertEquals("a = [\n  1, # one\n  2,\n] # a\n", doc.toString())
+        array.setMultiline(false, force = true).assertSuccess()
+        assertEquals("a = [1, 2] # a\n", doc.toString())
+        array.setMultiline(true).assertSuccess()
+        assertEquals("a = [\n  1,\n  2,\n] # a\n", doc.toString())
+    }
+
+    @Test
     fun `the format examples in the KDoc print as they say`() {
         val doc = TomlDocument.parse("#top\n  name   =   'kotoml'    #the name\n[ server ]\nlist = [ 1 ,2, ]\n")
             .assertSuccess()

@@ -459,6 +459,14 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         formatInPlace(this)
     }
 
+    /**
+     * Writes every value under this table in its default spelling, as [TomlDocument.respell] does: its own values, the
+     * values under its dotted keys, and those of the tables under it. A document's root respells the whole document.
+     */
+    override fun respell() {
+        for (entry in items.entries) entry.item.respell()
+    }
+
     /** Drops the formatting of the keys and values directly in this table. */
     internal fun useDefaultSpacing() {
         for (entry in items.entries) {

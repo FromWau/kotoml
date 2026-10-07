@@ -166,6 +166,8 @@ internal class Edits(
             add("doc setVersion $version force $force" to { doc.setVersion(version, force) })
             add("table format" to { table.format() })
             add("doc format" to { doc.format() })
+            add("table respell" to { table.respell() })
+            add("doc respell" to { doc.respell() })
             if (table !== doc.root) add("table setImplicit" to { table.setImplicit(!table.isImplicit) })
             inlines.randomOrNull(random)?.let { inline ->
                 val inlineKey = keyFor(inline.keys)
@@ -185,6 +187,9 @@ internal class Edits(
                 add("array removeAt $index" to { array.removeAt(index) })
                 add("array clear" to { array.clear() })
                 add("array format" to { array.format() })
+                val multiline = random.nextBoolean()
+                add("array setMultiline $multiline force $force" to { array.setMultiline(multiline, force) })
+                add("array respell" to { array.respell() })
             }
             tableArrays.randomOrNull(random)?.let { tables ->
                 val index = random.nextInt(tables.size + 1)
@@ -197,6 +202,7 @@ internal class Edits(
             slots.randomOrNull(random)?.let { slot ->
                 add("slot assign" to { slot.assign(item()) })
                 add("slot format" to { slot.format() })
+                add("slot respell" to { slot.respell() })
                 val layout = layout()
                 add("slot setLayout $layout force $force" to { slot.setLayout(layout, force) })
                 add("slot index set" to { slot.set(keyFor(emptySet()), item()) })
