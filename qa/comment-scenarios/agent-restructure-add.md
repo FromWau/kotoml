@@ -1056,9 +1056,9 @@ a.z = 1 # z
 
 ## Copying
 
-### S-052: copying a value over another key keeps the target's comments, not the source's
+### S-052: copying a value over another key brings the source's comments in place of the target's
 rule: 3   version: 1.0
-settled: owner ruling 2026-10-05 (Q4): a copy takes only the comments inside it.
+settled: owner ruling 2026-10-08: a stored item brings its own comments (GOALS.md goal 4).
 ```toml input
 # about a
 a = 1 # one
@@ -1071,13 +1071,13 @@ doc.set("b", doc["a"].assertSuccess())
 ```toml expected
 # about a
 a = 1 # one
-# about b
-b = 1 # two
+# about a
+b = 1 # one
 ```
 
-### S-053: copying a value to a new key gives it default formatting
+### S-053: copying a value to a new key brings its same-line comment
 rule: 9   version: 1.0
-settled: owner ruling 2026-10-05 (Q4): a copy takes only the comments inside it.
+settled: owner ruling 2026-10-08: a stored item brings its own comments (GOALS.md goal 4).
 ```toml input
 a = 1 # one
 ```
@@ -1086,12 +1086,12 @@ doc.set("b", doc["a"].assertSuccess())
 ```
 ```toml expected
 a = 1 # one
-b = 1
+b = 1 # one
 ```
 
-### S-054: copying a multi-line array keeps the comments inside it
+### S-054: copying a multi-line array keeps the comments inside it and the one after it
 rule: 1, 9   version: 1.0
-settled: owner ruling 2026-10-05 (Q4): a copy takes only the comments inside it.
+settled: owner ruling 2026-10-08: a stored item brings its own comments (GOALS.md goal 4).
 ```toml input
 a = [
   1, # one
@@ -1109,12 +1109,12 @@ a = [
 b = [
   1, # one
   2,
-]
+] # the list
 ```
 
-### S-055: copying a table to a new key
+### S-055: copying a table to a new key brings its header comments
 rule: 1, 9   version: 1.0
-settled: owner ruling 2026-10-05 (Q4): a copy takes only the comments inside it.
+settled: owner ruling 2026-10-08: a stored item brings its own comments (GOALS.md goal 4).
 ```toml input
 # about a
 [a] # a header
@@ -1128,7 +1128,8 @@ doc.set("b", doc["a"].assertSuccess())
 [a] # a header
 x = 1 # x
 
-[b]
+# about a
+[b] # a header
 x = 1 # x
 ```
 
@@ -1154,9 +1155,9 @@ x = 1 # x
 x = 1 # x
 ```
 
-### S-057: copying an array of tables to a new key
+### S-057: copying an array of tables to a new key brings its header comments
 rule: 1, 9   version: 1.0
-settled: fixed 2026-10-05 (todo 29): a copy stored elsewhere in its document prints after the tables already there.
+settled: owner ruling 2026-10-08: a stored item brings its own comments (GOALS.md goal 4).
 ```toml input
 [[x]] # first
 a = 1
@@ -1174,7 +1175,7 @@ a = 1
 [[x]] # second
 a = 2
 
-[[y]]
+[[y]] # first
 a = 1
 # between
 [[y]] # second

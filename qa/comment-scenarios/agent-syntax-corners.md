@@ -828,8 +828,9 @@ a = [
 ]
 ```
 
-### C-048: a value with a same-line comment copied into an array must not swallow `]`
+### C-048: a value with a same-line comment copied into an array on one line spreads it across lines
 rule: 10   version: 1.0
+settled: owner ruling 2026-10-08: a stored item brings its own comments (GOALS.md goal 4).
 ```toml input
 v = 1 # one
 a = [2]
@@ -840,11 +841,15 @@ doc["a"].assertSuccess().arrayOrNull!!.add(v)
 ```
 ```toml expected
 v = 1 # one
-a = [2, 1]
+a = [
+  2,
+  1, # one
+]
 ```
 
-### C-049: a value with a same-line comment copied into a single-line inline table must not swallow `}`
+### C-049: a value with a same-line comment refused by an inline table of TOML 1.0 leaves it unchanged
 rule: 10   version: 1.0
+settled: owner ruling 2026-10-08: a store the target cannot hold is refused.
 ```toml input
 v = 1 # one
 t = { x = 0 }
@@ -855,7 +860,7 @@ doc["t"].assertSuccess().inlineTableOrNull!!.set("k", v)
 ```
 ```toml expected
 v = 1 # one
-t = { x = 0, k = 1 }
+t = { x = 0 }
 ```
 
 ### C-050: a multi-line array copied to another key keeps working when placed as the last value
