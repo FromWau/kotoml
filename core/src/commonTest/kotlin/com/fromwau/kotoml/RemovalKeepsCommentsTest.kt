@@ -54,6 +54,15 @@ class RemovalKeepsCommentsTest {
     }
 
     @Test
+    fun `removing a key below a comment in braces of a CRLF document keeps its line endings whole`() {
+        val doc = TomlDocument.parse("s = {\r\n  b.c = 1,\r\n  # about d\r\n  b.d = 2,\r\n}\r\n").assertSuccess()
+        doc["s"]["b"].assertSuccess().valueOrNull!!.inlineTableOrNull!!.remove("d")
+        assertEquals("s = {\r\n  b.c = 1,\r\n  # about d\r\n}\r\n", doc.toString())
+        doc.format()
+        assertEquals("s = {\r\n  b.c = 1,\r\n  # about d\r\n}\r\n", doc.toString())
+    }
+
+    @Test
     fun `a dotted table in an inline table left empty prints its key as an empty table`() {
         val doc = TomlDocument.parse("a = { a.b = 1 }\n").assertSuccess()
         doc["a"].assertSuccess().inlineTableOrNull!!.getItem("a")!!.inlineTableOrNull!!.remove("b")

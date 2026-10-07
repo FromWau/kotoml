@@ -14,10 +14,10 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
 
 ### Bugs against a goal
 
-- [ ] **116. Storing a dotted inline table holding kept lines into a standard table swallows the next line.**
-  `s = {\n  b.c = 1,\n  # about d\n  b.d = 2,\n}\n[t]\nx = 0\n`, remove `d` from `s.b`, then `t["b"] = s.b`
-  prints `[t]\nb.c = 1\n\n  # about dx = 0\n`: the kept brace-style text prints raw on the table's lines, so
-  `x = 0` reads back as part of the comment. Found while fixing 114; already on dev before it.
+- [ ] **118. A comment after a sibling's comma is kept in a dotted table's text when its next key is removed.**
+  In `s = {\n  b.c = 1,\n  y = 5, # on y\n  # about d\n  b.d = 2,\n}`, removing `d` from `s.b` puts `# on y` in
+  `b`'s kept text as well, so storing `s.b` elsewhere prints `b.c = 1 # on y` while `s` still prints it after
+  `y = 5`. Found while fixing 116.
 
 ### Cleanup pass rulings (2026-10-07)
 
@@ -86,6 +86,20 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **117. Removing a key below a comment in braces of a CRLF document leaves a lone carriage return.**
+  `s = {\r\n  b.c = 1,\r\n  # about d\r\n  b.d = 2,\r\n}\r\n`, remove `d` from `s.b`, printed `  # about d\r\r\n}`,
+  which does not read back, and `format()` threw. Found while fixing 116.
+  **Verdict 2026-10-07:** fixed: `linesAboveElement` cuts the lines above a removed element before the `\r` of its CRLF.
+  Pinned in RemovalKeepsCommentsTest.
+
+- [x] **116. Storing a dotted inline table holding kept lines into a standard table swallows the next line.**
+  `s = {\n  b.c = 1,\n  # about d\n  b.d = 2,\n}\n[t]\nx = 0\n`, remove `d` from `s.b`, then `t["b"] = s.b`
+  prints `[t]\nb.c = 1\n\n  # about dx = 0\n`: the kept brace-style text prints raw on the table's lines, so
+  `x = 0` reads back as part of the comment. Found while fixing 114; already on dev before it.
+  **Verdict 2026-10-07:** fixed: kept lines of a dotted inline table stay brace-style in the model and print converted
+  on a table's lines (`keptLinesOnTableLines`), in `takeOutOfBraces` and when such a table is replaced; the example
+  prints `[t]\nb.c = 1\n# about d\nx = 0\n`. Pinned in RemovalKeepsCommentsTest and FormatTest.
 
 - [x] **115. `KeyValuePairs.takeAll()` leaves the kept lines behind.** `moveToDottedTable()` and
   `takeReadDottedTable()` move only the entries, so a dotted table's kept comment lines, `emptyTableDecor` and

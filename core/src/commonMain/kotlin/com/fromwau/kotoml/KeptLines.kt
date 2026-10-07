@@ -45,7 +45,7 @@ internal fun keptLinesOnTableLines(kept: String): String =
 // lines above an element end before its prefix's last break.
 internal fun linesAboveElement(prefix: KeptText?): String {
     val text = prefix?.textOrNull ?: return ""
-    return text.substring(0, text.lastIndexOf('\n').coerceAtLeast(0))
+    return text.substring(0, text.lineEndBefore(text.lastIndexOf('\n').coerceAtLeast(0)))
 }
 
 /**
