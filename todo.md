@@ -14,13 +14,6 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
 
 ### Bugs against a goal
 
-- [ ] **119. Storing a dotted table out of braces takes a sibling's comma comment along.** With no removal,
-  `s = {\n  b.c = 1,\n  y = 5, # on y\n  # about d\n  b.d = 2,\n}\n[t]\nx = 0\n` and `t["b"] = s["b"]` prints
-  `[t]\nb.c = 1 # on y\n  # about d\nb.d = 2\nx = 0\n`: `# on y` twice, and `# about d` keeps its brace
-  indentation. Expected `[t]\nb.c = 1\n# about d\nb.d = 2\nx = 0\n`. `takeOutOfBraces` reads the first line of
-  each key's prefix as ending the line before. Found while fixing 118.
-  **Ruling 2026-10-07:** `# on y` belongs to `y` and stays out of a copy of `b`; `# about d` is copied because it
-  belongs to the key `b.d` it stands above.
 
 ### Cleanup pass rulings (2026-10-07)
 
@@ -89,6 +82,18 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **119. Storing a dotted table out of braces takes a sibling's comma comment along.** With no removal,
+  `s = {\n  b.c = 1,\n  y = 5, # on y\n  # about d\n  b.d = 2,\n}\n[t]\nx = 0\n` and `t["b"] = s["b"]` prints
+  `[t]\nb.c = 1 # on y\n  # about d\nb.d = 2\nx = 0\n`: `# on y` twice, and `# about d` keeps its brace
+  indentation. Expected `[t]\nb.c = 1\n# about d\nb.d = 2\nx = 0\n`. `takeOutOfBraces` reads the first line of
+  each key's prefix as ending the line before. Found while fixing 118.
+  **Ruling 2026-10-07:** `# on y` belongs to `y` and stays out of a copy of `b`; `# about d` is copied because it
+  belongs to the key `b.d` it stands above.
+  **Verdict 2026-10-07:** fixed: a copy of a dotted table taken out of its braces drops the comment that ends the line
+  of an entry outside it, and the lines above its keys print unindented on table lines; `[t]` prints `b.c = 1\n# about
+  d\nb.d = 2\nx = 0` and `s` is unchanged. Blank lines between keys in braces are dropped on table lines, as the header
+  conversion does. Pinned in CommentPlacementTest.
 
 - [x] **118. A comment after a sibling's comma is kept in a dotted table's text when its next key is removed.**
   In `s = {\n  b.c = 1,\n  y = 5, # on y\n  # about d\n  b.d = 2,\n}`, removing `d` from `s.b` puts `# on y` in
