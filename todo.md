@@ -47,13 +47,6 @@ cannot hold the comment (TOML 1.0, or one-line braces that cannot spread).
 
 - [ ] **120. Write the comment ownership rule down.** GOALS.md goal 4 holds it (done with this item's filing);
   core/README.md's "Items and their comments" changes wave by wave with the code (121 to 125), never ahead of it.
-- [ ] **126. A value's comment lines below it are dropped in a dotted table printed on table lines.** Storing a
-  value that brings comment lines below it (`2 # on 2\n  # more\n  , 3` copied from an array) into a dotted inline
-  table printed on a table's lines keeps only its same-line comment. Found in wave 3.
-- [ ] **124. Reordering, sorting and layout changes move items with their comments and keep blank lines.**
-  `arr.reversed().toArrayOfTables()` moves `# first` with its `[[a]] # h1` (reverses 113); sort moves each item's
-  block; free comments and blank lines stay. Conversions from braces to table lines keep blank lines between items
-  (119 drops them).
 - [ ] **125. Review the QA scenarios and docs against the rule.** List every `qa/comment-scenarios` scenario whose
   expected output changes for the owner to confirm; update core/README.md's comment rules, CommentPropertyTest and
   the removal tests.
@@ -125,6 +118,22 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **126. A value's comment lines below it are dropped in a dotted table printed on table lines.** Storing a
+  value that brings comment lines below it (`2 # on 2\n  # more\n  , 3` copied from an array) into a dotted inline
+  table printed on a table's lines keeps only its same-line comment. Found in wave 3.
+  **Verdict 2026-10-08:** fixed: on a table's lines a value's comment lines from below it print above its key, also in a
+  dotted table. Pinned in StoreCarriesCommentsTest.
+
+- [x] **124. Reordering, sorting and layout changes move items with their comments and keep blank lines.**
+  `arr.reversed().toArrayOfTables()` moves `# first` with its `[[a]] # h1` (reverses 113); sort moves each item's
+  block; free comments and blank lines stay. Conversions from braces to table lines keep blank lines between items
+  (119 drops them).
+  **Verdict 2026-10-08:** done: reordering an array of tables moves each table with its attached block and header
+  comment, free lines and blank lines staying at their places; sorting moves each item with its attached lines and
+  comments in tables, arrays and inline tables across lines; layout changes keep blank lines where the new layout has
+  lines for them. Pinned in MoveWithCommentsTest and the updated PrintingFixesTest reorder tests; no QA scenario
+  changed.
 
 - [x] **123. Copying and storing carry an item's comments; replacing follows the item.** A store or copy takes the
   attached comments, the header's included (`# about db\n[db] # primary` comes along; a free `# loose note` does
