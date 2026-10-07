@@ -71,6 +71,10 @@ its same-line comment into an array as into a table (C5 stands).
   its default spelling (by `respell()` or built in code) breaks its lines with LF in a CRLF document.
   **Ruling 2026-10-07:** one rule: every spread array indents from its own line; and every line kotoml writes takes the
   document's line ending (item 79), multi-line strings included.
+  **Progress 2026-10-07:** the indent rule is done (d87e784). A CRLF inside a multi-line string decodes as `\r\n`
+  today, so writing those lines in CRLF would change the value. **Ruling 2026-10-07:** A: the parser reads a line
+  break inside a multi-line string as `\n` whatever the file's line ending (the spec allows it), so kotoml can write
+  those lines in the document's line ending; a file still prints back byte for byte.
 
 Settled the same day, no change: a copied table prints where its key stands (item 38 over 29's "after the tables
 already there"); a moved table gets the default blank line (spacing is not kept across operations); a bare value's
