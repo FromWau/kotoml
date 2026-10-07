@@ -29,6 +29,11 @@ directly above a header belongs to that header (`# end of a` above `[b]` leaves 
 below (`# last note` before `]`, `# end of file`) belong to no item; one inside a container goes only when the
 container goes. A comment above `a.b = 1` belongs to both `a` and `a.b`, so removing `b` takes it.
 
+Rulings on removal (2026-10-07): emptying an array of tables keeps the comment above its first header above
+`key = []` (the array still exists). A comment at the end of a removed table set apart by a blank line is free and
+stays. A comment on a line holding only a comma belongs to the value before the comma. `clear(force = false)`
+follows the removal contract. `remove` of a missing key inside `edit {}` aborts the block with `NotFound`.
+
 - [ ] **120. Write the comment ownership rule down.** GOALS.md goal 4 holds it (done with this item's filing);
   core/README.md's "Items and their comments" changes wave by wave with the code (121 to 125), never ahead of it.
 - [ ] **122. Removing takes an item's comments and refuses without force.**
