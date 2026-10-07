@@ -14,11 +14,11 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
 
 ### Bugs against a goal
 
-- [ ] **104. An emptied dotted table made a header table loses its key into the comment above it.** Removing the
-  last key of `b.c` in `t = {\n  # about c\n  b.c = 1,\n}` and then `setLayout(Header, force = true)` on `t`
-  prints `[t]\n\n  # about c` + `b = {}` on one line: `  # about cb = {}`, so `b` reads back as part of the
-  comment. `format()` then prints that line twice. A comment kept from a removed dotted key also keeps its brace
-  indentation (`  # about d`) under the header. Found in the cleanup pass; present before todo 103.
+- [ ] **104. `format()` prints a kept comment line twice.** Removing the last key of `b.c` in
+  `t = {\n  # about c\n  b.c = 1,\n}` and then `setLayout(Header, force = true)` on `t` prints
+  `[t]\n\n  # about cb = {}\n`; `format()` on that document prints the line twice:
+  `[t]\n\n  # about cb = {}\n\n# about cb = {}\n`. **Ruling 2026-10-07:** that the forced layout change lets the
+  emptied key fall into the comment is fine; the doubled line is the bug.
 - [ ] **105. `ArrayOfTables.addAll` keeps the source table's comments and header line; `add` drops them.** Adding
   `s[0]` of `# above\n[[s]] # head\nx = 1\n` to `[[t]]\ny = 0\n`: `add` prints `[[t]]\ny = 0\n\n[[t]]\nx = 1\n`,
   `addAll` prints `[[t]]\ny = 0\n# above\n[[t]] # head\nx = 1\n`. `addAll` skips `copyToStore`.
