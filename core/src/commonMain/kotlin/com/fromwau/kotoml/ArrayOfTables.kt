@@ -263,14 +263,23 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     }
 
     /**
-     * Appends a copy of every table of [tables].
+     * Appends a copy of every table of [tables], each stored as [add] stores it.
      *
      * @return [TomlEditError.TooDeep], appending none of them, when one would nest deeper than the parser reads.
      */
-    public fun addAll(tables: Iterable<StandardTable>): EmptyResult<TomlEditError> {
+    public fun addAll(tables: Iterable<StandardTable>): EmptyResult<TomlEditError> = appendCopies(tables, ::copyToStore)
+
+    /** Appends a copy of every table of [tables] that keeps its header decor and its place among the tables. */
+    internal fun addAllKeepingPlaces(tables: Iterable<StandardTable>): EmptyResult<TomlEditError> =
+        appendCopies(tables) { table -> table.deepCopy().also { giveSecondsInToml10(this, Item(it)) } }
+
+    private fun appendCopies(
+        tables: Iterable<StandardTable>,
+        copy: (StandardTable) -> StandardTable,
+    ): EmptyResult<TomlEditError> {
         val added = tables.toList()
         for (table in added) storeError(this, null, Item(table))?.let { return Err(it) }
-        for (table in added) append(table.deepCopy().also { giveSecondsInToml10(this, Item(it)) })
+        for (table in added) append(copy(table))
         return Ok(Unit)
     }
 
@@ -326,12 +335,13 @@ public fun arrayOfTablesOf(vararg tables: StandardTable): Result<ArrayOfTables, 
     tables.asIterable().toArrayOfTables()
 
 /**
- * An array of copies of these tables, in order.
+ * An array of copies of these tables, in order. Each copy keeps its place among the document's tables, so
+ * `doc["arr"] = arr.reversed().toArrayOfTables()` reorders the tables where they print.
  *
  * @return [TomlEditError.TooDeep] when a table would nest deeper than the parser reads in an array of tables under a
  *   document's root.
  */
 public fun Iterable<StandardTable>.toArrayOfTables(): Result<ArrayOfTables, TomlEditError> {
     val array = ArrayOfTables()
-    return array.addAll(this).map { array }
+    return array.addAllKeepingPlaces(this).map { array }
 }

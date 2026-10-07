@@ -222,6 +222,20 @@ class CollectionApiTest {
     }
 
     @Test
+    fun `addAll stores a table from another array as add does`() {
+        fun addedBy(store: (ArrayOfTables, StandardTable) -> Unit): String {
+            val source = parse("# above\n[[s]] # head\nx = 1\n")
+            val target = parse("[[t]]\ny = 0\n")
+            val table = source["s"].assertSuccess().arrayOfTablesOrNull!![0].assertSuccess()
+            store(target["t"].assertSuccess().arrayOfTablesOrNull!!, table)
+            return target.toString()
+        }
+        val byAdd = addedBy { tables, table -> tables.add(table).assertSuccess() }
+        assertEquals("[[t]]\ny = 0\n\n[[t]]\nx = 1\n", byAdd)
+        assertEquals(byAdd, addedBy { tables, table -> tables.addAll(listOf(table)).assertSuccess() })
+    }
+
+    @Test
     fun `every container is not empty once it holds something`() {
         val doc = parse("a = [1]\nb = { c = 1 }\n[[d]]\n")
         assertTrue(doc.isNotEmpty())
