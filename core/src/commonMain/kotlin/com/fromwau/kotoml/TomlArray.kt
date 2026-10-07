@@ -37,6 +37,9 @@ public class TomlArray() : Iterable<Value> {
     /** The slot holding this array, when it is stored somewhere; see [Nesting]. */
     internal var holder: Item? = null
 
+    /** The look of the document this was taken out of, read while it stands at the top of a tree; see [documentOf]. */
+    internal var takenFrom: DocumentLook? = null
+
     // Slots that refuse anything but a value; held as items so indexing an item hands out the same slots.
     internal val values: MutableList<Item> = mutableListOf()
 
@@ -482,7 +485,7 @@ public class TomlArray() : Iterable<Value> {
             if (old === printedValues().last()) leaveLastLineForComma()
         }
         if (keepDecor) stored.rawDecor.assign(old.rawDecor)
-        values.set(index, Item.inArray(stored, this)).arrayOwner = null
+        values.set(index, Item.inArray(stored, this)).leaveArray()
         if (comment.isNotEmpty()) putCommentAfter(stored, comment)
         return Ok(old)
     }
@@ -555,7 +558,7 @@ public class TomlArray() : Iterable<Value> {
                 if (values.subList(0, index).any { it.valueOrNull != null }) trailingComma = true
             }
         }
-        values.removeAt(index).arrayOwner = null
+        values.removeAt(index).leaveArray()
     }
 
     /** Sorts the values with [comparator]. The sort is stable. */
@@ -629,6 +632,7 @@ public class TomlArray() : Iterable<Value> {
      * or returned by `remove`, keeps all its comments.
      */
     public fun copy(): TomlArray = deepCopy().also { copy ->
+        copy.takenFrom = documentOf(this)
         if (isStored(this)) copy.rawDecor.dropReadComments(isHeader = false)
     }
 
@@ -639,11 +643,15 @@ public class TomlArray() : Iterable<Value> {
         copy.trailingComma = trailingComma
         copy.rawDecor.assign(rawDecor)
         copy.span = span
+        copy.takenFrom = takenFrom
         for (value in this) copy.values.add(Item.inArray(value.deepCopy(), copy))
         return copy
     }
 
-    /** The array as TOML, without its own decor, in its document's [TomlDocument.version] or else TOML 1.1. */
+    /**
+     * The array as TOML, without its own decor, in its document's [TomlDocument.version]; see [Value] for one stored
+     * nowhere.
+     */
     override fun toString(): String = buildString {
         encodeArray(this, this@TomlArray, "", "", RawDecor.EMPTY, documentVersionOf(this@TomlArray))
     }

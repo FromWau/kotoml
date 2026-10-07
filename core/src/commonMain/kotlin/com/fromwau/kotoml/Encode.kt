@@ -154,7 +154,7 @@ internal fun encodeValue(
 }
 
 // TOML 1.0 has no time without seconds, so one prints with `:00` after its minutes.
-private fun Formatted<Datetime>.datetimeSpellingIn(version: TomlVersion): String =
+internal fun Formatted<Datetime>.datetimeSpellingIn(version: TomlVersion): String =
     if (version == TomlVersion.V1_0) spellingWithSeconds(displaySpelling, value) else displaySpelling
 
 /** Writes lines, each ending as it ended in the text it came from; a line made by hand ends like the one before. */
@@ -227,7 +227,7 @@ internal fun encodeTableBody(
     version: TomlVersion,
 ) {
     settleHeadersForDepth(table)
-    encodeBodyLines(LineWriter(buf, "\n", version), table)
+    encodeBodyLines(LineWriter(buf, lineEndingOf(table), version), table)
 }
 
 /** What prints among a document's tables, in the order of [position]. */

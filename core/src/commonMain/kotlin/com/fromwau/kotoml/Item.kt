@@ -43,9 +43,10 @@ public class Item private constructor(
     private var holds: Holds,
 ) {
 
-    // Content entering a slot learns the slot, so a table or array can tell where it stands; see [Nesting].
+    // Content entering a slot learns the slot, and content leaving a stored one its document's look; see [Nesting].
     private var content: Content = content
         set(value) {
+            owner?.let { field.keepDocument(documentOf(it)) }
             field = value
             value.adoptedBy(this)
         }
@@ -100,6 +101,22 @@ public class Item private constructor(
             }
         }
 
+        /** The look of the document this content prints in when it stands at the top of a tree; see [documentOf]. */
+        fun document(): DocumentLook? = when (this) {
+            is ValueContent -> value.document()
+            is TableContent -> documentOf(table)
+            is ArrayOfTablesContent -> documentOf(array)
+        }
+
+        /** Makes this content, as the top of a tree stored nowhere, print as in a document of [look]. */
+        fun keepDocument(look: DocumentLook?) {
+            when (this) {
+                is ValueContent -> value.keepDocument(look)
+                is TableContent -> table.takenFrom = look
+                is ArrayOfTablesContent -> array.takenFrom = look
+            }
+        }
+
         fun holds(container: Any): Boolean = when (this) {
             is ValueContent -> value === container ||
                 value.arrayOrNull === container ||
@@ -144,6 +161,21 @@ public class Item private constructor(
     internal fun adoptContent() {
         content.adoptedBy(this)
     }
+
+    /** Makes what this slot holds, as the top of a tree stored nowhere, print as in [place]'s document. */
+    internal fun keepDocumentOf(place: Any) {
+        content.keepDocument(documentOf(place))
+    }
+
+    /** Takes this slot out of the array holding it; what it holds keeps the look of the array's document. */
+    internal fun leaveArray() {
+        arrayOwner?.let(::keepDocumentOf)
+        arrayOwner = null
+    }
+
+    /** The look of the document this slot's content prints in: its owner's, or the one it was taken out of. */
+    private val document: DocumentLook?
+        get() = owner?.let(::documentOf) ?: content.document()
 
     /** Whether this slot holds [container] itself. */
     internal fun holdsContainer(container: Any): Boolean = content.holds(container)
@@ -436,7 +468,7 @@ public class Item private constructor(
         if (this.layout == null) return Err(TomlEditError.NotExpandable(type))
         if (!changesLayout(layout)) return Ok(Unit)
         layoutRefusal(layout)?.let { return Err(it) }
-        if (layout == TableLayout.MultilineInline && owner?.let(::documentVersionOf) == TomlVersion.V1_0) {
+        if (layout == TableLayout.MultilineInline && document?.version == TomlVersion.V1_0) {
             return Err(TomlEditError.NotInToml10(layoutKeyPathOf(this), Toml11Feature.MultilineInlineTable))
         }
         return changeLayout(this, force) { slot -> slot.layOut(layout) }
@@ -539,7 +571,7 @@ public class Item private constructor(
         table: StandardTable? = standardTableOrNull,
     ): EmptyResult<TomlEditError> {
         val tables = arrayOfTablesOrNull
-        val version = owner?.let(::documentVersionOf) ?: TomlVersion.V1_1
+        val version = document?.version ?: TomlVersion.V1_1
         val lineBreak = (table ?: tables?.firstOrNull())?.headerLineEnding ?: newLineEnding()
         val layout = InlineLayout(version, lineBreak, multiline)
         val copy = table?.deepCopy()
@@ -642,7 +674,7 @@ public class Item private constructor(
     }
 
     // The line ending of the document this slot is in, for lines a table built in code has none of its own for.
-    private fun newLineEnding(): String = owner?.let(::lineEndingOf) ?: LINE_BREAK
+    private fun newLineEnding(): String = document?.lineEnding ?: LINE_BREAK
 
     /**
      * Turns a table or array of tables in this slot into [value], made from it, keeping the lines above; with
@@ -783,6 +815,7 @@ public class Item private constructor(
      */
     public fun copy(): Item = copyWithComments().also { copy ->
         copy.copiedWithin = outermostTableOfSource(this) ?: copiedWithin
+        copy.content.keepDocument(document)
         if (copiesFromDocument(this)) copy.content.leaveSource()
     }
 

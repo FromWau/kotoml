@@ -21,8 +21,11 @@ import com.fromwau.kotoml.InlineTable as TomlInlineTable
  * [Array] and [InlineTable] wrap the containers, which change in place. To replace a value with a different
  * one, assign through the container that holds it.
  *
- * `toString()` prints a value in the [TomlDocument.version] of the document it is stored in, and in TOML 1.1 when it
- * is stored in none.
+ * `toString()` prints a value in the [TomlDocument.version] of the document it is stored in, a multi-line string with
+ * that document's line ending. A value, table or array stored nowhere prints as in the document it was taken out of,
+ * by `remove`, by a replace detaching it or by `copy()`, and takes edits as that document does, so a table removed
+ * from a TOML 1.0 document refuses what only TOML 1.1 reads; one built in code, or read by [Value.parse], prints in
+ * TOML 1.1 with `\n`. Stored again, it prints as the document it is stored in.
  */
 public sealed interface Value {
 
@@ -44,6 +47,9 @@ public sealed interface Value {
         // The slot holding this value, whose document's line ending a multi-line default spelling breaks lines with.
         internal var holder: Item? = null
 
+        // The look of the document this value was taken out of, read while it is stored nowhere; see [documentOf].
+        internal var takenFrom: DocumentLook? = null
+
         /** The string. */
         public val value: kotlin.String
             get() = formatted.value
@@ -54,7 +60,7 @@ public sealed interface Value {
 
         /**
          * The text the value prints as: its [spelling], or the default one when it has none, whose lines end in the
-         * line ending of the document the value is stored in.
+         * line ending of the document the value is stored in, or was taken out of, and in `\n` for one built in code.
          */
         public val displaySpelling: kotlin.String
             get() = formatted.spelling ?: defaultSpellingInDocument()
@@ -185,6 +191,9 @@ public sealed interface Value {
         // The slot holding this value, whose document's version its spelling can depend on.
         internal var holder: Item? = null
 
+        // The look of the document this value was taken out of, read while it is stored nowhere; see [documentOf].
+        internal var takenFrom: DocumentLook? = null
+
         /** The date-time. */
         public val value: TomlDatetime
             get() = formatted.value
@@ -193,13 +202,18 @@ public sealed interface Value {
         public val spelling: kotlin.String?
             get() = formatted.spelling
 
-        /** The text the value prints as: its [spelling], or the default one when it has none. */
+        /**
+         * The text the value prints as: its [spelling], or the default one when it has none, with `:00` after the
+         * minutes of a time without seconds when the document the value is stored in, or was taken out of, holds TOML
+         * 1.0, which reads no such time.
+         */
         public val displaySpelling: kotlin.String
-            get() = formatted.displaySpelling
+            get() = formatted.datetimeSpellingIn(documentVersionOf(this))
 
         /** The value as TOML, without its [decor]. */
         override fun toString(): kotlin.String = display()
     }
+
     /**
      * An array of values.
      *
@@ -337,7 +351,7 @@ public sealed interface Value {
     public fun copy(): Value = when (this) {
         is Array -> Array(value.copy())
         is InlineTable -> InlineTable(value.copy())
-        else -> deepCopy()
+        else -> deepCopy().also { it.keepDocument(document()) }
     }
 
     public companion object {
@@ -409,12 +423,26 @@ internal fun Value.resolveSpans(input: SourceText) {
 
 /** The value as TOML, without its decor. */
 internal fun Value.display(): String {
-    val version = when (this) {
-        is Value.Array -> documentVersionOf(value)
-        is Value.InlineTable -> documentVersionOf(value)
-        else -> documentVersionOf(this)
-    }
+    val version = document()?.version ?: TomlVersion.V1_1
     return buildString { encodeValue(this, this@display, "", "", RawDecor.EMPTY, version) }
+}
+
+/** The look of the document this value prints in; see [documentOf]. */
+internal fun Value.document(): DocumentLook? = when (this) {
+    is Value.Array -> documentOf(value)
+    is Value.InlineTable -> documentOf(value)
+    else -> documentOf(this)
+}
+
+/** Makes this value, as the top of a tree stored nowhere, print as in a document of [look]; see [documentOf]. */
+internal fun Value.keepDocument(look: DocumentLook?) {
+    when (this) {
+        is Value.String -> takenFrom = look
+        is Value.Datetime -> takenFrom = look
+        is Value.Array -> value.takenFrom = look
+        is Value.InlineTable -> value.takenFrom = look
+        is Value.Integer, is Value.Float, is Value.Boolean -> Unit
+    }
 }
 
 // `key1 = value1`
@@ -428,11 +456,11 @@ internal val DEFAULT_LEADING_VALUE_DECOR: kotlin.Pair<String, String> = "" to ""
 
 /** A deep copy that keeps every comment. */
 internal fun Value.deepCopy(): Value = when (this) {
-    is Value.String -> Value.String(formatted.copy())
+    is Value.String -> Value.String(formatted.copy()).also { it.takenFrom = takenFrom }
     is Value.Integer -> Value.Integer(formatted.copy())
     is Value.Float -> Value.Float(formatted.copy())
     is Value.Boolean -> Value.Boolean(formatted.copy())
-    is Value.Datetime -> Value.Datetime(formatted.copy())
+    is Value.Datetime -> Value.Datetime(formatted.copy()).also { it.takenFrom = takenFrom }
     is Value.Array -> Value.Array(value.deepCopy())
     is Value.InlineTable -> Value.InlineTable(value.deepCopy())
 }

@@ -199,6 +199,9 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     /** The slot holding this table, when it is stored somewhere; see [Nesting]. */
     internal var holder: Item? = null
 
+    /** The look of the document this was taken out of, read while it stands at the top of a tree; see [documentOf]. */
+    internal var takenFrom: DocumentLook? = null
+
     init {
         items.owner = this
     }
@@ -871,6 +874,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
      * stored nowhere, built in code, returned by `remove` or a document's [TomlDocument.root], keeps all its comments.
      */
     public fun copy(): StandardTable = deepCopy().also { copy ->
+        copy.takenFrom = documentOf(this)
         if (isStored(this)) copy.rawDecor.dropReadComments(isHeader = true)
     }
 
@@ -881,6 +885,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         copy.isImplicit = isImplicit
         copy.markDotted(isDotted)
         copy.version = version
+        copy.takenFrom = takenFrom
         copy.opensFile = opensFile
         copy.headEndsInRemovedTable = headEndsInRemovedTable
         copy.placeAt(position, positionFromText)
@@ -921,7 +926,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
 
     /**
      * The key/value pairs under this table, one per line, without its header or sub-tables, in its document's
-     * [TomlDocument.version] or else TOML 1.1.
+     * [TomlDocument.version] and with its lines ending as the document's end; see [Value] for one stored nowhere.
      */
     override fun toString(): String = buildString {
         encodeTableBody(this, this@StandardTable, documentVersionOf(this@StandardTable))

@@ -285,10 +285,10 @@ internal class KeyValuePairs {
             byName[key.name] = KeyValue(key, item).also { it.pairs = this }
             return null
         }
-        return existing.replace(item)
+        return existing.replace(item).also { old -> owner?.let(old::keepDocumentOf) }
     }
 
-    fun remove(key: String): KeyValue? = byName.remove(key)
+    fun remove(key: String): KeyValue? = byName.remove(key)?.also { entry -> owner?.let(entry.item::keepDocumentOf) }
 
     /** Gives the entry under [old] the key [renamed], keeping its place among the entries. */
     fun rename(
@@ -311,7 +311,10 @@ internal class KeyValuePairs {
     fun retainAll(keep: (KeyValue) -> Boolean) {
         val iterator = byName.values.iterator()
         while (iterator.hasNext()) {
-            if (!keep(iterator.next())) iterator.remove()
+            val entry = iterator.next()
+            if (keep(entry)) continue
+            iterator.remove()
+            owner?.let(entry.item::keepDocumentOf)
         }
     }
 

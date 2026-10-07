@@ -63,6 +63,83 @@ class PreservationTest {
     }
 
     @Test
+    fun `a multi-line string removed from a CRLF document breaks its lines with CRLF`() {
+        val doc = parse("a = []\r\n")
+        doc["s"] = Value.String("x\ny")
+        doc["a"].assertSuccess().arrayOrNull!!.add("p\nq")
+        val removed = doc.remove("s")!!.valueOrNull as Value.String
+        val removedAt = doc["a"].assertSuccess().arrayOrNull!!.removeAt(0).assertSuccess() as Value.String
+        assertEquals("\"\"\"\r\nx\r\ny\"\"\"", removed.displaySpelling)
+        assertEquals("\"\"\"\r\nx\r\ny\"\"\"", removed.toString())
+        assertEquals("\"\"\"\r\np\r\nq\"\"\"", removedAt.displaySpelling)
+        assertEquals("\"\"\"\r\np\r\nq\"\"\"", removedAt.toString())
+        assertEquals("\"\"\"\r\nx\r\ny\"\"\"", removed.copy().toString())
+    }
+
+    @Test
+    fun `a multi-line string detached by a replace breaks its lines with CRLF`() {
+        val doc = parse("a = [\"\"\"\r\np\r\nq\"\"\"]\r\nt = { u = 1 }\r\n")
+        doc["s"] = Value.String("x\ny")
+        doc["t"]["u"] = Value.String("v\nw")
+        doc["a"].assertSuccess().arrayOrNull!!.respell()
+        val bySet = doc["s"].assertSuccess().valueOrNull as Value.String
+        val byAssign = doc["t"]["u"].assertSuccess().valueOrNull as Value.String
+        val byReplace = doc["a"][0].assertSuccess().valueOrNull as Value.String
+        doc["s"] = 1L
+        doc["t"]["u"].assertSuccess().assign(Item(Value.Integer(2L))).assertSuccess()
+        doc["a"].assertSuccess().arrayOrNull!!.replace(0, Value.Integer(3L)).assertSuccess()
+        assertEquals("a = [3]\r\nt = { u = 2 }\r\ns = 1\r\n", doc.toString())
+        assertEquals("\"\"\"\r\nx\r\ny\"\"\"", bySet.displaySpelling)
+        assertEquals("\"\"\"\r\nv\r\nw\"\"\"", byAssign.toString())
+        assertEquals("\"\"\"\r\np\r\nq\"\"\"", byReplace.toString())
+    }
+
+    @Test
+    fun `a table removed from a CRLF document prints its strings and lines with CRLF`() {
+        val doc = parse("[t]\r\na = 1\r\n")
+        doc["t"]["s"] = Value.String("x\ny")
+        val removed = doc.remove("t")!!
+        removed["b"] = 2L
+        val expected = "a = 1\r\ns = \"\"\"\r\nx\r\ny\"\"\"\r\nb = 2\r\n"
+        assertEquals(expected, removed.toString())
+        assertEquals(expected, removed.standardTableOrNull!!.toString())
+        assertEquals("\"\"\"\r\nx\r\ny\"\"\"", removed["s"].assertSuccess().valueOrNull.toString())
+    }
+
+    @Test
+    fun `a table in a CRLF document prints its new lines with CRLF`() {
+        val doc = parse("a = 1\r\n")
+        doc["t"] = standardTableOf("b" to Item(Value.Integer(2L))).assertSuccess()
+        assertEquals("a = 1\r\n\r\n[t]\r\nb = 2\r\n", doc.toString())
+        assertEquals("b = 2\r\n", doc["t"].assertSuccess().toString())
+    }
+
+    @Test
+    fun `a multi-line string removed from a CRLF document takes the line ending of the document it is stored in`() {
+        val crlf = parse("a = 1\r\n")
+        crlf["s"] = Value.String("x\ny")
+        val removed = crlf.remove("s")!!
+        val lf = parse("a = 1\n")
+        lf["s"] = removed
+        assertEquals("a = 1\ns = \"\"\"\nx\ny\"\"\"\n", lf.toString())
+        assertEquals("\"\"\"\nx\ny\"\"\"", lf["s"].assertSuccess().valueOrNull.toString())
+        assertEquals("\"\"\"\r\nx\r\ny\"\"\"", removed.toString())
+        crlf["s"] = removed
+        assertEquals("a = 1\r\ns = \"\"\"\r\nx\r\ny\"\"\"\r\n", crlf.toString())
+    }
+
+    @Test
+    fun `a multi-line string built in code or removed from an LF document breaks its lines with LF`() {
+        val doc = parse("a = 1\n")
+        doc["s"] = Value.String("x\ny")
+        assertEquals("\"\"\"\nx\ny\"\"\"", doc.remove("s")!!.toString())
+        assertEquals("\"\"\"\nx\ny\"\"\"", Value.String("x\ny").toString())
+        assertEquals("\"\"\"\nx\ny\"\"\"", Item(Value.String("x\ny")).toString())
+        val array = tomlArrayOf(Value.String("x\ny")).assertSuccess()
+        assertEquals("\"\"\"\nx\ny\"\"\"", array[0].assertSuccess().toString())
+    }
+
+    @Test
     fun `each array of tables header keeps its own spelling`() {
         for (input in listOf("[[x]]\n[[\"x\"]]\n", "[[arr ]]\n[[arr]]\n", "[[a.b]]\n[[a . b]]\n")) {
             assertEquals(input, parse(input).toString())

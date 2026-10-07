@@ -27,6 +27,9 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     /** The slot holding this array, when it is stored somewhere; see [Nesting]. */
     internal var holder: Item? = null
 
+    /** The look of the document this was taken out of, read while it stands at the top of a tree; see [documentOf]. */
+    internal var takenFrom: DocumentLook? = null
+
     /** For a [copy], the outermost table of the document it was read from; see [copiesWithinDocument]. */
     internal var copiedWithin: StandardTable? = null
 
@@ -207,7 +210,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
             stored.rawDecor.assign(old.rawDecor)
             stored.placeAt(old.position, old.positionFromText)
         }
-        values.set(index, Item.inArrayOfTables(stored, this)).arrayOwner = null
+        values.set(index, Item.inArrayOfTables(stored, this)).leaveArray()
         return Ok(old)
     }
 
@@ -221,7 +224,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     public fun removeAt(index: Int): Result<StandardTable, TomlEditError> {
         val removed = getOrNull(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         keepHeaderLinesOf(removed, isArrayOfTables = true, keptHeaderLines)
-        values.removeAt(index).arrayOwner = null
+        values.removeAt(index).leaveArray()
         return Ok(removed)
     }
 
@@ -254,7 +257,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
                 item.standardTableOrNull?.let { keepHeaderLinesOf(it, isArrayOfTables = true, keptHeaderLines) }
             }
         }
-        for (item in removed) item.arrayOwner = null
+        for (item in removed) item.leaveArray()
         values.removeAll { it in removedSlots }
         return removed.isNotEmpty()
     }
@@ -292,6 +295,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
      * keeps all its comments.
      */
     public fun copy(): ArrayOfTables = deepCopy().also { copy ->
+        copy.takenFrom = documentOf(this)
         if (isStored(this)) {
             copy.copiedWithin = outermostTableOf(this)
             copy.firstOrNull()?.rawDecor?.dropReadComments(isHeader = true)
@@ -304,13 +308,17 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     internal fun deepCopy(): ArrayOfTables {
         val copy = ArrayOfTables()
         copy.span = span
+        copy.takenFrom = takenFrom
         for (table in this) copy.values.add(Item.inArrayOfTables(table.deepCopy(), copy))
         keptHeaderLines.mapTo(copy.keptHeaderLines) { it.copy() }
         return copy
     }
 
     /** The tables as an inline array; without a header there is no better way to print them. */
-    override fun toString(): String = deepCopy().moveToTomlArray().toString()
+    override fun toString(): String = deepCopy()
+        .moveToTomlArray()
+        .also { it.takenFrom = documentOf(this) }
+        .toString()
 }
 
 /** An array of copies of [tables], in order; see [toArrayOfTables]. */

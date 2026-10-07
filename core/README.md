@@ -79,7 +79,9 @@ own prints in the shortest digits that read back as it, in exponent form such as
 1e-5. The `OrNull` properties read a value of one kind, or `null` for any other kind. Every call that stores an
 integer takes an `Int` as well as a `Long`. An array's and an inline table's `value` is the container it wraps, as a
 scalar's `value` is the scalar. A line break inside a multi-line string reads as `\n`, also where the file's lines end
-in `\r\n`, and a multi-line string without a spelling of its own breaks its lines as the document's lines end.
+in `\r\n`, and a multi-line string without a spelling of its own breaks its lines as the document's lines end: the
+document it is stored in, or the one it was taken out of (see [Items and their comments](#items-and-their-comments)),
+and with `\n` when built in code. A value's `displaySpelling` and `toString()` are the text its document prints.
 
 ## Tables and arrays
 
@@ -279,7 +281,8 @@ so do the copies of an `InlineTable`, a `TomlArray`, an `ArrayOfTables` and a `V
    there again prints them once. A comment a caller set through `decor` is the item's own too, so it travels with
    every store and copy.
 5. **A replaced or removed item is detached.** It keeps what it held, but writing through it no longer changes the
-   document; index again.
+   document; index again. It prints, and takes edits, as in the document it left, with that document's line ending
+   and TOML version, and so does a `copy()`; stored again, it takes those of the document it is stored in.
 
 ## Build and edit with blocks
 
@@ -396,7 +399,10 @@ doc.toString() // "t = 07:32:00\ns = \"\\u001B\"\n"
 ```
 
 A table, array, inline table or value prints in its own `toString()` as its document prints it, in the document's
-version, and in TOML 1.1 when it is stored in no document, such as a value removed from one.
+version. One stored nowhere keeps the version of the document it was taken out of, by `remove`, a replace or `copy()`,
+for printing and for edits: a table removed from a TOML 1.0 document refuses `setTrailingComma(true)` and gives a time
+stored in it seconds of 0, until it is stored in a TOML 1.1 document. `TomlDocument(table)` holds that version too. A
+table or value built in code, or read by `Value.parse`, is TOML 1.1.
 
 ## Differences from `toml_edit`
 

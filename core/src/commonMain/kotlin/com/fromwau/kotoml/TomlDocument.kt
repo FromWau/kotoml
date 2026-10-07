@@ -64,8 +64,19 @@ public class TomlDocument internal constructor(
     /** An empty document. */
     public constructor() : this(StandardTable.withPosition(0), KeptText(), "\n", null)
 
-    /** A document whose root is [root], held as is rather than copied; a dotted table stops being dotted. */
-    public constructor(root: StandardTable) : this(root, KeptText(), "\n", null)
+    /**
+     * A document whose root is [root], held as is rather than copied; a dotted table stops being dotted. Its lines
+     * end, and it holds the TOML version, as in the document [root] was taken out of, or `\n` and TOML 1.1 for a
+     * table built in code.
+     */
+    public constructor(root: StandardTable) : this(root, documentOf(root))
+
+    private constructor(
+        root: StandardTable,
+        look: DocumentLook?,
+    ) : this(root, KeptText(), look?.lineEnding ?: LINE_BREAK, null) {
+        look?.let { root.version = it.version }
+    }
 
     /**
      * The version of TOML the document holds and prints: the one it was parsed as, or [TomlVersion.V1_1] for a new

@@ -224,6 +224,9 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     /** The slot holding this table, when it is stored somewhere; see [Nesting]. */
     internal var holder: Item? = null
 
+    /** The look of the document this was taken out of, read while it stands at the top of a tree; see [documentOf]. */
+    internal var takenFrom: DocumentLook? = null
+
     init {
         items.owner = this
     }
@@ -859,6 +862,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
      * all its comments.
      */
     public fun copy(): InlineTable = deepCopy().also { copy ->
+        copy.takenFrom = documentOf(this)
         if (isStored(this)) copy.rawDecor.dropReadComments(isHeader = false)
     }
 
@@ -870,11 +874,15 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         copy.isImplicit = isImplicit
         copy.rawDecor.assign(rawDecor)
         copy.span = span
+        copy.takenFrom = takenFrom
         copy.markDotted(isDotted)
         return copy
     }
 
-    /** The table as TOML, without its own decor, in its document's [TomlDocument.version] or else TOML 1.1. */
+    /**
+     * The table as TOML, without its own decor, in its document's [TomlDocument.version]; see [Value] for one stored
+     * nowhere.
+     */
     override fun toString(): String = buildString {
         val version = documentVersionOf(this@InlineTable)
         encodeInlineTable(this, this@InlineTable, "", "", RawDecor.EMPTY, version)

@@ -198,6 +198,84 @@ class VersionTest {
     }
 
     @Test
+    fun `a table removed from a TOML 1_0 document takes edits as that document does`() {
+        val doc = parse("[a]\nt = { x = 1 }\n", TomlVersion.V1_0)
+        val removed = doc.remove("a")!!
+        val inline = removed["t"].assertSuccess().inline()
+        val error = inline.setTrailingComma(true).assertError<TomlEditError.NotInToml10>()
+        assertEquals(TomlEditError.NotInToml10(listOf("t"), Toml11Feature.InlineTableTrailingComma), error)
+        removed["t"].assertSuccess().setLayout(TableLayout.MultilineInline).assertError<TomlEditError.NotInToml10>()
+        val time = Value.Datetime(Datetime.LocalTime(Time.of(7, 32).assertSuccess()))
+        removed.standardTableOrNull!!.set("u", time).assertSuccess()
+        assertEquals("07:32:00", (removed["u"].assertSuccess().valueOrNull as Value.Datetime).displaySpelling)
+        assertEquals("t = { x = 1 }\nu = 07:32:00\n", removed.toString())
+    }
+
+    @Test
+    fun `a table removed from a TOML 1_0 document takes TOML 1_1 edits once stored in a TOML 1_1 document`() {
+        val removed = parse("[a]\nt = { x = 1 }\n", TomlVersion.V1_0).remove("a")!!
+        val doc = parse("b = 1\n")
+        doc["a"] = removed
+        doc["a"]["t"].assertSuccess().inline().setTrailingComma(true).assertSuccess()
+        doc["a"]["u"] = Value.Datetime(Datetime.LocalTime(Time.of(7, 32).assertSuccess()))
+        assertEquals("b = 1\n\n[a]\nt = { x = 1 ,}\nu = 07:32\n", doc.toString())
+    }
+
+    @Test
+    fun `a value detached from a TOML 1_0 document by a replace takes edits as that document does`() {
+        val doc = parse("t = { x = 1 }\nl = [{ y = 1 }]\n", TomlVersion.V1_0)
+        val bySet = doc["t"].assertSuccess().inline()
+        val byReplace = doc["l"][0].assertSuccess().valueOrNull!!.inlineTableOrNull!!
+        doc["t"] = 1L
+        doc["l"].assertSuccess().arrayOrNull!!.replace(0, Value.Integer(2L)).assertSuccess()
+        bySet.setTrailingComma(true).assertError<TomlEditError.NotInToml10>()
+        byReplace.setTrailingComma(true).assertError<TomlEditError.NotInToml10>()
+        assertEquals("t = 1\nl = [2]\n", doc.toString())
+    }
+
+    @Test
+    fun `a copy of a table in a TOML 1_0 document takes edits as that document does`() {
+        val doc = parse("t = { x = 1 }\n", TomlVersion.V1_0)
+        doc["t"].assertSuccess().inline().copy().setTrailingComma(true).assertError<TomlEditError.NotInToml10>()
+        doc["t"].assertSuccess().copy().inline().setTrailingComma(true).assertError<TomlEditError.NotInToml10>()
+        doc.root.copy()["t"].assertSuccess().inline().setTrailingComma(true).assertError<TomlEditError.NotInToml10>()
+    }
+
+    @Test
+    fun `a table built in code takes TOML 1_1 edits`() {
+        val table = inlineTableOf("x" to Value.Integer(1L)).assertSuccess()
+        table.setTrailingComma(true).assertSuccess()
+        val time = Value.Datetime(Datetime.LocalTime(Time.of(7, 32).assertSuccess()))
+        assertEquals("07:32", time.displaySpelling)
+        assertEquals("07:32", time.toString())
+        assertEquals("{ x = 1 ,}", table.toString())
+    }
+
+    @Test
+    fun `a document made from a table removed from a TOML 1_0 document holds TOML 1_0`() {
+        val removed = parse("[a]\nx = 1\n", TomlVersion.V1_0).remove("a")!!.standardTableOrNull!!
+        assertEquals(TomlVersion.V1_0, TomlDocument(removed).version)
+        val built = StandardTable()
+        assertEquals(TomlVersion.V1_1, TomlDocument(built).version)
+    }
+
+    @Test
+    fun `a time without seconds displays as it prints in the version of its document`() {
+        val doc = TomlDocument()
+        doc["t"] = Value.Datetime(Datetime.LocalTime(Time.of(7, 32).assertSuccess()))
+        val time = doc["t"].assertSuccess().valueOrNull as Value.Datetime
+        assertEquals("07:32", time.displaySpelling)
+        assertEquals("07:32", time.toString())
+        assertEquals("t = 07:32\n", doc.toString())
+        // No public edit leaves such a time in a TOML 1.0 document, so the version is set without converting it.
+        doc.root.version = TomlVersion.V1_0
+        assertEquals("07:32:00", time.displaySpelling)
+        assertEquals("07:32:00", time.toString())
+        assertEquals("t = 07:32:00\n", doc.toString())
+        assertNull(time.spelling)
+    }
+
+    @Test
     fun `a TOML 1_0 document set to TOML 1_0 changes nothing`() {
         val text = "# c\nt = { a = 1 }\n"
         val doc = parse(text, TomlVersion.V1_0)

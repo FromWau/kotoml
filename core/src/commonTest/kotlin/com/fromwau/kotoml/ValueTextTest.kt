@@ -59,6 +59,58 @@ class ValueTextTest {
         assertEquals("a = 1\nt = 07:32:00\n", doc.toString())
     }
 
+    private fun displaySpelling(value: Value): String? = when (value) {
+        is Value.String -> value.displaySpelling
+        is Value.Integer -> value.displaySpelling
+        is Value.Float -> value.displaySpelling
+        is Value.Boolean -> value.displaySpelling
+        is Value.Datetime -> value.displaySpelling
+        is Value.Array, is Value.InlineTable -> null
+    }
+
+    @Test
+    fun `every kind of value displays and prints as its document prints it and keeps that when removed`() {
+        val time = Time.of(7, 32).assertSuccess()
+        val values = listOf(
+            Value.String("x\ny"),
+            Value.String("s"),
+            Value.Integer(8080L),
+            Value.Float(1e300),
+            Value.Boolean(true),
+            Value.Datetime(Datetime.LocalTime(time)),
+            Value.Datetime(Datetime.LocalDateTime(Date.of(1979, 5, 27).assertSuccess(), time)),
+            Value.Array(tomlArrayOf(Value.String("p\nq"), Value.Datetime(Datetime.LocalTime(time))).assertSuccess()),
+            Value.InlineTable(inlineTableOf("t" to Value.Datetime(Datetime.LocalTime(time))).assertSuccess()),
+        )
+        val expected = mapOf(
+            TomlVersion.V1_0 to listOf(
+                "07:32:00",
+                "1979-05-27T07:32:00",
+                "[\"\"\"#p#q\"\"\", 07:32:00]",
+                "{ t = 07:32:00 }",
+            ),
+            TomlVersion.V1_1 to listOf("07:32", "1979-05-27T07:32", "[\"\"\"#p#q\"\"\", 07:32]", "{ t = 07:32 }"),
+        )
+        for (version in TomlVersion.entries) {
+            for (lineEnding in listOf("\n", "\r\n")) {
+                val texts = listOf("\"\"\"#x#y\"\"\"", "\"s\"", "8080", "1e300", "true") + expected.getValue(version)
+                val doc = TomlDocument.parse("a = 1$lineEnding", version).assertSuccess()
+                for ((index, value) in values.withIndex()) doc.set("k$index", value).assertSuccess()
+                val lines = texts.withIndex().joinToString("") { (index, text) -> "k$index = $text$lineEnding" }
+                assertEquals("a = 1$lineEnding" + lines.replace("#", lineEnding), doc.toString())
+                for ((index, text) in texts.withIndex()) {
+                    val printed = text.replace("#", lineEnding)
+                    val stored = doc["k$index"].assertSuccess().valueOrNull!!
+                    assertEquals(printed, stored.toString(), "k$index in $version")
+                    displaySpelling(stored)?.let { assertEquals(printed, it, "k$index in $version") }
+                    val removed = doc.remove("k$index")!!.valueOrNull!!
+                    assertEquals(printed, removed.toString(), "removed k$index in $version")
+                    displaySpelling(removed)?.let { assertEquals(printed, it, "removed k$index in $version") }
+                }
+            }
+        }
+    }
+
     @Test
     fun `a trailing comma in a TOML 1_0 document is refused`() {
         val doc = TomlDocument.parse("t = { x = 1 }\n", TomlVersion.V1_0).assertSuccess()

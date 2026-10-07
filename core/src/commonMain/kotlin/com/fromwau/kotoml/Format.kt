@@ -135,10 +135,13 @@ private class PrintedTree(
 
     companion object {
         fun of(top: Any): PrintedTree {
+            val look = documentOf(top)
+            val lineEnding = look?.lineEnding ?: LINE_BREAK
+            val version = look?.version ?: TomlVersion.V1_1
             if (top is StandardTable) {
                 val document = top.document?.takeIf { it.root === top }
-                    ?: TomlDocument(top.deepCopy(), KeptText(), top.lineEnding, null)
-                return PrintedTree(document.toString(), top.version, underKey = false)
+                    ?: TomlDocument(top.deepCopy().also { it.version = version }, KeptText(), lineEnding, null)
+                return PrintedTree(document.toString(), version, underKey = false)
             }
             val copy = when (top) {
                 is TomlArray -> Item(Value.Array(top.deepCopy().also { it.rawDecor.clear() }))
@@ -146,9 +149,10 @@ private class PrintedTree(
                 is ArrayOfTables -> Item(top.deepCopy())
                 else -> error("only a table or an array holds slots")
             }
-            val document = TomlDocument()
+            val document = TomlDocument(StandardTable.withPosition(0), KeptText(), lineEnding, null)
+            document.root.version = version
             document.root.items.put(Key(WRAPPING_KEY), copy)
-            return PrintedTree(document.toString(), TomlVersion.V1_1, underKey = true)
+            return PrintedTree(document.toString(), version, underKey = true)
         }
     }
 }

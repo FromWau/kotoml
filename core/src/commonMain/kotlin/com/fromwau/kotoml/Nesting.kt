@@ -90,11 +90,41 @@ internal fun outermostTableOf(container: Any): StandardTable? {
     return current as? StandardTable
 }
 
-/** The line ending of the document [container] is stored in, which the lines it adds end in; `\n` outside one. */
-internal fun lineEndingOf(container: Any): String = outermostTableOf(container)?.lineEnding ?: LINE_BREAK
+/**
+ * The line ending of the document [container] is stored in, which the lines it adds end in; for one stored nowhere,
+ * that of the document its tree was taken out of, or `\n` for one built in code; see [documentOf].
+ */
+internal fun lineEndingOf(container: Any): String = documentOf(container)?.lineEnding ?: LINE_BREAK
 
-/** The TOML version of the document [container] is stored in, or TOML 1.1 when it is stored nowhere. */
-internal fun documentVersionOf(container: Any): TomlVersion = outermostTableOf(container)?.version ?: TomlVersion.V1_1
+/**
+ * The TOML version of the document [container] is stored in; for one stored nowhere, that of the document its tree
+ * was taken out of, or TOML 1.1 for one built in code; see [documentOf].
+ */
+internal fun documentVersionOf(container: Any): TomlVersion = documentOf(container)?.version ?: TomlVersion.V1_1
+
+/** How a document's lines end and the TOML version it holds, which a tree taken out of it keeps printing in. */
+internal class DocumentLook(
+    val lineEnding: String,
+    val version: TomlVersion,
+)
+
+/**
+ * The look of the document [container] is stored in, or of the one the tree it stands in was taken out of: by
+ * `remove`, by a replace detaching it, or by a copy; null for a tree built in code.
+ */
+internal fun documentOf(container: Any): DocumentLook? {
+    var top = container
+    while (true) top = parentOf(top) ?: break
+    return when (top) {
+        is StandardTable -> if (top.isDocumentRoot) DocumentLook(top.lineEnding, top.version) else top.takenFrom
+        is InlineTable -> top.takenFrom
+        is TomlArray -> top.takenFrom
+        is ArrayOfTables -> top.takenFrom
+        is Value.String -> top.takenFrom
+        is Value.Datetime -> top.takenFrom
+        else -> null
+    }
+}
 
 /**
  * The indentation of the line [container] starts on: the spacing after the last line break before the key or element
