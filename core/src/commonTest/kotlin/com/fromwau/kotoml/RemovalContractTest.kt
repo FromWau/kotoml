@@ -43,6 +43,64 @@ class RemovalContractTest {
     }
 
     @Test
+    fun `a comment on a line holding only a comma goes with the value before the comma`() {
+        val doc = parse("arr = [\n  1,\n  2 # on 2\n  , # comma\n  3,\n]\n")
+        val array = doc["arr"].assertSuccess().arrayOrNull!!
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("arr"), 2), array.removeAt(1).assertError())
+        array.removeAt(1, force = true).assertSuccess()
+        assertEquals("arr = [\n  1,\n  3,\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `clearing without force fails when comments would go and changes nothing`() {
+        val text = "[a]\n# one\nx = 1\ny = 2 # two\n"
+        val doc = parse(text)
+        val table = doc["a"].assertSuccess().standardTableOrNull!!
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("a", "x"), 2), table.clear().assertError())
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("a"), 2), doc.clear().assertError())
+        assertEquals(text, doc.toString())
+        table.clear(force = true).assertSuccess()
+        assertEquals("[a]\n", doc.toString())
+    }
+
+    @Test
+    fun `clearing an array or an inline table without force fails when comments would go`() {
+        val doc = parse("a = [ # open\n  1, # one\n  2,\n]\ni = { x = 1, y = 2 } # i\n")
+        val array = doc["a"].assertSuccess().arrayOrNull!!
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("a"), 1), array.clear().assertError())
+        array.clear(force = true).assertSuccess()
+        doc["i"].assertSuccess().inlineTableOrNull!!.clear().assertSuccess()
+        assertEquals("a = [ # open\n]\ni = {} # i\n", doc.toString())
+    }
+
+    @Test
+    fun `an emptied array of tables keeps the comment above its first header and needs no force for it`() {
+        val doc = parse("a = 1\n# bins\n[[bin]]\nn = 1\n")
+        doc["bin"].assertSuccess().arrayOfTablesOrNull!!.removeAt(0).assertSuccess()
+        assertEquals("a = 1\n# bins\nbin = []\n", doc.toString())
+    }
+
+    @Test
+    fun `an array of tables emptied one table at a time keeps only the comment above its first header`() {
+        val doc = parse("a = 1\n\n# xs\n[[x]] # one\nk = 1\n# between\n[[x]]\nk = 2\n")
+        val tables = doc["x"].assertSuccess().arrayOfTablesOrNull!!
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("x"), 1), tables.removeAt(1).assertError())
+        tables.removeAt(1, force = true).assertSuccess()
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("x"), 1), tables.removeAt(0).assertError())
+        tables.removeAt(0, force = true).assertSuccess()
+        assertEquals("a = 1\n\n# xs\nx = []\n", doc.toString())
+    }
+
+    @Test
+    fun `clearing an array of tables keeps the comment above its first header and takes the others`() {
+        val doc = parse("# all\n[[x]]\nk = 1\n# second\n[[x]]\nk = 2\n")
+        val tables = doc["x"].assertSuccess().arrayOfTablesOrNull!!
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("x"), 1), tables.clear().assertError())
+        tables.clear(force = true).assertSuccess()
+        assertEquals("# all\nx = []\n", doc.toString())
+    }
+
+    @Test
     fun `removing a key that holds no comment needs no force`() {
         val doc = parse("# free\n\nx = 1\ny = 2 # two\n")
         assertEquals(1L, doc.remove("x").assertSuccess().longOrNull)

@@ -373,284 +373,284 @@ class CommentScenariosTest {
     )
 
     private fun eR_001(doc: TomlDocument) {
-        doc.remove("b")
+        doc.remove("b", force = true)
     }
 
     private fun eR_002(doc: TomlDocument) {
-        doc.remove("a")
+        doc.remove("a", force = true)
     }
 
     private fun eR_003(doc: TomlDocument) {
-        doc.remove("b")
+        doc.remove("b", force = true)
     }
 
     private fun eR_004(doc: TomlDocument) {
-        doc.remove("a")
+        doc.remove("a", force = true)
     }
 
     private fun eR_005(doc: TomlDocument) {
-        doc.remove("a")
+        doc.remove("a", force = true)
     }
 
     private fun eR_006(doc: TomlDocument) {
-        doc.remove("b")
+        doc.remove("b", force = true)
     }
 
     private fun eR_007(doc: TomlDocument) {
-        doc["a"].assertSuccess().standardTableOrNull!!.remove("y")
+        doc["a"].assertSuccess().standardTableOrNull!!.remove("y", force = true)
     }
 
     private fun eR_008(doc: TomlDocument) {
-        doc["a"].assertSuccess().standardTableOrNull!!.remove("k")
+        doc["a"].assertSuccess().standardTableOrNull!!.remove("k", force = true)
     }
 
     private fun eR_009(doc: TomlDocument) {
-        doc["t"].assertSuccess().standardTableOrNull!!.remove("a")
+        doc["t"].assertSuccess().standardTableOrNull!!.remove("a", force = true)
     }
 
     private fun eR_010(doc: TomlDocument) {
-        doc["t"].assertSuccess().standardTableOrNull!!.remove("a")
+        doc["t"].assertSuccess().standardTableOrNull!!.remove("a", force = true)
     }
 
     private fun eR_011(doc: TomlDocument) {
-        doc.remove("list")
+        doc.remove("list", force = true)
     }
 
     private fun eR_012(doc: TomlDocument) {
-        doc.remove("s")
+        doc.remove("s", force = true)
     }
 
     private fun eR_013(doc: TomlDocument) {
-        doc.remove("t")
+        doc.remove("t", force = true)
     }
 
     private fun eR_014(doc: TomlDocument) {
-        doc.remove("b")
+        doc.remove("b", force = true)
     }
 
     private fun eR_015(doc: TomlDocument) {
-        doc.remove("b")
+        doc.remove("b", force = true)
     }
 
     private fun eR_016(doc: TomlDocument) {
-        doc.remove("zz")
+        doc.remove("zz", force = true)
     }
 
     private fun eR_017(doc: TomlDocument) {
-        doc["a"].assertSuccess().tableOrNull!!.removeItem("b")
+        doc["a"].assertSuccess().tableOrNull!!.removeItem("b", force = true)
     }
 
     private fun eR_018(doc: TomlDocument) {
-        doc.remove("a")
+        doc.remove("a", force = true)
     }
 
     private fun eR_019(doc: TomlDocument) {
-        doc["t"].assertSuccess().standardTableOrNull!!.remove("x")
+        doc["t"].assertSuccess().standardTableOrNull!!.remove("x", force = true)
     }
 
     private fun eR_020(doc: TomlDocument) {
-        doc["a"]["b"]["c"].assertSuccess().standardTableOrNull!!.remove("k")
+        doc["a"]["b"]["c"].assertSuccess().standardTableOrNull!!.remove("k", force = true)
     }
 
     private fun eR_021(doc: TomlDocument) {
-        doc.remove("a")
+        doc.remove("a", force = true)
         doc["a"] = 3L
     }
 
     private fun eR_022(doc: TomlDocument) {
-        doc.remove("server")
+        doc.remove("server", force = true)
     }
 
     private fun eR_023(doc: TomlDocument) {
-        doc.remove("a")
+        doc.remove("a", force = true)
     }
 
     private fun eR_024(doc: TomlDocument) {
-        doc["a"].assertSuccess().standardTableOrNull!!.remove("b")
+        doc["a"].assertSuccess().standardTableOrNull!!.remove("b", force = true)
     }
 
     private fun eR_025(doc: TomlDocument) {
-        doc.remove("t")
+        doc.remove("t", force = true)
     }
 
     private fun eR_026(doc: TomlDocument) {
-        doc.remove("a")
+        doc.remove("a", force = true)
     }
 
     private fun eR_027(doc: TomlDocument) {
-        doc.remove("a")
+        doc.remove("a", force = true)
     }
 
     private fun eR_028(doc: TomlDocument) {
-        doc.remove("a")
+        doc.remove("a", force = true)
     }
 
     private fun eR_029(doc: TomlDocument) {
-        doc["p"].assertSuccess().arrayOfTablesOrNull!![0].assertSuccess().remove("q")
+        doc["p"].assertSuccess().arrayOfTablesOrNull!![0].assertSuccess().remove("q", force = true)
     }
 
     private fun eR_030(doc: TomlDocument) {
-        doc.remove("a")
+        doc.remove("a", force = true)
     }
 
     private fun eR_031(doc: TomlDocument) {
-        doc.remove("fruit")
+        doc.remove("fruit", force = true)
     }
 
     private fun eR_032(doc: TomlDocument) {
-        doc["fruit"].assertSuccess().arrayOfTablesOrNull!!.removeAt(0)
+        doc["fruit"].assertSuccess().arrayOfTablesOrNull!!.removeAt(0, force = true)
     }
 
     private fun eR_033(doc: TomlDocument) {
-        doc["fruit"].assertSuccess().arrayOfTablesOrNull!!.removeAt(1)
+        doc["fruit"].assertSuccess().arrayOfTablesOrNull!!.removeAt(1, force = true)
     }
 
     private fun eR_034(doc: TomlDocument) {
-        doc["p"].assertSuccess().arrayOfTablesOrNull!!.removeAt(1)
+        doc["p"].assertSuccess().arrayOfTablesOrNull!!.removeAt(1, force = true)
     }
 
     private fun eR_035(doc: TomlDocument) {
-        doc["p"].assertSuccess().arrayOfTablesOrNull!!.removeAll { it.getOrNull("n")?.longOrNull != 1L }
+        doc["p"].assertSuccess().arrayOfTablesOrNull!!.removeAll(force = true) { it.getOrNull("n")?.longOrNull != 1L }
     }
 
     private fun eR_036(doc: TomlDocument) {
-        doc["fruit"].assertSuccess().arrayOfTablesOrNull!!.clear()
+        doc["fruit"].assertSuccess().arrayOfTablesOrNull!!.clear(force = true)
     }
 
     private fun eR_037(doc: TomlDocument) {
-        doc["bin"].assertSuccess().arrayOfTablesOrNull!!.removeAt(0)
+        doc["bin"].assertSuccess().arrayOfTablesOrNull!!.removeAt(0, force = true)
     }
 
     private fun eR_038(doc: TomlDocument) {
-        doc["bin"].assertSuccess().arrayOfTablesOrNull!!.clear()
+        doc["bin"].assertSuccess().arrayOfTablesOrNull!!.clear(force = true)
     }
 
     private fun eR_039(doc: TomlDocument) {
-        doc["p"].assertSuccess().arrayOfTablesOrNull!![0].assertSuccess().remove("n")
+        doc["p"].assertSuccess().arrayOfTablesOrNull!![0].assertSuccess().remove("n", force = true)
     }
 
     private fun eR_040(doc: TomlDocument) {
-        doc["a"].assertSuccess().standardTableOrNull!!.remove("b")
+        doc["a"].assertSuccess().standardTableOrNull!!.remove("b", force = true)
     }
 
     private fun eR_041(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(1)
+        doc["a"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
     }
 
     private fun eR_042(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(0)
+        doc["a"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
     }
 
     private fun eR_043(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(2)
+        doc["a"].assertSuccess().arrayOrNull!!.removeAt(2, force = true)
     }
 
     private fun eR_044(doc: TomlDocument) {
-        doc["ports"].assertSuccess().arrayOrNull!!.removeAt(0)
+        doc["ports"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
     }
 
     private fun eR_045(doc: TomlDocument) {
-        doc["ports"].assertSuccess().arrayOrNull!!.removeAt(1)
+        doc["ports"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
     }
 
     private fun eR_046(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(1)
+        doc["a"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
     }
 
     private fun eR_047(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(1)
+        doc["a"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
     }
 
     private fun eR_048(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(0)
+        doc["a"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
     }
 
     private fun eR_049(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(1)
+        doc["a"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
     }
 
     private fun eR_050(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(1)
+        doc["a"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
     }
 
     private fun eR_051(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(0)
+        doc["a"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
     }
 
     private fun eR_052(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(0)
+        doc["a"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
     }
 
     private fun eR_053(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.clear()
+        doc["a"].assertSuccess().arrayOrNull!!.clear(force = true)
     }
 
     private fun eR_054(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.clear()
+        doc["a"].assertSuccess().arrayOrNull!!.clear(force = true)
     }
 
     private fun eR_055(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAll { (it as? Value.Integer)?.value != 3L }
+        doc["a"].assertSuccess().arrayOrNull!!.removeAll(force = true) { (it as? Value.Integer)?.value != 3L }
     }
 
     private fun eR_056(doc: TomlDocument) {
-        doc["pts"].assertSuccess().arrayOrNull!!.removeAt(0)
+        doc["pts"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
     }
 
     private fun eR_057(doc: TomlDocument) {
-        doc["m"].assertSuccess().arrayOrNull!![0].assertSuccess().arrayOrNull!!.removeAt(1)
+        doc["m"].assertSuccess().arrayOrNull!![0].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
     }
 
     private fun eR_058(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.remove("b")
+        doc["t"].assertSuccess().inlineTableOrNull!!.remove("b", force = true)
     }
 
     private fun eR_059(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.remove("a")
+        doc["t"].assertSuccess().inlineTableOrNull!!.remove("a", force = true)
     }
 
     private fun eR_060(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.remove("c")
+        doc["t"].assertSuccess().inlineTableOrNull!!.remove("c", force = true)
     }
 
     private fun eR_061(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.remove("a")
+        doc["t"].assertSuccess().inlineTableOrNull!!.remove("a", force = true)
     }
 
     private fun eR_062(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.remove("b")
+        doc["t"].assertSuccess().inlineTableOrNull!!.remove("b", force = true)
     }
 
     private fun eR_063(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.remove("b")
+        doc["t"].assertSuccess().inlineTableOrNull!!.remove("b", force = true)
     }
 
     private fun eR_064(doc: TomlDocument) {
-        doc["t"]["a"].assertSuccess().inlineTableOrNull!!.remove("x")
+        doc["t"]["a"].assertSuccess().inlineTableOrNull!!.remove("x", force = true)
     }
 
     private fun eR_065(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.clear()
+        doc["t"].assertSuccess().inlineTableOrNull!!.clear(force = true)
     }
 
     private fun eR_066(doc: TomlDocument) {
-        doc["t"].assertSuccess().standardTableOrNull!!.retainAll { (k, _) -> k == "b" }
+        doc["t"].assertSuccess().standardTableOrNull!!.retainAll(force = true) { (k, _) -> k == "b" }
     }
 
     private fun eR_067(doc: TomlDocument) {
-        doc["t"].assertSuccess().standardTableOrNull!!.clear()
+        doc["t"].assertSuccess().standardTableOrNull!!.clear(force = true)
     }
 
     private fun eR_068(doc: TomlDocument) {
-        doc.removeAll { (_, item) -> item.valueOrNull is Value.Integer }
+        doc.removeAll(force = true) { (_, item) -> item.valueOrNull is Value.Integer }
     }
 
     private fun eR_069(doc: TomlDocument) {
-        doc.clear()
+        doc.clear(force = true)
     }
 
     private fun eR_070(doc: TomlDocument) {
-        doc.retainAll { (k, _) -> k == "t" }
+        doc.retainAll(force = true) { (k, _) -> k == "t" }
     }
 
     private fun eR_071(doc: TomlDocument) {
@@ -989,7 +989,7 @@ class CommentScenariosTest {
 
     private fun eS_042(doc: TomlDocument) {
         val aot = doc["x"].assertSuccess().arrayOfTablesOrNull!!
-        aot.removeAt(0)
+        aot.removeAt(0, force = true)
         aot.add(standardTableOf("k" to Item(Value.Integer(2L))).assertSuccess())
     }
 
@@ -1000,8 +1000,8 @@ class CommentScenariosTest {
 
     private fun eS_044(doc: TomlDocument) {
         val aot = doc["x"].assertSuccess().arrayOfTablesOrNull!!
-        aot.removeAt(1)
-        aot.removeAt(0)
+        aot.removeAt(1, force = true)
+        aot.removeAt(0, force = true)
     }
 
     private fun eS_045(doc: TomlDocument) {
@@ -1188,7 +1188,7 @@ class CommentScenariosTest {
 
     private fun eS_088(doc: TomlDocument) {
         doc.edit {
-            remove("debug")
+            remove("debug", force = true)
             "level" to 2
         }
     }
@@ -1278,12 +1278,12 @@ class CommentScenariosTest {
     }
 
     private fun eS_106(doc: TomlDocument) {
-        doc.remove("a")
+        doc.remove("a", force = true)
         doc["a"] = 3L
     }
 
     private fun eS_107(doc: TomlDocument) {
-        doc.remove("t")
+        doc.remove("t", force = true)
         doc["t"] = standardTableOf("k" to Item(Value.Integer(2L))).assertSuccess()
     }
 
@@ -1312,7 +1312,7 @@ class CommentScenariosTest {
     }
 
     private fun eC_004(doc: TomlDocument) {
-        doc.remove("s")
+        doc.remove("s", force = true)
     }
 
     private fun eC_005(doc: TomlDocument) {
@@ -1328,7 +1328,7 @@ class CommentScenariosTest {
     }
 
     private fun eC_008(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(0)
+        doc["a"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
     }
 
     private fun eC_009(doc: TomlDocument) {
@@ -1344,15 +1344,15 @@ class CommentScenariosTest {
     }
 
     private fun eC_012(doc: TomlDocument) {
-        doc["t"].assertSuccess().standardTableOrNull!!.remove("a")
+        doc["t"].assertSuccess().standardTableOrNull!!.remove("a", force = true)
     }
 
     private fun eC_013(doc: TomlDocument) {
-        doc.remove("b")
+        doc.remove("b", force = true)
     }
 
     private fun eC_014(doc: TomlDocument) {
-        doc.remove("a")
+        doc.remove("a", force = true)
     }
 
     private fun eC_015(doc: TomlDocument) {
@@ -1360,7 +1360,7 @@ class CommentScenariosTest {
     }
 
     private fun eC_016(doc: TomlDocument) {
-        doc["t"].assertSuccess().standardTableOrNull!!.remove("a")
+        doc["t"].assertSuccess().standardTableOrNull!!.remove("a", force = true)
     }
 
     private fun eC_017(doc: TomlDocument) {
@@ -1372,29 +1372,29 @@ class CommentScenariosTest {
     }
 
     private fun eC_019(doc: TomlDocument) {
-        doc["x"].assertSuccess().arrayOfTablesOrNull!!.removeAt(0)
+        doc["x"].assertSuccess().arrayOfTablesOrNull!!.removeAt(0, force = true)
     }
 
     private fun eC_020(doc: TomlDocument) {
-        doc["x"].assertSuccess().arrayOfTablesOrNull!!.removeAt(1)
+        doc["x"].assertSuccess().arrayOfTablesOrNull!!.removeAt(1, force = true)
     }
 
     private fun eC_021(doc: TomlDocument) {
-        doc["x"].assertSuccess().arrayOfTablesOrNull!!.removeAt(1)
+        doc["x"].assertSuccess().arrayOfTablesOrNull!!.removeAt(1, force = true)
     }
 
     private fun eC_022(doc: TomlDocument) {
         val aot = doc["x"].assertSuccess().arrayOfTablesOrNull!!
-        aot.removeAt(0)
-        aot.removeAt(0)
+        aot.removeAt(0, force = true)
+        aot.removeAt(0, force = true)
     }
 
     private fun eC_023(doc: TomlDocument) {
-        doc["x"].assertSuccess().arrayOfTablesOrNull!!.removeAt(0)
+        doc["x"].assertSuccess().arrayOfTablesOrNull!!.removeAt(0, force = true)
     }
 
     private fun eC_024(doc: TomlDocument) {
-        doc["x"].assertSuccess().arrayOfTablesOrNull!!.removeAt(0)
+        doc["x"].assertSuccess().arrayOfTablesOrNull!!.removeAt(0, force = true)
     }
 
     private fun eC_025(doc: TomlDocument) {
@@ -1402,31 +1402,31 @@ class CommentScenariosTest {
     }
 
     private fun eC_026(doc: TomlDocument) {
-        doc.remove("x")
+        doc.remove("x", force = true)
     }
 
     private fun eC_027(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(0)
+        doc["a"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
     }
 
     private fun eC_028(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(1)
+        doc["a"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
     }
 
     private fun eC_029(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(2)
+        doc["a"].assertSuccess().arrayOrNull!!.removeAt(2, force = true)
     }
 
     private fun eC_030(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(1)
+        doc["a"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
     }
 
     private fun eC_031(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(1)
+        doc["a"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
     }
 
     private fun eC_032(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(1)
+        doc["a"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
     }
 
     private fun eC_033(doc: TomlDocument) {
@@ -1454,7 +1454,7 @@ class CommentScenariosTest {
     }
 
     private fun eC_039(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.clear()
+        doc["a"].assertSuccess().arrayOrNull!!.clear(force = true)
     }
 
     private fun eC_040(doc: TomlDocument) {
@@ -1464,11 +1464,11 @@ class CommentScenariosTest {
     private fun eC_041(doc: TomlDocument) {
         val arr = doc["a"].assertSuccess().arrayOrNull!!
         arr.add(Value.Integer(3L))
-        arr.removeAt(0)
+        arr.removeAt(0, force = true)
     }
 
     private fun eC_042(doc: TomlDocument) {
-        doc.remove("a")
+        doc.remove("a", force = true)
     }
 
     private fun eC_043(doc: TomlDocument) {
@@ -1476,7 +1476,7 @@ class CommentScenariosTest {
     }
 
     private fun eC_044(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(0)
+        doc["a"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
     }
 
     private fun eC_045(doc: TomlDocument) {
@@ -1488,7 +1488,7 @@ class CommentScenariosTest {
     }
 
     private fun eC_047(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(0)
+        doc["a"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
     }
 
     private fun eC_048(doc: TomlDocument) {
@@ -1507,11 +1507,11 @@ class CommentScenariosTest {
     }
 
     private fun eC_051(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.remove("a")
+        doc["t"].assertSuccess().inlineTableOrNull!!.remove("a", force = true)
     }
 
     private fun eC_052(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.remove("a")
+        doc["t"].assertSuccess().inlineTableOrNull!!.remove("a", force = true)
     }
 
     private fun eC_053(doc: TomlDocument) {
@@ -1523,7 +1523,7 @@ class CommentScenariosTest {
     }
 
     private fun eC_055(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.remove("b")
+        doc["t"].assertSuccess().inlineTableOrNull!!.remove("b", force = true)
     }
 
     private fun eC_056(doc: TomlDocument) {
@@ -1531,15 +1531,15 @@ class CommentScenariosTest {
     }
 
     private fun eC_057(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.remove("a")
+        doc["t"].assertSuccess().inlineTableOrNull!!.remove("a", force = true)
     }
 
     private fun eC_058(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.remove("b")
+        doc["t"].assertSuccess().inlineTableOrNull!!.remove("b", force = true)
     }
 
     private fun eC_059(doc: TomlDocument) {
-        doc.remove("t")
+        doc.remove("t", force = true)
     }
 
     private fun eC_060(doc: TomlDocument) {
@@ -1551,7 +1551,7 @@ class CommentScenariosTest {
     }
 
     private fun eC_062(doc: TomlDocument) {
-        doc["deps"].assertSuccess().arrayOrNull!!.removeAt(1)
+        doc["deps"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
     }
 
     private fun eC_063(doc: TomlDocument) {
@@ -1563,11 +1563,11 @@ class CommentScenariosTest {
     }
 
     private fun eC_065(doc: TomlDocument) {
-        doc.remove("a")
+        doc.remove("a", force = true)
     }
 
     private fun eC_066(doc: TomlDocument) {
-        doc["a"].assertSuccess().standardTableOrNull!!.remove("b")
+        doc["a"].assertSuccess().standardTableOrNull!!.remove("b", force = true)
     }
 
     private fun eC_067(doc: TomlDocument) {
@@ -1579,7 +1579,7 @@ class CommentScenariosTest {
     }
 
     private fun eC_069(doc: TomlDocument) {
-        doc["a"].assertSuccess().standardTableOrNull!!.remove("y")
+        doc["a"].assertSuccess().standardTableOrNull!!.remove("y", force = true)
     }
 
     private fun eC_070(doc: TomlDocument) {
@@ -1595,7 +1595,7 @@ class CommentScenariosTest {
     }
 
     private fun eC_073(doc: TomlDocument) {
-        doc.remove("x")
+        doc.remove("x", force = true)
     }
 
     private fun eC_074(doc: TomlDocument) {
@@ -1607,7 +1607,7 @@ class CommentScenariosTest {
     }
 
     private fun eC_076(doc: TomlDocument) {
-        doc.remove("a")
+        doc.remove("a", force = true)
     }
 
     private fun eC_077(doc: TomlDocument) {
@@ -1615,7 +1615,7 @@ class CommentScenariosTest {
     }
 
     private fun eC_078(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(0)
+        doc["a"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
     }
 
     private fun eC_079(doc: TomlDocument) {
@@ -1639,7 +1639,7 @@ class CommentScenariosTest {
     }
 
     private fun eC_084(doc: TomlDocument) {
-        doc.remove("a")
+        doc.remove("a", force = true)
     }
 
     private fun eC_085(doc: TomlDocument) {
@@ -1647,7 +1647,7 @@ class CommentScenariosTest {
     }
 
     private fun eC_086(doc: TomlDocument) {
-        doc.remove("a")
+        doc.remove("a", force = true)
     }
 
     private fun eC_087(doc: TomlDocument) {
@@ -1655,11 +1655,11 @@ class CommentScenariosTest {
     }
 
     private fun eC_088(doc: TomlDocument) {
-        doc.remove("a")
+        doc.remove("a", force = true)
     }
 
     private fun eC_089(doc: TomlDocument) {
-        doc.remove("b")
+        doc.remove("b", force = true)
     }
 
     private fun eC_090(doc: TomlDocument) {
@@ -1679,15 +1679,15 @@ class CommentScenariosTest {
     }
 
     private fun eC_094(doc: TomlDocument) {
-        doc.remove("t")
+        doc.remove("t", force = true)
     }
 
     private fun eC_095(doc: TomlDocument) {
-        doc.remove("t")
+        doc.remove("t", force = true)
     }
 
     private fun eC_096(doc: TomlDocument) {
-        doc.remove("a")
+        doc.remove("a", force = true)
     }
 
     private fun eC_097(doc: TomlDocument) {
@@ -1695,7 +1695,7 @@ class CommentScenariosTest {
     }
 
     private fun eC_098(doc: TomlDocument) {
-        doc["t"].assertSuccess().standardTableOrNull!!.remove("b")
+        doc["t"].assertSuccess().standardTableOrNull!!.remove("b", force = true)
     }
 
     private fun eC_099(doc: TomlDocument) {

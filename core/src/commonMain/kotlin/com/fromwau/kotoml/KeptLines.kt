@@ -106,10 +106,9 @@ internal fun String.withoutLeadingBlankLines(): String {
 /**
  * The text that takes the place of [next] once an element of an array or inline table is removed, or null when
  * the element shares its line with what comes before it and only its own prefix, value, suffix and comma go.
- * An element on a line of its own leaves the lines above it and takes the rest of its line, its comment included.
- * One that [takesAttached] leaves only the lines above it up to the last blank one, and takes the comment lines
- * right above it, those between it and a comma on a later line, and the comment ending its line when it is the last
- * element on a line it shares.
+ * An element on a line of its own leaves the lines above it up to the last blank one, and takes the rest of its line,
+ * its comment included, the comment lines right above it, and those between it and a comma on a later line. The last
+ * element on a line it shares takes the comment ending that line.
  *
  * @param prefix the removed element's prefix; its last line break ends the lines above it.
  * @param suffix the removed element's suffix, which holds its comment when no comma follows it.
@@ -121,19 +120,9 @@ internal fun textAfterRemovedElement(
     suffix: String,
     next: String,
     nextIsElement: Boolean,
-    takesAttached: Boolean = false,
 ): String? {
     val lastBreak = prefix.lastIndexOf('\n')
-    if (lastBreak < 0) return if (takesAttached && '\n' !in suffix) next.withoutCommentEndingFirstLine() else null
-    if (!takesAttached) {
-        val rest = when {
-            '\n' in suffix -> suffix.substringAfter('\n') + next
-            '\n' in next -> next.substringAfter('\n')
-            nextIsElement -> prefix.substring(lastBreak + 1)
-            else -> next
-        }
-        return prefix.substring(0, lastBreak + 1) + rest
-    }
+    if (lastBreak < 0) return if ('\n' !in suffix) next.withoutCommentEndingFirstLine() else null
     val rest = when {
         '\n' in next -> next.substringAfter('\n')
         '\n' in suffix -> suffix.substringAfterLast('\n') + next.trimStart(' ', '\t')

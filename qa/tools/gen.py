@@ -31,6 +31,15 @@ FIXES = {
     "S-058": [(".toInlineTable()", ".toInlineTable().assertSuccess()")],
 }
 
+# The scenarios remove what they name with its comments; a removal that takes comments needs force (todo 122).
+FORCED = [
+    (r'\.(remove|removeItem)\(("[^"]*"|[A-Za-z_]+)\)', r'.\1(\2, force = true)'),
+    (r'\.removeAt\(([0-9A-Za-z_]+)\)', r'.removeAt(\1, force = true)'),
+    (r'\.(removeAll|retainAll) \{', r'.\1(force = true) {'),
+    (r'\.clear\(\)', '.clear(force = true)'),
+    (r'(?m)^(\s*)remove\(("[^"]*")\)', r'\1remove(\2, force = true)'),
+]
+
 scenarios = []
 for path in sorted(glob.glob(os.path.join(ROOT, "comment-scenarios", "*.md"))):
     text = open(path, encoding="utf-8").read()
@@ -45,6 +54,8 @@ for path in sorted(glob.glob(os.path.join(ROOT, "comment-scenarios", "*.md"))):
         for old, new in FIXES.get(sid, []):
             assert old in edit, (sid, old)
             edit = edit.replace(old, new)
+        for pattern, replacement in FORCED:
+            edit = re.sub(pattern, replacement, edit)
         version = "V1_1" if "version: 1.1" in header else "V1_0"
         notes = [l for l in header.splitlines() if l.startswith("note:")]
         if notes and len(note_bytes(notes[0])) >= 2:

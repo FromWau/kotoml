@@ -20,7 +20,7 @@ class EditOutputTest {
     fun `an array of tables left with no tables prints as an empty array and its tables print again once added`() {
         val doc = parse("[[x]]\nn = 1\n")
         val tables = doc["x"].assertSuccess().arrayOfTablesOrNull!!
-        tables.clear()
+        tables.clear().assertSuccess()
         assertEquals("x = []\n", doc.toString())
         tables.add(standardTableOf("n" to Item(Value.Integer(2L))).assertSuccess()).assertSuccess()
         assertEquals("[[x]]\nn = 2\n", doc.toString())

@@ -15,6 +15,8 @@ internal data class ItemComments(
     val sameLine: String = "",
     /** Whole lines between the item's value and the comma after it, which stands on a later line. */
     val attachedBelow: String = "",
+    /** The comment ending a line that holds only the comma after the item's value. */
+    val commaLine: String = "",
     /** Whole lines between the last item in brackets or braces and the closing one, which belong to no item. */
     val freeBelow: String = "",
 ) {
@@ -136,6 +138,7 @@ private fun bracedComments(
         afterOpening = value?.commentAfterOpening().orEmpty(),
         sameLine = if (value == null) "" else commentIn(gapOf(after.text, startsMidLine = true).lineEnd),
         attachedBelow = if (after.commaOnLaterLine) gapOf(after.beforeComma, startsMidLine = true).lines else "",
+        commaLine = after.commaLineComment,
         freeBelow = if (last + 1 == gaps.lastIndex) after.lines else "",
     )
 }
@@ -194,6 +197,10 @@ private class BracedGap(
     /** Whether the comma stands on a line after the one the item before ends on. */
     val commaOnLaterLine: Boolean
         get() = hasComma && '\n' in beforeComma
+
+    /** The comment ending the line the comma stands on, when the comma has that line to itself. */
+    val commaLineComment: String
+        get() = if (commaOnLaterLine) commentIn(gapOf(afterComma, startsMidLine = true).lineEnd) else ""
 
     /** The whole lines that belong to no item before: those before a comma on a later line belong to that item. */
     val lines: String

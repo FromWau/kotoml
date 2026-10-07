@@ -100,14 +100,14 @@ doc["client"] = standardTableOf("retries" to Item(Value.Integer(3L))).getOrElse 
 ```
 
 `StandardTable`, `InlineTable`, `TomlArray` and `ArrayOfTables` read like Kotlin collections: `size`, `isNotEmpty`,
-`keys`, `put`, `getOrPut`, `remove`, `add`, `removeAt`, `retainAll`, `removeAll` and iteration. Removing takes what
-belongs to the item: the comment lines right above it with no blank line between, the comment on its line, every
-comment inside its value, and for a table everything after its first header, the comments above its sub-tables'
-headers included. Comment lines set apart from it by a blank line stay where they print. A removal that would take a
-comment out of the document returns `TomlEditError.CommentsWouldBeLost` and changes nothing, unless called with
-`force = true`; `retainAll` and `removeAll` remove all the items they pick or none. Removing a key that is not there
-returns `NotFound`, an index past the end `IndexOutOfBounds`. Where a removal leaves two blank lines meeting, one
-stays, and none at the start or end of the file.
+`keys`, `put`, `getOrPut`, `remove`, `add`, `removeAt`, `retainAll`, `removeAll`, `clear` and iteration. Removing
+takes what belongs to the item: the comment lines right above it with no blank line between, the comment on its line,
+every comment inside its value, and for a table everything after its first header, the comments above its
+sub-tables' headers included. Comment lines set apart from it by a blank line stay where they print. A removal that
+would take a comment out of the document returns `TomlEditError.CommentsWouldBeLost` and changes nothing, unless
+called with `force = true`; `retainAll`, `removeAll` and `clear` remove all the items they pick or none. Removing a
+key that is not there returns `NotFound`, an index past the end `IndexOutOfBounds`. Where a removal leaves two blank
+lines meeting, one stays, and none at the start or end of the file.
 
 ```kotlin
 val doc = TomlDocument.parse("# free\n\n# about x\nx = 1 # one\ny = 2\n").getOrElse { error(it) }
@@ -119,8 +119,9 @@ doc.remove("x", force = true) // Ok(item)
 ```
 
 Replacing a value keeps its spacing and the comment after it. An array of tables left with no tables prints
-`key = []`. A new key takes the indentation of the key above it, and an element or key added to an array or
-inline table on one line takes the spacing already there. A comment a caller gives an element or an inline table's
+`key = []` below the comment lines that stood above its first header, which stay since the array does. A new key
+takes the indentation of the key above it, and an element or key added to an array or inline table on one line takes
+the spacing already there. A comment a caller gives an element or an inline table's
 value in its decor, such as `Decor(suffix = " # note")`, puts a one-line array or inline table on lines of its own,
 one entry per line, whether the entry is added, inserted at an index or replaces another; its comment takes the place
 of the one that stood after the entry it replaces, and the new lines end as the document's do. In a document of

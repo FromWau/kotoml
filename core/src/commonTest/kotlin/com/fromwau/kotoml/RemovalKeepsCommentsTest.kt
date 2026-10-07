@@ -433,17 +433,20 @@ class RemovalKeepsCommentsTest {
     }
 
     @Test
-    fun `clearing an array keeps every comment in it`() {
+    fun `clearing an array with force takes the comment above each element`() {
         assertEquals(
-            "ports = [\n  # http\n  # https\n]\n",
-            removing(ports) { it["ports"].assertSuccess().arrayOrNull!!.clear() },
+            "ports = [\n]\n",
+            removing(ports) { it["ports"].assertSuccess().arrayOrNull!!.clear(force = true).assertSuccess() },
         )
     }
 
     @Test
-    fun `clearing a table keeps the comments above its keys`() {
-        val text = "[a]\n# one\nx = 1\n# two\ny = 2\n[b]\n"
-        assertEquals("[a]\n# one\n# two\n[b]\n", removing(text) { it["a"].assertSuccess().standardTableOrNull!!.clear() })
+    fun `clearing a table with force takes the comments above its keys and leaves the free lines`() {
+        val text = "[a]\n# note\n\n# one\nx = 1\n# two\ny = 2\n[b]\n"
+        assertEquals(
+            "[a]\n# note\n\n[b]\n",
+            removing(text) { it["a"].assertSuccess().standardTableOrNull!!.clear(force = true).assertSuccess() },
+        )
     }
 
     @Test

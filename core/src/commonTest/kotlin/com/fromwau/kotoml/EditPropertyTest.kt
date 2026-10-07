@@ -161,7 +161,7 @@ internal class Edits(
             }
             add("table sort" to { table.sortWith(compareBy { it.first.name }) })
             add("table retainAll force $force" to { table.retainAll(force) { random.nextBoolean() } })
-            add("table clear" to { table.clear() })
+            add("table clear force $force" to { table.clear(force) })
             val spelled = toml11Spellings.random(random)
             add("table set $key to $spelled" to { table.set(key, Value.parse(spelled).assertSuccess()) })
             val version = TomlVersion.entries.random(random)
@@ -189,7 +189,7 @@ internal class Edits(
                 add("array add at $index" to { array.add(index, value()) })
                 add("array replace $index" to { array.replace(index, value(), random.nextBoolean()) })
                 add("array removeAt $index force $force" to { array.removeAt(index, force) })
-                add("array clear" to { array.clear() })
+                add("array clear force $force" to { array.clear(force) })
                 add("array format" to { array.format() })
                 val multiline = random.nextBoolean()
                 add("array setMultiline $multiline force $force" to { array.setMultiline(multiline, force) })
@@ -201,7 +201,7 @@ internal class Edits(
                 add("tables add at $index" to { tables.add(index, table()) })
                 add("tables replace $index" to { tables.replace(index, table(), random.nextBoolean()) })
                 add("tables removeAt $index force $force" to { tables.removeAt(index, force) })
-                add("tables clear" to { tables.clear() })
+                add("tables clear force $force" to { tables.clear(force) })
             }
             slots.randomOrNull(random)?.let { slot ->
                 add("slot assign" to { slot.assign(item()) })

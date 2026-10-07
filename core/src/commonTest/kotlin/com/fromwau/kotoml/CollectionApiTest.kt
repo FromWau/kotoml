@@ -315,11 +315,11 @@ class CollectionApiTest {
     }
 
     @Test
-    fun `a document cleared keeps the comment above each key`() {
-        val doc = parse("# about a\na = 1\n# about b\nb = 2\n")
-        doc.clear()
+    fun `a document cleared with force takes the comment above each key`() {
+        val doc = parse("# free\n\n# about a\na = 1\n# about b\nb = 2\n")
+        doc.clear(force = true).assertSuccess()
         assertTrue(doc.isEmpty())
-        assertEquals("# about a\n# about b\n", doc.toString())
+        assertEquals("# free\n", doc.toString())
     }
 
     @Test

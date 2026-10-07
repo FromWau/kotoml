@@ -642,10 +642,15 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     /** Whether the table has a key. */
     override fun isNotEmpty(): Boolean = !isEmpty()
 
-    /** Removes every entry, keeping the comment and blank lines above each where they print. */
-    override fun clear() {
-        removeEntries(items.snapshot(), takesAttached = false)
-    }
+    /**
+     * Removes every entry, each with the comments that belong to it, as [remove] says: comment lines set apart by a
+     * blank line stay where they print.
+     *
+     * @param force removes them even when comments would go with them.
+     * @return [TomlEditError.CommentsWouldBeLost], removing none, when [force] is false and comments would leave the
+     *   document, counting the comments of all.
+     */
+    override fun clear(force: Boolean): EmptyResult<TomlEditError> = removeChecked(items.snapshot(), force).map { }
 
     /** The item at [key], or null when there is none. */
     public fun getOrNull(key: String): Item? = items.get(key)
@@ -789,7 +794,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     ): Result<Item, TomlEditError> {
         val entry = items.getEntry(key) ?: return Err(TomlEditError.NotFound(key))
         if (!force) refusalToRemove(listOf(key))?.let { return Err(it) }
-        removeEntries(listOf(entry), takesAttached = true)
+        removeEntries(listOf(entry))
         return Ok(entry.item)
     }
 
@@ -858,21 +863,17 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         force: Boolean,
     ): Result<Boolean, TomlEditError> {
         if (!force) refusalToRemove(removed.map { it.key.name })?.let { return Err(it) }
-        return Ok(removeEntries(removed, takesAttached = true))
+        return Ok(removeEntries(removed))
     }
 
     private fun refusalToRemove(keys: List<String>): TomlEditError? =
         lostByRemoving(this, keys, keyPathTo = { keyPathOf(this) + it }) { copy, names ->
-            copy.removeEntries(names.mapNotNull { copy.items.getEntry(it) }, takesAttached = true)
+            copy.removeEntries(names.mapNotNull { copy.items.getEntry(it) })
         }
 
-    // Clearing keeps every line above what it removes; a removal of chosen entries takes the comments they own.
-    private fun removeEntries(
-        removed: List<KeyValue>,
-        takesAttached: Boolean,
-    ): Boolean {
+    private fun removeEntries(removed: List<KeyValue>): Boolean {
         if (removed.isEmpty()) return false
-        keepLinesAbove(removed, takesAttached)
+        keepLinesAbove(removed)
         val names = removed.mapTo(HashSet()) { it.key.name }
         items.retainAll { it.key.name !in names }
         keepOnlyLinesAsHead()
@@ -891,25 +892,19 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         keptHeaderLines.clear()
     }
 
-    private fun keepLinesAbove(
-        removed: Collection<KeyValue>,
-        takesAttached: Boolean,
-    ) {
+    private fun keepLinesAbove(removed: Collection<KeyValue>) {
         if (isDotted && removed.size == items.size) spaceEmptyLineLike(visualValues())
         keepLinesAbove(
             lines = bodyLines(),
             removed = RemovedLines(removed),
             isDotted = isDotted,
-            linesAbove = { line ->
-                val above = linesAbove(line.entry.key.rawLeafDecor.prefix)
-                if (takesAttached) splitLinesAbove(above).free else above
-            },
+            linesAbove = { splitLinesAbove(linesAbove(it.entry.key.rawLeafDecor.prefix)).free },
             keyDefault = DEFAULT_KEY_DECOR.first,
             keep = { items.keptLines += it },
-            setsBlankLines = takesAttached,
+            setsBlankLines = true,
             startsDocument = isDocumentRoot,
         )
-        for (entry in removed) keepHeaderLinesOf(entry.item, keptHeaderLines, takesAttached)
+        for (entry in removed) keepHeaderLinesOf(entry.item, keptHeaderLines, takesAttached = true)
     }
 
     /**

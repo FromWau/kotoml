@@ -250,10 +250,12 @@ public class TomlDocument internal constructor(
         predicate: (Pair<String, Item>) -> Boolean,
     ): Result<Boolean, TomlEditError> = root.removeAll(force, predicate)
 
-    /** Removes every key of the root table, keeping the lines above each; see [StandardTable.clear]. */
-    public fun clear() {
-        root.clear()
-    }
+    /**
+     * Removes every key of the root table, each with the comments that belong to it; see [StandardTable.clear].
+     *
+     * @return [TomlEditError.CommentsWouldBeLost], removing none, when [force] is false and comments would go.
+     */
+    public fun clear(force: Boolean = false): EmptyResult<TomlEditError> = root.clear(force)
 
     /** The item at [key] of the root table, first storing what [default] makes; see [StandardTable.getOrPut]. */
     public fun getOrPut(

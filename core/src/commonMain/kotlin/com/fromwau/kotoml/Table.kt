@@ -66,8 +66,14 @@ public sealed interface Table {
     /** Whether the table has a key. */
     public fun isNotEmpty(): Boolean
 
-    /** Removes every entry, keeping the comment and blank lines above each. */
-    public fun clear()
+    /**
+     * Removes every entry, each with the comments that belong to it, as [StandardTable.clear] and [InlineTable.clear]
+     * do.
+     *
+     * @param force removes them even when comments would go with them.
+     * @return [TomlEditError.CommentsWouldBeLost], removing none, when [force] is false and comments would go.
+     */
+    public fun clear(force: Boolean = false): EmptyResult<TomlEditError>
 
     /** Whether the table has [key]. */
     public fun containsKey(key: String): Boolean

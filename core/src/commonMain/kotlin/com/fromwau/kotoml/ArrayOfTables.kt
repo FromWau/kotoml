@@ -119,12 +119,15 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     public fun isNotEmpty(): Boolean = !isEmpty()
 
     /**
-     * Removes every table. The lines above the first `[[header]]` stay, now above the `key = []` the array prints; the
-     * comments between the tables go with them.
+     * Removes every table, each with the comments that belong to it, as [removeAt] says. The array prints `key = []`
+     * below the comment lines that stood above its first `[[header]]`, and comment lines set apart from a later header
+     * by a blank line stay too.
+     *
+     * @param force removes them even when comments would go with them.
+     * @return [TomlEditError.CommentsWouldBeLost], removing none, when [force] is false and comments would leave the
+     *   document, counting the comments of all.
      */
-    public fun clear() {
-        removeSlots(values.toList(), takesAttached = false)
-    }
+    public fun clear(force: Boolean = false): EmptyResult<TomlEditError> = removeChecked(values.toList(), force).map { }
 
     /** The table at [index], or null when the index is out of bounds. */
     public fun getOrNull(index: Int): StandardTable? = values.getOrNull(index)?.standardTableOrNull
@@ -218,7 +221,8 @@ public class ArrayOfTables() : Iterable<StandardTable> {
      * Removes the table at [index], with the comments that belong to it: the comment lines right above its
      * `[[header]]` with no blank line between, the comment after the header, its body, and the tables under it with
      * the comment and blank lines above their headers. Comment lines set apart from the header by a blank line stay
-     * where they print.
+     * where they print. Removing the last table leaves the array as `key = []`, which keeps the comment lines above
+     * that table's header, so they need no force.
      *
      * @param force removes the table even when comments would go with it.
      * @return the removed table; [TomlEditError.IndexOutOfBounds] when there is no table at [index]; or
@@ -231,7 +235,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     ): Result<StandardTable, TomlEditError> {
         val removed = getOrNull(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         if (!force) refusalToRemove(listOf(index))?.let { return Err(it) }
-        removeSlots(listOf(values[index]), takesAttached = true)
+        removeSlots(listOf(values[index]))
         return Ok(removed)
     }
 
@@ -269,27 +273,22 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         force: Boolean,
     ): Result<Boolean, TomlEditError> {
         if (!force) refusalToRemove(removed.map { slot -> values.indexOfFirst { it === slot } })?.let { return Err(it) }
-        return Ok(removeSlots(removed, takesAttached = true))
+        return Ok(removeSlots(removed))
     }
 
     private fun refusalToRemove(indices: List<Int>): TomlEditError? =
         lostByRemoving(this, indices, keyPathTo = { keyPathOf(this) }) { copy, at ->
-            copy.removeSlots(at.map { copy.values[it] }, takesAttached = true)
+            copy.removeSlots(at.map { copy.values[it] })
         }
 
-    // A removal a caller asks for keeps the free lines above each removed header; clearing keeps the run's first only.
-    private fun removeSlots(
-        removed: List<Item>,
-        takesAttached: Boolean,
-    ): Boolean {
+    // An emptied array still prints its key, so the comment lines above its first header stay above it.
+    private fun removeSlots(removed: List<Item>): Boolean {
         val removedSlots = removed.toHashSet()
+        val empties = values.all { it in removedSlots }
         for ((index, item) in values.withIndex()) {
-            val startsRun = index == 0 || values[index - 1] !in removedSlots
-            if (item in removedSlots && (startsRun || takesAttached)) {
-                item.standardTableOrNull?.let {
-                    keepHeaderLinesOf(it, isArrayOfTables = true, keptHeaderLines, takesAttached)
-                }
-            }
+            val table = item.takeIf { it in removedSlots }?.standardTableOrNull ?: continue
+            val takesAttached = !(empties && index == 0)
+            keepHeaderLinesOf(table, isArrayOfTables = true, keptHeaderLines, takesAttached)
         }
         for (item in removed) item.leaveArray()
         values.removeAll { it in removedSlots }

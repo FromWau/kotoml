@@ -166,6 +166,20 @@ class CommentOwnershipTest {
     }
 
     @Test
+    fun `a comment on a line holding only a comma belongs to the value before the comma`() {
+        val doc = parse("arr = [\n  1,\n  2 # on 2\n  , # comma\n  3,\n]\n")
+        assertEquals(ItemComments(sameLine = " # on 2", commaLine = " # comma"), doc.element(1, "arr"))
+        assertEquals(ItemComments.NONE, doc.element(2, "arr"))
+    }
+
+    @Test
+    fun `a comment on a comma line holding the next value belongs to that value`() {
+        val doc = parse("arr = [\n  1,\n  2\n  , 3, # three\n]\n")
+        assertEquals(ItemComments.NONE, doc.element(1, "arr"))
+        assertEquals(ItemComments(sameLine = " # three"), doc.element(2, "arr"))
+    }
+
+    @Test
     fun `comment lines between an inline table entry and its comma on a later line belong to the entry`() {
         val doc = parse("s = {\n  x = 1 # on x\n  # more\n  , y = 2,\n}\n")
         assertEquals(
