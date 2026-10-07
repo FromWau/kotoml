@@ -19,32 +19,9 @@ session reproduced itself; the others rest on one agent's run. Repros are in eac
   `[t]\n\n  # about cb = {}\n`; `format()` on that document prints the line twice:
   `[t]\n\n  # about cb = {}\n\n# about cb = {}\n`. **Ruling 2026-10-07:** that the forced layout change lets the
   emptied key fall into the comment is fine; the doubled line is the bug.
-- [ ] **105. `ArrayOfTables.addAll` keeps the source table's comments and header line; `add` drops them.** Adding
-  `s[0]` of `# above\n[[s]] # head\nx = 1\n` to `[[t]]\ny = 0\n`: `add` prints `[[t]]\ny = 0\n\n[[t]]\nx = 1\n`,
-  `addAll` prints `[[t]]\ny = 0\n# above\n[[t]] # head\nx = 1\n`. `addAll` skips `copyToStore`.
-  **Ruling 2026-10-07:** `addAll` stores each table as `add` does.
-- [ ] **106. `Key.format()` keeps indentation that `TomlDocument.format()` removes.** On
-  `x = 0\n# c\n  a   = 1\n   b = 2\n`, `format()` on keys `a` and `b` prints `  a = 1\n  b = 2`, while the
-  document's `format()` prints `a = 1\nb = 2`. Its KDoc was reworded to the code's behaviour in the cleanup pass;
-  reword it back with the fix.
-  **Ruling 2026-10-07:** `Key.format()` removes the indentation as `TomlDocument.format()` does; the KDoc says so again.
-- [ ] **107. A decode parse error on line 1 puts the rendered block in its message.** `decodeFromString` of
-  `a = 1 x\n` gives `line 1, column 7: TOML parse error at line 1, column 7`, then the gutter and caret lines, then
-  the reason; on line 2 it gives `line 2, column 7: unexpected key or value, expected newline, ...` alone.
-  `describe()` in TomlDecodeError.kt calls `render("")`, which draws the gutter for line 1.
-  **Ruling 2026-10-07:** line 1 gives the one-line message, as every other line does.
 
 ### Cleanup pass rulings (2026-10-07)
 
-- [ ] **108. CLI error text writes a key bare when jq reads it bare.** `get .servers.a` on an array of tables says
-  `cannot apply ."a" to array of tables`, while a missing key says `no key "nope" at .nope`. **Ruling:** both bare
-  where jq allows it: `cannot apply .a to array of tables`.
-- [ ] **109. Document how `get` prints header paths.** `get .a` prints `[[srv]]` and `[c]` relative to `.a`;
-  `get .a.srv` prints `[[a.srv]]`. **Ruling:** keep both; app/README.md says so.
-- [ ] **110. One "too deep" wording.** Serialization's `nests deeper than kotoml writes` becomes core's
-  `nests deeper than 128 levels, so it would not parse back`.
-- [ ] **111. CommentScenariosTest prints only scenarios that differ from their expected output.** It prints a
-  block for all 330 on every run.
 - [ ] **112. Split StandardTable.kt.** Move the out-of-braces body lines (`VisualValue`, `takeOutOfBraces`,
   `inPrintOrder`), table placement (`placedParts`, `place*`) and the sort helpers into their own files; no API or
   behaviour change. `FRICTION_LOG.md` stays tracked on `dev` (ruling, D5).
@@ -113,6 +90,51 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **111. CommentScenariosTest prints only scenarios that differ from their expected output.** It prints a
+  block for all 330 on every run.
+  **Verdict 2026-10-07:** done: gen.py prints a block only for a scenario whose output differs; the assertions are
+  unchanged.
+
+- [x] **110. One "too deep" wording.** Serialization's `nests deeper than kotoml writes` becomes core's
+  `nests deeper than 80 levels, so it would not parse back`.
+  **Verdict 2026-10-07:** fixed: serialization's TooDeep reads `nests deeper than 80 levels, so it would not parse back`
+  (the limit is `TomlDocument.NESTING_LIMIT`, 80). Pinned in DepthTest.
+
+- [x] **109. Document how `get` prints header paths.** `get .a` prints `[[srv]]` and `[c]` relative to `.a`;
+  `get .a.srv` prints `[[a.srv]]`. **Ruling:** keep both; app/README.md says so.
+  **Verdict 2026-10-07:** done: app/README.md shows both forms from the built binary; GetTest pins the relative one too.
+
+- [x] **108. CLI error text writes a key bare when jq reads it bare.** `get .servers.a` on an array of tables says
+  `cannot apply ."a" to array of tables`, while a missing key says `no key "nope" at .nope`. **Ruling:** both bare
+  where jq allows it: `cannot apply .a to array of tables`.
+  **Verdict 2026-10-07:** fixed: `Step.describe()` spells a key bare where jq reads it bare and quoted otherwise, and
+  the evaluator uses it, so `cannot apply .a to array of tables` and `cannot apply ."a b" to ...`. Pinned in GetTest.
+
+- [x] **107. A decode parse error on line 1 puts the rendered block in its message.** `decodeFromString` of
+  `a = 1 x\n` gives `line 1, column 7: TOML parse error at line 1, column 7`, then the gutter and caret lines, then
+  the reason; on line 2 it gives `line 2, column 7: unexpected key or value, expected newline, ...` alone.
+  `describe()` in TomlDecodeError.kt calls `render("")`, which draws the gutter for line 1.
+  **Ruling 2026-10-07:** line 1 gives the one-line message, as every other line does.
+  **Verdict 2026-10-07:** fixed in core: `render` against empty text gives the message alone on any line, as its KDoc
+  says, so a decode error on line 1 reads `line 1, column 7: unexpected key or value, ...`. Pinned in ParseFixesTest and
+  ErrorMessageTest.
+
+- [x] **106. `Key.format()` keeps indentation that `TomlDocument.format()` removes.** On
+  `x = 0\n# c\n  a   = 1\n   b = 2\n`, `format()` on keys `a` and `b` prints `  a = 1\n  b = 2`, while the
+  document's `format()` prints `a = 1\nb = 2`. Its KDoc was reworded to the code's behaviour in the cleanup pass;
+  reword it back with the fix.
+  **Ruling 2026-10-07:** `Key.format()` removes the indentation as `TomlDocument.format()` does; the KDoc says so again.
+  **Verdict 2026-10-07:** fixed: `Key.format()` on a key starting a line of a table leaves that line with no
+  indentation, keeping the lines above; keys in braces and headers format as before. Pinned in FormatTest.
+
+- [x] **105. `ArrayOfTables.addAll` keeps the source table's comments and header line; `add` drops them.** Adding
+  `s[0]` of `# above\n[[s]] # head\nx = 1\n` to `[[t]]\ny = 0\n`: `add` prints `[[t]]\ny = 0\n\n[[t]]\nx = 1\n`,
+  `addAll` prints `[[t]]\ny = 0\n# above\n[[t]] # head\nx = 1\n`. `addAll` skips `copyToStore`.
+  **Ruling 2026-10-07:** `addAll` stores each table as `add` does.
+  **Verdict 2026-10-07:** fixed: `addAll` stores each table through `copyToStore` as `add` does; `toArrayOfTables` keeps
+  comments and places so the reorder idiom `arr.reversed().toArrayOfTables()` prints in place, as three
+  PrintingFixesTest tests pin. Pinned in CollectionApiTest.
 
 - [x] **103. An emptied dotted table on a table's lines took the default spacing.** Removing the last key of a dotted
   table under a header or at the top level printed `b.d.e=2` as `b.d = {}`, where inside an inline table (item 100) the
