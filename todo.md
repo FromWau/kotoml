@@ -78,6 +78,18 @@ its same-line comment into an array as into a table (C5 stands).
   multi-line when there are comments to keep, as today; in a 1.0 document `writeTo` refuses it with
   `NotInToml10(MultilineInlineTable)`. Four layouts: header, dotted, one-line inline, multi-line inline.
 
+- [ ] **95. A layout change is a property write that may drop comments.** `table.isDotted = true`,
+  `inline.isMultiline = false` and `Item.inline()` / `expand()` change the document as a side effect of an
+  assignment or rewrite it silently, a habit of the Rust port. **Ruling 2026-10-07:** read-only properties ask, and
+  functions returning a `Result` change: `Item.isInline` with `setInline(value, multiline = null, force = false)`
+  (`setInline(true)` replaces `inline()`, `setInline(false)` replaces `expand()`); `InlineTable.isMultiline` with
+  `setMultiline(value, force = false)`; `isDotted` with `setDotted(value, force = false)` on both table kinds;
+  `StandardTable.isImplicit` with `setImplicit(value)` returning `Unit`, since it cannot fail. A change that would
+  drop a comment returns a new `TomlEditError.CommentsWouldBeLost(keyPath, count)` and changes nothing, unless
+  `force = true`; `setInline(true)` without `multiline` goes across lines in TOML 1.1 when that keeps the comments,
+  and in a 1.0 document fails unless forced. A multi-line inline table's last entry takes a trailing comma in TOML
+  1.1 (a 1.0 document has neither multi-line inline tables nor trailing commas).
+
 Settled the same day, no change: a copied table prints where its key stands (item 38 over 29's "after the tables
 already there"); a moved table gets the default blank line (spacing is not kept across operations); a bare value's
 same-line comment travels with it; `makeValue` on a 1.0 array of tables keeps header comments and comment lines
