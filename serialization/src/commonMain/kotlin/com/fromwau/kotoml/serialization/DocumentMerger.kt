@@ -8,6 +8,7 @@ import com.fromwau.kotoml.InlineTable
 import com.fromwau.kotoml.Item
 import com.fromwau.kotoml.StandardTable
 import com.fromwau.kotoml.Table
+import com.fromwau.kotoml.TableLayout
 import com.fromwau.kotoml.TomlArray
 import com.fromwau.kotoml.Value
 
@@ -265,7 +266,7 @@ internal class DocumentMerger(private val writer: DocumentWriter) {
 
 /** Whether the table, holding no keys, would print apart from where its keys stood: a dotted or implicit table. */
 private val Table.isHiddenWhenEmpty: Boolean
-    get() = isDotted || (this is StandardTable && isImplicit)
+    get() = layout == TableLayout.Dotted || (this is StandardTable && isImplicit)
 
 /** Removes the keys outside [kept] in one pass, so the lines above each removed key stay where they print. */
 private fun Table.removeKeysOutside(kept: Set<String>) {

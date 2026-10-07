@@ -1,6 +1,5 @@
 package com.fromwau.kotoml
 
-import com.fromwau.kern.result.EmptyResult
 import com.fromwau.kern.result.Result
 
 /**
@@ -63,30 +62,13 @@ public sealed interface Table {
     /** Drops the formatting of the keys and values in this table. */
     public fun resetFormatting()
 
-    /** Whether this table stands for the parts of a dotted key; [setDotted] changes it. */
-    public val isDotted: Boolean
-
     /**
-     * Makes this table stand for the parts of a dotted key when [value] is true, or prints it under a header or in
-     * braces when false, a new layout: the lines above its key stay and each value keeps the comment on its line,
-     * while its header comment, the comment after its braces and the comment lines inside it go. A table already laid
-     * out as asked stays as it is.
-     *
-     * ```kotlin
-     * val doc = TomlDocument.parse("[a] # a\nb = 1\n").getOrElse { error(it) }
-     * val table = doc["a"].getOrNull()?.standardTableOrNull
-     * table?.setDotted(true) // fails with CommentsWouldBeLost(["a"], 1): the header comment would go
-     * table?.setDotted(true, force = true)
-     * doc.toString() // "a.b = 1\n"
-     * ```
-     *
-     * @return [TomlEditError.CommentsWouldBeLost], changing nothing, when the new layout would drop a comment and
-     *   [force] is false; with [force] true the comments go.
+     * How the table prints: [TableLayout.Header] or [TableLayout.Dotted] for a [StandardTable], and
+     * [TableLayout.Inline], [TableLayout.MultilineInline] or [TableLayout.Dotted] for an [InlineTable]. A document's
+     * root and an element of an array of tables read [TableLayout.Header]. [Item.setLayout] changes it through the
+     * slot holding the table.
      */
-    public fun setDotted(
-        value: Boolean,
-        force: Boolean = false,
-    ): EmptyResult<TomlEditError>
+    public val layout: TableLayout
 
     /** The key [name] as stored, whose formatting can be changed in place; null when there is none. */
     public fun keyOrNull(name: String): Key?

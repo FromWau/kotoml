@@ -111,51 +111,47 @@ writes TOML 1.0, which has no comments inside an inline table, an inline table's
 with `sort()` or by your own order with `sortBy` and `sortWith`, moves each key and each table header with the
 comment lines right above it and leaves blank lines in place.
 
-A table prints in one of four layouts: under a header (`[t]`), as dotted keys (`t.a = 1`), as an inline table on one
-line (`t = { a = 1 }`), or as an inline table across lines, one entry per line between `{` and `}`, the last with a
-comma (which only TOML 1.1 reads). Read-only properties tell the layout, `Item.isInline`, `Table.isDotted`,
-`InlineTable.isMultiline` and `StandardTable.isImplicit`, and functions change it: `Item.setInline`, `setDotted` on
-either kind of table, `InlineTable.setMultiline` and `StandardTable.setImplicit`. A change that would drop a comment
-changes nothing and returns `TomlEditError.CommentsWouldBeLost` with the key path and the number of comments; pass
-`force = true` to make it and drop them. Asking for the layout a table already has changes nothing.
+A table prints in one of four layouts, the `TableLayout` objects: `Header` (`[t]`), `Dotted` (`t.a = 1`), `Inline`
+(`t = { a = 1 }`) and `MultilineInline`, one entry per line between `{` and `}`, the last with a comma (which only
+TOML 1.1 reads). `layout` reads it, on a `StandardTable`, an `InlineTable` or the `Item` holding either, where it is
+null when the slot holds no table. `Item.setLayout(layout, force = false)` changes it. A change that would drop a
+comment changes nothing and returns `TomlEditError.CommentsWouldBeLost` with the key path and the number of comments;
+pass `force = true` to make it and drop them. Asking for the layout a table already has changes nothing.
 
 ```kotlin
 val doc = TomlDocument.parse("[t] # t\na = 1 # one\n").getOrElse { error(it) }
 val slot = doc["t"].getOrElse { error(it) }
-slot.setInline(true) // keeps the comments across lines in TOML 1.1
+slot.setLayout(TableLayout.Inline) // Err(CommentsWouldBeLost(keyPath = [t], count = 1)), nothing changed
+slot.setLayout(TableLayout.MultilineInline) // keeps every comment
 // t = { # t
 //   a = 1, # one
 // }
-val table = slot.inlineTableOrNull!!
-table.setMultiline(false) // Err(CommentsWouldBeLost(keyPath = [t], count = 2)), nothing changed
-table.setMultiline(false, force = true)
+slot.setLayout(TableLayout.Inline, force = true)
 // t = { a = 1 }
 ```
 
-`setDotted(true)` and `setDotted(false)` keep the lines above the table's key and each value's same-line comment, and
-drop its header comment, the comment after its braces and the comment lines inside it. `setMultiline` lays out that
-inline table alone, the tables inside keeping theirs: across lines each entry gets a line of its own, indented from
-the line holding `{` and ending as the document's lines do; on one line the comments inside the braces go. A dotted
-inline table prints its keys on the lines of the table holding them, so for it `isMultiline` reads false and
-`setMultiline` changes nothing. `setImplicit(true)` hides a header while the table holds no values of its own; it
-cannot fail. An `Item` is a slot that holds a value, a table or an array of tables; `valueOrNull`,
-`standardTableOrNull` and their siblings read what it holds, and `tableOrNull` reads a table of either kind; how
-items carry comments when stored, copied or removed is under [Items and their comments](#items-and-their-comments).
-A table stored under a new key prints right after its new parent's lines and the tables stored before it there; one
-stored in place of a table prints where that table did. A table made in code that holds only tables prints no header
-of its own, as `[tool]` does not above `[tool.ruff]`. A table's `position` sets where its header prints among the
-document's tables.
+`Header` and `MultilineInline` reach the tables inside: with `Header` every inline table inside becomes a table under
+its own header (`[t.sub]`) and every array of only inline tables an array of tables (`[[t.list]]`); with
+`MultilineInline` every table inside goes in braces across lines, indented from the line holding `{` and ending as the
+document's lines do, and every comment stays. `Inline` puts the table and the tables inside on one line, so the
+comments inside the braces go, while the header comment prints after `}`. `Dotted` keeps the lines above the table's
+key and each value's same-line comment, and drops its header comment, the comment after its braces and the comment
+lines inside it; the tables under it keep their own layouts. A table stays the same `StandardTable` while it changes
+between `Header` and `Dotted`, and the same `InlineTable` between the inline layouts. On an array of tables, or on an
+array of only inline tables, `Header` and the inline layouts change every table in it. A slot in an array or an
+inline table holds only values, so it takes no `Header`, and a slot in an array takes no `Dotted` either.
+`StandardTable.isImplicit` reads whether a header is hidden while the table holds no values of its own, and
+`setImplicit` changes it; it cannot fail. An `Item` is a slot that holds a value, a table or an array of tables;
+`valueOrNull`, `standardTableOrNull` and their siblings read what it holds, and `tableOrNull` reads a table of either
+kind; how items carry comments when stored, copied or removed is under
+[Items and their comments](#items-and-their-comments). A table stored under a new key prints right after its new
+parent's lines and the tables stored before it there; one stored in place of a table prints where that table did. A
+table made in code that holds only tables prints no header of its own, as `[tool]` does not above `[tool.ruff]`. A
+table's `position` sets where its header prints among the document's tables.
 
-`isInline` reads true when a slot holds an inline table or a non-empty array of only inline tables. `setInline(true)`
-turns the table or array of tables in its slot into an inline table or array in place, each table across lines where
-it has comments to keep and otherwise on one line; a TOML 1.0 document gets one line throughout, so comments inside
-the tables need `force = true`. To write a table on one line whatever its comments, call `setInline(true, force = …)`
-and then the inline table's `setMultiline(false, force = …)`, as above; a table inside keeps the layout `setInline`
-gave it. `setInline(false)` turns an inline table or array of inline tables back,
-`t = { … }` into `[t]`, printing where a table stored at that key would, with every inline table inside it a table
-under its own header (`[t.sub]`) and every array of only inline tables an array of tables (`[[t.list]]`), keeping
-every comment; `toInlineTable` and `toStandardTable` build the converted table without touching the document. The
-full set of rules is goal 4 in [GOALS.md](../GOALS.md).
+A table put under a header prints where a table stored at that key would, keeping every comment;
+`toInlineTable` and `toStandardTable` build the converted table without touching the document. The full set of rules
+is goal 4 in [GOALS.md](../GOALS.md).
 
 A document's top-level keys live in its `root` table. The document itself offers the map calls (`get`, `set`,
 `getOrNull`, `contains`, `keys`, `put`, `putAll`, `getOrPut`, `remove`, `retainAll`, `removeAll`, `clear`,
@@ -251,7 +247,7 @@ SystemFileSystem.sink(path).buffered().use { doc.writeTo(it) }
 it. Neither closes what it is given. A failure while reading or writing comes back as a `TomlIoError`, and text
 that is not TOML as a `TomlReadError.Parse` carrying the text it read, to render the error from. A document holding
 half of a surrogate pair, which UTF-8 cannot write, is not written: `writeTo` returns `TomlWriteError.NotUnicode`
-naming the key, and the document keeps the text as you gave it. A document that `setDotted` made deeper
+naming the key, and the document keeps the text as you gave it. A document that dotted keys made deeper
 than `TomlDocument.NESTING_LIMIT` is not written either: `writeTo` returns `TomlWriteError.TooDeep`. Opening the file
 is kotlinx-io's own call and throws its `IOException` when the file cannot be opened.
 

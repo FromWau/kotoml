@@ -1100,7 +1100,7 @@ x = 0
 t = { a = 1, b = 2 } # c
 ```
 ```kotlin edit
-doc["t"].getOrFail().inlineTableOrNull!!.setDotted(true, force = true)
+doc["t"].getOrFail().setLayout(TableLayout.Dotted, force = true)
 ```
 ```toml expected
 x = 0
@@ -1121,7 +1121,7 @@ t = {
 y = 3
 ```
 ```kotlin edit
-doc["t"].getOrFail().inlineTableOrNull!!.setDotted(true)
+doc["t"].getOrFail().setLayout(TableLayout.Dotted)
 ```
 ```toml expected
 # above
@@ -1228,7 +1228,7 @@ x = 0
 t.a = 1 # one
 ```
 ```kotlin edit
-doc["t"].getOrFail().standardTableOrNull!!.setDotted(false)
+doc["t"].getOrFail().setLayout(TableLayout.Header)
 ```
 ```toml expected
 x = 0
@@ -1248,7 +1248,7 @@ x = 0
 a = 1 # one
 ```
 ```kotlin edit
-doc["t"].getOrFail().standardTableOrNull!!.setDotted(true, force = true)
+doc["t"].getOrFail().setLayout(TableLayout.Dotted, force = true)
 ```
 ```toml expected
 x = 0
@@ -1908,7 +1908,7 @@ settled: owner ruling 2026-10-05 (Q6): makeValue on one line keeps the header co
 a = 1 # one
 ```
 ```kotlin edit
-doc["t"].getOrFail().setInline(true, force = true)
+doc["t"].getOrFail().setLayout(TableLayout.Inline, force = true)
 ```
 ```toml expected
 # above t
@@ -1981,7 +1981,7 @@ m = 2
 6. C-039, C-047: is a comment directly after `[` "above" the first element; does removing the last of several
    elements sharing a line take that line's comment?
 7. C-050: does a copied multi-line value keep its inner comments?
-8. C-063, C-064, C-070, C-071: which comments survive an `isDotted` change: the key's same-line comment, the
+8. C-063, C-064, C-070, C-071: which comments survive a change to or from `TableLayout.Dotted`: the key's same-line comment, the
    values' own comments, the header comment?
 9. C-081: does the final newline a changed document gains copy the CRLF of the line before it?
 10. C-093, C-094, C-095, C-096: does a comment glued to the next (non-sub-table) header belong to the table

@@ -3,7 +3,6 @@ package com.fromwau.kotoml
 import com.fromwau.kern.result.EmptyResult
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -43,7 +42,7 @@ class LayoutChangeTest {
     fun `a table made dotted counts its header comment and the comment lines inside`() {
         val text = "# above\n[t] # header\n# inside\na = 1 # a\n# also inside\nb = 2\n"
         val after = assertRefusedThenForced(text, listOf("t")) { doc, force ->
-            doc["t"].getOrFail().standardTableOrNull!!.setDotted(true, force)
+            doc["t"].getOrFail().setLayout(TableLayout.Dotted, force)
         }
         assertEquals("# above\nt.a = 1 # a\nt.b = 2\n", after)
     }
@@ -51,7 +50,7 @@ class LayoutChangeTest {
     @Test
     fun `a nested table made dotted names its whole key path`() {
         assertRefusedThenForced("[a.b] # b\nc = 1\n", listOf("a", "b")) { doc, force ->
-            doc["a"]["b"].getOrFail().standardTableOrNull!!.setDotted(true, force)
+            doc["a"]["b"].getOrFail().setLayout(TableLayout.Dotted, force)
         }
     }
 
@@ -59,7 +58,7 @@ class LayoutChangeTest {
     fun `an inline table across lines made dotted counts the comments in its braces and after them`() {
         val text = "t = { # open\n  # above a\n  a = 1, # a\n  # end\n} # close\n"
         assertRefusedThenForced(text, listOf("t")) { doc, force ->
-            doc["t"].getOrFail().inlineTableOrNull!!.setDotted(true, force)
+            doc["t"].getOrFail().setLayout(TableLayout.Dotted, force)
         }
     }
 
@@ -67,7 +66,7 @@ class LayoutChangeTest {
     fun `an inline table in an array put on one line names the array's key`() {
         val text = "a = [\n  { # open\n    x = 1, # x\n  },\n]\n"
         assertRefusedThenForced(text, listOf("a")) { doc, force ->
-            doc["a"].getOrFail().arrayOrNull!![0].getOrFail().inlineTableOrNull!!.setMultiline(false, force)
+            doc["a"][0].getOrFail().setLayout(TableLayout.Inline, force)
         }
     }
 
@@ -75,90 +74,88 @@ class LayoutChangeTest {
     fun `a table made inline in a TOML 1_0 document counts every comment its one line drops`() {
         val text = "[t] # header\n# inside\na = 1 # a\n\n[t.sub] # sub\nb = 2 # b\n"
         val after = assertRefusedThenForced(text, listOf("t"), TomlVersion.V1_0) { doc, force ->
-            doc["t"].getOrFail().setInline(true, force)
+            doc["t"].getOrFail().setLayout(TableLayout.Inline, force)
         }
         assertEquals("t = { a = 1, sub = { b = 2 } } # header\n", after)
     }
 
     @Test
-    fun `a table with comments made inline in a TOML 1_1 document goes across lines keeping them all`() {
+    fun `a table with comments made inline across lines in a TOML 1_1 document keeps them all`() {
         val text = "# above\n[t] # header\n# inside\na = 1 # a\n\n[t.sub] # sub\nb = 2 # b\n"
         val doc = parse(text)
-        doc["t"].getOrFail().setInline(true).getOrFail()
+        doc["t"].getOrFail().setLayout(TableLayout.MultilineInline).getOrFail()
         assertEquals(commentCount(text), commentCount(doc.toString()))
-        assertTrue(doc["t"].getOrFail().inlineTableOrNull!!.isMultiline)
+        assertEquals(TableLayout.MultilineInline, doc["t"].getOrFail().layout)
     }
 
     @Test
     fun `a change that keeps every comment needs no force`() {
         val doc = parse("[t]\na = 1 # a\n")
-        doc["t"].getOrFail().standardTableOrNull!!.setDotted(true).getOrFail()
+        doc["t"].getOrFail().setLayout(TableLayout.Dotted).getOrFail()
         assertEquals("t.a = 1 # a\n", doc.toString())
-        doc["t"].getOrFail().standardTableOrNull!!.setDotted(false).getOrFail()
+        doc["t"].getOrFail().setLayout(TableLayout.Header).getOrFail()
         assertEquals("[t]\na = 1 # a\n", doc.toString())
     }
 
     @Test
     fun `a refused change leaves the layout as it was`() {
         val doc = parse("t = { # open\n  a = 1,\n}\n")
-        val table = doc["t"].getOrFail().inlineTableOrNull!!
-        table.setMultiline(false).errorOrFail()
-        assertTrue(table.isMultiline)
-        table.setDotted(true).errorOrFail()
-        assertFalse(table.isDotted)
+        val slot = doc["t"].getOrFail()
+        slot.setLayout(TableLayout.Inline).errorOrFail()
+        assertEquals(TableLayout.MultilineInline, slot.layout)
+        slot.setLayout(TableLayout.Dotted).errorOrFail()
+        assertEquals(TableLayout.MultilineInline, slot.layout)
     }
 
     @Test
     fun `asking for the layout a table has changes nothing and succeeds`() {
         val text = "[t] # header\na = 1\nu = { # open\n  b = 2,\n}\n"
         val doc = parse(text)
-        doc["t"].getOrFail().standardTableOrNull!!.setDotted(false).getOrFail()
-        doc["t"]["u"].getOrFail().inlineTableOrNull!!.setMultiline(true).getOrFail()
-        doc["t"].getOrFail().setInline(false).getOrFail()
-        doc["t"]["u"].getOrFail().setInline(true).getOrFail()
+        doc["t"].getOrFail().setLayout(TableLayout.Header).getOrFail()
+        doc["t"]["u"].getOrFail().setLayout(TableLayout.MultilineInline).getOrFail()
         assertEquals(text, doc.toString())
     }
 
     @Test
-    fun `a slot holding an inline table or a non-empty array of only inline tables reads inline`() {
+    fun `a slot reads the layout of the table it holds`() {
         val doc = parse("a = { x = 1 }\nb.c = 1\nd = [{ x = 1 }, { x = 2 }]\ne = []\nf = [{ x = 1 }, 2]\ng = 1\n" +
             "[h]\n[[i]]\n")
         assertEquals(
             mapOf(
-                "a" to true,
-                "b" to false,
-                "d" to true,
-                "e" to false,
-                "f" to false,
-                "g" to false,
-                "h" to false,
-                "i" to false,
+                "a" to TableLayout.Inline,
+                "b" to TableLayout.Dotted,
+                "d" to TableLayout.Inline,
+                "e" to null,
+                "f" to null,
+                "g" to null,
+                "h" to TableLayout.Header,
+                "i" to TableLayout.Header,
             ),
-            doc.keys.associateWith { doc[it].getOrFail().isInline },
+            doc.keys.associateWith { doc[it].getOrFail().layout },
         )
     }
 
     @Test
-    fun `isInline reads what setInline changes`() {
+    fun `layout reads what setLayout changes`() {
         val doc = parse("[t]\na = 1\n[[s]]\nb = 2\n")
         val t = doc["t"].getOrFail()
         val s = doc["s"].getOrFail()
-        t.setInline(true).getOrFail()
-        s.setInline(true).getOrFail()
-        assertTrue(t.isInline)
-        assertTrue(s.isInline)
-        t.setInline(false).getOrFail()
-        s.setInline(false).getOrFail()
-        assertFalse(t.isInline)
-        assertFalse(s.isInline)
+        t.setLayout(TableLayout.Inline).getOrFail()
+        s.setLayout(TableLayout.Inline).getOrFail()
+        assertEquals(TableLayout.Inline, t.layout)
+        assertEquals(TableLayout.Inline, s.layout)
+        t.setLayout(TableLayout.Header).getOrFail()
+        s.setLayout(TableLayout.Header).getOrFail()
+        assertEquals(TableLayout.Header, t.layout)
+        assertEquals(TableLayout.Header, s.layout)
         assertEquals("[t]\na = 1\n\n[[s]]\nb = 2\n", doc.toString())
     }
 
     @Test
-    fun `an inline table written as dotted keys in a slot reads inline`() {
+    fun `an inline table written as dotted keys in a slot reads dotted`() {
         val doc = parse("t = { a.b = 1 }\n")
         val inner = doc["t"]["a"].getOrFail()
-        assertTrue(inner.isInline)
+        assertEquals(TableLayout.Dotted, inner.layout)
     }
 
     @Test

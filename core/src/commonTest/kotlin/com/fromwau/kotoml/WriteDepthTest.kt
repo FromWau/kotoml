@@ -50,8 +50,9 @@ class WriteDepthTest {
         val doc = nestedTables(limit)
         var table = doc.root
         repeat(limit) {
-            table = table.getOrNull("t")!!.standardTableOrNull!!
-            table.setDotted(true).getOrFail()
+            val slot = table.getOrNull("t")!!
+            slot.setLayout(TableLayout.Dotted).getOrFail()
+            table = slot.standardTableOrNull!!
         }
         val text = doc.toString()
         assertEquals(text, written(doc))

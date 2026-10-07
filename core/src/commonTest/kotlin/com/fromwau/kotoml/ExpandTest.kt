@@ -4,7 +4,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
-/** [Item.expand] turns an inline table or an array of inline tables in a slot into a table or array of tables. */
+/**
+ * [Item.setLayout] with [TableLayout.Header] turns an inline table or an array of inline tables in a slot into a table
+ * or an array of tables.
+ */
 class ExpandTest {
 
     private fun parse(
@@ -18,7 +21,7 @@ class ExpandTest {
         version: TomlVersion = TomlVersion.V1_1,
     ): String {
         val doc = parse(text, version)
-        doc[key].getOrFail().setInline(false).getOrFail()
+        doc[key].getOrFail().setLayout(TableLayout.Header).getOrFail()
         return doc.toString()
     }
 
@@ -35,14 +38,14 @@ class ExpandTest {
     @Test
     fun `an inline table in a table becomes a sub-table printed after its parent`() {
         val doc = parse("[a]\nk = 1\nt = { x = 1 }\n\n[b]\nk = 2\n")
-        doc["a"]["t"].getOrFail().setInline(false).getOrFail()
+        doc["a"]["t"].getOrFail().setLayout(TableLayout.Header).getOrFail()
         assertEquals("[a]\nk = 1\n\n[a.t]\nx = 1\n\n[b]\nk = 2\n", doc.toString())
     }
 
     @Test
     fun `an inline table under a dotted key becomes a table under the dotted path`() {
         val doc = parse("x.t = { k = 1 }\n")
-        doc["x"]["t"].getOrFail().setInline(false).getOrFail()
+        doc["x"]["t"].getOrFail().setLayout(TableLayout.Header).getOrFail()
         assertEquals("[x.t]\nk = 1\n", doc.toString())
     }
 
@@ -150,8 +153,8 @@ class ExpandTest {
             "[t.sub.deep]\nd = 4\n\n# about list\n[[t.list]]\ne = 5\n\n[[t.list]]\ne = 6\n\n[[t.list.inner]]\nf = 7\n" +
             "\n[z]\ny = 1\n"
         val doc = parse(text)
-        doc["t"].getOrFail().setInline(true).getOrFail()
-        doc["t"].getOrFail().setInline(false).getOrFail()
+        doc["t"].getOrFail().setLayout(TableLayout.MultilineInline).getOrFail()
+        doc["t"].getOrFail().setLayout(TableLayout.Header).getOrFail()
         assertEquals(text, doc.toString())
     }
 
@@ -160,8 +163,8 @@ class ExpandTest {
         val text = "x = 1\n\n# about t\n[t] # hc\na = 1 # ac\n# above b\nb = 2\n\n# about sub\n[t.sub]\nc = 3\n\n" +
             "[t.sub.deep]\nd = 4\n\n# about list\n[[t.list]]\ne = 5\n\n[[t.list]]\ne = 6\n\n[[t.list.inner]]\nf = 7\n"
         val doc = parse(text, TomlVersion.V1_0)
-        doc["t"].getOrFail().setInline(true, force = true).getOrFail()
-        doc["t"].getOrFail().setInline(false).getOrFail()
+        doc["t"].getOrFail().setLayout(TableLayout.Inline, force = true).getOrFail()
+        doc["t"].getOrFail().setLayout(TableLayout.Header).getOrFail()
         val kept = "x = 1\n\n# about t\n[t] # hc\na = 1\nb = 2\n\n[t.sub]\nc = 3\n\n[t.sub.deep]\nd = 4\n\n" +
             "[[t.list]]\ne = 5\n\n[[t.list]]\ne = 6\n\n[[t.list.inner]]\nf = 7\n"
         assertEquals(kept, doc.toString())
@@ -172,8 +175,9 @@ class ExpandTest {
         val text = "# about t\n[[t]] # hc\na = 1\n\n[t.sub]\nc = 3\n\n[[t.sub.list]]\nd = 4\n\n[[t]]\na = 2\n"
         for (version in listOf(TomlVersion.V1_1, TomlVersion.V1_0)) {
             val doc = parse(text, version)
-            doc["t"].getOrFail().setInline(true).getOrFail()
-            doc["t"].getOrFail().setInline(false).getOrFail()
+            val inline = if (version == TomlVersion.V1_1) TableLayout.MultilineInline else TableLayout.Inline
+            doc["t"].getOrFail().setLayout(inline).getOrFail()
+            doc["t"].getOrFail().setLayout(TableLayout.Header).getOrFail()
             assertEquals(text, doc.toString(), version.toString())
         }
     }
@@ -183,7 +187,7 @@ class ExpandTest {
         val depth = TomlDocument.NESTING_LIMIT - 1
         val text = "[a.b]\nt = " + "{ t = ".repeat(depth - 1) + "{ x = 1 }" + " }".repeat(depth - 1) + "\n"
         val doc = parse(text)
-        val error = doc["a"]["b"]["t"].getOrFail().setInline(false).errorOrFail()
+        val error = doc["a"]["b"]["t"].getOrFail().setLayout(TableLayout.Header).errorOrFail()
         assertEquals(TomlEditError.TooDeep(listOf("a", "b") + List(depth) { "t" }), error)
         assertEquals(text, doc.toString())
     }
@@ -193,7 +197,7 @@ class ExpandTest {
         val depth = TomlDocument.NESTING_LIMIT - 1
         val text = "[a]\nt = " + "{ t = ".repeat(depth - 1) + "{ x = 1 }" + " }".repeat(depth - 1) + "\n"
         val doc = parse(text)
-        doc["a"]["t"].getOrFail().setInline(false).getOrFail()
+        doc["a"]["t"].getOrFail().setLayout(TableLayout.Header).getOrFail()
         assertEquals("[a]\n\n[a" + ".t".repeat(depth) + "]\nx = 1\n", doc.toString())
         parse(doc.toString())
     }
@@ -202,8 +206,8 @@ class ExpandTest {
     fun `a table made inline in TOML 1_1 and expanded again prints as before`() {
         val text = "x = 1\n\n# about t\n[t] # hc\na = 1 # ac\n# above b\nb = 2\n"
         val doc = parse(text)
-        doc["t"].getOrFail().setInline(true).getOrFail()
-        doc["t"].getOrFail().setInline(false).getOrFail()
+        doc["t"].getOrFail().setLayout(TableLayout.MultilineInline).getOrFail()
+        doc["t"].getOrFail().setLayout(TableLayout.Header).getOrFail()
         assertEquals(text, doc.toString())
     }
 
@@ -211,8 +215,8 @@ class ExpandTest {
     fun `a table made inline in TOML 1_0 and expanded again prints as before`() {
         val text = "x = 1\n\n# about t\n[t] # hc\na = 1\nb = 2\n"
         val doc = parse(text, TomlVersion.V1_0)
-        doc["t"].getOrFail().setInline(true).getOrFail()
-        doc["t"].getOrFail().setInline(false).getOrFail()
+        doc["t"].getOrFail().setLayout(TableLayout.Inline).getOrFail()
+        doc["t"].getOrFail().setLayout(TableLayout.Header).getOrFail()
         assertEquals(text, doc.toString())
     }
 
@@ -231,8 +235,8 @@ class ExpandTest {
     @Test
     fun `an element marked dotted prints in braces and keeps their comments as a table`() {
         val doc = parse("a = [\n  {\n    x = 1, # xc\n  },\n]\n")
-        doc["a"].getOrFail().arrayOrNull!![0].getOrFail().inlineTableOrNull!!.setDotted(true).getOrFail()
-        doc["a"].getOrFail().setInline(false).getOrFail()
+        doc["a"][0].getOrFail().inlineTableOrNull!!.layOutDotted(true)
+        doc["a"].getOrFail().setLayout(TableLayout.Header).getOrFail()
         assertEquals("[[a]]\nx = 1 # xc\n", doc.toString())
     }
 
@@ -251,8 +255,8 @@ class ExpandTest {
     @Test
     fun `an inline table written as dotted keys becomes a table keeping each value's comment`() {
         val doc = parse("t = {\n  a = 1, # a\n  b = 2 # b\n}\n")
-        doc["t"].getOrFail().inlineTableOrNull!!.setDotted(true).getOrFail()
-        doc["t"].getOrFail().setInline(false).getOrFail()
+        doc["t"].getOrFail().setLayout(TableLayout.Dotted).getOrFail()
+        doc["t"].getOrFail().setLayout(TableLayout.Header).getOrFail()
         assertEquals("[t]\na = 1 # a\nb = 2 # b\n", doc.toString())
     }
 
@@ -260,8 +264,8 @@ class ExpandTest {
     fun `an array of tables made inline in TOML 1_1 and expanded again prints as before`() {
         val text = "# first\n[[s]] # ac\nn = 1 # one\n\n[[s]]\nn = 2\n"
         val doc = parse(text)
-        doc["s"].getOrFail().setInline(true).getOrFail()
-        doc["s"].getOrFail().setInline(false).getOrFail()
+        doc["s"].getOrFail().setLayout(TableLayout.MultilineInline).getOrFail()
+        doc["s"].getOrFail().setLayout(TableLayout.Header).getOrFail()
         assertEquals(text, doc.toString())
     }
 
@@ -269,8 +273,8 @@ class ExpandTest {
     fun `an array of tables made inline in TOML 1_0 and expanded again prints as before`() {
         val text = "# first\n[[s]] # ac\nn = 1\n\n# second\n[[s]]\nn = 2\n"
         val doc = parse(text, TomlVersion.V1_0)
-        doc["s"].getOrFail().setInline(true).getOrFail()
-        doc["s"].getOrFail().setInline(false).getOrFail()
+        doc["s"].getOrFail().setLayout(TableLayout.Inline).getOrFail()
+        doc["s"].getOrFail().setLayout(TableLayout.Header).getOrFail()
         assertEquals(text, doc.toString())
     }
 
@@ -283,7 +287,7 @@ class ExpandTest {
     fun `the slot holds the table after it expands`() {
         val doc = parse("t = { x = 1 }\n")
         val slot = doc["t"].getOrFail()
-        slot.setInline(false).getOrFail()
+        slot.setLayout(TableLayout.Header).getOrFail()
         slot["y"] = 2L
         assertEquals("[t]\nx = 1\ny = 2\n", doc.toString())
         assertNotNull(doc["t"].getOrFail().standardTableOrNull)
@@ -293,14 +297,14 @@ class ExpandTest {
     fun `an inline table taken before the slot expands no longer belongs to the document`() {
         val doc = parse("t = { x = 1 }\n")
         val old = doc["t"].getOrFail().inlineTableOrNull!!
-        doc["t"].getOrFail().setInline(false).getOrFail()
+        doc["t"].getOrFail().setLayout(TableLayout.Header).getOrFail()
         old["y"] = 2L
         assertEquals("[t]\nx = 1\n", doc.toString())
     }
 
     @Test
     fun `a table or an array of tables stays as it is`() {
-        for (text in listOf("[t]\nx = 1\n", "t.x = 1\n", "[[t]]\nx = 1\n")) {
+        for (text in listOf("[t]\nx = 1\n", "[[t]]\nx = 1\n")) {
             assertEquals(text, expand(text, "t"), text)
         }
     }
@@ -308,14 +312,15 @@ class ExpandTest {
     @Test
     fun `a table in an array of tables stays as it is`() {
         val doc = parse("[[t]]\nx = 1\n")
-        doc["t"][0].getOrFail().setInline(false).getOrFail()
+        doc["t"][0].getOrFail().setLayout(TableLayout.Header).getOrFail()
         assertEquals("[[t]]\nx = 1\n", doc.toString())
     }
 
     @Test
     fun `a scalar is NotExpandable and changes nothing`() {
         val doc = parse("t = 1 # c\n")
-        assertEquals(TomlEditError.NotExpandable(TomlType.Integer), doc["t"].getOrFail().setInline(false).errorOrFail())
+        val error = doc["t"].getOrFail().setLayout(TableLayout.Header).errorOrFail()
+        assertEquals(TomlEditError.NotExpandable(TomlType.Integer), error)
         assertEquals("t = 1 # c\n", doc.toString())
     }
 
@@ -323,7 +328,7 @@ class ExpandTest {
     fun `an array that does not hold only inline tables is NotExpandable and changes nothing`() {
         for (text in listOf("t = [1, 2]\n", "t = [{ x = 1 }, 2]\n", "t = []\n")) {
             val doc = parse(text)
-            val error = doc["t"].getOrFail().setInline(false).errorOrFail()
+            val error = doc["t"].getOrFail().setLayout(TableLayout.Header).errorOrFail()
             assertEquals(TomlEditError.NotExpandable(TomlType.Array), error)
             assertEquals(text, doc.toString())
         }
@@ -333,10 +338,11 @@ class ExpandTest {
     fun `an inline table inside an inline table or an array is NotAValue and changes nothing`() {
         val text = "t = { u = { x = 1 }, a = [{ x = 1 }] }\nb = [{ x = 1 }]\n"
         val doc = parse(text)
-        assertEquals(TomlEditError.NotAValue(TomlType.Table), doc["t"]["u"].getOrFail().setInline(false).errorOrFail())
-        val array = doc["t"]["a"].getOrFail().setInline(false).errorOrFail()
+        val header = TableLayout.Header
+        assertEquals(TomlEditError.NotAValue(TomlType.Table), doc["t"]["u"].getOrFail().setLayout(header).errorOrFail())
+        val array = doc["t"]["a"].getOrFail().setLayout(header).errorOrFail()
         assertEquals(TomlEditError.NotAValue(TomlType.ArrayOfTables), array)
-        assertEquals(TomlEditError.NotAValue(TomlType.Table), doc["b"][0].getOrFail().setInline(false).errorOrFail())
+        assertEquals(TomlEditError.NotAValue(TomlType.Table), doc["b"][0].getOrFail().setLayout(header).errorOrFail())
         assertEquals(text, doc.toString())
     }
 
@@ -345,7 +351,7 @@ class ExpandTest {
         val inline = InlineTable()
         inline["x"] = 1L
         val item = Item(Value.InlineTable(inline))
-        item.setInline(false).getOrFail()
+        item.setLayout(TableLayout.Header).getOrFail()
         assertEquals("x = 1\n", item.standardTableOrNull.toString())
     }
 }

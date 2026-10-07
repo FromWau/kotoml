@@ -102,10 +102,7 @@ private fun TomlDocument.asWritten(): Printed {
 internal fun Selected.toToml(): Printed {
     item.standardTableOrNull?.let { table ->
         // The text around a table belongs to its header, which is not printed, and its lines print as its own.
-        val printed = table.copy().also {
-            it.decor = Decor()
-            it.setDotted(false, force = true)
-        }
+        val printed = table.copy().also { it.decor = Decor() }
         return printedTable(TomlDocument(printed).toString())
     }
     item.arrayOfTablesOrNull?.let { tables ->

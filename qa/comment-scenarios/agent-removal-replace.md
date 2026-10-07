@@ -1833,7 +1833,7 @@ x = 1
 t = { m = 2 }
 ```
 
-### R-100: setInline(true) turns a table into an inline table and drops the comments inside it
+### R-100: setLayout(Inline) turns a table into an inline table and drops the comments inside it
 rule: 4, 8   version: 1.0
 settled: owner ruling 2026-10-05 (Q6): makeValue on one line keeps the header comment after `}`.
 ```toml input
@@ -1845,7 +1845,7 @@ x = 1
 a = 1 # one
 ```
 ```kotlin edit
-doc["t"].getOrFail().setInline(true, force = true)
+doc["t"].getOrFail().setLayout(TableLayout.Inline, force = true)
 ```
 ```toml expected
 x = 1
@@ -1947,7 +1947,7 @@ x = 1
 k = 1 # kay
 ```
 ```kotlin edit
-doc["t"].getOrFail().standardTableOrNull!!.setDotted(true, force = true)
+doc["t"].getOrFail().setLayout(TableLayout.Dotted, force = true)
 ```
 ```toml expected
 x = 1
@@ -1966,7 +1966,7 @@ t.a = 1 # one
 t.b = 2
 ```
 ```kotlin edit
-doc["t"].getOrFail().standardTableOrNull!!.setDotted(false)
+doc["t"].getOrFail().setLayout(TableLayout.Header)
 ```
 ```toml expected
 x = 1
@@ -1986,7 +1986,7 @@ x = 1
 t = { a = 1, b = 2 } # tee
 ```
 ```kotlin edit
-doc["t"].getOrFail().inlineTableOrNull!!.setDotted(true, force = true)
+doc["t"].getOrFail().setLayout(TableLayout.Dotted, force = true)
 ```
 note: corrected: kotoml keeps the comment after the closing brace on the last dotted line; the new-layout rule lets it go but does not require it.
 ```toml expected
@@ -2033,6 +2033,6 @@ x = 1
 12. R-087: does rule 3 (keep the same-line comment) apply to replacing an array element?
 13. R-091, R-093, R-099, R-100: after a structure change to a value, do the lines above the old header land directly above the new `key = value` line?
 14. R-096 to R-098, R-103, R-104, R-106: a value replaced by a table: do the lines above the old key stay where they printed, and is the new header preceded by a blank line?
-15. R-100, R-105: does a header's same-line comment survive `setInline(true)` or `setDotted(true)`?
+15. R-100, R-105: does a header's same-line comment survive `setLayout(TableLayout.Inline)` or `setLayout(TableLayout.Dotted)`?
 16. R-101, R-102: replacing a table with a table (or an array-of-tables element with a table) is not a change of structure: is the header's same-line comment kept?
 17. R-108: where does a hidden implicit header's same-line comment go?

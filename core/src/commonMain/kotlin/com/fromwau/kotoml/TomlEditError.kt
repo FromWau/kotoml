@@ -50,8 +50,9 @@ public sealed interface TomlEditError : IError {
     public data class NotATableElement(val itemType: TomlType) : TomlEditError
 
     /**
-     * [Item.setInline] with false found an item of type [itemType]: only an inline table, or an array holding inline
-     * tables and nothing else, becomes a table or an array of tables.
+     * [Item.setLayout] found an item of type [itemType] that cannot take the layout asked for: a slot holding no table,
+     * which is any value but an inline table or a non-empty array of only inline tables, and an empty array of tables;
+     * or, for [TableLayout.Dotted], an array, an array of tables or an element of either.
      */
     @Serializable
     @SerialName("NotExpandable")
@@ -67,8 +68,8 @@ public sealed interface TomlEditError : IError {
     public data class TooDeep(val keyPath: List<String>) : TomlEditError
 
     /**
-     * A new layout would drop [count] comments, so nothing changed: [Item.setInline], [Table.setDotted] or
-     * [InlineTable.setMultiline] was called without `force = true`. [keyPath] leads to the slot or table from the
+     * A new layout would drop [count] comments, so nothing changed: [Item.setLayout] was called without
+     * `force = true`. [keyPath] leads to the slot or table from the
      * document's root, or from the top of the table, array or value it is stored under when that is stored in no
      * document; an element of an array adds no part.
      */

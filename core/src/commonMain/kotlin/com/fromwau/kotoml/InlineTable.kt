@@ -31,23 +31,29 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     internal val rawDecor: RawDecor = RawDecor()
     internal var span: Span? = null
 
-    /** Whether this table stands for the parts of a dotted key rather than for `{ ... }`; [setDotted] changes it. */
-    override val isDotted: Boolean
+    /**
+     * [TableLayout.Dotted] while this table stands for the parts of a dotted key rather than for `{ ... }`;
+     * otherwise [TableLayout.MultilineInline] when it prints across lines, `{`, then each entry on a line of its own,
+     * then `}` on a line of its own, and [TableLayout.Inline] when it prints on one line, `{ a = 1, b = 2 }`. A table
+     * read from text reads [TableLayout.MultilineInline] when it was written across lines, and one built in code
+     * reads [TableLayout.Inline]. Only the text between the braces decides: a one-line table holding an array
+     * written across lines reads [TableLayout.Inline].
+     */
+    override val layout: TableLayout
+        get() = when {
+            dotted -> TableLayout.Dotted
+            spansLines() -> TableLayout.MultilineInline
+            else -> TableLayout.Inline
+        }
+
+    /** Whether this table stands for the parts of a dotted key rather than for `{ ... }`. */
+    internal val isDotted: Boolean
         get() = dotted
 
-    /** Gives the table a new layout, as [Table.setDotted] says. */
-    override fun setDotted(
-        value: Boolean,
-        force: Boolean,
-    ): EmptyResult<TomlEditError> {
-        if (value == dotted) return Ok(Unit)
-        return changeLayout(this, force) { table ->
-            table.layOutDotted(value)
-            Ok(Unit)
-        }
-    }
-
-    /** Sets [isDotted] as a new layout, dropping the comments [Table.setDotted] says go. */
+    /**
+     * Sets [isDotted] as a new layout: each value keeps the comment on its line, and the table's other comments go,
+     * after `{`, on lines of their own and after `}`.
+     */
     internal fun layOutDotted(value: Boolean) {
         if (value != dotted) dropCommentsForNewLayout()
         dotted = value
@@ -60,53 +66,29 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         dotted = value
     }
 
-    /**
-     * Whether the table prints across lines: `{`, then each entry on a line of its own, indented two spaces more than
-     * the line holding `{`, then `}` on a line of its own. False when it prints on one line, `{ a = 1, b = 2 }`. A
-     * table read from text reads true when it was written across lines, and a table built in code reads false.
-     *
-     * [setMultiline] changes it.
-     *
-     * A dotted table prints no braces: its keys print on the lines of the table holding them, whose layout decides
-     * theirs. While [isDotted] is true this reads false.
-     */
-    public val isMultiline: Boolean
+    /** Whether the table prints across lines; see [layout]. */
+    internal val isMultiline: Boolean
         get() = !isDotted && spansLines()
 
     /**
-     * Lays the table out across lines when [value] is true, or on one line when false, as [isMultiline] describes; a
-     * table already laid out as asked, or a dotted one, stays as it is.
-     *
-     * Across lines the new lines end as the document's lines do, in `\r\n` in a document read with them, and in TOML
-     * 1.1 the last entry takes a comma. On one line the entries take the default spacing and the comments inside the
-     * braces go, since a line holds none. Only this table changes: an inline table inside keeps its own layout, and a
-     * value inside written across lines, such as an array, still spans lines. Only TOML 1.1 reads an inline table
-     * across lines, so in a document whose [TomlDocument.version] is 1.0 [TomlDocument.writeTo] refuses one with
-     * [TomlWriteError.NotInToml10].
-     *
-     * ```kotlin
-     * val doc = TomlDocument.parse("t = { a = 1, b = 2 }\n").getOrElse { error(it) }
-     * doc["t"].getOrNull()?.inlineTableOrNull?.setMultiline(true)
-     * doc.toString() // "t = {\n  a = 1,\n  b = 2,\n}\n"
-     * ```
-     *
-     * @return [TomlEditError.CommentsWouldBeLost], changing nothing, when going on one line would drop the comments
-     *   inside the braces and [force] is false; with [force] true they go.
+     * Lays this table and every inline table inside it out across lines, those already across lines and dotted ones
+     * as they are, ending the new lines as the document's lines end; the last entry takes a comma in TOML 1.1.
      */
-    public fun setMultiline(
-        value: Boolean,
-        force: Boolean = false,
-    ): EmptyResult<TomlEditError> {
-        if (isDotted || value == isMultiline) return Ok(Unit)
-        return changeLayout(this, force) { table ->
-            if (value) {
-                table.layOutAcrossLines(lineEndingOf(table), lineIndentOf(table), documentVersionOf(table))
-            } else {
-                table.layOutOnOneLine()
-            }
-            Ok(Unit)
+    internal fun layOutAcrossLinesWithin() {
+        if (!isDotted && !isMultiline) {
+            layOutAcrossLines(lineEndingOf(this), lineIndentOf(this), documentVersionOf(this))
         }
+        for (table in inlineTablesInside()) table.layOutAcrossLinesWithin()
     }
+
+    /** Lays this table and every inline table inside it out on one line, dropping the comments inside the braces. */
+    internal fun layOutOnOneLineWithin() {
+        if (isMultiline) layOutOnOneLine()
+        for (table in inlineTablesInside()) table.layOutOnOneLineWithin()
+    }
+
+    // The inline tables this one holds as values, through dotted keys and arrays, one level down.
+    private fun inlineTablesInside(): List<InlineTable> = items.entries.flatMap { inlineTablesIn(it.item.valueOrNull) }
 
     // Whether a line break stands in the text between the braces outside the values.
     private fun spansLines(): Boolean = '\n' in trailing ||
@@ -199,8 +181,8 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     /**
      * A standard table holding copies of this table's entries, formatted anew; this table stays as it is. The
      * comments of a table written across lines are kept: the comment after `{` on its header line, each value's
-     * comment after it, and the comment lines inside above the key below them. [Item.setInline] with false turns an
-     * inline table in a document into a table in place.
+     * comment after it, and the comment lines inside above the key below them. [Item.setLayout] with
+     * [TableLayout.Header] turns an inline table in a document into a table in place.
      */
     public fun toStandardTable(): StandardTable = deepCopy().moveToStandardTable()
 
@@ -227,8 +209,8 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     }
 
     /**
-     * Whether [Item.setInline] with false turns something under this dotted table into a table: an inline table not
-     * dotted, or a non-empty array of only inline tables.
+     * Whether [Item.setLayout] with [TableLayout.Header] turns something under this dotted table into a table: an
+     * inline table not dotted, or a non-empty array of only inline tables.
      */
     internal fun holdsExpandable(): Boolean = items.entries.any { entry ->
         val value = entry.item.valueOrNull
@@ -492,9 +474,10 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
      * spelling and its decor. Pass a [Key] to replace those. A new key is spaced like the entries already there.
      *
      * A comment in [value]'s decor suffix, such as `Decor(suffix = " # note")`, puts a table on one line across lines,
-     * as [setMultiline] does, and prints after the value's comma, in place of the comment that stood there. The
-     * lines it adds end as the document's lines do, in `\r\n` in a document read with them. TOML 1.0 has no comments
-     * inside an inline table, so in a document whose [TomlDocument.version] is 1.0 the comment is dropped.
+     * as [Item.setLayout] does for [TableLayout.MultilineInline], and prints after the value's comma, in place of the
+     * comment that stood there. The lines it adds end as the document's lines do, in `\r\n` in a document read with
+     * them. TOML 1.0 has no comments inside an inline table, so in a document whose [TomlDocument.version] is 1.0 the
+     * comment is dropped.
      *
      * @return the value [key] held before, or null when it held none; or [TomlEditError.TooDeep], storing nothing,
      *   when [value] would nest deeper than the parser reads.
@@ -911,4 +894,11 @@ private class TableLineComments(
         }
         if (above[lines.size].isNotEmpty()) table.items.keptLines += KeptLines(above[lines.size], null)
     }
+}
+
+/** The inline tables [value] is or holds in its arrays, at any depth of arrays. */
+private fun inlineTablesIn(value: Value?): List<InlineTable> = when (value) {
+    is Value.InlineTable -> listOf(value.value)
+    is Value.Array -> value.value.flatMap(::inlineTablesIn)
+    else -> emptyList()
 }

@@ -22,7 +22,7 @@ class ErrorMessageTest {
                 "an inline table or array holds only values, not an array of tables",
             TomlEditError.NotATableElement(TomlType.Boolean) to "an array of tables holds only tables, not a boolean",
             TomlEditError.NotExpandable(TomlType.Array) to
-                "only an inline table or an array of inline tables expands, not an array",
+                "an array cannot take that table layout",
             TomlEditError.TooDeep(listOf("a", "b.c")) to
                 "a.\"b.c\": nests deeper than 80 levels, so it would not parse back",
             TomlEditError.TooDeep(emptyList()) to "nests deeper than 80 levels, so it would not parse back",

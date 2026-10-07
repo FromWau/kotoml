@@ -1073,7 +1073,7 @@ edition = "2024"
             .running { root ->
                 root["nixpkgs"] = StandardTable()
                 root["nixpkgs"]["src"] = StandardTable()
-                root["nixpkgs"]["src"].getOrFail().tableOrNull!!.setDotted(true).getOrFail()
+                root["nixpkgs"]["src"].getOrFail().setLayout(TableLayout.Dotted).getOrFail()
                 root["nixpkgs"]["src"]["git"] = "https://github.com/nixos/nixpkgs"
             }
             .prints("""
@@ -1090,7 +1090,7 @@ src.git = "https://github.com/nixos/nixpkgs"
                 root["nixpkgs"] = StandardTable()
                 root["nixpkgs"]["src"] = Value.InlineTable(InlineTable())
                 root["nixpkgs"]["src"]["git"] = "https://github.com/nixos/nixpkgs"
-                root["nixpkgs"]["src"].getOrFail().tableOrNull!!.setDotted(true).getOrFail()
+                root["nixpkgs"]["src"].getOrFail().setLayout(TableLayout.Dotted).getOrFail()
             }
             .prints("""
 [nixpkgs]
@@ -1149,7 +1149,7 @@ inline = { "1" = 1, "2" = 2 }
 other = "world"
 """
         val doc = TomlDocument.parse(toml).getOrFail()
-        doc.getOrNull("table")!!.setInline(true).getOrFail()
+        doc.getOrNull("table")!!.setLayout(TableLayout.Inline).getOrFail()
         val actual = doc.toString()
         assertSnapshot(
             "\ntable = { string = \"value\", array = [1, 2, 3], inline = { \"1\" = 1, \"2\" = 2 }, child = { other = " +
@@ -1197,7 +1197,7 @@ inline = { "1" = 1, "2" = 2 }
 other = "world"
 """
         val doc = TomlDocument.parse(toml).getOrFail()
-        doc.getOrNull("table")!!.setInline(true).getOrFail()
+        doc.getOrNull("table")!!.setLayout(TableLayout.Inline).getOrFail()
         val actual = doc.toString()
         assertSnapshot(
             "\ntable = [{ string = \"value\", array = [1, 2, 3], inline = { \"1\" = 1, \"2\" = 2 }, " +
@@ -1291,7 +1291,7 @@ other = "world"
         val doc = TomlDocument()
         // An inline table holds only values, so a dotted inline table stands in for upstream's table here.
         val dotted = InlineTable()
-        dotted.setDotted(true).getOrFail()
+        Item(Value.InlineTable(dotted)).setLayout(TableLayout.Dotted).getOrFail()
         doc["tool"] = Value.InlineTable(InlineTable())
         doc["tool"]["typst-test"] = Value.InlineTable(dotted)
         doc["tool"]["typst-test"]["tests"] = "tests"

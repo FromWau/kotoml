@@ -53,17 +53,8 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     }
 
     /**
-     * Whether these tables, made an array of inline tables at [key], have comments to keep: above or on their headers,
-     * or inside them as [StandardTable.holdsComments] says.
-     */
-    internal fun holdsComments(key: Key): Boolean = toList().withIndex().any { (index, table) ->
-        val above = if (index == 0) table.headerLinesAbove(key) else linesAbove(table.rawDecor.prefix)
-        '#' in above || table.headerComment.isNotEmpty() || table.holdsComments()
-    }
-
-    /**
      * Moves the tables into a new array of inline tables that keeps their comments, leaving this empty, for a line
-     * indented by [indent]. Comments on or between the headers, or a table [layout] puts across lines, put it across
+     * indented by [indent]. Comments on or between the headers, or tables [layout] puts across lines, put it across
      * lines, a table a line: the comment lines above a later header go above its table, and a header comment after
      * its comma, or after `{` for a table across lines, which keeps its comments inside; a table on one line loses
      * them. With neither it goes on one line, formatted anew.
@@ -73,8 +64,8 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         indent: String,
     ): TomlArray {
         val tables = toList()
-        val acrossLines = tables.map(layout::acrossLines)
-        val keepsComments = acrossLines.any { it } ||
+        val acrossLines = layout.multiline
+        val keepsComments = acrossLines ||
             tables.withIndex().any { (index, table) ->
                 table.headerComment.isNotEmpty() || (index > 0 && '#' in linesAbove(table.rawDecor.prefix))
             }
@@ -86,7 +77,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         for ((index, slot) in values.withIndex()) {
             val table = tables[index]
             val above = if (index == 0) "" else linesAbove(table.rawDecor.prefix)
-            val value = if (acrossLines[index]) {
+            val value = if (acrossLines) {
                 Value.InlineTable(table.moveToInlineTableAcrossLines(table.headerComment, layout, elementIndent))
             } else {
                 slot.moveToValue()
@@ -94,7 +85,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
             val lines = indentedCommentLines(above, elementIndent, lineBreak)
             value.rawDecor.prefix = KeptText.from(carried + lineBreak + lines + elementIndent)
             value.rawDecor.suffix = KeptText.from("")
-            carried = if (acrossLines[index]) "" else table.headerComment
+            carried = if (acrossLines) "" else table.headerComment
             array.append(value)
             slot.arrayOwner = null
         }

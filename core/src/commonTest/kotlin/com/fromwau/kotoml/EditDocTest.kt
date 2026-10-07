@@ -97,32 +97,37 @@ c = { d = "hello" }
     }
 
     @Test
-    fun `the module README layout example makes a table inline and then forces it on one line`() {
-        val doc = TomlDocument.parse("[t] # t\na = 1 # one\n").getOrFail()
+    fun `the module README layout example makes a table inline across lines and then forces it on one line`() {
+        val text = "[t] # t\na = 1 # one\n"
+        val doc = TomlDocument.parse(text).getOrFail()
         val slot = doc["t"].getOrFail()
-        slot.setInline(true).getOrFail()
+        val error = slot.setLayout(TableLayout.Inline).errorOrFail()
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("t"), 1), error)
+        assertEquals(text, doc.toString())
+        slot.setLayout(TableLayout.MultilineInline).getOrFail()
         assertEquals("t = { # t\n  a = 1, # one\n}\n", doc.toString())
-        val table = slot.inlineTableOrNull!!
-        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("t"), 2), table.setMultiline(false).errorOrFail())
-        assertEquals("t = { # t\n  a = 1, # one\n}\n", doc.toString())
-        table.setMultiline(false, force = true).getOrFail()
+        slot.setLayout(TableLayout.Inline, force = true).getOrFail()
         assertEquals("t = { a = 1 }\n", doc.toString())
     }
 
     @Test
-    fun `the KDoc example of setDotted fails without force and drops the header comment with it`() {
-        val doc = TomlDocument.parse("[a] # a\nb = 1\n").getOrFail()
-        val table = doc["a"].getOrFail().standardTableOrNull!!
-        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("a"), 1), table.setDotted(true).errorOrFail())
-        table.setDotted(true, force = true).getOrFail()
-        assertEquals("a.b = 1\n", doc.toString())
+    fun `the KDoc example of setLayout goes across lines and back under a header keeping every comment`() {
+        val doc = TomlDocument.parse("[t] # t\na = 1 # one\n").getOrFail()
+        val slot = doc["t"].getOrFail()
+        slot.setLayout(TableLayout.MultilineInline).getOrFail()
+        assertEquals("t = { # t\n  a = 1, # one\n}\n", doc.toString())
+        val error = slot.setLayout(TableLayout.Inline).errorOrFail()
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("t"), 2), error)
+        slot.setLayout(TableLayout.Header).getOrFail()
+        assertEquals("[t] # t\na = 1 # one\n", doc.toString())
     }
 
     @Test
-    fun `the KDoc example of setMultiline puts each entry on a line of its own`() {
-        val doc = TomlDocument.parse("t = { a = 1, b = 2 }\n").getOrFail()
-        doc["t"].getOrFail().inlineTableOrNull!!.setMultiline(true).getOrFail()
-        assertEquals("t = {\n  a = 1,\n  b = 2,\n}\n", doc.toString())
+    fun `the KDoc example of TableLayout reads a header and puts the table on one line`() {
+        val doc = TomlDocument.parse("[t]\na = 1\n").getOrFail()
+        assertEquals(TableLayout.Header, doc["t"].getOrFail().layout)
+        doc["t"].getOrFail().setLayout(TableLayout.Inline).getOrFail()
+        assertEquals("t = { a = 1 }\n", doc.toString())
     }
 
     @Test

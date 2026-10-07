@@ -14,10 +14,9 @@ import kotlin.test.assertEquals
 /**
  * Edits keep every comment they do not own. Adding, replacing a value with a value, sorting and changing how a table
  * prints keep them all; removing a value takes only the comment on its own line, and giving a table a new layout with
- * `setDotted(force = true)` may take its comments, all but the lines above its key; putting an inline table on one
- * line with `setMultiline(false, force = true)` may take the comments inside its braces. Without force a layout
- * change, `setInline` included, keeps every comment or is refused and changes nothing. Removing or replacing whole
- * tables is covered by `RemovalPropertyTest` and the comment scope tests, which state what those take.
+ * `setLayout(force = true)` may take its comments, all but the lines above its key. Without force a layout change
+ * keeps every comment or is refused and changes nothing. Removing or replacing whole tables is covered by
+ * `RemovalPropertyTest` and the comment scope tests, which state what those take.
  */
 class CommentPropertyTest {
 
@@ -102,13 +101,6 @@ class CommentPropertyTest {
             }
             add(Edit("table sort") { table.sortWith(compareBy { it.first.name }).let { emptyList() } })
             if (table !== edits.tables.first()) {
-                add(Edit("table setDotted forced") {
-                    // A new layout for the table: its comments may go, but for the lines above its key.
-                    val owned = commentsOf(doc, table)
-                    table.setDotted(!table.isDotted, force = true).getOrFail()
-                    owned
-                })
-                add(Edit("table setDotted") { keptOrRefused(doc) { table.setDotted(!table.isDotted) } })
                 add(Edit("table setImplicit") { table.setImplicit(!table.isImplicit).let { emptyList() } })
             }
             edits.arrays.randomOrNull(random)?.let { array ->
@@ -123,28 +115,23 @@ class CommentPropertyTest {
                     add(Edit("array removeAt $scalarIndex") { removedElement(array, scalarIndex) })
                 }
             }
-            edits.inlines.randomOrNull(random)?.let { inline ->
-                add(Edit("inline setDotted forced") {
-                    // A new layout for the table: its comments may go, but for those above it.
-                    val inside = comments(inline.toString()) + comments(inline.decor.suffix.orEmpty())
-                    inline.setDotted(!inline.isDotted, force = true).getOrFail()
-                    inside
-                })
-                add(Edit("inline setDotted") { keptOrRefused(doc) { inline.setDotted(!inline.isDotted) } })
-                add(Edit("inline setMultiline forced") {
-                    // One line holds no comment: going to one, the comments inside the braces may go.
-                    val inside = if (inline.isMultiline) comments(inline.toString()) else emptyList()
-                    inline.setMultiline(!inline.isMultiline, force = true).getOrFail()
-                    inside
-                })
-                add(Edit("inline setMultiline") { keptOrRefused(doc) { inline.setMultiline(!inline.isMultiline) } })
-            }
             edits.tableArrays.randomOrNull(random)?.let { tables ->
                 add(Edit("tables add") { tables.add(edits.table()).let { emptyList() } })
             }
-            edits.slots.randomOrNull(random)?.let { slot ->
-                add(Edit("slot setInline") { keptOrRefused(doc) { slot.setInline(true) } })
-                add(Edit("slot setInline false") { keptOrRefused(doc) { slot.setInline(false) } })
+            val tableSlot = edits.slots.filter { it.layout != null }.randomOrNull(random)
+            for (slot in listOfNotNull(tableSlot, edits.slots.randomOrNull(random))) {
+                val layout = edits.layout()
+                val force = random.nextBoolean()
+                add(Edit("slot setLayout $layout force $force") {
+                    if (force) {
+                        // A new layout for the table: its comments may go, but for the lines above its key.
+                        val owned = commentsOf(doc, slot)
+                        slot.setLayout(layout, force = true)
+                        owned
+                    } else {
+                        keptOrRefused(doc) { slot.setLayout(layout) }
+                    }
+                })
             }
         }
         return options.random(random)
@@ -169,6 +156,17 @@ class CommentPropertyTest {
     private fun Item.isScalar(): Boolean = valueOrNull?.isScalar() ?: false
 
     private fun Value.isScalar(): Boolean = arrayOrNull == null && inlineTableOrNull == null
+
+    /** The comments the table or value in [slot] carries, but for the lines above its key. */
+    private fun commentsOf(
+        doc: TomlDocument,
+        slot: Item,
+    ): List<String> {
+        slot.standardTableOrNull?.let { return commentsOf(doc, it) }
+        slot.arrayOfTablesOrNull?.let { tables -> return tables.flatMap { commentsOf(doc, it) } }
+        val value = slot.valueOrNull ?: return emptyList()
+        return comments(value.toString()) + comments(value.decor.suffix.orEmpty())
+    }
 
     /** The comments [table] carries, but for the lines above its key: those removing it from [doc] takes. */
     private fun commentsOf(

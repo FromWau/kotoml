@@ -113,6 +113,10 @@ internal class Edits(
     val tableArrays = mutableListOf<ArrayOfTables>()
     val slots = mutableListOf<Item>()
 
+    /** A layout to give a table, any of the four. */
+    fun layout(): TableLayout =
+        listOf(TableLayout.Header, TableLayout.Dotted, TableLayout.Inline, TableLayout.MultilineInline).random(random)
+
     init {
         collect(doc.root)
     }
@@ -153,17 +157,12 @@ internal class Edits(
             add("table retainAll" to { table.retainAll { random.nextBoolean() } })
             add("table clear" to { table.clear() })
             add("table resetFormatting" to { table.resetFormatting() })
-            if (table !== doc.root) {
-                add("table setDotted force $force" to { table.setDotted(!table.isDotted, force) })
-                add("table setImplicit" to { table.setImplicit(!table.isImplicit) })
-            }
+            if (table !== doc.root) add("table setImplicit" to { table.setImplicit(!table.isImplicit) })
             inlines.randomOrNull(random)?.let { inline ->
                 val inlineKey = keyFor(inline.keys)
                 add("inline set $inlineKey" to { inline.set(inlineKey, value()) })
                 add("inline putItem $inlineKey" to { inline.putItem(inlineKey, item()) })
                 inline.keys.randomOrNull(random)?.let { old -> add("inline remove $old" to { inline.remove(old) }) }
-                add("inline setDotted force $force" to { inline.setDotted(!inline.isDotted, force) })
-                add("inline setMultiline force $force" to { inline.setMultiline(!inline.isMultiline, force) })
                 add("inline resetFormatting" to { inline.resetFormatting() })
             }
             arrays.randomOrNull(random)?.let { array ->
@@ -185,8 +184,8 @@ internal class Edits(
             }
             slots.randomOrNull(random)?.let { slot ->
                 add("slot assign" to { slot.assign(item()) })
-                add("slot setInline force $force" to { slot.setInline(true, force) })
-                add("slot setInline false" to { slot.setInline(false) })
+                val layout = layout()
+                add("slot setLayout $layout force $force" to { slot.setLayout(layout, force) })
                 add("slot index set" to { slot.set(keyFor(emptySet()), item()) })
             }
             slots.randomOrNull(random)?.let { source ->

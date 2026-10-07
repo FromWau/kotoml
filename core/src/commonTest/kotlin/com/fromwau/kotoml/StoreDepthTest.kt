@@ -102,14 +102,14 @@ class StoreDepthTest {
         var table = innermostTable(doc, limit)
         val dotted = mutableListOf<StandardTable>()
         repeat(limit - 1) {
-            table = table.getOrPut("d") { Item(StandardTable().also { it.setDotted(true).getOrFail() }) }
+            table = table.getOrPut("d") { Item(StandardTable()).also { it.setLayout(TableLayout.Dotted).getOrFail() } }
                 .getOrFail()
                 .standardTableOrNull!!
             dotted += table
         }
-        for (each in dotted) each.setDotted(false).getOrFail()
+        for (each in dotted) slotOf(each)!!.setLayout(TableLayout.Header).getOrFail()
         val child = StandardTable()
-        child.setDotted(true).getOrFail()
+        Item(child).setLayout(TableLayout.Dotted).getOrFail()
         child.set("x", 1L).getOrFail()
         val path = repeated("t", limit) + repeated("d", limit)
         assertUnchanged(doc, { table.set("d", child).errorOrFail() }, tooDeep(path))
@@ -140,7 +140,7 @@ class StoreDepthTest {
     fun `a table made a value too deep for its line is TooDeep`() {
         val doc = TomlDocument()
         innermostTable(doc, limit).set("x", 1L).getOrFail()
-        val error = doc["t"].getOrFail().setInline(true).errorOrFail()
+        val error = doc["t"].getOrFail().setLayout(TableLayout.Inline).errorOrFail()
         assertEquals(tooDeep(repeated("t", limit) + "x"), error)
         assertEquals(TomlType.Table, doc["t"].getOrFail().type)
     }

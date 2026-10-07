@@ -84,9 +84,12 @@ internal class KeyValue(var key: Key, item: Item) {
     /**
      * Readies the comment and blank lines above what the item prints for its replacement, returning those that go
      * above what replaces it: the lines above its header, or above the first of its dotted-key lines. The lines
-     * above its later dotted-key lines stay where they print.
+     * above its later dotted-key lines stay where they print, unless [keptInside] says [next] holds them.
      */
-    fun takeLinesAbove(next: Item): String {
+    fun takeLinesAbove(
+        next: Item,
+        keptInside: Boolean = false,
+    ): String {
         if (item.headerTable != null) return linesAboveHeader()
         val dottedTable = item.standardTableOrNull?.takeIf { it.isDotted }
         val dottedInline = item.inlineTableOrNull?.takeIf { it.isDotted }
@@ -98,7 +101,9 @@ internal class KeyValue(var key: Key, item: Item) {
         }
         // A value replacing dotted-key lines prints where the first of them did.
         if (order == null) order = lines.firstOrNull()?.order
-        var carried = ""
+        // A dotted table made from a header keeps the lines that stood above it, printed above its first line.
+        var carried = linesAbove(dottedTable?.rawDecor?.prefix).takeIf { '#' in it }.orEmpty()
+        val firstValue = lines.firstOrNull { it is VisualValue }
         for ((index, line) in lines.withIndex()) {
             val text = when (line) {
                 is VisualValue -> above(line.entry.key.rawLeafDecor.prefix)
@@ -108,6 +113,7 @@ internal class KeyValue(var key: Key, item: Item) {
             val order = line.order
             when {
                 text.isEmpty() -> continue
+                keptInside && line !== firstValue -> continue
                 index == 0 || order == null || pairs == null -> carried += text
                 else -> pairs.keptLines += KeptLines(text, order)
             }

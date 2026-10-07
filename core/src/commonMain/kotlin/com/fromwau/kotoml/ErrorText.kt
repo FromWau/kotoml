@@ -211,7 +211,7 @@ internal fun TomlEditError.describe(): String = when (this) {
     is TomlEditError.NotATableElement ->
         "an array of tables holds only tables, not ${itemType.describe().withArticle()}"
     is TomlEditError.NotExpandable ->
-        "only an inline table or an array of inline tables expands, not ${itemType.describe().withArticle()}"
+        "${itemType.describe().withArticle()} cannot take that table layout"
     is TomlEditError.TooDeep -> at(keyPath, TOO_DEEP)
     is TomlEditError.CommentsWouldBeLost -> at(keyPath, commentsWouldBeLost(count))
 }

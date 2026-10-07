@@ -766,7 +766,7 @@ class CommentScenariosTest {
     }
 
     private fun eR_100(doc: TomlDocument) {
-        doc["t"].getOrFail().setInline(true, force = true)
+        doc["t"].getOrFail().setLayout(TableLayout.Inline, force = true)
     }
 
     private fun eR_101(doc: TomlDocument) {
@@ -786,15 +786,15 @@ class CommentScenariosTest {
     }
 
     private fun eR_105(doc: TomlDocument) {
-        doc["t"].getOrFail().standardTableOrNull!!.setDotted(true, force = true)
+        doc["t"].getOrFail().setLayout(TableLayout.Dotted, force = true)
     }
 
     private fun eR_106(doc: TomlDocument) {
-        doc["t"].getOrFail().standardTableOrNull!!.setDotted(false)
+        doc["t"].getOrFail().setLayout(TableLayout.Header)
     }
 
     private fun eR_107(doc: TomlDocument) {
-        doc["t"].getOrFail().inlineTableOrNull!!.setDotted(true, force = true)
+        doc["t"].getOrFail().setLayout(TableLayout.Dotted, force = true)
     }
 
     private fun eR_108(doc: TomlDocument) {
@@ -1058,86 +1058,86 @@ class CommentScenariosTest {
     }
 
     private fun eS_059(doc: TomlDocument) {
-        doc["t"].getOrFail().setInline(true, force = true)
+        doc["t"].getOrFail().setLayout(TableLayout.Inline, force = true)
     }
 
     private fun eS_060(doc: TomlDocument) {
-        doc["t"].getOrFail().setInline(true, force = true)
+        doc["t"].getOrFail().setLayout(TableLayout.Inline, force = true)
     }
 
     private fun eS_061(doc: TomlDocument) {
-        doc["t"].getOrFail().setInline(true)
+        doc["t"].getOrFail().setLayout(TableLayout.Inline)
     }
 
     private fun eS_062(doc: TomlDocument) {
-        doc["t"].getOrFail().setInline(true, force = true)
+        doc["t"].getOrFail().setLayout(TableLayout.Inline, force = true)
     }
 
     private fun eS_063(doc: TomlDocument) {
-        doc["t"].getOrFail().setInline(true)
+        doc["t"].getOrFail().setLayout(TableLayout.Inline)
     }
 
     private fun eS_064(doc: TomlDocument) {
-        doc["t"].getOrFail().setInline(true, force = true)
+        doc["t"].getOrFail().setLayout(TableLayout.Inline, force = true)
     }
 
     private fun eS_065(doc: TomlDocument) {
-        doc["t"].getOrFail().setInline(true)
+        doc["t"].getOrFail().setLayout(TableLayout.MultilineInline)
     }
 
     private fun eS_066(doc: TomlDocument) {
-        doc["x"].getOrFail().standardTableOrNull!!.setDotted(true, force = true)
+        doc["x"].getOrFail().setLayout(TableLayout.Dotted, force = true)
     }
 
     private fun eS_067(doc: TomlDocument) {
-        doc["x"].getOrFail().standardTableOrNull!!.setDotted(true, force = true)
+        doc["x"].getOrFail().setLayout(TableLayout.Dotted, force = true)
     }
 
     private fun eS_068(doc: TomlDocument) {
-        doc["x"].getOrFail().standardTableOrNull!!.setDotted(true)
+        doc["x"].getOrFail().setLayout(TableLayout.Dotted)
     }
 
     private fun eS_069(doc: TomlDocument) {
-        doc["x"].getOrFail().standardTableOrNull!!.setDotted(true, force = true)
+        doc["x"].getOrFail().setLayout(TableLayout.Dotted, force = true)
     }
 
     private fun eS_070(doc: TomlDocument) {
-        doc["x"].getOrFail().standardTableOrNull!!.setDotted(true, force = true)
+        doc["x"].getOrFail().setLayout(TableLayout.Dotted, force = true)
     }
 
     private fun eS_071(doc: TomlDocument) {
-        doc["x"].getOrFail().standardTableOrNull!!.setDotted(true, force = true)
+        doc["x"].getOrFail().setLayout(TableLayout.Dotted, force = true)
     }
 
     private fun eS_072(doc: TomlDocument) {
-        doc["x"].getOrFail().standardTableOrNull!!.setDotted(false)
+        doc["x"].getOrFail().setLayout(TableLayout.Header)
     }
 
     private fun eS_073(doc: TomlDocument) {
-        doc["x"].getOrFail().standardTableOrNull!!.setDotted(false)
+        doc["x"].getOrFail().setLayout(TableLayout.Header)
     }
 
     private fun eS_074(doc: TomlDocument) {
-        doc["t"].getOrFail().inlineTableOrNull!!.setDotted(true, force = true)
+        doc["t"].getOrFail().setLayout(TableLayout.Dotted, force = true)
     }
 
     private fun eS_075(doc: TomlDocument) {
-        doc["t"].getOrFail().inlineTableOrNull!!.setDotted(true, force = true)
-        doc["t"]["u"].getOrFail().inlineTableOrNull!!.setDotted(true, force = true)
+        doc["t"].getOrFail().setLayout(TableLayout.Dotted, force = true)
+        doc["t"]["u"].getOrFail().setLayout(TableLayout.Dotted, force = true)
     }
 
     private fun eS_076(doc: TomlDocument) {
-        val x = doc["x"].getOrFail().standardTableOrNull!!
-        x.setDotted(true, force = true)
-        x.setDotted(false, force = true)
+        val x = doc["x"].getOrFail()
+        x.setLayout(TableLayout.Dotted, force = true)
+        x.setLayout(TableLayout.Header, force = true)
     }
 
     private fun eS_077(doc: TomlDocument) {
-        doc["a"]["b"].getOrFail().standardTableOrNull!!.setDotted(true, force = true)
+        doc["a"]["b"].getOrFail().setLayout(TableLayout.Dotted, force = true)
     }
 
     private fun eS_078(doc: TomlDocument) {
-        doc["s"]["t"].getOrFail().inlineTableOrNull!!.setDotted(true, force = true)
+        doc["s"]["t"].getOrFail().setLayout(TableLayout.Dotted, force = true)
     }
 
     private fun eS_079(doc: TomlDocument) {
@@ -1551,11 +1551,11 @@ class CommentScenariosTest {
     }
 
     private fun eC_063(doc: TomlDocument) {
-        doc["t"].getOrFail().inlineTableOrNull!!.setDotted(true, force = true)
+        doc["t"].getOrFail().setLayout(TableLayout.Dotted, force = true)
     }
 
     private fun eC_064(doc: TomlDocument) {
-        doc["t"].getOrFail().inlineTableOrNull!!.setDotted(true)
+        doc["t"].getOrFail().setLayout(TableLayout.Dotted)
     }
 
     private fun eC_065(doc: TomlDocument) {
@@ -1579,11 +1579,11 @@ class CommentScenariosTest {
     }
 
     private fun eC_070(doc: TomlDocument) {
-        doc["t"].getOrFail().standardTableOrNull!!.setDotted(false)
+        doc["t"].getOrFail().setLayout(TableLayout.Header)
     }
 
     private fun eC_071(doc: TomlDocument) {
-        doc["t"].getOrFail().standardTableOrNull!!.setDotted(true, force = true)
+        doc["t"].getOrFail().setLayout(TableLayout.Dotted, force = true)
     }
 
     private fun eC_072(doc: TomlDocument) {
@@ -1735,7 +1735,7 @@ class CommentScenariosTest {
     }
 
     private fun eC_109(doc: TomlDocument) {
-        doc["t"].getOrFail().setInline(true, force = true)
+        doc["t"].getOrFail().setLayout(TableLayout.Inline, force = true)
     }
 
     private fun eC_110(doc: TomlDocument) {

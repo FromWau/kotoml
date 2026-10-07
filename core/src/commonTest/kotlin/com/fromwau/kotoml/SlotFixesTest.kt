@@ -35,7 +35,7 @@ class SlotFixesTest {
     @Test
     fun `a table made a value keeps the comment above its header`() {
         val doc = parse("a = 1\n\n# about t\n[t]\nx = 1\n")
-        doc["t"].getOrFail().setInline(true).getOrFail()
+        doc["t"].getOrFail().setLayout(TableLayout.Inline).getOrFail()
         assertEquals("a = 1\n\n# about t\nt = { x = 1 }\n", doc.toString())
     }
 
@@ -49,7 +49,7 @@ class SlotFixesTest {
     @Test
     fun `a table made a value prints the key with its default spacing`() {
         val doc = parse("[t]\nx = 1\n")
-        doc["t"].getOrFail().setInline(true).getOrFail()
+        doc["t"].getOrFail().setLayout(TableLayout.Inline).getOrFail()
         assertEquals("t = { x = 1 }\n", doc.toString())
     }
 
@@ -57,7 +57,7 @@ class SlotFixesTest {
     fun `a table taken before it was made a value keeps its content and no longer writes into the document`() {
         val doc = parse("[t]\nx = 1\n")
         val taken = doc["t"].getOrFail().standardTableOrNull!!
-        doc["t"].getOrFail().setInline(true).getOrFail()
+        doc["t"].getOrFail().setLayout(TableLayout.Inline).getOrFail()
         taken["y"] = 2L
         assertEquals(1L, taken.getOrNull("x")?.longOrNull)
         assertEquals("t = { x = 1 }\n", doc.toString())
@@ -68,7 +68,7 @@ class SlotFixesTest {
         val doc = parse("[[a]]\nx = 1\n")
         val dotted = parse("t.y = 2\n")["t"].getOrFail()
         doc["a"].set(0, dotted).getOrFail()
-        assertEquals(false, doc["a"][0].getOrFail().standardTableOrNull!!.isDotted)
+        assertEquals(TableLayout.Header, doc["a"][0].getOrFail().layout)
         assertEquals("[[a]]\ny = 2\n", doc.toString())
     }
 

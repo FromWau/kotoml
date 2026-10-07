@@ -49,31 +49,24 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     }
 
     /**
-     * Whether this table stands for the parts of a dotted key rather than for a header; [setDotted] changes it. A
-     * document's root and an element of an array of tables are never dotted: storing a table as either clears this.
-     * A dotted table whose lines, as dotted keys, would nest deeper than [TomlDocument.NESTING_LIMIT] prints under a
-     * header instead, so its text reads back.
+     * [TableLayout.Dotted] while this table stands for the parts of a dotted key, [TableLayout.Header] otherwise. A
+     * document's root and an element of an array of tables are never dotted: storing a table as either makes it a
+     * header table. A dotted table whose lines, as dotted keys, would nest deeper than [TomlDocument.NESTING_LIMIT]
+     * prints under a header instead, so its text reads back.
      */
-    override val isDotted: Boolean
+    override val layout: TableLayout
+        get() = if (dotted) TableLayout.Dotted else TableLayout.Header
+
+    /** Whether this table stands for the parts of a dotted key rather than for a header. */
+    internal val isDotted: Boolean
         get() = dotted
 
     /**
-     * Gives the table a new layout, as [Table.setDotted] says; dotted keys made a header put the comment above their
-     * first line above the header.
+     * Makes this table dotted or a header table as a new layout: the lines above its key stay and each value keeps the
+     * comment on its line, while its header comment and the comment lines inside it go; dotted keys made a header put
+     * the comment above their first line above the header.
      */
-    override fun setDotted(
-        value: Boolean,
-        force: Boolean,
-    ): EmptyResult<TomlEditError> {
-        if (value == dotted) return Ok(Unit)
-        return changeLayout(this, force) { table ->
-            table.layOutDotted(value)
-            Ok(Unit)
-        }
-    }
-
-    // A new layout: the lines above the key stay, and each value keeps the comment on its line.
-    private fun layOutDotted(value: Boolean) {
+    internal fun layOutDotted(value: Boolean) {
         if (value) {
             if ('#' in rawDecor.suffix?.textOrNull.orEmpty()) rawDecor.suffix = null
             dropCommentLines(fromLine = 0)
@@ -218,40 +211,14 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
 
     /**
      * An inline table holding copies of this table's values, formatted anew; the table stays as it is.
-     * [Item.setInline] turns a table in a document into an inline table in place.
+     * [Item.setLayout] turns a table in a document into an inline table in place.
      *
      * @return [TomlEditError.TooDeep] when its tables, nested as inline tables, would be deeper than the parser reads.
      */
     public fun toInlineTable(): Result<InlineTable, TomlEditError> = deepCopy().moveToInlineTable().refusedWhenTooDeep()
 
     /**
-     * Whether this table, made an inline table, has comments to keep: on its lines or kept from removed keys, and on
-     * or above the headers of the tables under it, at any depth. The lines above a dotted table's first line are above
-     * its key, outside it.
-     */
-    internal fun holdsComments(): Boolean {
-        if (bodyLines().any { it is KeptLines && '#' in it.text }) return true
-        val onLines = visualValues().withIndex().any { (index, line) ->
-            val start = line.lineStart ?: line.path.last().rawLeafDecor.prefix
-            val above = if (isDotted && index == 0) "" else linesAbove(start)
-            '#' in above || '#' in line.value.commentAfter() || '#' in line.lineEnd
-        }
-        return onLines || items.entries.any { entry ->
-            val table = entry.item.standardTableOrNull
-            val tables = entry.item.arrayOfTablesOrNull
-            when {
-                table != null && table.isDotted -> table.holdsComments()
-                table != null -> table.headerLinesAbove(entry.key).isNotEmpty() ||
-                    table.headerComment.isNotEmpty() ||
-                    table.holdsComments()
-                tables != null -> tables.holdsComments(entry.key)
-                else -> false
-            }
-        }
-    }
-
-    /**
-     * This table, a copy to use up, as the inline table value [Item.setInline] makes of it on a line indented by
+     * This table, a copy to use up, as the inline table value [Item.setLayout] makes of it on a line indented by
      * [indent]: across lines keeping its comments when [layout] says so, its header comment after `{`; otherwise on
      * one line, formatted anew, its header comment after `}`.
      */
@@ -259,8 +226,8 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         layout: InlineLayout,
         indent: String,
     ): Value {
-        val comment = if (isDotted) "" else headerComment
-        if (layout.acrossLines(this)) return Value.InlineTable(moveToInlineTableAcrossLines(comment, layout, indent))
+        val comment = headerComment
+        if (layout.multiline) return Value.InlineTable(moveToInlineTableAcrossLines(comment, layout, indent))
         val value = Value.InlineTable(moveToInlineTable())
         if (comment.isNotEmpty()) value.rawDecor.suffix = KeptText.from(comment)
         return value
@@ -1026,15 +993,14 @@ private fun String.splitLinesAbove(first: Boolean): Pair<String, String> {
 }
 
 /**
- * How [Item.setInline] lays out each inline table it makes: across lines where there are comments to keep and
- * [version] reads that, otherwise on one line. The lines it adds end in [lineBreak].
+ * How [Item.setLayout] lays out each inline table it makes: across lines when [multiline], otherwise on one line. The
+ * lines it adds end in [lineBreak], and in [version] 1.1 the last entry of a table across lines takes a comma.
  */
 internal class InlineLayout(
     val version: TomlVersion,
     val lineBreak: String,
-) {
-    fun acrossLines(table: StandardTable): Boolean = version == TomlVersion.V1_1 && table.holdsComments()
-}
+    val multiline: Boolean,
+)
 
 /** The comment lines of [lines], each indented by [indent] and ended by [lineBreak]; blank lines go. */
 internal fun indentedCommentLines(
