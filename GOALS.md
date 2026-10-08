@@ -147,7 +147,8 @@ official toml-test runner for TOML 1.0 and 1.1.
    builder block.
    Check: review new API against the README's examples.
 3. **A small dependency surface.** Core depends only on kern's `result`, `kotlinx-serialization-core` and
-   `kotlinx-io-core`; anything new in a public signature needs a reason.
+   `kotlinx-io-core`, plus kern's `fuzzy` internally for its suggestions; anything new in a public signature needs a
+   reason.
    Check: `core/build.gradle.kts`.
 4. **Docs are written for consumers.** Every public declaration has KDoc a caller can act on, and the README is
    organised by task.

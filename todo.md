@@ -50,20 +50,6 @@ new first line (it belongs to the group, C6). Blank lines dropped on one line ar
 `CommentsWouldBeLost` for them. Blank lines between `[[a]]` headers are table spacing the braces lay out themselves.
 A layout change leaves no blank line dangling at the end of the file.
 
-- [ ] **120. Write the comment ownership rule down.** GOALS.md goal 4 holds it (done with this item's filing);
-  core/README.md's "Items and their comments" changes wave by wave with the code (121 to 125), never ahead of it.
-- [ ] **127. Sorting keeps a dotted group's comment above its first line; no blank line dangles at the file end.**
-  Sorting `[t]\nz = 3 # z\n# about b\nb.d = 1 # d\nb.c = 2 # c\n` prints `# about b` between `b.c` and `b.d`;
-  it should stay above `b.c`, the group's new first line. `[t]\nb.c = 1\n\n# free\n\nb.d = 2\n` with
-  `setLayout(Inline, force = true)` on `b` ends the file with a blank line after `# free`.
-- [ ] **134. A comment set on a stored value is the document's at once.** Owner, 2026-10-08: setting `decor` on a
-  value already stored writes it into the document, so it is the file's comment, not the caller's: `y = 2` with
-  `doc["y"]…decor = Decor(suffix = " # set")`, then `doc.set("x", doc["y"])` over `x = 1 # one` gives
-  `x = 2 # one`. Only a comment set on a value not yet stored wins over a slot's. Changes the 132 case of a read
-  value whose decor the caller sets.
-- [ ] **125. Review the QA scenarios and docs against the rule.** List every `qa/comment-scenarios` scenario whose
-  expected output changes for the owner to confirm; update core/README.md's comment rules, CommentPropertyTest and
-  the removal tests.
 
 ### Cleanup pass rulings (2026-10-07)
 
@@ -130,6 +116,35 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **120. Write the comment ownership rule down.** GOALS.md goal 4 holds it (done with this item's filing);
+  core/README.md's "Items and their comments" changes wave by wave with the code (121 to 125), never ahead of it.
+  **Verdict 2026-10-08:** done: GOALS.md goal 4 holds the rule and every ruling of 121 to 134; core/README.md's comment
+  rules follow the code.
+
+- [x] **125. Review the QA scenarios and docs against the rule.** List every `qa/comment-scenarios` scenario whose
+  expected output changes for the owner to confirm; update core/README.md's comment rules, CommentPropertyTest and
+  the removal tests.
+  **Verdict 2026-10-08:** done: README and KDoc checked against the code and goal 4, property tests check the ownership
+  rule exactly, QA titles and notes fixed; a final cleanup pass over `04ed366..HEAD` moved the compiler flags into the
+  `kotoml-kotlin` convention plugin, folded the line-comment rule into `ItemComments.keepsOnLine`, deleted the dead
+  `headerTableOf`, and added tests for two serialization README claims.
+
+- [x] **134. A comment set on a stored value is the document's at once.** Owner, 2026-10-08: setting `decor` on a
+  value already stored writes it into the document, so it is the file's comment, not the caller's: `y = 2` with
+  `doc["y"]…decor = Decor(suffix = " # set")`, then `doc.set("x", doc["y"])` over `x = 1 # one` gives
+  `x = 2 # one`. Only a comment set on a value not yet stored wins over a slot's. Changes the 132 case of a read
+  value whose decor the caller sets.
+  **Verdict 2026-10-08:** fixed: a public decor setter on something stored in a document writes document text; on
+  something stored nowhere it is the caller's (`RawDecor.set(decor, inDocument)`), so a copy of a stored value whose
+  comment was set only fills. Pinned in StoreCarriesCommentsTest.
+
+- [x] **127. Sorting keeps a dotted group's comment above its first line; no blank line dangles at the file end.**
+  Sorting `[t]\nz = 3 # z\n# about b\nb.d = 1 # d\nb.c = 2 # c\n` prints `# about b` between `b.c` and `b.d`;
+  it should stay above `b.c`, the group's new first line. `[t]\nb.c = 1\n\n# free\n\nb.d = 2\n` with
+  `setLayout(Inline, force = true)` on `b` ends the file with a blank line after `# free`.
+  **Verdict 2026-10-08:** fixed: sorting keeps a dotted group's comment above its new first line at every depth, and
+  free lines left last after a layout change lose the blank line after them. Pinned in MoveWithCommentsTest.
 
 - [x] **133. A comment the caller set counts as the document's once stored.** Owner, 2026-10-08: `y` stored
   with `Decor(suffix = " # given")`, then `doc.set("x", doc["y"])` over `x = 1 # one` gives `x = 2 # one`, as an
