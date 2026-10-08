@@ -450,7 +450,7 @@ public class TomlArray() : Iterable<Value> {
                 .lastOrNull { it.isNotBlank() }
                 ?.takeWhile { it == ' ' || it == '\t' }
             ?: ""
-        value.decor = value.decor.copy(prefix = trailing.substring(0, lineBreak + 1) + indent)
+        value.rawDecor.prefix = KeptText.from(trailing.substring(0, lineBreak + 1) + indent)
         trailing = trailing.substring(closingLine)
     }
 
@@ -523,8 +523,9 @@ public class TomlArray() : Iterable<Value> {
 
     /**
      * Replaces the element at [index] with a copy of [value]. The element keeps its comments: the comment lines right
-     * above it, the comment after its comma and those between it and its comma. A comment [value] brings, as [add]
-     * says, fills only the places where the element has none.
+     * above it, the comment after its comma and those between it and its comma. A comment [value] brings from where it
+     * was read fills only the places where the element has none; a comment given in its decor, as [add] says, takes the
+     * place of the element's.
      *
      * ```kotlin
      * val doc = TomlDocument.parse("a = [\n  1, # on 1\n]\nc = [\n  7, # seven\n  8,\n]\n").getOrElse { error(it) }
@@ -546,7 +547,8 @@ public class TomlArray() : Iterable<Value> {
         storeError(this, null, Item(value))?.let { return Err(it) }
         val carried = value.copyWithLineComments()
         val brought = carried.broughtComment()
-        val comment = if (keepDecor) elementComments(index).fillOnLine(brought) else brought
+        val given = carried.rawDecor.givesComment()
+        val comment = if (keepDecor) elementComments(index).fillOnLine(brought, given) else brought
         val stored = carried.fitFor(ValuePlace.Array).also { giveSecondsInToml10(this, Item(it)) }
         if (comment.isNotEmpty()) {
             spreadForComment(stored)

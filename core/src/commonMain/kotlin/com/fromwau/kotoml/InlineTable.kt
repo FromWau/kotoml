@@ -671,7 +671,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         val value = carried.fitFor(ValuePlace.InlineTable)
         storeError(this, key.name, Item(value), key)?.let { return Err(it) }
         if (!force) lostComments(key.name, brought, "")?.let { return Err(it) }
-        putEntry(key.copy(), value, commentToKeep(brought))
+        putEntry(key.copy(), value, brought)
         return Ok(value)
     }
 
@@ -681,9 +681,10 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
      *
      * A comment [value] brings, its same-line comment where it was read, also one after its comma, or one given in its
      * decor, such as `Decor(suffix = " # note")`, puts a table on one line across lines, as [Item.setLayout] does for
-     * [TableLayout.MultilineInline], and prints after the value's comma, unless a comment stood there, which stays;
-     * comment lines between [value] and its comma print below it, the comma below them. The lines it adds end as the
-     * document's lines do, in `\r\n` in a document read with them.
+     * [TableLayout.MultilineInline], and prints after the value's comma. A comment given in its decor takes the place
+     * of the one that stood there; one read with [value] prints there only when none stood there. Comment lines
+     * between [value] and its comma print below it, the comma below them. The lines it adds end as the document's
+     * lines do, in `\r\n` in a document read with them.
      *
      * TOML 1.0 has no comments inside an inline table, and a dotted table prints its keys among other lines, so
      * neither can hold the comments [value] brings: storing it there fails with [TomlEditError.CommentsWouldBeLost]
@@ -767,7 +768,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         if (!force) lostComments(key.name, brought, linesAbove)?.let { return Err(it) }
         dropCommentsItCannotHold(value)
         val above = if (holdsComments()) linesAbove else ""
-        return Ok(putEntry(key, value, commentToKeep(brought), above))
+        return Ok(putEntry(key, value, brought, above))
     }
 
     /**
@@ -789,11 +790,11 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     private fun putEntry(
         key: Key,
         value: Value,
-        broughtComment: String = "",
+        brought: RawDecor,
         broughtAbove: String = "",
     ): Value? {
         val own = items.getEntry(key.name)?.itemComments() ?: ItemComments.NONE
-        val comment = own.fillOnLine(broughtComment)
+        val comment = own.fillOnLine(commentToKeep(brought), brought.givesComment())
         val linesAbove = own.fillAbove(broughtAbove)
         giveSecondsInToml10(this, Item(value))
         val isNew = !items.containsKey(key.name)
@@ -804,7 +805,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
             if (isNew && key.rawLeafDecor.prefix == null) key.rawLeafDecor.prefix = KeptText.from(lineBreak)
             // On a table's line the comment lines between a value and its comma go above its key, so they stay its own.
             val above = linesAbove + value.rawDecor.takeCommentLinesBelow()
-            if (comment.isNotEmpty()) value.rawDecor.suffix = KeptText.read(comment)
+            if (comment.isNotEmpty()) value.rawDecor.suffix = brought.suffix.replacedBy(comment)
             return items.put(key, Item.inInlineTable(value), above)?.valueOrNull
         }
         // A dotted table's lines print in the braces holding it, which spread across lines for a comment.

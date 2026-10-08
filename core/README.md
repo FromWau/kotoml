@@ -120,14 +120,15 @@ doc.remove("x", force = true) // Ok(item)
 
 Replacing an item keeps its spacing and its comments: the comment lines right above it, the one after it, for a table
 those of its header, and for an element or an inline table's entry the one after its comma. The comments the new item
-brings, read with it or given in its decor, fill only the places where the item it replaces has none; each place
-counts on its own. To change a comment the slot keeps, set the stored item's `decor` after the store.
+brings from where it was read fill only the places where the item it replaces has none; each place counts on its own.
+A comment you give in its decor, such as `Decor(suffix = " # new")`, takes the place of the old one there.
 
 ```kotlin
-val doc = TomlDocument.parse("# about x\nx = 1 # one\nz = 0\n").getOrElse { error(it) }
+val doc = TomlDocument.parse("# about x\nx = 1 # one\nz = 0\nport = 1 # comment\n").getOrElse { error(it) }
 val other = TomlDocument.parse("# about y\ny = 5 # five\n").getOrElse { error(it) }
 doc.set("x", other["y"].getOrElse { error(it) }) // # about x\nx = 5 # one
 doc.set("z", other["y"].getOrElse { error(it) }) // # about y\nz = 5 # five
+doc.set("port", Value.Integer(2L, Decor(prefix = " ", suffix = " # new"))) // port = 2 # new
 ```
 
 An array of tables left with no tables prints
@@ -135,7 +136,8 @@ An array of tables left with no tables prints
 takes the indentation of the key above it, and an element or key added to an array or inline table on one line takes
 the spacing already there. A comment an element or an inline table's value brings, read with it or given in its
 decor, such as `Decor(suffix = " # note")`, puts a one-line array or inline table on lines of its own, one entry per
-line, whether the entry is added, inserted at an index or replaces another one without a comment there, and the new
+line, whether the entry is added, inserted at an index or replaces another. A comment given in its decor takes the
+place of the one that stood after the entry it replaces, one read with it only fills a place without one, and the new
 lines end as the document's do. An element or entry read from
 brackets or braces across lines brings the comment after its comma, its same-line comment, wherever it is stored,
 also when `removeAt` or `remove` hands it back. Comment lines between an element and its comma stay between them

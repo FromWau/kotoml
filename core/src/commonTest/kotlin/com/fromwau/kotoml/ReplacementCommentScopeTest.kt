@@ -34,10 +34,10 @@ class ReplacementCommentScopeTest {
     }
 
     @Test
-    fun `a comment in a value's own decor leaves the old value's comment`() {
+    fun `a comment in a value's own decor takes the place of the old value's comment`() {
         val text = "port = 1 # comment\n"
         assertEquals(
-            "port = 2 # comment\n",
+            "port = 2 # new\n",
             replacing(text) { it.set("port", Value.Integer(2L, Decor(prefix = " ", suffix = " # new"))) },
         )
     }

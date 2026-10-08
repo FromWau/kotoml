@@ -29,8 +29,14 @@ internal data class ItemComments(
      */
     fun fillAbove(brought: String): String = if ('#' in attachedAbove) "" else brought
 
-    /** [brought], the comment a replacement brings for its line, when the item it replaces has none there. */
-    fun fillOnLine(brought: String): String = if (holdsOnLine) "" else brought
+    /**
+     * [brought], the comment a replacement brings for its line, when the item it replaces has none there or a caller
+     * [given] it: a comment the caller sets takes the place of the slot's.
+     */
+    fun fillOnLine(
+        brought: String,
+        given: Boolean,
+    ): String = if (holdsOnLine && !given) "" else brought
 
     companion object {
         val NONE: ItemComments = ItemComments()
@@ -246,15 +252,16 @@ private fun KeptText.withLinesAbove(
  * Gives an element in brackets whose decor is this, replacing one whose decor is [old], the old one's place and
  * comments: the comment lines directly above it and those between it and its comma. The comment lines the new one
  * brings above it or below it fill those places where the old one has none, above it only when the old one starts a
- * line.
+ * line; those a caller gave above it take the place of the old ones.
  */
 internal fun RawDecor.keepElementCommentsOf(old: RawDecor) {
     val block = prefix?.attachedAboveElement().orEmpty()
+    val given = prefix?.isGiven == true
     val start = old.prefix
     prefix = start
     if ('#' in old.suffix?.textOrNull.orEmpty() || commentLinesBelow().isEmpty()) suffix = old.suffix
     if ('#' !in block || start == null || '\n' !in start.textOrNull.orEmpty()) return
-    if ('#' in start.attachedAboveElement()) return
+    if ('#' in start.attachedAboveElement() && !given) return
     val text = start.textOrNull.orEmpty()
     val lines = indentedCommentLines(block, text.substringAfterLast('\n'), text.lineBreak())
     prefix = start.withAttachedAbove(lines, spacedForBraces = true)
@@ -490,10 +497,14 @@ private fun String.firstLine(): String {
 
 private fun KeptText?.text(): String = this?.textOrNull.orEmpty()
 
-/** [text] in place of this text, read from a document when this one was, so a copy treats it as this one. */
+/**
+ * [text] in place of this text, read from a document or given by a caller when this one was, so a copy treats it as
+ * this one.
+ */
 internal fun KeptText?.replacedBy(text: String): KeptText = when {
     this != null && textOrNull == text -> this
     this?.isRead == true -> KeptText.read(text)
+    this?.isGiven == true -> KeptText.given(text)
     else -> KeptText.from(text)
 }
 

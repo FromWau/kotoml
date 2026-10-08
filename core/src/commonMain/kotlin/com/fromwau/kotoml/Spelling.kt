@@ -4,7 +4,10 @@ import com.fromwau.kotoml.writer.TomlStringBuilder
 import com.fromwau.kotoml.writer.WriteTomlValue
 import com.fromwau.kotoml.writer.toTomlValue
 
-/** Raw TOML text kept for formatting: text you set, or a span into a parse's input until it is resolved. */
+/**
+ * Raw TOML text kept for formatting: text kotoml made, text read from a document, text a caller set, or a span into a
+ * parse's input until it is resolved.
+ */
 internal class KeptText private constructor(private val state: State) {
 
     private sealed interface State {
@@ -14,6 +17,9 @@ internal class KeptText private constructor(private val state: State) {
 
         // Text read from a parse's input, as opposed to text a caller gave.
         data class Read(val text: String) : State
+
+        // Text a caller set in a decor, as opposed to text kotoml made or moved.
+        data class Given(val text: String) : State
 
         data class Spanned(val span: Span) : State
     }
@@ -26,12 +32,17 @@ internal class KeptText private constructor(private val state: State) {
             State.Empty -> ""
             is State.Explicit -> state.text
             is State.Read -> state.text
+            is State.Given -> state.text
             is State.Spanned -> null
         }
 
     /** Whether this text was read from a document rather than given by a caller. */
     val isRead: Boolean
         get() = state is State.Read
+
+    /** Whether a caller set this text in a decor, rather than it being read or made by kotoml. */
+    val isGiven: Boolean
+        get() = state is State.Given
 
     val span: Span?
         get() = (state as? State.Spanned)?.span
@@ -40,6 +51,7 @@ internal class KeptText private constructor(private val state: State) {
         State.Empty -> ""
         is State.Explicit -> state.text
         is State.Read -> state.text
+        is State.Given -> state.text
         is State.Spanned -> input.slice(state.span)
     }
 
@@ -48,6 +60,7 @@ internal class KeptText private constructor(private val state: State) {
         State.Empty -> ""
         is State.Explicit -> state.text
         is State.Read -> state.text
+        is State.Given -> state.text
         is State.Spanned -> default
     }
 
@@ -55,7 +68,8 @@ internal class KeptText private constructor(private val state: State) {
     fun mapText(transform: (String) -> String): KeptText = when (state) {
         State.Empty, is State.Spanned -> this
         is State.Explicit -> from(transform(state.text))
-        is State.Read -> transform(state.text).let { if (it.isEmpty()) KeptText() else KeptText(State.Read(it)) }
+        is State.Read -> read(transform(state.text))
+        is State.Given -> given(transform(state.text))
     }
 
     fun resolveSpans(input: SourceText): KeptText = when (state) {
@@ -77,6 +91,7 @@ internal class KeptText private constructor(private val state: State) {
         State.Empty -> ""
         is State.Explicit -> state.text
         is State.Read -> state.text
+        is State.Given -> state.text
         is State.Spanned -> state.span.toString()
     }
 
@@ -86,6 +101,9 @@ internal class KeptText private constructor(private val state: State) {
 
         /** Holds [text] as read from a document, as the text a copy brings from there. */
         fun read(text: String): KeptText = if (text.isEmpty()) KeptText() else KeptText(State.Read(text))
+
+        /** Holds [text] as a caller set it in a decor. */
+        fun given(text: String): KeptText = if (text.isEmpty()) KeptText() else KeptText(State.Given(text))
 
         fun withSpan(start: Int, end: Int): KeptText = KeptText(State.Spanned(Span(start, end)))
 
@@ -196,10 +214,16 @@ internal class RawDecor(
         suffix = suffix?.textOrNull,
     )
 
+    /** Takes the sides of [decor], a caller's; a side set to the text it already holds stays as it was. */
     fun set(decor: Decor) {
-        prefix = decor.prefix?.let(KeptText::from)
-        suffix = decor.suffix?.let(KeptText::from)
+        prefix = givenOrKept(prefix, decor.prefix)
+        suffix = givenOrKept(suffix, decor.suffix)
     }
+
+    private fun givenOrKept(
+        side: KeptText?,
+        text: String?,
+    ): KeptText? = if (text != null && side?.textOrNull == text) side else text?.let(KeptText::given)
 
     fun copy(): RawDecor = RawDecor(prefix, suffix)
 
@@ -251,6 +275,9 @@ internal class RawDecor(
             .map { it.trim() }
             .filter { it.startsWith('#') }
     }
+
+    /** Whether a caller gave the comment ending the line of the item this decor surrounds, rather than reading it. */
+    fun givesComment(): Boolean = suffix?.isGiven == true && '#' in commentOnLine()
 
     /** The comment ending the line of the value this decor surrounds, with the spacing before it; "" for none. */
     fun commentOnLine(): String {

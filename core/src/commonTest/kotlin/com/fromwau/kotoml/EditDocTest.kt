@@ -94,12 +94,13 @@ c = { d = "hello" }
     }
 
     @Test
-    fun `the module README replacing example keeps the slot's comments and fills an empty slot`() {
-        val doc = TomlDocument.parse("# about x\nx = 1 # one\nz = 0\n").assertSuccess()
+    fun `the module README replacing example keeps the slot's comments fills an empty slot and takes a given one`() {
+        val doc = TomlDocument.parse("# about x\nx = 1 # one\nz = 0\nport = 1 # comment\n").assertSuccess()
         val other = TomlDocument.parse("# about y\ny = 5 # five\n").assertSuccess()
         doc.set("x", other["y"].assertSuccess()).assertSuccess()
         doc.set("z", other["y"].assertSuccess()).assertSuccess()
-        assertEquals("# about x\nx = 5 # one\n# about y\nz = 5 # five\n", doc.toString())
+        doc.set("port", Value.Integer(2L, Decor(prefix = " ", suffix = " # new"))).assertSuccess()
+        assertEquals("# about x\nx = 5 # one\n# about y\nz = 5 # five\nport = 2 # new\n", doc.toString())
     }
 
     @Test

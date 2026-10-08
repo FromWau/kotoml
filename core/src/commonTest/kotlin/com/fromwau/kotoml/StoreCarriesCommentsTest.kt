@@ -8,7 +8,8 @@ import kotlin.test.assertEquals
 /**
  * Storing or copying an item takes the comments it owns: the comment lines directly above it and its same-line
  * comment, a table's those of its header, and everything inside it; comment lines set apart by a blank line stay. A
- * replacement keeps the slot's comments; those the new item brings fill only the places where the slot has none.
+ * replacement keeps the slot's comments; those the new item brings from where it was read fill only the places where
+ * the slot has none, while a comment a caller gives in a decor takes the slot's place.
  */
 class StoreCarriesCommentsTest {
 
@@ -112,11 +113,134 @@ class StoreCarriesCommentsTest {
     }
 
     @Test
-    fun `a comment given in a value's decor fills only an empty same-line place`() {
+    fun `a comment given in a value's decor takes the place of the slot's same-line comment`() {
         val doc = parse("x = 1 # one\ny = 2\n")
         doc.set("x", Value.Integer(5L, Decor(suffix = " # given"))).assertSuccess()
         doc.set("y", Value.Integer(6L, Decor(suffix = " # given"))).assertSuccess()
-        assertEquals("x = 5 # one\ny = 6 # given\n", doc.toString())
+        assertEquals("x = 5 # given\ny = 6 # given\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given in a value's decor assigned to a slot takes the place of its same-line comment`() {
+        val doc = parse("# about x\nx = 1 # one\n")
+        doc["x"].assertSuccess().assign(Item(Value.Integer(5L, Decor(suffix = " # given")))).assertSuccess()
+        assertEquals("# about x\nx = 5 # given\n", doc.toString())
+    }
+
+    @Test
+    fun `a value read from a document whose decor the caller set takes the place of the slot's comment`() {
+        val five = parse("y = 5 # five\n")["y"].assertSuccess().valueOrNull!!
+        five.decor = Decor(suffix = " # set")
+        val doc = parse("x = 1 # one\n")
+        doc.set("x", five).assertSuccess()
+        assertEquals("x = 5 # set\n", doc.toString())
+    }
+
+    @Test
+    fun `a value read from a document whose decor the caller cleared keeps the slot's comment`() {
+        val five = parse("y = 5 # five\n")["y"].assertSuccess().valueOrNull!!
+        five.decor = Decor()
+        val doc = parse("x = 1 # one\n")
+        doc.set("x", five).assertSuccess()
+        assertEquals("x = 5 # one\n", doc.toString())
+    }
+
+    @Test
+    fun `a header comment given in a table's decor takes the place of the slot's header comment`() {
+        val table = standardTableOf("k" to Item(Value.Integer(2L))).assertSuccess()
+        table.decor = Decor(suffix = " # given")
+        val doc = parse("# about a\n[a] # ah\nx = 1\n")
+        doc.set("a", table).assertSuccess()
+        assertEquals("# about a\n[a] # given\nk = 2\n", doc.toString())
+    }
+
+    @Test
+    fun `a header comment given in a table's decor replacing an element of an array of tables takes its place`() {
+        val table = standardTableOf("x" to Item(Value.Integer(1L))).assertSuccess()
+        table.decor = Decor(suffix = " # given")
+        val doc = parse("# about t\n[[t]] # t0\ny = 0\n")
+        doc["t"].assertSuccess().arrayOfTablesOrNull!!.replace(0, table).assertSuccess()
+        assertEquals("# about t\n[[t]] # given\nx = 1\n", doc.toString())
+    }
+
+    @Test
+    fun `a header comment given in a table's decor assigned to an element of an array of tables takes its place`() {
+        val table = standardTableOf("x" to Item(Value.Integer(1L))).assertSuccess()
+        table.decor = Decor(suffix = " # given")
+        val doc = parse("# about t\n[[t]] # t0\ny = 0\n")
+        doc["t"][0].assertSuccess().assign(Item(table)).assertSuccess()
+        assertEquals("# about t\n[[t]] # given\nx = 1\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given in an element's decor assigned by index takes the place of the comment after its comma`() {
+        val doc = parse("b = [\n  # about two\n  2, # two\n  3,\n]\n")
+        doc["b"][0].assertSuccess().assign(Item(Value.Integer(9L, Decor(suffix = " # given")))).assertSuccess()
+        assertEquals("b = [\n  # about two\n  9, # given\n  3,\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given in a value's decor assigned over an inline table entry takes the place of its comment`() {
+        val doc = parse("u = {\n  x = 7, # seven\n  z = 0,\n}\n")
+        doc["u"]["x"].assertSuccess().assign(Item(Value.Integer(1L, Decor(suffix = " # given")))).assertSuccess()
+        assertEquals("u = {\n  x = 1, # given\n  z = 0,\n}\n", doc.toString())
+    }
+
+    @Test
+    fun `comment lines given in an element's decor take the place of those above the element it replaces`() {
+        val doc = parse("a = [\n  # above\n  1, # one\n  2,\n]\n")
+        val given = Value.Integer(9L, Decor(prefix = "\n  # given above\n  "))
+        doc["a"].assertSuccess().arrayOrNull!!.replace(0, given).assertSuccess()
+        assertEquals("a = [\n  # given above\n  9, # one\n  2,\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `comment lines read above an element after one given a comment only fill a slot without any`() {
+        val doc = parse("a = [\n  1,\n  # about two\n  2,\n]\nb = [\n  # about b0\n  0,\n]\n")
+        val a = doc["a"].assertSuccess().arrayOrNull!!
+        a.replace(0, Value.Integer(9L, Decor(suffix = " # c"))).assertSuccess()
+        doc["b"].assertSuccess().arrayOrNull!!.replace(0, a[1].assertSuccess()).assertSuccess()
+        assertEquals("a = [\n  9, # c\n  # about two\n  2,\n]\nb = [\n  # about b0\n  2,\n]\n", doc.toString())
+    }
+
+    private fun dottedOnTableLinesWithComment(): TomlDocument {
+        val doc = parse("t = {\n  d.x = 1, # one\n  d.z = 3,\n}\n")
+        doc["t"].assertSuccess().setLayout(TableLayout.Header).assertSuccess()
+        return doc
+    }
+
+    @Test
+    fun `a value read with a comment set in a dotted table on a table's lines keeps the slot's comment`() {
+        val doc = dottedOnTableLinesWithComment()
+        val five = parse("y = 5 # five\n")["y"].assertSuccess().valueOrNull!!
+        val d = doc["t"]["d"].assertSuccess().inlineTableOrNull!!
+        d.set("x", five).assertSuccess()
+        d.set("z", five).assertSuccess()
+        assertEquals("[t]\nd.x = 5 # one\nd.z = 5 # five\n", doc.toString())
+    }
+
+    @Test
+    fun `a value read with a comment assigned in a dotted table on a table's lines keeps the slot's comment`() {
+        val doc = dottedOnTableLinesWithComment()
+        val five = parse("y = 5 # five\n")["y"].assertSuccess()
+        doc["t"]["d"]["x"].assertSuccess().assign(five).assertSuccess()
+        doc["t"]["d"]["z"].assertSuccess().assign(five).assertSuccess()
+        assertEquals("[t]\nd.x = 5 # one\nd.z = 5 # five\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given in a value's decor set in a dotted table on a table's lines takes the slot's place`() {
+        val doc = dottedOnTableLinesWithComment()
+        val d = doc["t"]["d"].assertSuccess().inlineTableOrNull!!
+        d.set("x", Value.Integer(5L, Decor(suffix = " # given"))).assertSuccess()
+        assertEquals("[t]\nd.x = 5 # given\nd.z = 3\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given in a value's decor assigned in a dotted table on a table's lines takes the slot's place`() {
+        val doc = dottedOnTableLinesWithComment()
+        doc["t"]["d"]["x"].assertSuccess().assign(Item(Value.Integer(5L, Decor(suffix = " # given")))).assertSuccess()
+        assertEquals("[t]\nd.x = 5 # given\nd.z = 3\n", doc.toString())
     }
 
     @Test

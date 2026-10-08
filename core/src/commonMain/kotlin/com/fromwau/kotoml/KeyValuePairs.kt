@@ -170,7 +170,8 @@ internal class KeyValue(key: Key, item: Item) {
         val table = item.standardTableOrNull?.takeUnless { it.isDotted } ?: return
         if (old == null) return
         val oldComment = '#' in old.suffix?.textOrNull.orEmpty()
-        if (oldComment || table.rawDecor.suffix?.textOrNull.isNullOrEmpty()) table.rawDecor.suffix = old.suffix
+        val keepsOld = oldComment && !table.rawDecor.givesComment()
+        if (keepsOld || table.rawDecor.suffix?.textOrNull.isNullOrEmpty()) table.rawDecor.suffix = old.suffix
     }
 
     /**
@@ -180,7 +181,7 @@ internal class KeyValue(key: Key, item: Item) {
     fun keepValueDecor(old: RawDecor?) {
         if (old == null) return
         val decor = item.valueOrNull?.rawDecor ?: return
-        if ('#' in old.suffix?.textOrNull.orEmpty()) decor.suffix = null
+        if ('#' in old.suffix?.textOrNull.orEmpty() && !decor.givesComment()) decor.suffix = null
         decor.fillDefaultsFrom(old)
     }
 

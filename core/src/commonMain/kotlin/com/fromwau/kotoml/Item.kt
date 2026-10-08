@@ -224,10 +224,11 @@ public class Item private constructor(
 
     /**
      * Replaces this slot's content with a copy of [item]'s. The slot keeps its comments, the comment lines right above
-     * it and its same-line comment; those [item] brings fill only the places where it has none, as [StandardTable.put]
-     * says. Fails when this slot is in an array or an inline table and [item] holds no value, or in an array of tables
-     * and [item] holds no table, with [TomlEditError.TooDeep] when [item] would nest deeper than the parser reads, and
-     * with [TomlEditError.NotInToml10] when it holds what only TOML 1.1 reads and this slot is in a document whose
+     * it and its same-line comment; those [item] brings from where it was read fill only the places where it has none,
+     * and a comment given in its decor takes the place of the slot's, as [StandardTable.put] says. Fails when this slot
+     * is in an array or an inline table and [item] holds no value, or in an array of tables and [item] holds no table,
+     * with [TomlEditError.TooDeep] when [item] would nest deeper than the parser reads, and with
+     * [TomlEditError.NotInToml10] when it holds what only TOML 1.1 reads and this slot is in a document whose
      * [TomlDocument.version] is 1.0. In an inline table that cannot hold the comments [item] brings, as
      * [InlineTable.put] says, it fails with [TomlEditError.CommentsWouldBeLost] unless [force] stores it without them.
      * Each failure changes nothing.
@@ -258,7 +259,7 @@ public class Item private constructor(
         val broughtAbove = own.fillAbove(above)
         // In brackets or braces a comment after a value follows its comma, not its decor.
         val brought = nextValue?.takeIf { valuePlace.let { it != null && it != ValuePlace.Line } }?.broughtComment()
-        val comment = own.fillOnLine(brought.orEmpty())
+        val comment = own.fillOnLine(brought.orEmpty(), nextValue?.rawDecor?.givesComment() == true)
         valuePlace?.let { place -> nextValue?.fitFor(place) }
         if (nextValue != null) inline?.dropCommentsItCannotHold(nextValue)
         val entry = entry
@@ -269,7 +270,9 @@ public class Item private constructor(
             val element = standardTableOrNull
             if (oldElement != null && element != null) {
                 takePlaceOf(element, oldElement)
-                if (own.holdsOnLine) element.rawDecor.suffix = oldElement.rawDecor.suffix
+                if (own.holdsOnLine && !element.rawDecor.givesComment()) {
+                    element.rawDecor.suffix = oldElement.rawDecor.suffix
+                }
                 element.putAttachedAbove(broughtAbove)
             }
             val array = owner as? TomlArray

@@ -197,7 +197,8 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     /**
      * Replaces the table at [index] with [table], which takes over the old table's place among the document's tables
      * and its header decor: the comment and blank lines above its `[[header]]` and the comment after it on its line.
-     * The comments [table] brings fill only the places where the old table has none. See [replace].
+     * The comments [table] brings from where it was read fill only the places where the old table has none; a header
+     * comment given in its decor takes the place of the old table's. See [replace].
      *
      * @return the table it replaced, or [TomlEditError.IndexOutOfBounds] for an [index] past the end, changing nothing.
      */
@@ -228,7 +229,8 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         var above = attachedAboveBroughtBy(table, stored)
         if (keepDecor) {
             val own = old.headerComments()
-            val comment = stored.rawDecor.suffix.takeIf { stored.headerComment.isNotEmpty() && !own.holdsOnLine }
+            val takesPlace = !own.holdsOnLine || stored.rawDecor.givesComment()
+            val comment = stored.rawDecor.suffix.takeIf { stored.headerComment.isNotEmpty() && takesPlace }
             stored.rawDecor.assign(old.rawDecor)
             if (comment != null) stored.rawDecor.suffix = comment
             stored.placeAt(old.position, old.positionFromText)
