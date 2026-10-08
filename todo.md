@@ -56,6 +56,11 @@ A layout change leaves no blank line dangling at the end of the file.
   Sorting `[t]\nz = 3 # z\n# about b\nb.d = 1 # d\nb.c = 2 # c\n` prints `# about b` between `b.c` and `b.d`;
   it should stay above `b.c`, the group's new first line. `[t]\nb.c = 1\n\n# free\n\nb.d = 2\n` with
   `setLayout(Inline, force = true)` on `b` ends the file with a blank line after `# free`.
+- [ ] **132. A comment the caller sets wins over the slot's.** Owner, 2026-10-08: `port = 1 # comment`,
+  `doc.set("port", Value.Integer(2L, Decor(prefix = " ", suffix = " # new")))` gives `port = 2 # new`; comments
+  read from a document still only fill empty places (131). Also: a test for replacing in an inline table printed
+  on a table's lines (the `printsOnTableLines` branch). Kept as they are: a value replaced by a table or the other
+  way (`[x] # hdr` replaces `x = 1 # one`); in brackets an old element's whole comment area wins.
 - [ ] **125. Review the QA scenarios and docs against the rule.** List every `qa/comment-scenarios` scenario whose
   expected output changes for the owner to confirm; update core/README.md's comment rules, CommentPropertyTest and
   the removal tests.

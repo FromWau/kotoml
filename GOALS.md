@@ -53,8 +53,9 @@ official toml-test runner for TOML 1.0 and 1.1.
      same-line comment, also one stored after its comma in braces, the lines above belonging to its key. Comment
      lines below an array element that comes to stand on a key/value line print above the key, so they still belong
      to it when read back;
-   - replacing keeps the slot's comments; comments the new item or value brings fill only the places where the slot
-     has none (its lines above, its same-line comment);
+   - replacing keeps the slot's comments; comments the new item or value brings from a document fill only the places
+     where the slot has none (its lines above, its same-line comment), while a comment the caller sets in a value's
+     `decor` takes its place;
    - a store where the target cannot hold the item's comments (an inline table of TOML 1.0) returns
      `CommentsWouldBeLost` and changes nothing unless forced; braces on one line that can spread go across lines.
      Every store returns its `Result` and has no `[]=` form, so no refusal goes unseen; `doc["t"].set("v", value)`
