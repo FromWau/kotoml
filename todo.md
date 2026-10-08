@@ -56,6 +56,11 @@ A layout change leaves no blank line dangling at the end of the file.
   Sorting `[t]\nz = 3 # z\n# about b\nb.d = 1 # d\nb.c = 2 # c\n` prints `# about b` between `b.c` and `b.d`;
   it should stay above `b.c`, the group's new first line. `[t]\nb.c = 1\n\n# free\n\nb.d = 2\n` with
   `setLayout(Inline, force = true)` on `b` ends the file with a blank line after `# free`.
+- [ ] **134. A comment set on a stored value is the document's at once.** Owner, 2026-10-08: setting `decor` on a
+  value already stored writes it into the document, so it is the file's comment, not the caller's: `y = 2` with
+  `doc["y"]…decor = Decor(suffix = " # set")`, then `doc.set("x", doc["y"])` over `x = 1 # one` gives
+  `x = 2 # one`. Only a comment set on a value not yet stored wins over a slot's. Changes the 132 case of a read
+  value whose decor the caller sets.
 - [ ] **125. Review the QA scenarios and docs against the rule.** List every `qa/comment-scenarios` scenario whose
   expected output changes for the owner to confirm; update core/README.md's comment rules, CommentPropertyTest and
   the removal tests.
