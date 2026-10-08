@@ -56,6 +56,9 @@ A layout change leaves no blank line dangling at the end of the file.
   Sorting `[t]\nz = 3 # z\n# about b\nb.d = 1 # d\nb.c = 2 # c\n` prints `# about b` between `b.c` and `b.d`;
   it should stay above `b.c`, the group's new first line. `[t]\nb.c = 1\n\n# free\n\nb.d = 2\n` with
   `setLayout(Inline, force = true)` on `b` ends the file with a blank line after `# free`.
+- [ ] **133. A comment the caller set counts as the document's once stored.** Owner, 2026-10-08: `y` stored
+  with `Decor(suffix = " # given")`, then `doc.set("x", doc["y"])` over `x = 1 # one` gives `x = 2 # one`, as an
+  array already does (`arr.replace(0, arr[2])` keeps `# one`); only a comment set in the value being stored wins.
 - [ ] **125. Review the QA scenarios and docs against the rule.** List every `qa/comment-scenarios` scenario whose
   expected output changes for the owner to confirm; update core/README.md's comment rules, CommentPropertyTest and
   the removal tests.
