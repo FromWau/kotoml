@@ -1930,7 +1930,7 @@ t.k = 1 # kay
 
 ### R-106: making a dotted table a header table keeps the lines above its first dotted key
 rule: 8   version: 1.0
-settled: owner ruling 2026-10-05 (Q5): a table or inline table made dotted, or a header again, keeps the lines above its key and each value's same-line comment; its header comment, the comment after its braces and the comment lines inside go.
+settled: owner ruling 2026-10-05 (Q5), amended 2026-10-08 (todo 129): a table or inline table made dotted keeps the lines above its key and each value's same-line comment, while its header comment, the comment after its braces and the comment lines inside go; dotted keys made a header again keep the comment lines between them.
 ```toml input
 x = 1
 # about t
