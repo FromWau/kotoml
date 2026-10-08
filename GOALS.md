@@ -55,8 +55,9 @@ official toml-test runner for TOML 1.0 and 1.1.
    - replacing a value keeps the slot's comments, unless the new item brings comments of its own, which take their
      place;
    - a store where the target cannot hold the item's comments (an inline table of TOML 1.0) returns
-     `CommentsWouldBeLost` and changes nothing unless forced; braces on one line that can spread go across lines. The
-     `[]=` form of a store throws `TomlEditException` with the error, while `set` and `put` return it;
+     `CommentsWouldBeLost` and changes nothing unless forced; braces on one line that can spread go across lines.
+     Every store returns its `Result` and has no `[]=` form, so no refusal goes unseen; `doc["t"].set("v", value)`
+     stores under a parent read by indexing, a missing parent giving `NotFound`;
    - a layout change (`setLayout`: a header, dotted keys, an inline table on one line or across lines) keeps every
      comment and blank line the new layout can hold, and when it cannot hold a comment returns `CommentsWouldBeLost`
      and changes nothing, unless forced. Forced, it drops only what the new layout cannot hold: dotted keys keep the
