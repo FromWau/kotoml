@@ -41,7 +41,7 @@ public sealed interface Value {
             value: kotlin.String,
             decor: Decor = Decor(),
         ) : this(Formatted.of(value)) {
-            formatted.decor.set(decor)
+            formatted.decor.set(decor, inDocument = false)
         }
 
         // The slot holding this value, whose document's line ending a multi-line default spelling breaks lines with.
@@ -86,7 +86,7 @@ public sealed interface Value {
             value: Long,
             decor: Decor = Decor(),
         ) : this(Formatted.of(value)) {
-            formatted.decor.set(decor)
+            formatted.decor.set(decor, inDocument = false)
         }
 
         /** A value with no spelling of its own, which prints in the default one, surrounded by [decor]. */
@@ -126,7 +126,7 @@ public sealed interface Value {
             value: Double,
             decor: Decor = Decor(),
         ) : this(Formatted.of(value)) {
-            formatted.decor.set(decor)
+            formatted.decor.set(decor, inDocument = false)
         }
 
         // The slot holding this value, whose comments on its line a copy of it carries.
@@ -160,7 +160,7 @@ public sealed interface Value {
             value: kotlin.Boolean,
             decor: Decor = Decor(),
         ) : this(Formatted.of(value)) {
-            formatted.decor.set(decor)
+            formatted.decor.set(decor, inDocument = false)
         }
 
         // The slot holding this value, whose comments on its line a copy of it carries.
@@ -194,7 +194,7 @@ public sealed interface Value {
             value: TomlDatetime,
             decor: Decor = Decor(),
         ) : this(Formatted.of(value)) {
-            formatted.decor.set(decor)
+            formatted.decor.set(decor, inDocument = false)
         }
 
         // The slot holding this value, whose document's version its spelling can depend on.
@@ -315,7 +315,7 @@ public sealed interface Value {
     public var decor: Decor
         get() = rawDecor.toDecor()
         set(value) {
-            rawDecor.set(value)
+            rawDecor.set(value, inDocument = slotOfValue(this)?.owner?.let(::isInDocument) == true)
         }
 
     /**

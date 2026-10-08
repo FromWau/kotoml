@@ -33,9 +33,12 @@ public class Key(
     internal var entry: KeyValue? = null
 
     init {
-        rawLeafDecor.set(leafDecor)
-        rawDottedDecor.set(dottedDecor)
+        rawLeafDecor.set(leafDecor, inDocument = false)
+        rawDottedDecor.set(dottedDecor, inDocument = false)
     }
+
+    private fun standsInDocument(): Boolean =
+        entry?.takeIf { it.isStored && it.key === this }?.pairs?.owner?.let(::isInDocument) == true
 
     internal fun withSpelling(spelling: Spelling): Key {
         this.written = spelling
@@ -70,14 +73,14 @@ public class Key(
     public var leafDecor: Decor
         get() = rawLeafDecor.toDecor()
         set(value) {
-            rawLeafDecor.set(value)
+            rawLeafDecor.set(value, standsInDocument())
         }
 
     /** The text around this key's part of a dotted key, between the dots. */
     public var dottedDecor: Decor
         get() = rawDottedDecor.toDecor()
         set(value) {
-            rawDottedDecor.set(value)
+            rawDottedDecor.set(value, standsInDocument())
         }
 
     internal val span: Span?

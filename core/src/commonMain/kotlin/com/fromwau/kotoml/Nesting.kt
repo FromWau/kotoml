@@ -79,6 +79,9 @@ internal fun headerTableOf(table: StandardTable): StandardTable? {
     }
 }
 
+/** Whether [container] stands in a document, under its root, rather than in a tree stored nowhere. */
+internal fun isInDocument(container: Any): Boolean = outermostTableOf(container)?.isDocumentRoot == true
+
 /** The outermost table [container] is stored under: a document's root, or the table at the top of a detached tree. */
 internal fun outermostTableOf(container: Any): StandardTable? {
     var current = container

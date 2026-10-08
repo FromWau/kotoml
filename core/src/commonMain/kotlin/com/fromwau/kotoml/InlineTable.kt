@@ -533,7 +533,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     public var decor: Decor
         get() = rawDecor.toDecor()
         set(value) {
-            rawDecor.set(value)
+            rawDecor.set(value, inDocument = isInDocument(this))
         }
 
     /** The key [name] as stored, whose formatting can be changed in place; null when there is none. */

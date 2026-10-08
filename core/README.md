@@ -121,8 +121,10 @@ doc.remove("x", force = true) // Ok(item)
 Replacing an item keeps its spacing and its comments: the comment lines right above it, the one after it, for a table
 those of its header, and for an element or an inline table's entry the one after its comma. The comments the new item
 brings from where it was read fill only the places where the item it replaces has none; each place counts on its own.
-A comment you give in its decor, such as `Decor(suffix = " # new")`, takes the place of the old one there. Once
-stored, it is the document's: a copy of the stored item brings it as one read from a document, to fill places only.
+A comment you give in the decor of a value stored nowhere yet, built in code or handed back by `remove`, such as
+`Decor(suffix = " # new")`, takes the place of the old one there. Once stored, it is the document's, and so is a
+comment you set through `decor` on what a document holds, since that writes the document: a copy brings it as one read
+from a document, to fill places only.
 
 ```kotlin
 val doc = TomlDocument.parse("# about x\nx = 1 # one\nz = 0\nport = 1 # comment\n").getOrElse { error(it) }
@@ -131,6 +133,8 @@ doc.set("x", other["y"].getOrElse { error(it) }) // # about x\nx = 5 # one
 doc.set("z", other["y"].getOrElse { error(it) }) // # about y\nz = 5 # five
 doc.set("port", Value.Integer(2L, Decor(prefix = " ", suffix = " # new"))) // port = 2 # new
 doc.set("z", doc["port"].getOrElse { error(it) }) // # about y\nz = 2 # five
+doc["z"].getOrElse { error(it) }.valueOrNull!!.decor = Decor(prefix = " ", suffix = " # set") // z = 2 # set
+doc.set("x", doc["z"].getOrElse { error(it) }) // # about x\nx = 2 # one
 ```
 
 An array of tables left with no tables prints

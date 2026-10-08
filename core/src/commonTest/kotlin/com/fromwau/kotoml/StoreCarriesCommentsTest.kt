@@ -9,7 +9,7 @@ import kotlin.test.assertEquals
  * Storing or copying an item takes the comments it owns: the comment lines directly above it and its same-line
  * comment, a table's those of its header, and everything inside it; comment lines set apart by a blank line stay. A
  * replacement keeps the slot's comments; those the new item brings from where it was read fill only the places where
- * the slot has none, while a comment a caller gives in a decor takes the slot's place.
+ * the slot has none, while a comment a caller gives in the decor of a value stored nowhere yet takes the slot's place.
  */
 class StoreCarriesCommentsTest {
 
@@ -128,9 +128,19 @@ class StoreCarriesCommentsTest {
     }
 
     @Test
-    fun `a value read from a document whose decor the caller set takes the place of the slot's comment`() {
+    fun `a comment set on a value stored in another document only fills the slot's empty places`() {
         val five = parse("y = 5 # five\n")["y"].assertSuccess().valueOrNull!!
         five.decor = Decor(suffix = " # set")
+        val doc = parse("x = 1 # one\n")
+        doc.set("x", five).assertSuccess()
+        assertEquals("x = 5 # one\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment set on a value removed from a document takes the place of the slot's comment`() {
+        val other = parse("y = 5 # five\n")
+        val five = other.remove("y", force = true).assertSuccess().valueOrNull!!
+        five.decor = Decor(prefix = " ", suffix = " # set")
         val doc = parse("x = 1 # one\n")
         doc.set("x", five).assertSuccess()
         assertEquals("x = 5 # set\n", doc.toString())
@@ -888,10 +898,68 @@ class StoreCarriesCommentsTest {
     }
 
     @Test
-    fun `a comment set on a stored value's decor takes the place of the slot's when that value is copied`() {
-        val doc = parse("x = 1 # one\ny = 2 # two\n")
+    fun `a comment set on a stored value's decor prints at once and a copy of that value keeps the slot's comment`() {
+        val doc = parse("x = 1 # one\ny = 2\n")
+        doc["y"].assertSuccess().valueOrNull!!.decor = Decor(prefix = " ", suffix = " # set")
+        assertEquals("x = 1 # one\ny = 2 # set\n", doc.toString())
+        doc.set("x", doc["y"].assertSuccess()).assertSuccess()
+        assertEquals("x = 2 # one\ny = 2 # set\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment set on a stored value's decor is the document's when a copy of it fills an empty slot`() {
+        val doc = parse("x = 1\ny = 2\n")
         doc["y"].assertSuccess().valueOrNull!!.decor = Decor(prefix = " ", suffix = " # set")
         doc.set("x", doc["y"].assertSuccess()).assertSuccess()
         assertEquals("x = 2 # set\ny = 2 # set\n", doc.toString())
+    }
+
+    @Test
+    fun `a header comment set on a stored table's decor is the document's so a copy of it keeps the slot's`() {
+        val doc = parse("[a] # ah\nx = 1\n\n[b]\nk = 2\n")
+        doc["b"].assertSuccess().standardTableOrNull!!.decor = Decor(prefix = "\n", suffix = " # set")
+        doc.set("a", doc["b"].assertSuccess()).assertSuccess()
+        assertEquals("[a] # ah\nk = 2\n\n[b] # set\nk = 2\n", doc.toString())
+    }
+
+    @Test
+    fun `comment lines set above a stored element are the document's so a copy of it keeps the slot's lines`() {
+        val doc = parse("a = [\n  # above\n  1,\n  2,\n]\n")
+        val array = doc["a"].assertSuccess().arrayOrNull!!
+        array[1].assertSuccess().decor = Decor(prefix = "\n  # set above\n  ")
+        array.replace(0, array[1].assertSuccess()).assertSuccess()
+        assertEquals("a = [\n  # above\n  2,\n  # set above\n  2,\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment set on a stored inline table's decor is the document's so a copy of it keeps the slot's`() {
+        val doc = parse("x = 1 # one\nu = { k = 2 }\n")
+        doc["u"].assertSuccess().inlineTableOrNull!!.decor = Decor(prefix = " ", suffix = " # set")
+        doc.set("x", doc["u"].assertSuccess()).assertSuccess()
+        assertEquals("x = { k = 2 } # one\nu = { k = 2 } # set\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment set on a stored array's decor is the document's so a copy of it keeps the slot's`() {
+        val doc = parse("x = 1 # one\na = [2]\n")
+        doc["a"].assertSuccess().arrayOrNull!!.decor = Decor(prefix = " ", suffix = " # set")
+        doc.set("x", doc["a"].assertSuccess()).assertSuccess()
+        assertEquals("x = [2] # one\na = [2] # set\n", doc.toString())
+    }
+
+    @Test
+    fun `comment lines set above a stored key are the document's so a copy of its item keeps the slot's lines`() {
+        val doc = parse("# about x\nx = 1\ny = 2\n")
+        doc.root.keyOrNull("y")!!.leafDecor = Decor(prefix = "# set above\n")
+        doc.set("x", doc["y"].assertSuccess()).assertSuccess()
+        assertEquals("# about x\nx = 2\n# set above\ny = 2\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment set on a stored value's decor is the document's so a copy over an inline table entry keeps its`() {
+        val doc = parse("u = {\n  x = 7, # seven\n  z = 0,\n}\ny = 2\n")
+        doc["y"].assertSuccess().valueOrNull!!.decor = Decor(prefix = " ", suffix = " # set")
+        doc["u"].assertSuccess().inlineTableOrNull!!.set("x", doc["y"].assertSuccess().valueOrNull!!).assertSuccess()
+        assertEquals("u = {\n  x = 2, # seven\n  z = 0,\n}\ny = 2 # set\n", doc.toString())
     }
 }

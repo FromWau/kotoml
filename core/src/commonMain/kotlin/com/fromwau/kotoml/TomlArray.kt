@@ -137,7 +137,7 @@ public class TomlArray() : Iterable<Value> {
     public var decor: Decor
         get() = rawDecor.toDecor()
         set(value) {
-            rawDecor.set(value)
+            rawDecor.set(value, inDocument = isInDocument(this))
         }
 
     internal fun resolveSpans(input: SourceText) {

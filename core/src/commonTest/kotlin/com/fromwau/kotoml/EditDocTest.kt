@@ -101,6 +101,12 @@ c = { d = "hello" }
         doc.set("z", other["y"].assertSuccess()).assertSuccess()
         doc.set("port", Value.Integer(2L, Decor(prefix = " ", suffix = " # new"))).assertSuccess()
         assertEquals("# about x\nx = 5 # one\n# about y\nz = 5 # five\nport = 2 # new\n", doc.toString())
+        doc.set("z", doc["port"].assertSuccess()).assertSuccess()
+        assertEquals("# about x\nx = 5 # one\n# about y\nz = 2 # five\nport = 2 # new\n", doc.toString())
+        doc["z"].assertSuccess().valueOrNull!!.decor = Decor(prefix = " ", suffix = " # set")
+        assertEquals("# about x\nx = 5 # one\n# about y\nz = 2 # set\nport = 2 # new\n", doc.toString())
+        doc.set("x", doc["z"].assertSuccess()).assertSuccess()
+        assertEquals("# about x\nx = 2 # one\n# about y\nz = 2 # set\nport = 2 # new\n", doc.toString())
     }
 
     @Test

@@ -622,7 +622,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     public var decor: Decor
         get() = rawDecor.toDecor()
         set(value) {
-            rawDecor.set(value)
+            rawDecor.set(value, inDocument = isInDocument(this))
             headEndsInRemovedTable = false
         }
 
@@ -752,11 +752,11 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     /**
      * Sets [key] to a copy of [item], as [set] does: a key already there keeps its position, its spelling and its
      * comments, the comment lines right above it and its same-line comment, for a table those of its header. The
-     * comments [item] brings from where it was read fill only the places where the key has none; a comment given in its
-     * decor, such as `Decor(suffix = " # new")`, takes the place of the key's. Once stored, that comment is the
-     * document's: a copy of the stored item brings it as one read from a document. It keeps its spacing too, unless
-     * [item] moves it between a `key = value` line and a `[header]` or `[[header]]`, where it takes the default
-     * spacing. Pass a [Key] to replace all of its formatting.
+     * comments [item] brings from where it was read fill only the places where the key has none; a comment given in the
+     * decor of an item stored nowhere yet, such as `Decor(suffix = " # new")`, takes the place of the key's. Once
+     * stored, that comment is the document's, as is one set through `decor` on what a document holds: a copy brings it
+     * as one read from a document. It keeps its spacing too, unless [item] moves it between a `key = value` line and a
+     * `[header]` or `[[header]]`, where it takes the default spacing. Pass a [Key] to replace all of its formatting.
      *
      * ```kotlin
      * val doc = TomlDocument.parse("# about x\nx = 1 # one\nz = 0\n").getOrElse { error(it) }

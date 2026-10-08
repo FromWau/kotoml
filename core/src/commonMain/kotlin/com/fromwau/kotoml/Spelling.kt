@@ -18,7 +18,7 @@ internal class KeptText private constructor(private val state: State) {
         // Text read from a parse's input, as opposed to text a caller gave.
         data class Read(val text: String) : State
 
-        // Text a caller set in a decor since its value was last stored, as opposed to text kotoml made or moved.
+        // Text a caller set in the decor of something stored nowhere yet, as opposed to the document's own text.
         data class Given(val text: String) : State
 
         data class Spanned(val span: Span) : State
@@ -40,7 +40,7 @@ internal class KeptText private constructor(private val state: State) {
     val isRead: Boolean
         get() = state is State.Read
 
-    /** Whether a caller set this text in a decor since its value was last stored, rather than kotoml reading it. */
+    /** Whether a caller set this text in the decor of something stored nowhere yet, rather than in a document. */
     val isGiven: Boolean
         get() = state is State.Given
 
@@ -217,16 +217,28 @@ internal class RawDecor(
         suffix = suffix?.textOrNull,
     )
 
-    /** Takes the sides of [decor], a caller's; a side set to the text it already holds stays as it was. */
-    fun set(decor: Decor) {
-        prefix = givenOrKept(prefix, decor.prefix)
-        suffix = givenOrKept(suffix, decor.suffix)
+    /**
+     * Takes the sides of [decor], a caller's: the document's own text when this decor is [inDocument], since setting it
+     * writes the document, otherwise given text. A side set to the text it already holds stays as it was.
+     */
+    fun set(
+        decor: Decor,
+        inDocument: Boolean,
+    ) {
+        prefix = givenOrKept(prefix, decor.prefix, inDocument)
+        suffix = givenOrKept(suffix, decor.suffix, inDocument)
     }
 
     private fun givenOrKept(
         side: KeptText?,
         text: String?,
-    ): KeptText? = if (text != null && side?.textOrNull == text) side else text?.let(KeptText::given)
+        inDocument: Boolean,
+    ): KeptText? = when {
+        text == null -> null
+        side?.textOrNull == text -> side
+        inDocument -> KeptText.from(text)
+        else -> KeptText.given(text)
+    }
 
     fun copy(): RawDecor = RawDecor(prefix, suffix)
 
