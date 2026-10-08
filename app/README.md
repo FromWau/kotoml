@@ -8,6 +8,9 @@ $ kotoml get '.servers[0].host' config.toml
 "alpha"
 $ kotoml get -r '.servers[0].host' config.toml
 alpha
+$ kotoml get -r '.servers[0]' config.toml
+host = "alpha"
+port = 8080
 $ kotoml get '.servers[] | .host' config.toml
 "alpha"
 "beta"
@@ -54,8 +57,10 @@ port = 8081
     h = 1
     ```
   - `.[]` over tables prints one after another, separated by a blank line;
-  - a value prints as TOML on a line ending in `\n`, also from a file with CRLF line endings, and `-r` prints
-    strings without quotes;
+  - a value prints as TOML on a line ending in `\n`, also from a file with CRLF line endings;
+  - `-r` prints strings without quotes, and everything else without comments, for a script to read: a comment goes
+    with the spaces before it, a line holding only a comment goes whole, and the blank lines this leaves side by
+    side fold into one. A `#` inside a string stays;
   - a key or index that is not there is an error, such as `no key "nope" at .nope`, and exits 3.
 - `check [file...]` prints `OK` and exits 0 when the file is valid TOML, and otherwise prints why it is not,
   pointing at the line. Given several files, it prints `<file>: OK` for each valid one and an error for each

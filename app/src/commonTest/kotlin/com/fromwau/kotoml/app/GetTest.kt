@@ -96,6 +96,83 @@ class GetTest {
     }
 
     @Test
+    fun `raw prints the root without its comments`() {
+        assertEquals(
+            "[package]\nname = \"kotoml\"\nversion = \"0.1.0\"\n\n" +
+                "[[servers]]\nhost = \"alpha\"\nport = 8080\n\n[[servers]]\nhost = \"beta\"\nport = 8081",
+            get(".", raw = true),
+        )
+    }
+
+    @Test
+    fun `raw prints the root without the comments and blank lines after the last item`() {
+        assertEquals("a = 1", get(".", raw = true, text = "a = 1\n\n# end\n"))
+        assertEquals("a = 1\r", get(".", raw = true, text = "a = 1\r\n# end\r\n"))
+    }
+
+    @Test
+    fun `raw prints nothing for a file of only comments`() {
+        assertEquals("", get(".", raw = true, text = "# note\n"))
+    }
+
+    @Test
+    fun `raw leaves one blank line where a comment line stood between two`() {
+        assertEquals("a = 1\n\nb = 2", get(".", raw = true, text = "a = 1\n\n# note\n\nb = 2\n"))
+    }
+
+    @Test
+    fun `raw drops comments in a CRLF file and each line keeps its ending`() {
+        val text = "[t]\r\nx = 1 # on x\r\n# own line\r\ny = 2\r\n"
+        assertEquals("x = 1\r\ny = 2\r\n", selection(".t", text = text).print(raw = true))
+    }
+
+    @Test
+    fun `raw prints a table and an array of tables without comments`() {
+        assertEquals("name = \"kotoml\"\nversion = \"0.1.0\"", get(".package", raw = true))
+        val text = "# servers\n[[srv]] # first\nhost = \"a\"  # primary\n"
+        assertEquals("[[srv]]\nhost = \"a\"", get(".srv", raw = true, text = text))
+    }
+
+    @Test
+    fun `raw prints a multi-line array without the comments inside it`() {
+        val text = "a = [\n  1, # one\n  # two\n  2,\n]  # after\n"
+        assertEquals("[\n  1, # one\n  # two\n  2,\n]", get(".a", text = text))
+        assertEquals("[\n  1,\n  2,\n]", get(".a", raw = true, text = text))
+    }
+
+    @Test
+    fun `raw keeps a hash inside a string`() {
+        val q = "\"\"\""
+        val text = listOf(
+            "[t]",
+            "a = \"x # y\" # c",
+            "b = 'p#q' # c",
+            "c = \"q\\\"#\" # c",
+            "d = $q",
+            "# in a string",
+            "",
+            "",
+            "$q # c",
+            "e = '''# literal''' # c",
+            "f = ${q}a$q\"\" # c",
+        ).joinToString("\n", postfix = "\n")
+        val expected = listOf(
+            "a = \"x # y\"",
+            "b = 'p#q'",
+            "c = \"q\\\"#\"",
+            "d = $q",
+            "# in a string",
+            "",
+            "",
+            q,
+            "e = '''# literal'''",
+            "f = ${q}a$q\"\"",
+        ).joinToString("\n")
+        assertEquals(expected, get(".t", raw = true, text = text))
+        assertEquals("x # y", get(".t.a", raw = true, text = text))
+    }
+
+    @Test
     fun `iteration and pipes stream each result`() {
         assertEquals("\"alpha\"\n\"beta\"", get(".servers[] | .host"))
         assertEquals("8081", get(".servers[-1].port"))

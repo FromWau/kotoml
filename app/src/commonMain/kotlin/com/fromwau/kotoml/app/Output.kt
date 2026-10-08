@@ -34,19 +34,24 @@ internal fun Selection.humanText(raw: Boolean): String = print(raw).removeSuffix
 
 /**
  * [selection] as TOML, each item on its own lines, a table set apart from its neighbours by a blank line; with
- * [raw], a string is printed bare instead of quoted. A value's line ends in `\n`, while a table's lines keep the
- * endings they have in the file.
+ * [raw], a string is printed bare instead of quoted and the rest without comments. A value's line ends in `\n`,
+ * while a table's lines keep the endings they have in the file.
  */
 internal fun Selection.print(raw: Boolean): String {
     val printed = StringBuilder()
     var previous: Printed? = null
     for (selected in items) {
         val item = selected.item
-        val current = when {
+        val current = if (raw && item.stringOrNull != null) {
+            Printed(item.stringOrNull.orEmpty(), "\n", isTable = false)
+        } else {
             // Only the root is a table no key leads to.
-            selected.path.isEmpty() && item.standardTableOrNull != null -> document.asWritten()
-            raw && item.stringOrNull != null -> Printed(item.stringOrNull.orEmpty(), "\n", isTable = false)
-            else -> selected.toToml()
+            val toml = if (selected.path.isEmpty() && item.standardTableOrNull != null) {
+                document.asWritten()
+            } else {
+                selected.toToml()
+            }
+            if (raw) toml.copy(text = toml.text.withoutComments()) else toml
         }
         // A blank line sets a table apart, and ends like the table's own lines.
         if (previous != null && (current.isTable || previous.isTable)) {

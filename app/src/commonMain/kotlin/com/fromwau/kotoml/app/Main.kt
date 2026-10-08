@@ -154,7 +154,7 @@ internal fun kotomlCli(terminal: Terminal): Cli = cli("kotoml") {
         example("kotoml get '.servers[] | .host' --json config.toml", "the host of every server, as JSON")
         val filter = argument("filter", "a jq path: ., .a.b, .\"key\", .[0], .[] and | between them")
         val file = fileArgument()
-        val raw = flag("--raw", "-r", help = "print strings without quotes")
+        val raw = flag("--raw", "-r", help = "print strings without quotes, and TOML without comments")
         val spec = specOption()
         action(human = { it.humanText(raw()) }) {
             get(filter(), file(), spec()).orCliError()
