@@ -438,4 +438,86 @@ class StoreCarriesCommentsTest {
         doc.set("z", doc["y"]["q"].assertSuccess()).assertSuccess()
         assertEquals("# second\n[z]\nn = 2\n", doc.toString().substringAfter("[y.q]\nn = 2\n\n"))
     }
+
+    private val afterComma = "a = [\n  1, # on 1\n  2,\n]\n"
+
+    private fun TomlDocument.arrayA(): TomlArray = this["a"].assertSuccess().arrayOrNull!!
+
+    @Test
+    fun `an element value stored on a line of a table carries the comment after its comma`() {
+        val doc = parse(afterComma)
+        doc.set("b", doc.arrayA()[0].assertSuccess()).assertSuccess()
+        assertEquals("${afterComma}b = 1 # on 1\n", doc.toString())
+    }
+
+    @Test
+    fun `an element value taken by iterating stored on a line of a table carries the comment after its comma`() {
+        val doc = parse(afterComma)
+        doc.set("b", doc.arrayA().first()).assertSuccess()
+        assertEquals("${afterComma}b = 1 # on 1\n", doc.toString())
+    }
+
+    @Test
+    fun `an element removed by force carries the comment after its comma`() {
+        val doc = parse(afterComma)
+        val removed = doc.arrayA().removeAt(0, force = true).assertSuccess()
+        doc.set("b", removed).assertSuccess()
+        assertEquals("a = [\n  2,\n]\nb = 1 # on 1\n", doc.toString())
+    }
+
+    @Test
+    fun `an element value added to another array carries the comment after its comma`() {
+        val doc = parse("${afterComma}c = [9]\n")
+        doc["c"].assertSuccess().arrayOrNull!!.add(doc.arrayA()[0].assertSuccess()).assertSuccess()
+        assertEquals("${afterComma}c = [\n  9,\n  1, # on 1\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `an element value replacing an element brings the comment after its comma in place of the slot's`() {
+        val doc = parse("${afterComma}c = [\n  7, # seven\n  8,\n]\n")
+        doc["c"].assertSuccess().arrayOrNull!!.replace(0, doc.arrayA()[0].assertSuccess()).assertSuccess()
+        assertEquals("${afterComma}c = [\n  1, # on 1\n  8,\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `an element value without a comment replacing an element keeps the slot's comment`() {
+        val doc = parse("${afterComma}c = [\n  7, # seven\n  8,\n]\n")
+        doc["c"].assertSuccess().arrayOrNull!!.replace(0, doc.arrayA()[1].assertSuccess()).assertSuccess()
+        assertEquals("${afterComma}c = [\n  2, # seven\n  8,\n]\n", doc.toString())
+    }
+
+    private val entryAfterComma = "t = {\n  x = 1, # on x\n  y = 2,\n}\n"
+
+    private fun TomlDocument.inlineT(): InlineTable = this["t"].assertSuccess().inlineTableOrNull!!
+
+    @Test
+    fun `an inline table entry value stored on a line of a table carries the comment after its comma`() {
+        val doc = parse(entryAfterComma)
+        doc.set("c", doc.inlineT()["x"].assertSuccess()).assertSuccess()
+        assertEquals("${entryAfterComma}c = 1 # on x\n", doc.toString())
+    }
+
+    @Test
+    fun `an inline table entry value put in another inline table carries the comment after its comma`() {
+        val doc = parse("${entryAfterComma}u = { z = 0 }\n")
+        doc["u"].assertSuccess().inlineTableOrNull!!.put("x", doc.inlineT()["x"].assertSuccess()).assertSuccess()
+        assertEquals("${entryAfterComma}u = {\n  z = 0,\n  x = 1, # on x\n}\n", doc.toString())
+    }
+
+    @Test
+    fun `an inline table entry removed by force carries the comment after its comma`() {
+        val doc = parse(entryAfterComma)
+        val removed = doc.inlineT().remove("x", force = true).assertSuccess()
+        doc.set("c", removed).assertSuccess()
+        assertEquals("t = {\n  y = 2,\n}\nc = 1 # on x\n", doc.toString())
+    }
+
+    @Test
+    fun `an element value with the comment after its comma put in a TOML 1_0 inline table is refused`() {
+        val doc = parse("${afterComma}u = { z = 0 }\n", TomlVersion.V1_0)
+        val error = doc["u"].assertSuccess().inlineTableOrNull!!.put("x", doc.arrayA()[0].assertSuccess())
+            .assertError<TomlEditError.CommentsWouldBeLost>()
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("u", "x"), 1), error)
+        assertEquals("${afterComma}u = { z = 0 }\n", doc.toString())
+    }
 }

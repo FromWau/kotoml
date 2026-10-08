@@ -183,17 +183,19 @@ public class TomlArray() : Iterable<Value> {
      * when the array's elements do, below the last one and its comment; on one line it takes the spacing the
      * elements already have.
      *
-     * A comment in [value]'s decor suffix, read with it or given, such as `Decor(suffix = " # note")`, puts an array on
-     * one line on lines of its own, one element per line with a comma after each, and prints after the new element's
-     * comma. Comment lines between [value] and its comma, where it was read, stay between them, each on a line of its
-     * own. The lines it adds end as the document's lines do, in `\r\n` in a document read with them.
+     * A comment [value] brings, its same-line comment where it was read, also one after its comma, or one given in its
+     * decor, such as `Decor(suffix = " # note")`, puts an array on one line on lines of its own, one element per line
+     * with a comma after each, and prints after the new element's comma. Comment lines between [value] and its comma,
+     * where it was read, stay between them, each on a line of its own. The lines it adds end as the document's lines
+     * do, in `\r\n` in a document read with them.
      *
      * @return [TomlEditError.TooDeep], storing nothing, when [value] would nest deeper than the parser reads.
      */
     public fun add(value: Value): EmptyResult<TomlEditError> {
         storeError(this, null, Item(value))?.let { return Err(it) }
-        val comment = value.broughtComment()
-        val stored = value.copyFor(ValuePlace.Array).also { giveSecondsInToml10(this, Item(it)) }
+        val carried = value.copyWithLineComments()
+        val comment = carried.broughtComment()
+        val stored = carried.fitFor(ValuePlace.Array).also { giveSecondsInToml10(this, Item(it)) }
         if (comment.isNotEmpty()) spreadForComment(stored)
         if (stored.decor.prefix == null) {
             leaveLastLineForComma()
@@ -496,8 +498,9 @@ public class TomlArray() : Iterable<Value> {
         if (index < 0 || index > values.size) return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         storeError(this, null, Item(value))?.let { return Err(it) }
         if (index == values.size) return add(value)
-        val comment = value.broughtComment()
-        val stored = value.copyFor(ValuePlace.Array).also { giveSecondsInToml10(this, Item(it)) }
+        val carried = value.copyWithLineComments()
+        val comment = carried.broughtComment()
+        val stored = carried.fitFor(ValuePlace.Array).also { giveSecondsInToml10(this, Item(it)) }
         if (comment.isNotEmpty()) spreadForComment(stored)
         val next = values.subList(index, values.size).firstNotNullOfOrNull { it.valueOrNull }
         if (stored.rawDecor.prefix == null && next != null) takeLineStart(stored, next)
@@ -535,8 +538,9 @@ public class TomlArray() : Iterable<Value> {
     ): Result<Value, TomlEditError> {
         val old = getOrNull(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         storeError(this, null, Item(value))?.let { return Err(it) }
-        val comment = value.broughtComment()
-        val stored = value.copyFor(ValuePlace.Array).also { giveSecondsInToml10(this, Item(it)) }
+        val carried = value.copyWithLineComments()
+        val comment = carried.broughtComment()
+        val stored = carried.fitFor(ValuePlace.Array).also { giveSecondsInToml10(this, Item(it)) }
         if (comment.isNotEmpty()) {
             spreadForComment(stored)
             if (old === printedValues().last()) leaveLastLineForComma()
@@ -569,7 +573,8 @@ public class TomlArray() : Iterable<Value> {
      * ```
      *
      * @param force removes the element even when comments would go with it.
-     * @return the removed element; [TomlEditError.IndexOutOfBounds] when there is no element at [index]; or
+     * @return the removed element, holding in its decor the comment that ended its line, also one after its comma;
+     *   [TomlEditError.IndexOutOfBounds] when there is no element at [index]; or
      *   [TomlEditError.CommentsWouldBeLost], changing nothing, when [force] is false and comments would leave the
      *   document with the element, naming the array and how many comments.
      */
@@ -579,7 +584,9 @@ public class TomlArray() : Iterable<Value> {
     ): Result<Value, TomlEditError> {
         val removed = getOrNull(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         if (!force) refusalToRemove(listOf(index))?.let { return Err(it) }
+        val comments = ownCommentsOf(values[index])
         removeSlot(index)
+        removed.keepLineComments(comments)
         return Ok(removed)
     }
 

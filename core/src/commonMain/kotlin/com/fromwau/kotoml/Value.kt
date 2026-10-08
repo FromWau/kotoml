@@ -95,6 +95,9 @@ public sealed interface Value {
             decor: Decor = Decor(),
         ) : this(value.toLong(), decor)
 
+        // The slot holding this value, whose comments on its line a copy of it carries.
+        internal var holder: Item? = null
+
         /** The integer. */
         public val value: Long
             get() = formatted.value
@@ -126,6 +129,9 @@ public sealed interface Value {
             formatted.decor.set(decor)
         }
 
+        // The slot holding this value, whose comments on its line a copy of it carries.
+        internal var holder: Item? = null
+
         /** The float. */
         public val value: Double
             get() = formatted.value
@@ -156,6 +162,9 @@ public sealed interface Value {
         ) : this(Formatted.of(value)) {
             formatted.decor.set(decor)
         }
+
+        // The slot holding this value, whose comments on its line a copy of it carries.
+        internal var holder: Item? = null
 
         /** The boolean. */
         public val value: kotlin.Boolean
@@ -471,8 +480,19 @@ internal fun Value.copyOutOfBraces(): Value = when (this) {
     else -> deepCopy()
 }
 
-/** A copy of this value whose decor fits [place]; see [RawDecor.fitFor]. */
-internal fun Value.copyFor(place: ValuePlace): Value = copyOutOfBraces().fitFor(place)
+/**
+ * A [copyOutOfBraces] that carries the comments this value owns on its line where it is stored: its same-line comment,
+ * also one stored after its comma in brackets or braces, and the comment on a line holding only its comma.
+ */
+internal fun Value.copyWithLineComments(): Value = copyOutOfBraces().also { copy ->
+    slotOfValue(this)?.let(::ownCommentsOf)?.let(copy::keepLineComments)
+}
+
+/** Puts in this value's decor the comments on its line that [comments], those it owned where it was read, hold. */
+internal fun Value.keepLineComments(comments: ItemComments) {
+    rawDecor.keepSameLineComment(comments.sameLine)
+    rawDecor.keepCommaLineComment(comments.commaLine)
+}
 
 /** This value, its decor fitted to [place]. */
 internal fun Value.fitFor(place: ValuePlace): Value = also { rawDecor.fitFor(place) }

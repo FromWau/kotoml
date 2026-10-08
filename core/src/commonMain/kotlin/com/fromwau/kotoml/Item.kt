@@ -95,7 +95,9 @@ public class Item private constructor(
                     is Value.Datetime -> value.holder = slot
                     is Value.Array -> value.value.holder = slot
                     is Value.InlineTable -> value.value.holder = slot
-                    is Value.Integer, is Value.Float, is Value.Boolean -> Unit
+                    is Value.Integer -> value.holder = slot
+                    is Value.Float -> value.holder = slot
+                    is Value.Boolean -> value.holder = slot
                 }
                 is TableContent -> table.holder = slot
                 is ArrayOfTablesContent -> array.holder = slot
@@ -944,7 +946,9 @@ public class Item private constructor(
         source: Item,
         copied: Content,
     ): String {
-        val slot = source.takeIf { it.owner != null } ?: source.container?.let(::slotOf)
+        val slot = source.takeIf { it.owner != null }
+            ?: source.valueOrNull?.let(::slotOfValue)
+            ?: source.container?.let(::slotOf)
         if (slot != null) {
             val above = copied.keepOwnComments(ownCommentsOf(slot))
             // A container a caller wrapped brings what its own copy() holds, which has no lines above a value.

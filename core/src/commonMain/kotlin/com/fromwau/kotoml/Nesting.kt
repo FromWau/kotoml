@@ -162,6 +162,19 @@ internal fun slotOf(container: Any): Item? {
     return slot?.takeIf { it.holdsContainer(container) && it.owner != null }
 }
 
+/** The slot [value] is stored in, or null when it is stored nowhere. */
+internal fun slotOfValue(value: Value): Item? {
+    val holder = when (value) {
+        is Value.Integer -> value.holder
+        is Value.Float -> value.holder
+        is Value.Boolean -> value.holder
+        is Value.Array -> return slotOf(value.value)
+        is Value.InlineTable -> return slotOf(value.value)
+        is Value.String, is Value.Datetime -> return slotOf(value)
+    }
+    return holder?.takeIf { it.holdsContainer(value) && it.owner != null }
+}
+
 /**
  * The keys from the document's root down to [container], or from the outermost table or array it is stored under
  * when that is stored nowhere; an element of an array adds none.

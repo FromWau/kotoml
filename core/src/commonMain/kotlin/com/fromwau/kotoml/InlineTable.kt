@@ -666,11 +666,12 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         default: () -> Value,
     ): Result<Value, TomlEditError> {
         getOrNull(key.name)?.let { return Ok(it) }
-        val made = default()
-        val value = made.copyFor(ValuePlace.InlineTable)
+        val carried = default().copyWithLineComments()
+        val brought = carried.rawDecor.copy()
+        val value = carried.fitFor(ValuePlace.InlineTable)
         storeError(this, key.name, Item(value), key)?.let { return Err(it) }
-        if (!force) lostComments(key.name, made.rawDecor, "")?.let { return Err(it) }
-        putEntry(key.copy(), value, commentToKeep(made.rawDecor))
+        if (!force) lostComments(key.name, brought, "")?.let { return Err(it) }
+        putEntry(key.copy(), value, commentToKeep(brought))
         return Ok(value)
     }
 
@@ -678,10 +679,11 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
      * Sets [key] to a copy of [value], as [set] does: a key already there keeps its position, its
      * spelling and its decor. Pass a [Key] to replace those. A new key is spaced like the entries already there.
      *
-     * A comment in [value]'s decor suffix, read with it or given, such as `Decor(suffix = " # note")`, puts a table on
-     * one line across lines, as [Item.setLayout] does for [TableLayout.MultilineInline], and prints after the value's
-     * comma, in place of the comment that stood there; comment lines between [value] and its comma print below it, the
-     * comma below them. The lines it adds end as the document's lines do, in `\r\n` in a document read with them.
+     * A comment [value] brings, its same-line comment where it was read, also one after its comma, or one given in its
+     * decor, such as `Decor(suffix = " # note")`, puts a table on one line across lines, as [Item.setLayout] does for
+     * [TableLayout.MultilineInline], and prints after the value's comma, in place of the comment that stood there;
+     * comment lines between [value] and its comma print below it, the comma below them. The lines it adds end as the
+     * document's lines do, in `\r\n` in a document read with them.
      *
      * TOML 1.0 has no comments inside an inline table, and a dotted table prints its keys among other lines, so
      * neither can hold the comments [value] brings: storing it there fails with [TomlEditError.CommentsWouldBeLost]
@@ -705,7 +707,11 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         key: String,
         value: Value,
         force: Boolean = false,
-    ): Result<Value?, TomlEditError> = store(Key(key), value.copyFor(ValuePlace.InlineTable), value.rawDecor, "", force)
+    ): Result<Value?, TomlEditError> {
+        val carried = value.copyWithLineComments()
+        val brought = carried.rawDecor.copy()
+        return store(Key(key), carried.fitFor(ValuePlace.InlineTable), brought, "", force)
+    }
 
     /**
      * Sets [key], with its spelling and decor, to a copy of [value]. A key already there keeps its position but
@@ -720,9 +726,11 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         force: Boolean = false,
     ): Result<Value?, TomlEditError> {
         storeError(this, key.name, Item(value), key)?.let { return Err(it) }
-        if (!force) lostComments(key.name, value.rawDecor, "")?.let { return Err(it) }
+        val carried = value.copyWithLineComments()
+        val brought = carried.rawDecor.copy()
+        if (!force) lostComments(key.name, brought, "")?.let { return Err(it) }
         items.getEntry(key.name)?.key = key.copy()
-        return store(key.copy(), value.copyFor(ValuePlace.InlineTable), value.rawDecor, "", force = true)
+        return store(key.copy(), carried.fitFor(ValuePlace.InlineTable), brought, "", force = true)
     }
 
     /**
@@ -949,7 +957,8 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
      * it by a blank line stay where they print, and so do those before the closing `}` with no entry below them.
      *
      * @param force removes the key even when comments would go with it.
-     * @return the removed value; [TomlEditError.NotFound] when there is no [key]; or
+     * @return the removed value, holding in its decor the comment that ended its line, also one after its comma;
+     *   [TomlEditError.NotFound] when there is no [key]; or
      *   [TomlEditError.CommentsWouldBeLost], changing nothing, when [force] is false and comments would leave the
      *   document with the entry, naming the key and how many comments.
      */
@@ -960,7 +969,9 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         val entry = items.getEntry(key) ?: return Err(TomlEditError.NotFound(key))
         val value = checkNotNull(entry.item.valueOrNull)
         if (!force) refusalToRemove(listOf(key))?.let { return Err(it) }
+        val comments = entry.itemComments()
         removeEntries(listOf(entry))
+        value.keepLineComments(comments)
         return Ok(value)
     }
 

@@ -125,9 +125,11 @@ takes the indentation of the key above it, and an element or key added to an arr
 the spacing already there. A comment an element or an inline table's value brings, read with it or given in its
 decor, such as `Decor(suffix = " # note")`, puts a one-line array or inline table on lines of its own, one entry per
 line, whether the entry is added, inserted at an index or replaces another; its comment takes the place of the one
-that stood after the entry it replaces, and the new lines end as the document's do. Comment lines between an element
-and its comma stay between them wherever the element goes, and on a line of a table, dotted keys' included, they print
-above its key, so they still belong to it. TOML 1.0 has no comments inside an inline table, so there the comments a
+that stood after the entry it replaces, and the new lines end as the document's do. An element or entry read from
+brackets or braces across lines brings the comment after its comma, its same-line comment, wherever it is stored,
+also when `removeAt` or `remove` hands it back. Comment lines between an element and its comma stay between them
+wherever the element goes, and on a line of a table, dotted keys' included, they print above its key, so they still
+belong to it. TOML 1.0 has no comments inside an inline table, so there the comments a
 value brings have no place: `put`, `putAll`, `getOrPut`, `putItem` and `Item.assign` return
 `TomlEditError.CommentsWouldBeLost` and change nothing, unless called with `force = true`, which stores the value
 without them.
