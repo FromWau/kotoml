@@ -522,12 +522,18 @@ public class TomlArray() : Iterable<Value> {
     ): Result<Value, TomlEditError> = replace(index, value)
 
     /**
-     * Replaces the element at [index] with a copy of [value]. A comment in [value]'s decor suffix prints after the
-     * element's comma, as [add] says, in place of the comment that stood there.
+     * Replaces the element at [index] with a copy of [value]. The element keeps its comments: the comment lines right
+     * above it, the comment after its comma and those between it and its comma. A comment [value] brings, as [add]
+     * says, fills only the places where the element has none.
      *
-     * @param keepDecor whether the copy takes over the old element's decor, so it sits where the old one did, with the
-     *   comment lines right above [value], when its decor holds some, in place of those above the old element; false
-     *   keeps [value]'s own decor.
+     * ```kotlin
+     * val doc = TomlDocument.parse("a = [\n  1, # on 1\n]\nc = [\n  7, # seven\n  8,\n]\n").getOrElse { error(it) }
+     * val one = doc["a"][0].getOrElse { error(it) }.valueOrNull!!
+     * doc["c"].getOrNull()?.arrayOrNull!!.replace(0, one) // c = [\n  1, # seven\n  8,\n]
+     * ```
+     *
+     * @param keepDecor whether the copy takes over the old element's decor and comments, so it sits where the old one
+     *   did; false keeps [value]'s own decor, its comment after the comma in place of the old element's.
      * @return the old element, or [TomlEditError.IndexOutOfBounds], with nothing replaced, when there is no
      *   element at [index], or [TomlEditError.TooDeep] when [value] would nest deeper than the parser reads.
      */
@@ -539,16 +545,14 @@ public class TomlArray() : Iterable<Value> {
         val old = getOrNull(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         storeError(this, null, Item(value))?.let { return Err(it) }
         val carried = value.copyWithLineComments()
-        val comment = carried.broughtComment()
+        val brought = carried.broughtComment()
+        val comment = if (keepDecor) elementComments(index).fillOnLine(brought) else brought
         val stored = carried.fitFor(ValuePlace.Array).also { giveSecondsInToml10(this, Item(it)) }
         if (comment.isNotEmpty()) {
             spreadForComment(stored)
             if (old === printedValues().last()) leaveLastLineForComma()
         }
-        if (keepDecor) {
-            stored.rawDecor.keepAttachedAboveIn(old.rawDecor)
-            if (!stored.bringsCommentLinesBelow()) stored.rawDecor.suffix = old.rawDecor.suffix
-        }
+        if (keepDecor) stored.rawDecor.keepElementCommentsOf(old.rawDecor)
         values.set(index, Item.inArray(stored, this)).leaveArray()
         layOutCommentLinesBelow(stored)
         if (comment.isNotEmpty()) putCommentAfter(stored, comment)

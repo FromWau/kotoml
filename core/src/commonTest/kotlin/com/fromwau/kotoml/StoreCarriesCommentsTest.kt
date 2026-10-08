@@ -8,7 +8,7 @@ import kotlin.test.assertEquals
 /**
  * Storing or copying an item takes the comments it owns: the comment lines directly above it and its same-line
  * comment, a table's those of its header, and everything inside it; comment lines set apart by a blank line stay. A
- * replacement keeps the slot's comments unless the new item brings its own, which take their place.
+ * replacement keeps the slot's comments; those the new item brings fill only the places where the slot has none.
  */
 class StoreCarriesCommentsTest {
 
@@ -77,17 +77,78 @@ class StoreCarriesCommentsTest {
     }
 
     @Test
-    fun `a value that brings comments replaces the comments of the slot`() {
+    fun `a value that brings comments keeps the comments of the slot`() {
         val doc = parse("# free\n\n# about x\nx = 1 # one\n")
         doc.set("x", parse("# about y\ny = 5 # five\n")["y"].assertSuccess()).assertSuccess()
-        assertEquals("# free\n\n# about y\nx = 5 # five\n", doc.toString())
+        assertEquals("# free\n\n# about x\nx = 5 # one\n", doc.toString())
     }
 
     @Test
-    fun `a table that brings comments replaces the header comments of the slot and keeps its free lines`() {
+    fun `a value brings its comments to a slot without any`() {
+        val doc = parse("w = 0\nx = 1\n")
+        doc.set("x", parse("# about y\ny = 5 # five\n")["y"].assertSuccess()).assertSuccess()
+        assertEquals("w = 0\n# about y\nx = 5 # five\n", doc.toString())
+    }
+
+    @Test
+    fun `a value brings its same-line comment to a slot that has only lines above`() {
+        val doc = parse("# about x\nx = 1\n")
+        doc.set("x", parse("# about y\ny = 5 # five\n")["y"].assertSuccess()).assertSuccess()
+        assertEquals("# about x\nx = 5 # five\n", doc.toString())
+    }
+
+    @Test
+    fun `a value brings its lines above to a slot that has only a same-line comment`() {
+        val doc = parse("w = 0\nx = 1 # one\n")
+        doc.set("x", parse("# about y\ny = 5 # five\n")["y"].assertSuccess()).assertSuccess()
+        assertEquals("w = 0\n# about y\nx = 5 # one\n", doc.toString())
+    }
+
+    @Test
+    fun `a value assigned to a slot keeps the slot's comments and fills its empty places`() {
+        val doc = parse("# about x\nx = 1\n")
+        doc["x"].assertSuccess().assign(parse("# about y\ny = 5 # five\n")["y"].assertSuccess()).assertSuccess()
+        assertEquals("# about x\nx = 5 # five\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment given in a value's decor fills only an empty same-line place`() {
+        val doc = parse("x = 1 # one\ny = 2\n")
+        doc.set("x", Value.Integer(5L, Decor(suffix = " # given"))).assertSuccess()
+        doc.set("y", Value.Integer(6L, Decor(suffix = " # given"))).assertSuccess()
+        assertEquals("x = 5 # one\ny = 6 # given\n", doc.toString())
+    }
+
+    @Test
+    fun `a value stored by the edit DSL keeps the slot's same-line comment and fills an empty one`() {
+        val five = parse("y = 5 # five\n")["y"].assertSuccess().valueOrNull!!
+        val doc = parse("# about x\nx = 1 # one\nz = 0\n")
+        doc.edit {
+            "x" to five
+            "z" to five
+        }.assertSuccess()
+        assertEquals("# about x\nx = 5 # one\nz = 5 # five\n", doc.toString())
+    }
+
+    @Test
+    fun `a table that brings comments keeps the header comments of the slot and its free lines`() {
         val doc = parse("# keep\n\n# about a\n[a] # ah\nx = 1\n")
         doc.set("a", parse("# free\n\n# about b\n[b] # bh\nk = 2\n")["b"].assertSuccess()).assertSuccess()
-        assertEquals("# keep\n\n# about b\n[a] # bh\nk = 2\n", doc.toString())
+        assertEquals("# keep\n\n# about a\n[a] # ah\nk = 2\n", doc.toString())
+    }
+
+    @Test
+    fun `a table brings its header comment to a slot that has only lines above its header`() {
+        val doc = parse("# about a\n[a]\nx = 1\n")
+        doc.set("a", parse("# about b\n[b] # bh\nk = 2\n")["b"].assertSuccess()).assertSuccess()
+        assertEquals("# about a\n[a] # bh\nk = 2\n", doc.toString())
+    }
+
+    @Test
+    fun `a table brings its lines above to a slot that has only a header comment`() {
+        val doc = parse("w = 0\n\n[a] # ah\nx = 1\n")
+        doc.set("a", parse("# about b\n[b] # bh\nk = 2\n")["b"].assertSuccess()).assertSuccess()
+        assertEquals("w = 0\n\n# about b\n[a] # ah\nk = 2\n", doc.toString())
     }
 
     @Test
@@ -153,11 +214,35 @@ class StoreCarriesCommentsTest {
     }
 
     @Test
-    fun `a table replacing an element of an array of tables brings its comments in place of the element's`() {
+    fun `a table replacing an element of an array of tables keeps the element's comments`() {
         val table = parse("# above\n[[s]] # head\nx = 1\n")["s"][0].assertSuccess().standardTableOrNull!!
         val doc = parse("# free\n\n# about t\n[[t]] # t0\ny = 0\n")
         doc["t"].assertSuccess().arrayOfTablesOrNull!!.replace(0, table).assertSuccess()
-        assertEquals("# free\n\n# above\n[[t]] # head\nx = 1\n", doc.toString())
+        assertEquals("# free\n\n# about t\n[[t]] # t0\nx = 1\n", doc.toString())
+    }
+
+    @Test
+    fun `a table replacing an element of an array of tables brings its header comment to an element without one`() {
+        val table = parse("# above\n[[s]] # head\nx = 1\n")["s"][0].assertSuccess().standardTableOrNull!!
+        val doc = parse("# about t\n[[t]]\ny = 0\n")
+        doc["t"].assertSuccess().arrayOfTablesOrNull!!.replace(0, table).assertSuccess()
+        assertEquals("# about t\n[[t]] # head\nx = 1\n", doc.toString())
+    }
+
+    @Test
+    fun `a table replacing an element of an array of tables brings its lines above to an element without any`() {
+        val table = parse("# above\n[[s]] # head\nx = 1\n")["s"][0].assertSuccess().standardTableOrNull!!
+        val doc = parse("w = 0\n\n[[t]] # t0\ny = 0\n")
+        doc["t"].assertSuccess().arrayOfTablesOrNull!!.replace(0, table).assertSuccess()
+        assertEquals("w = 0\n\n# above\n[[t]] # t0\nx = 1\n", doc.toString())
+    }
+
+    @Test
+    fun `a table assigned to an element of an array of tables keeps its header comment and fills its lines above`() {
+        val table = parse("# above\n[[s]] # head\nx = 1\n")["s"][0].assertSuccess()
+        val doc = parse("w = 0\n\n[[t]] # t0\ny = 0\n")
+        doc["t"][0].assertSuccess().assign(table).assertSuccess()
+        assertEquals("w = 0\n\n# above\n[[t]] # t0\nx = 1\n", doc.toString())
     }
 
     @Test
@@ -170,11 +255,27 @@ class StoreCarriesCommentsTest {
     }
 
     @Test
-    fun `an element assigned by index brings its comments in place of the element's`() {
+    fun `an element assigned by index keeps the element's comments`() {
         val source = parse("a = [\n  # about one\n  1, # one\n]\n")
         val doc = parse("b = [\n  # about two\n  2, # two\n  3,\n]\n")
         doc["b"].set(0, source["a"][0].assertSuccess()).assertSuccess()
-        assertEquals("b = [\n  # about one\n  1, # one\n  3,\n]\n", doc.toString())
+        assertEquals("b = [\n  # about two\n  1, # two\n  3,\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `an element assigned by index brings its comment after the comma to an element with only lines above`() {
+        val source = parse("a = [\n  # about one\n  1, # one\n]\n")
+        val doc = parse("b = [\n  # about two\n  2,\n  3,\n]\n")
+        doc["b"].set(0, source["a"][0].assertSuccess()).assertSuccess()
+        assertEquals("b = [\n  # about two\n  1, # one\n  3,\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `an element assigned by index brings its lines above to an element with only a comment after the comma`() {
+        val source = parse("a = [\n  # about one\n  1, # one\n]\n")
+        val doc = parse("b = [\n  2, # two\n  3,\n]\n")
+        doc["b"].set(0, source["a"][0].assertSuccess()).assertSuccess()
+        assertEquals("b = [\n  # about one\n  1, # two\n  3,\n]\n", doc.toString())
     }
 
     @Test
@@ -473,10 +574,32 @@ class StoreCarriesCommentsTest {
     }
 
     @Test
-    fun `an element value replacing an element brings the comment after its comma in place of the slot's`() {
+    fun `an element value replacing an element keeps the comment after the slot's comma`() {
         val doc = parse("${afterComma}c = [\n  7, # seven\n  8,\n]\n")
         doc["c"].assertSuccess().arrayOrNull!!.replace(0, doc.arrayA()[0].assertSuccess()).assertSuccess()
+        assertEquals("${afterComma}c = [\n  1, # seven\n  8,\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `an element value replacing an element without a comment brings the comment after its comma`() {
+        val doc = parse("${afterComma}c = [\n  7,\n  8,\n]\n")
+        doc["c"].assertSuccess().arrayOrNull!!.replace(0, doc.arrayA()[0].assertSuccess()).assertSuccess()
         assertEquals("${afterComma}c = [\n  1, # on 1\n  8,\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `an element value replacing an element with a comment on its comma line keeps that comment`() {
+        val doc = parse("${afterComma}c = [\n  7\n  , # comma\n  8,\n]\n")
+        doc["c"].assertSuccess().arrayOrNull!!.replace(0, doc.arrayA()[0].assertSuccess()).assertSuccess()
+        assertEquals("${afterComma}c = [\n  1\n  , # comma\n  8,\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `an element value replacing an element with only lines above brings the comment after its comma`() {
+        val source = parse("a = [\n  # about one\n  1, # one\n]\n")
+        val doc = parse("c = [\n  # about seven\n  7,\n  8,\n]\n")
+        doc["c"].assertSuccess().arrayOrNull!!.replace(0, source.arrayA()[0].assertSuccess()).assertSuccess()
+        assertEquals("c = [\n  # about seven\n  1, # one\n  8,\n]\n", doc.toString())
     }
 
     @Test
@@ -502,6 +625,27 @@ class StoreCarriesCommentsTest {
         val doc = parse("${entryAfterComma}u = { z = 0 }\n")
         doc["u"].assertSuccess().inlineTableOrNull!!.put("x", doc.inlineT()["x"].assertSuccess()).assertSuccess()
         assertEquals("${entryAfterComma}u = {\n  z = 0,\n  x = 1, # on x\n}\n", doc.toString())
+    }
+
+    @Test
+    fun `an inline table entry value set over an entry keeps the comment after the slot's comma`() {
+        val doc = parse("${entryAfterComma}u = {\n  x = 7, # seven\n  z = 0,\n}\n")
+        doc["u"].assertSuccess().inlineTableOrNull!!.set("x", doc.inlineT()["x"].assertSuccess()).assertSuccess()
+        assertEquals("${entryAfterComma}u = {\n  x = 1, # seven\n  z = 0,\n}\n", doc.toString())
+    }
+
+    @Test
+    fun `an inline table entry value set over an entry without a comment brings the comment after its comma`() {
+        val doc = parse("${entryAfterComma}u = {\n  x = 7,\n  z = 0,\n}\n")
+        doc["u"].assertSuccess().inlineTableOrNull!!.set("x", doc.inlineT()["x"].assertSuccess()).assertSuccess()
+        assertEquals("${entryAfterComma}u = {\n  x = 1, # on x\n  z = 0,\n}\n", doc.toString())
+    }
+
+    @Test
+    fun `an inline table entry value assigned over an entry keeps the comment after the slot's comma`() {
+        val doc = parse("${entryAfterComma}u = {\n  x = 7, # seven\n  z = 0,\n}\n")
+        doc["u"]["x"].assertSuccess().assign(Item(doc.inlineT()["x"].assertSuccess())).assertSuccess()
+        assertEquals("${entryAfterComma}u = {\n  x = 1, # seven\n  z = 0,\n}\n", doc.toString())
     }
 
     @Test

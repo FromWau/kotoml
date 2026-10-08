@@ -41,11 +41,11 @@ class CommentPlacementTest {
     }
 
     @Test
-    fun `a table replaced by one from another document takes the header comment the new one brings`() {
+    fun `a table replaced by one from another document keeps its header comment`() {
         val source = parse("[app] # bh\ny = 2\n")
         val doc = parse("[app] # ah\nx = 1\n")
         doc.set("app", source["app"].assertSuccess()).assertSuccess()
-        assertEquals("[app] # bh\ny = 2\n", doc.toString())
+        assertEquals("[app] # ah\ny = 2\n", doc.toString())
     }
 
     @Test
@@ -236,31 +236,31 @@ class CommentPlacementTest {
     }
 
     @Test
-    fun `a comment given to a replacing element takes the place of the old element's comment`() {
+    fun `a comment given to a replacing element leaves the old element's comment`() {
         val doc = parse("a = [\n  1, # old\n  2,\n]\n")
         doc["a"].assertSuccess().valueOrNull!!.arrayOrNull!!.replace(0, commented(9L)).assertSuccess()
-        assertEquals("a = [\n  9, # c\n  2,\n]\n", doc.toString())
+        assertEquals("a = [\n  9, # old\n  2,\n]\n", doc.toString())
     }
 
     @Test
-    fun `a comment given to an element replacing the last one takes the place of its comment`() {
+    fun `a comment given to an element replacing the last one leaves its comment`() {
         val doc = parse("a = [\n  1,\n  2 # old\n]\n")
         doc["a"].assertSuccess().valueOrNull!!.arrayOrNull!!.replace(1, commented(9L)).assertSuccess()
-        assertEquals("a = [\n  1,\n  9, # c\n]\n", doc.toString())
+        assertEquals("a = [\n  1,\n  9 # old\n]\n", doc.toString())
     }
 
     @Test
-    fun `a comment given to a value set at a key takes the place of the old value's comment`() {
+    fun `a comment given to a value set at a key leaves the old value's comment`() {
         val doc = parse("t = {\n  a = 1, # old\n  b = 2\n}\n")
         doc["t"].assertSuccess().valueOrNull!!.inlineTableOrNull!!.set("a", commented(5L)).assertSuccess()
-        assertEquals("t = {\n  a = 5, # c\n  b = 2\n}\n", doc.toString())
+        assertEquals("t = {\n  a = 5, # old\n  b = 2\n}\n", doc.toString())
     }
 
     @Test
-    fun `a comment given to a value set at the last key takes the place of the old value's comment`() {
+    fun `a comment given to a value set at the last key leaves the old value's comment`() {
         val doc = parse("t = {\n  a = 1,\n  b = 2 # old\n}\n")
         doc["t"].assertSuccess().valueOrNull!!.inlineTableOrNull!!.set("b", commented(5L)).assertSuccess()
-        assertEquals("t = {\n  a = 1,\n  b = 5 # c\n}\n", doc.toString())
+        assertEquals("t = {\n  a = 1,\n  b = 5 # old\n}\n", doc.toString())
     }
 
     @Test

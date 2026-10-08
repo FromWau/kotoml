@@ -67,6 +67,7 @@ internal class KeyValue(key: Key, item: Item) {
         next: Item,
         above: String = "",
     ): Item {
+        val brought = itemComments().fillAbove(above)
         val lines = takeLinesAbove(next)
         val old = item
         val oldDecor = old.valueOrNull?.rawDecor
@@ -76,10 +77,11 @@ internal class KeyValue(key: Key, item: Item) {
         old.entry = null
         keepValueDecor(oldDecor)
         keepHeaderComment(oldTable?.rawDecor)
+        // Tables reordered within their array keep their own comments, so what they bring is theirs.
         val keptPlaces = keepPlacesOf(oldArray, above)
         if (!keptPlaces) keepLinesAbove(lines)
         keepTablePlace(oldTable)
-        if (!keptPlaces) takeAttachedAbove(above)
+        if (!keptPlaces) takeAttachedAbove(brought)
         return old
     }
 
@@ -160,21 +162,25 @@ internal class KeyValue(key: Key, item: Item) {
         if (old != null) takePlaceOf(table, old)
     }
 
-    /** Gives a table now in the slot the comment on the header of the table [old] it replaced, unless it has one. */
+    /**
+     * Gives a table now in the slot the comment on the header of the table [old] it replaced, or that header's spacing
+     * when the table brings nothing there.
+     */
     fun keepHeaderComment(old: RawDecor?) {
         val table = item.standardTableOrNull?.takeUnless { it.isDotted } ?: return
-        if (old != null && table.rawDecor.suffix?.textOrNull.isNullOrEmpty()) table.rawDecor.suffix = old.suffix
+        if (old == null) return
+        val oldComment = '#' in old.suffix?.textOrNull.orEmpty()
+        if (oldComment || table.rawDecor.suffix?.textOrNull.isNullOrEmpty()) table.rawDecor.suffix = old.suffix
     }
 
     /**
-     * Gives the value now in the slot the spacing and same-line comment of the value [old] it replaced, on each side
-     * the new value leaves to the default, and the same-line comment when the new value brings none.
+     * Gives the value now in the slot the same-line comment of the value [old] it replaced, and its spacing on each
+     * side the new value leaves to the default.
      */
     fun keepValueDecor(old: RawDecor?) {
         if (old == null) return
         val decor = item.valueOrNull?.rawDecor ?: return
-        val oldComment = '#' in old.suffix?.textOrNull.orEmpty()
-        if (oldComment && '#' !in decor.suffix?.textOrNull.orEmpty()) decor.suffix = null
+        if ('#' in old.suffix?.textOrNull.orEmpty()) decor.suffix = null
         decor.fillDefaultsFrom(old)
     }
 

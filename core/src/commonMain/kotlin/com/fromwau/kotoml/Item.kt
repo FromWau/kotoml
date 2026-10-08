@@ -224,11 +224,11 @@ public class Item private constructor(
 
     /**
      * Replaces this slot's content with a copy of [item]'s. The slot keeps its comments, the comment lines right above
-     * it and its same-line comment, unless [item] brings comments of its own, which take their place, as
-     * [StandardTable.put] says. Fails when this slot is in an array or an inline table and [item] holds no value, or in
-     * an array of tables and [item] holds no table, with [TomlEditError.TooDeep] when [item] would nest deeper than the
-     * parser reads, and with [TomlEditError.NotInToml10] when it holds what only TOML 1.1 reads and this slot is in a
-     * document whose [TomlDocument.version] is 1.0. In an inline table that cannot hold the comments [item] brings, as
+     * it and its same-line comment; those [item] brings fill only the places where it has none, as [StandardTable.put]
+     * says. Fails when this slot is in an array or an inline table and [item] holds no value, or in an array of tables
+     * and [item] holds no table, with [TomlEditError.TooDeep] when [item] would nest deeper than the parser reads, and
+     * with [TomlEditError.NotInToml10] when it holds what only TOML 1.1 reads and this slot is in a document whose
+     * [TomlDocument.version] is 1.0. In an inline table that cannot hold the comments [item] brings, as
      * [InlineTable.put] says, it fails with [TomlEditError.CommentsWouldBeLost] unless [force] stores it without them.
      * Each failure changes nothing.
      */
@@ -254,8 +254,11 @@ public class Item private constructor(
         }
         val onTableLine = valuePlace == ValuePlace.Line || inline?.printsOnTableLines() == true
         if (onTableLine) nextValue?.let { above += it.rawDecor.takeCommentLinesBelow() }
+        val own = if (owner == null) ItemComments.NONE else ownCommentsOf(this)
+        val broughtAbove = own.fillAbove(above)
         // In brackets or braces a comment after a value follows its comma, not its decor.
-        val comment = nextValue?.takeIf { valuePlace.let { it != null && it != ValuePlace.Line } }?.broughtComment()
+        val brought = nextValue?.takeIf { valuePlace.let { it != null && it != ValuePlace.Line } }?.broughtComment()
+        val comment = own.fillOnLine(brought.orEmpty())
         valuePlace?.let { place -> nextValue?.fitFor(place) }
         if (nextValue != null) inline?.dropCommentsItCannotHold(nextValue)
         val entry = entry
@@ -266,14 +269,14 @@ public class Item private constructor(
             val element = standardTableOrNull
             if (oldElement != null && element != null) {
                 takePlaceOf(element, oldElement)
-                element.putAttachedAbove(above)
+                if (own.holdsOnLine) element.rawDecor.suffix = oldElement.rawDecor.suffix
+                element.putAttachedAbove(broughtAbove)
             }
             val array = owner as? TomlArray
             if (array != null && nextValue != null && oldDecor != null) {
                 // The element takes the slot's place on its line, as [TomlArray.replace] puts it.
-                nextValue.rawDecor.keepAttachedAboveIn(oldDecor)
-                if (!nextValue.bringsCommentLinesBelow()) nextValue.rawDecor.suffix = oldDecor.suffix
-                array.takeBroughtComments(nextValue, above, comment.orEmpty())
+                nextValue.rawDecor.keepElementCommentsOf(oldDecor)
+                array.takeBroughtComments(nextValue, broughtAbove, comment)
                 array.layOutCommentLinesBelow(nextValue)
             }
             return Ok(Unit)
@@ -290,9 +293,9 @@ public class Item private constructor(
         if (!keptPlaces) entry.keepLinesAbove(linesAbove)
         entry.keepTablePlace(oldTable)
         if (inline == null) {
-            if (!keptPlaces) entry.takeAttachedAbove(above)
+            if (!keptPlaces) entry.takeAttachedAbove(broughtAbove)
         } else if (nextValue != null) {
-            inline.takeBroughtComments(nextValue, entry, above, comment.orEmpty())
+            inline.takeBroughtComments(nextValue, entry, broughtAbove, comment)
         }
         return Ok(Unit)
     }

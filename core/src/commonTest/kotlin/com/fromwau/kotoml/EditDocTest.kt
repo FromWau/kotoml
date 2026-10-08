@@ -94,6 +94,23 @@ c = { d = "hello" }
     }
 
     @Test
+    fun `the module README replacing example keeps the slot's comments and fills an empty slot`() {
+        val doc = TomlDocument.parse("# about x\nx = 1 # one\nz = 0\n").assertSuccess()
+        val other = TomlDocument.parse("# about y\ny = 5 # five\n").assertSuccess()
+        doc.set("x", other["y"].assertSuccess()).assertSuccess()
+        doc.set("z", other["y"].assertSuccess()).assertSuccess()
+        assertEquals("# about x\nx = 5 # one\n# about y\nz = 5 # five\n", doc.toString())
+    }
+
+    @Test
+    fun `the array replace KDoc example keeps the comment after the element's comma`() {
+        val doc = TomlDocument.parse("a = [\n  1, # on 1\n]\nc = [\n  7, # seven\n  8,\n]\n").assertSuccess()
+        val one = doc["a"][0].assertSuccess().valueOrNull!!
+        doc["c"].getOrNull()?.arrayOrNull!!.replace(0, one).assertSuccess()
+        assertEquals("a = [\n  1, # on 1\n]\nc = [\n  1, # seven\n  8,\n]\n", doc.toString())
+    }
+
+    @Test
     fun `the table sortWith KDoc example leaves the free comment in place`() {
         val doc = TomlDocument.parse("b = 1\n\n# free\n\n# about a\na = 2\n").assertSuccess()
         doc.root.sort()

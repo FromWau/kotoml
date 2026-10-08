@@ -196,8 +196,8 @@ public class ArrayOfTables() : Iterable<StandardTable> {
 
     /**
      * Replaces the table at [index] with [table], which takes over the old table's place among the document's tables
-     * and its header decor: the comment and blank lines above its `[[header]]` and the comment after it on its line,
-     * unless [table] brings comments of its own. See [replace].
+     * and its header decor: the comment and blank lines above its `[[header]]` and the comment after it on its line.
+     * The comments [table] brings fill only the places where the old table has none. See [replace].
      *
      * @return the table it replaced, or [TomlEditError.IndexOutOfBounds] for an [index] past the end, changing nothing.
      */
@@ -211,8 +211,8 @@ public class ArrayOfTables() : Iterable<StandardTable> {
      *
      * @param keepDecor whether the copy takes over the old table's [StandardTable.position] and header decor, the
      *   comment and blank lines above its `[[header]]` and the comment after it on its line, where a table read from
-     *   another place brings its own header comment and comment lines right above its header in their place; false
-     *   keeps [table]'s own position and decor.
+     *   another place brings its header comment and comment lines right above its header to those the old table has
+     *   none in; false keeps [table]'s own position and decor.
      * @return the old table; [TomlEditError.TooDeep], with nothing replaced, when [table] would nest deeper than the
      *   parser reads; or [TomlEditError.IndexOutOfBounds], with nothing replaced, when there is no table
      *   at [index].
@@ -225,12 +225,14 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         val old = getOrNull(index) ?: return Err(TomlEditError.IndexOutOfBounds(index, values.size))
         storeError(this, null, Item(table))?.let { return Err(it) }
         val stored = copyToStore(table)
-        val above = attachedAboveBroughtBy(table, stored)
+        var above = attachedAboveBroughtBy(table, stored)
         if (keepDecor) {
-            val comment = stored.headerComment.takeIf { it.isNotEmpty() }?.let { stored.rawDecor.suffix }
+            val own = old.headerComments()
+            val comment = stored.rawDecor.suffix.takeIf { stored.headerComment.isNotEmpty() && !own.holdsOnLine }
             stored.rawDecor.assign(old.rawDecor)
             if (comment != null) stored.rawDecor.suffix = comment
             stored.placeAt(old.position, old.positionFromText)
+            above = own.fillAbove(above)
         }
         stored.putAttachedAbove(above)
         values.set(index, Item.inArrayOfTables(stored, this)).leaveArray()

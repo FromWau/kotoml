@@ -681,7 +681,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
      *
      * A comment [value] brings, its same-line comment where it was read, also one after its comma, or one given in its
      * decor, such as `Decor(suffix = " # note")`, puts a table on one line across lines, as [Item.setLayout] does for
-     * [TableLayout.MultilineInline], and prints after the value's comma, in place of the comment that stood there;
+     * [TableLayout.MultilineInline], and prints after the value's comma, unless a comment stood there, which stays;
      * comment lines between [value] and its comma print below it, the comma below them. The lines it adds end as the
      * document's lines do, in `\r\n` in a document read with them.
      *
@@ -789,9 +789,12 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     private fun putEntry(
         key: Key,
         value: Value,
-        comment: String = "",
-        linesAbove: String = "",
+        broughtComment: String = "",
+        broughtAbove: String = "",
     ): Value? {
+        val own = items.getEntry(key.name)?.itemComments() ?: ItemComments.NONE
+        val comment = own.fillOnLine(broughtComment)
+        val linesAbove = own.fillAbove(broughtAbove)
         giveSecondsInToml10(this, Item(value))
         val isNew = !items.containsKey(key.name)
         val linesBelow = holdsComments() && value.bringsCommentLinesBelow()

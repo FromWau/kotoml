@@ -118,14 +118,25 @@ doc.remove("x", force = true) // Ok(item)
 // y = 2
 ```
 
-Replacing a value keeps its spacing and its comments, the comment lines right above it and the one after it, unless
-the new item brings comments of its own, which take their place. An array of tables left with no tables prints
+Replacing an item keeps its spacing and its comments: the comment lines right above it, the one after it, for a table
+those of its header, and for an element or an inline table's entry the one after its comma. The comments the new item
+brings, read with it or given in its decor, fill only the places where the item it replaces has none; each place
+counts on its own. To change a comment the slot keeps, set the stored item's `decor` after the store.
+
+```kotlin
+val doc = TomlDocument.parse("# about x\nx = 1 # one\nz = 0\n").getOrElse { error(it) }
+val other = TomlDocument.parse("# about y\ny = 5 # five\n").getOrElse { error(it) }
+doc.set("x", other["y"].getOrElse { error(it) }) // # about x\nx = 5 # one
+doc.set("z", other["y"].getOrElse { error(it) }) // # about y\nz = 5 # five
+```
+
+An array of tables left with no tables prints
 `key = []` below the comment lines that stood above its first header, which stay since the array does. A new key
 takes the indentation of the key above it, and an element or key added to an array or inline table on one line takes
 the spacing already there. A comment an element or an inline table's value brings, read with it or given in its
 decor, such as `Decor(suffix = " # note")`, puts a one-line array or inline table on lines of its own, one entry per
-line, whether the entry is added, inserted at an index or replaces another; its comment takes the place of the one
-that stood after the entry it replaces, and the new lines end as the document's do. An element or entry read from
+line, whether the entry is added, inserted at an index or replaces another one without a comment there, and the new
+lines end as the document's do. An element or entry read from
 brackets or braces across lines brings the comment after its comma, its same-line comment, wherever it is stored,
 also when `removeAt` or `remove` hands it back. Comment lines between an element and its comma stay between them
 wherever the element goes, and on a line of a table, dotted keys' included, they print above its key, so they still
@@ -350,7 +361,7 @@ An item handed out by indexing, and the comments that go with it, follow five ru
    stored with the comments that belong to it: the comment lines right above it, with no blank line between, and its
    same-line comment, for a table those of its header, and every comment inside it, blank lines included. Comment
    lines set apart from it by a blank line belong to no item and stay in its source. Stored in place of another item,
-   it keeps the comments of that slot unless it brings comments of its own, which take their place. Where the place
+   it keeps the comments of that slot, and its own fill only the places where the slot has none. Where the place
    cannot hold its comments, the store returns `CommentsWouldBeLost` and changes nothing, unless forced. Editing the
    original afterwards does not change the copy.
 3. **`copy()` is exactly what a store would store.** With `val db = src["db"].getOrElse { error(it) }`,

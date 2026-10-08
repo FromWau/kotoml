@@ -750,17 +750,18 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     override operator fun contains(key: String): Boolean = containsKey(key)
 
     /**
-     * Sets [key] to a copy of [item], as [set] does: a key already there keeps its position, its
-     * spelling and its comments, the comment lines right above it and its same-line comment, unless [item] brings
-     * comments of its own from where it was read, which take their place. It keeps its spacing too, unless [item] moves
-     * it between a `key = value` line and a `[header]` or `[[header]]`, where it takes the default spacing. Pass a
-     * [Key] to replace all of its formatting.
+     * Sets [key] to a copy of [item], as [set] does: a key already there keeps its position, its spelling and its
+     * comments, the comment lines right above it and its same-line comment, for a table those of its header. The
+     * comments [item] brings from where it was read fill only the places where the key has none. It keeps its spacing
+     * too, unless [item] moves it between a `key = value` line and a `[header]` or `[[header]]`, where it takes the
+     * default spacing. Pass a [Key] to replace all of its formatting.
      *
      * ```kotlin
-     * val doc = TomlDocument.parse("# about x\nx = 1 # one\n").getOrElse { error(it) }
+     * val doc = TomlDocument.parse("# about x\nx = 1 # one\nz = 0\n").getOrElse { error(it) }
      * val other = TomlDocument.parse("# about y\ny = 5 # five\n").getOrElse { error(it) }
-     * doc.root.put("x", Item(Value.Integer(2L))) // # about x\nx = 2 # one
-     * doc.root.put("x", other["y"].getOrElse { error(it) }) // # about y\nx = 5 # five
+     * val y = other["y"].getOrElse { error(it) }
+     * doc.root.put("x", y) // # about x\nx = 5 # one
+     * doc.root.put("z", y) // # about y\nz = 5 # five
      * ```
      *
      * @return the item [key] held before, which no longer belongs to the table, or null when it held none; or

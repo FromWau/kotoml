@@ -20,6 +20,18 @@ internal data class ItemComments(
     /** Whole lines between the last item in brackets or braces and the closing one, which belong to no item. */
     val freeBelow: String = "",
 ) {
+    /** Whether a comment ends the item's line or the line holding only its comma. */
+    val holdsOnLine: Boolean get() = '#' in sameLine || '#' in commaLine
+
+    /**
+     * [brought], the comment lines a replacement brings directly above it, when the item it replaces has none there:
+     * replacing keeps the slot's comments, and those a replacement brings only fill the places where it has none.
+     */
+    fun fillAbove(brought: String): String = if ('#' in attachedAbove) "" else brought
+
+    /** [brought], the comment a replacement brings for its line, when the item it replaces has none there. */
+    fun fillOnLine(brought: String): String = if (holdsOnLine) "" else brought
+
     companion object {
         val NONE: ItemComments = ItemComments()
     }
@@ -231,18 +243,25 @@ private fun KeptText.withLinesAbove(
 }
 
 /**
- * Gives an element in brackets whose decor is [old], replaced by one whose decor is this, the comment lines directly
- * above the new one in place of those above the old one, when the old one starts a line; the rest stays as in [old].
+ * Gives an element in brackets whose decor is this, replacing one whose decor is [old], the old one's place and
+ * comments: the comment lines directly above it and those between it and its comma. The comment lines the new one
+ * brings above it or below it fill those places where the old one has none, above it only when the old one starts a
+ * line.
  */
-internal fun RawDecor.keepAttachedAboveIn(old: RawDecor) {
-    val block = prefix?.let { splitLinesAbove(it.wholeLinesAbove(spacedForBraces = true)).attached }.orEmpty()
+internal fun RawDecor.keepElementCommentsOf(old: RawDecor) {
+    val block = prefix?.attachedAboveElement().orEmpty()
     val start = old.prefix
     prefix = start
+    if ('#' in old.suffix?.textOrNull.orEmpty() || commentLinesBelow().isEmpty()) suffix = old.suffix
     if ('#' !in block || start == null || '\n' !in start.textOrNull.orEmpty()) return
+    if ('#' in start.attachedAboveElement()) return
     val text = start.textOrNull.orEmpty()
     val lines = indentedCommentLines(block, text.substringAfterLast('\n'), text.lineBreak())
     prefix = start.withAttachedAbove(lines, spacedForBraces = true)
 }
+
+private fun KeptText.attachedAboveElement(): String =
+    splitLinesAbove(wholeLinesAbove(spacedForBraces = true)).attached
 
 /** Puts [comment], the same-line comment this copy's source owns, after it when its decor holds no comment there. */
 internal fun RawDecor.keepSameLineComment(comment: String) {
