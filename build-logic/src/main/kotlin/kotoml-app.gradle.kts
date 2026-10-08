@@ -3,6 +3,7 @@
 
 plugins {
     id("org.jetbrains.kotlin.multiplatform")
+    id("kotoml-kotlin")
 }
 
 val libs = extensions.getByType<VersionCatalogsExtension>().named("libs")

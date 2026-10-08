@@ -33,11 +33,6 @@ val versionSource = tasks.register("versionSource") {
 }
 
 kotlin {
-    compilerOptions {
-        allWarningsAsErrors = true
-        freeCompilerArgs.add("-Xreturn-value-checker=check")
-    }
-
     jvm {
         mainRun { mainClass.set("$entryPackage.MainKt") }
     }

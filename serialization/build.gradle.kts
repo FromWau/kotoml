@@ -7,8 +7,6 @@ description = "Maps @Serializable Kotlin types to TOML and back, and updates a T
 
 kotlin {
     compilerOptions {
-        allWarningsAsErrors = true
-        freeCompilerArgs.add("-Xreturn-value-checker=check")
         // A format implements Encoder and Decoder, parts of which kotlinx-serialization still marks experimental.
         optIn.add("kotlinx.serialization.ExperimentalSerializationApi")
     }

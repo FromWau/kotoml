@@ -3,6 +3,7 @@
 
 plugins {
     id("org.jetbrains.kotlin.multiplatform")
+    id("kotoml-kotlin")
     id("com.android.kotlin.multiplatform.library")
     id("kotoml-publish")
 }
