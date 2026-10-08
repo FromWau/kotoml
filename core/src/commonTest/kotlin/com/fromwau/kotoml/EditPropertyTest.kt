@@ -182,6 +182,7 @@ internal class Edits(
                     add("inline rename $old to $inlineKey" to { inline.rename(old, inlineKey) })
                 }
                 add("inline format" to { inline.format() })
+                add("inline sort" to { inline.sortWith(compareBy { it.first.name }) })
             }
             arrays.randomOrNull(random)?.let { array ->
                 val index = random.nextInt(array.size + 1)
@@ -194,6 +195,7 @@ internal class Edits(
                 val multiline = random.nextBoolean()
                 add("array setMultiline $multiline force $force" to { array.setMultiline(multiline, force) })
                 add("array respell" to { array.respell() })
+                add("array sort" to { array.sortWith(compareBy { it.toString() }) })
             }
             tableArrays.randomOrNull(random)?.let { tables ->
                 val index = random.nextInt(tables.size + 1)
@@ -210,6 +212,12 @@ internal class Edits(
                 val layout = layout()
                 add("slot setLayout $layout force $force" to { slot.setLayout(layout, force) })
                 add("slot index set" to { slot.set(keyFor(emptySet()), item()) })
+                slot.arrayOfTablesOrNull?.let { tables ->
+                    add("slot reverse its tables" to {
+                        val reversed = tables.reversed().toArrayOfTables()
+                        if (reversed is Result.Success) slot.assign(Item(reversed.value))
+                    })
+                }
             }
             slots.randomOrNull(random)?.let { source ->
                 val target = tables.random(random)
@@ -222,6 +230,9 @@ internal class Edits(
                     }
                     inlines.randomOrNull(random)?.let { inline ->
                         add("copy a value into an inline table" to { inline.set(keyFor(inline.keys), copied) })
+                        add("copy a value into an inline table force $force" to {
+                            inline.put(keyFor(inline.keys), copied, force)
+                        })
                     }
                 }
             }

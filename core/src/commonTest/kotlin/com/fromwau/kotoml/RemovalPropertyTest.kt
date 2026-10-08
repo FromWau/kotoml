@@ -13,7 +13,9 @@ import kotlin.test.assertEquals
 
 /**
  * Removing any top-level key from a document with comments, with force, prints the original text with exactly that
- * key's own lines taken out and every other byte unchanged.
+ * key's own lines taken out and every other byte unchanged, and the removed item stores with exactly the comments of
+ * those lines. Without force, a key whose own lines hold comments is refused with `CommentsWouldBeLost` counting them,
+ * changing nothing.
  *
  * A key's own lines are worked out from the parser's events, apart from the document model:
  * - a key/value line before the first header that starts with the key: from the start of the comment lines right
@@ -42,13 +44,13 @@ class RemovalPropertyTest {
     )
 
     @Test
-    fun `removing any top-level key from a hand-written document removes only its own lines`() {
+    fun `removing any top-level key from a hand-written document takes exactly its own lines and comments`() {
         val failures = handWritten.flatMap { text -> failuresOf(text, TomlVersion.V1_1) }
         assertEquals(emptyList(), failures)
     }
 
     @Test
-    fun `removing any top-level key from a commented suite file removes only its own lines`() {
+    fun `removing any top-level key from a commented suite file takes exactly its own lines and comments`() {
         val root = "../toml-test/tests/valid"
         val failures = walkFiles(root)
             .filter { it.endsWith(".toml") }
@@ -61,7 +63,7 @@ class RemovalPropertyTest {
         assertEquals(emptyList(), failures)
     }
 
-    /** The top-level keys whose removal from [text] prints anything but the text without their own lines. */
+    /** What goes wrong removing each top-level key of [text], with force and without. */
     private fun failuresOf(
         text: String,
         version: TomlVersion,
@@ -71,13 +73,34 @@ class RemovalPropertyTest {
             .root
             .entries
             .map { it.first }
-        return keys.filter { key ->
+        return keys.mapNotNull { key ->
+            val own = ownLines(text, version, key)
+            val bytes = text.encodeToByteArray()
+            val ownText = own.joinToString("") { bytes.decodeToString(it.range.first, it.range.last + 1) }
+            val ownComments = commentsIn(ownText)
+            val refused = TomlDocument.parse(text, version).assertSuccess()
+            val unforced = refused.remove(key)
             val document = TomlDocument.parse(text, version).assertSuccess()
-            document.remove(key, force = true).assertSuccess()
+            val removed = document.remove(key, force = true).assertSuccess()
+            val stored = commentsIn(TomlDocument().also { it.set(key, removed).assertSuccess() }.toString())
             val tablesFirst = document.root.all { (_, item) -> item.printsOwnHeader }
-            !printsWithout(text, document.toString(), ownLines(text, version, key), tablesFirst)
+            when {
+                !printsWithout(text, document.toString(), own, tablesFirst) -> "$key: removed other lines"
+                ownComments.isEmpty() && unforced is Result.Error -> "$key: refused without comments"
+                ownComments.isNotEmpty() && (unforced as? Result.Error)?.error != lost(key, ownComments) -> {
+                    "$key: gave $unforced"
+                }
+                ownComments.isNotEmpty() && refused.toString() != text -> "$key: a refused removal changed the document"
+                stored.sorted() != ownComments.sorted() -> "$key: the removed item stores with $stored"
+                else -> null
+            }
         }
     }
+
+    private fun lost(
+        key: String,
+        comments: List<String>,
+    ): TomlEditError = TomlEditError.CommentsWouldBeLost(listOf(key), comments.size)
 
     /**
      * Whether [printed] is [text] without the byte ranges [removed], with the blank lines removed lines leave meeting

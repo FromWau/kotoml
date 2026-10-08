@@ -13,14 +13,17 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Edits keep every comment they do not own. Adding, replacing a value with a value, renaming, sorting, formatting,
- * respelling and changing how a table prints keep them all; removing a value with force takes only the comments that
- * belong to it, the comment lines right above it and the comment on its line; and giving a table a new layout with
- * `setLayout(force = true)` may take its comments, all but the lines above its key, as `setVersion(force = true)` may
- * take those of inline tables across lines and `setMultiline(false, force = true)` those between an array's brackets.
- * Without force a layout or version change keeps every comment or is refused and changes nothing. Removing or
- * replacing whole tables is covered by `RemovalPropertyTest` and the comment scope tests, which state what those
- * take. Comments compare as `format()` spells them.
+ * Edits keep every comment they do not own, and an item's comments go where it goes. Adding, replacing a value with a
+ * value, renaming, formatting, respelling and changing how a table prints keep them all. Removing a value with force
+ * takes exactly the comments that belong to it, the comment lines right above it and the comment on its line, and the
+ * removed item stores with them; without force such a removal is refused and changes nothing. Storing a copy of an
+ * item brings exactly the comments removing it would take. Sorting a table, an inline table or an array keeps with
+ * each item the comments removing it would take. Giving a table a new layout with `setLayout(force = true)` may take
+ * its comments, all but the lines above its key, as `setVersion(force = true)` may take those of inline tables across
+ * lines and `setMultiline(false, force = true)` those between an array's brackets. Without force a layout or version
+ * change keeps every comment or is refused and changes nothing. Removing or replacing whole tables is covered by
+ * `RemovalPropertyTest` and the comment scope tests, which state what those take. Comments compare as `format()`
+ * spells them.
  */
 class CommentPropertyTest {
 
@@ -36,6 +39,8 @@ class CommentPropertyTest {
         "a = 1 # one\r\n# about b\r\nb = 2\r\n\r\n# about t\r\n[t] # t\r\nc = 3 # c",
         "s = [ # s\n  { x = 1 }, # one\n  # above\n  { # two\n    y = 2, # y\n  },\n] # end\n" +
             "t = { # t\n  z = 3 # z\n} # u\n",
+        "[t]\nz = 3 # z\n# about b\nb.d = 1 # d\n# about c\nb.c = 2 # c\n\n# free\n\na = [\n  3, # three\n  1,\n]\n",
+        "t = {\n  z = 3, # z\n\n  # free\n\n  # about b\n  b.y = 1, # y\n  b.x = 2,\n  # about a\n  a = 0,\n}\n",
     )
 
     @Test
@@ -72,19 +77,42 @@ class CommentPropertyTest {
             val before = doc.toString()
             val edit = commentKeepingEdit(doc, Edits(doc, random), random)
             log += edit.name
-            val owned = edit.apply()
+            val outcome = edit.apply()
             val after = doc.toString()
-            val lost = (comments(before) - owned).minusAll(comments(after))
-            if (lost.isNotEmpty()) {
+            val lost = comments(before).minusAll(comments(after))
+            val gained = comments(after).minusAll(comments(before))
+            val problem = when {
+                outcome.problem != null -> outcome.problem
+                outcome.exact && !sameComments(lost, outcome.owned) -> "lost $lost, not exactly ${outcome.owned}"
+                lost.minusAll(outcome.owned).isNotEmpty() -> "lost ${lost.minusAll(outcome.owned)}"
+                outcome.brought != null && !sameComments(gained, outcome.brought) -> {
+                    "gained $gained, not exactly ${outcome.brought}"
+                }
+                else -> null
+            }
+            if (problem != null) {
                 val where = "$name seed $seed after ${log.joinToString(" ; ")}"
-                return "$where: lost $lost\n--- before:\n$before--- after:\n$after"
+                return "$where: $problem\n--- before:\n$before--- after:\n$after"
             }
         }
         return null
     }
 
-    /** An edit that keeps every comment but those it returns when applied. */
-    private class Edit(val name: String, val apply: () -> List<String>)
+    /** An edit to the document, which reports what it may do to the document's comments. */
+    private class Edit(val name: String, val apply: () -> Outcome)
+
+    /**
+     * What an applied edit may do to the document's comments: take those [owned], all of them when [exact], and add
+     * exactly those [brought] when known; [problem] says what else went wrong.
+     */
+    private class Outcome(
+        val owned: List<String> = emptyList(),
+        val exact: Boolean = false,
+        val brought: List<String>? = null,
+        val problem: String? = null,
+    )
+
+    private val keepsAll = Outcome()
 
     private fun commentKeepingEdit(
         doc: TomlDocument,
@@ -95,46 +123,55 @@ class CommentPropertyTest {
             val table = edits.tables.random(random)
             val newKey = edits.keyFor(emptySet()).takeUnless { it in table }
             if (newKey != null) {
-                add(Edit("table set new $newKey") { table.set(newKey, edits.item()).let { emptyList() } })
-                add(Edit("table getOrPut new $newKey") { table.getOrPut(newKey) { edits.item() }.let { emptyList() } })
+                add(Edit("table set new $newKey") { table.set(newKey, edits.item()).let { keepsAll } })
+                add(Edit("table getOrPut new $newKey") { table.getOrPut(newKey) { edits.item() }.let { keepsAll } })
+                val source = edits.tables.random(random)
+                source.keys.randomOrNull(random)?.let { key ->
+                    add(Edit("table set new $newKey to a copy of $key") { copied(source, key, table, newKey) })
+                }
             }
             val scalarKey = table.keys.filter { table.getOrNull(it)!!.isScalar() }.randomOrNull(random)
             if (scalarKey != null) {
-                add(Edit("table set value at $scalarKey") { table.set(scalarKey, edits.value()).let { emptyList() } })
+                add(Edit("table set value at $scalarKey") { table.set(scalarKey, edits.value()).let { keepsAll } })
                 add(Edit("table remove value $scalarKey") { removedValue(table, scalarKey) })
+                add(Edit("table remove value $scalarKey without force") { removedWithoutForce(doc, table, scalarKey) })
             }
             val renamed = table.keys.randomOrNull(random)
             if (renamed != null) {
                 val to = edits.keyFor(table.keys)
-                add(Edit("table rename $renamed to $to") { table.rename(renamed, to).let { emptyList() } })
+                add(Edit("table rename $renamed to $to") { table.rename(renamed, to).let { keepsAll } })
             }
             edits.inlines.randomOrNull(random)?.let { inline ->
+                add(Edit("inline sort") { sorted(inline) })
                 val old = inline.keys.randomOrNull(random) ?: return@let
                 val to = edits.keyFor(inline.keys)
-                add(Edit("inline rename $old to $to") { inline.rename(old, to).let { emptyList() } })
+                add(Edit("inline rename $old to $to") { inline.rename(old, to).let { keepsAll } })
             }
-            add(Edit("table sort") { table.sortWith(compareBy { it.first.name }).let { emptyList() } })
-            add(Edit("table format") { table.format().let { emptyList() } })
+            add(Edit("table sort") { sorted(table) })
+            add(Edit("table format") { table.format().let { keepsAll } })
             edits.slots.randomOrNull(random)?.let { slot ->
-                add(Edit("slot format") { slot.format().let { emptyList() } })
+                add(Edit("slot format") { slot.format().let { keepsAll } })
             }
-            add(Edit("doc format") { doc.format().let { emptyList() } })
-            add(Edit("doc respell") { doc.respell().let { emptyList() } })
-            add(Edit("table respell") { table.respell().let { emptyList() } })
+            add(Edit("doc format") { doc.format().let { keepsAll } })
+            add(Edit("doc respell") { doc.respell().let { keepsAll } })
+            add(Edit("table respell") { table.respell().let { keepsAll } })
             edits.slots.randomOrNull(random)?.let { slot ->
-                add(Edit("slot respell") { slot.respell().let { emptyList() } })
+                add(Edit("slot respell") { slot.respell().let { keepsAll } })
             }
             if (table !== edits.tables.first()) {
-                add(Edit("table setImplicit") { table.setImplicit(!table.isImplicit).let { emptyList() } })
+                add(Edit("table setImplicit") { table.setImplicit(!table.isImplicit).let { keepsAll } })
             }
             edits.arrays.randomOrNull(random)?.let { array ->
                 val index = random.nextInt(array.size + 1)
-                add(Edit("array add") { array.add(edits.value()).let { emptyList() } })
-                add(Edit("array add at $index") { array.add(index, edits.value()).let { emptyList() } })
-                val scalarIndex = (0 until array.size).filter { array[it].assertSuccess().isScalar() }.randomOrNull(random)
+                add(Edit("array add") { array.add(edits.value()).let { keepsAll } })
+                add(Edit("array add at $index") { array.add(index, edits.value()).let { keepsAll } })
+                add(Edit("array sort") { sorted(array) })
+                val scalarIndex = (0 until array.size)
+                    .filter { array[it].assertSuccess().isScalar() }
+                    .randomOrNull(random)
                 if (scalarIndex != null) {
                     add(Edit("array replace $scalarIndex") {
-                        array.replace(scalarIndex, edits.value()).let { emptyList() }
+                        array.replace(scalarIndex, edits.value()).let { keepsAll }
                     })
                     add(Edit("array removeAt $scalarIndex") { removedElement(array, scalarIndex) })
                 }
@@ -145,15 +182,15 @@ class CommentPropertyTest {
                         // On one line the comments in the array's own text go; those inside its elements stay.
                         val owned = if (multiline) emptyList() else commentsBetweenBrackets(array)
                         array.setMultiline(multiline, force = true)
-                        owned
+                        Outcome(owned)
                     } else {
                         keptOrRefused(doc) { array.setMultiline(multiline) }
                     }
                 })
-                add(Edit("array respell") { array.respell().let { emptyList() } })
+                add(Edit("array respell") { array.respell().let { keepsAll } })
             }
             edits.tableArrays.randomOrNull(random)?.let { tables ->
-                add(Edit("tables add") { tables.add(edits.table()).let { emptyList() } })
+                add(Edit("tables add") { tables.add(edits.table()).let { keepsAll } })
             }
             val tableSlot = edits.slots.filter { it.layout != null }.randomOrNull(random)
             for (slot in listOfNotNull(tableSlot, edits.slots.randomOrNull(random))) {
@@ -164,7 +201,7 @@ class CommentPropertyTest {
                         // A new layout for the table: its comments may go, but for the lines above its key.
                         val owned = commentsOf(doc, slot)
                         slot.setLayout(layout, force = true)
-                        owned
+                        Outcome(owned)
                     } else {
                         keptOrRefused(doc) { slot.setLayout(layout) }
                     }
@@ -179,7 +216,7 @@ class CommentPropertyTest {
                         .filter { it.inlineTableOrNull?.layout == TableLayout.MultilineInline }
                         .flatMap { commentsOf(doc, it) }
                     doc.setVersion(version, force = true)
-                    owned
+                    Outcome(owned)
                 } else {
                     keptOrRefused(doc) { doc.setVersion(version) }
                 }
@@ -195,13 +232,11 @@ class CommentPropertyTest {
     private fun keptOrRefused(
         doc: TomlDocument,
         change: () -> Result<Unit, TomlEditError>,
-    ): List<String> {
+    ): Outcome {
         val before = doc.toString()
         val result = change()
-        if (result is Result.Error && result.error is TomlEditError.CommentsWouldBeLost) {
-            assertEquals(before, doc.toString(), "a refused layout change left the document changed")
-        }
-        return emptyList()
+        val refused = result is Result.Error && result.error is TomlEditError.CommentsWouldBeLost
+        return Outcome(problem = "a refused layout change changed the document".takeIf { refused && before != "$doc" })
     }
 
     private fun Item.isScalar(): Boolean = valueOrNull?.isScalar() ?: false
@@ -262,29 +297,125 @@ class CommentPropertyTest {
         return null
     }
 
-    /** Removes the value at [key] with force, returning the comments that belong to it, which go with it. */
-    private fun removedValue(
+    /** The comments removing [key] from a copy of [table] takes: the comments that belong to it. */
+    private fun ownedBy(
         table: StandardTable,
         key: String,
     ): List<String> {
-        val own = table.items.getEntry(key)!!.itemComments()
-        val owned = comments(own.attachedAbove) + comments(table.getOrNull(key)!!.valueOrNull!!.decor.suffix.orEmpty())
-        table.remove(key, force = true).assertSuccess()
-        return owned
+        val copy = TomlDocument(table.copy())
+        val all = comments(copy.toString())
+        copy.remove(key, force = true).assertSuccess()
+        return all.minusAll(comments(copy.toString()))
     }
 
-    /** Removes the element at [index] with force, returning the comments that belong to it, which go with it. */
-    private fun removedElement(
+    private fun ownedBy(
+        table: InlineTable,
+        key: String,
+    ): List<String> {
+        val copy = table.copy()
+        val all = comments(copy.toString())
+        copy.remove(key, force = true).assertSuccess()
+        return all.minusAll(comments(copy.toString()))
+    }
+
+    private fun ownedBy(
         array: TomlArray,
         index: Int,
     ): List<String> {
+        val copy = array.copy()
+        val all = comments(copy.toString())
+        copy.removeAt(index, force = true).assertSuccess()
+        return all.minusAll(comments(copy.toString()))
+    }
+
+    /**
+     * Stores a copy of [key] of [source] at [newKey] of [target], which brings exactly the comments [key] owns; of a
+     * dotted table's key that includes the group's comment, which a copy of the table alone cannot tell.
+     */
+    private fun copied(
+        source: StandardTable,
+        key: String,
+        target: StandardTable,
+        newKey: String,
+    ): Outcome {
+        val brought = if (source.isDotted) null else ownedBy(source, key)
+        val stored = target.set(newKey, source.getOrNull(key)!!)
+        return Outcome(brought = if (stored is Result.Success) brought else emptyList())
+    }
+
+    /** Sorts [table], whose keys keep the comments they own; a dotted table's first line owns the group's comment. */
+    private fun sorted(table: StandardTable): Outcome {
+        if (table.isDotted) return table.sortWith(compareBy { it.first.name }).let { keepsAll }
+        val before = table.keys.associateWith { ownedBy(table, it) }
+        table.sortWith(compareBy { it.first.name })
+        val moved = before.filter { (key, owned) -> !sameComments(owned, ownedBy(table, key)) }.keys
+        return Outcome(problem = "sorting changed the comments of $moved".takeIf { moved.isNotEmpty() })
+    }
+
+    private fun sorted(table: InlineTable): Outcome {
+        if (table.isDotted) return table.sortWith(compareBy { it.first.name }).let { keepsAll }
+        val before = table.keys.associateWith { ownedBy(table, it) }
+        table.sortWith(compareBy { it.first.name })
+        val moved = before.filter { (key, owned) -> !sameComments(owned, ownedBy(table, key)) }.keys
+        return Outcome(problem = "sorting changed the comments of $moved".takeIf { moved.isNotEmpty() })
+    }
+
+    private fun sorted(array: TomlArray): Outcome {
+        val elements = array.values.map { it.valueOrNull }
+        val before = elements.indices.map { ownedBy(array, it) }
+        array.sortWith(compareBy { it.toString() })
+        val moved = elements.indices.filter { index ->
+            val now = array.values.indexOfFirst { it.valueOrNull === elements[index] }
+            now < 0 || !sameComments(before[index], ownedBy(array, now))
+        }
+        return Outcome(problem = "sorting changed the comments of elements $moved".takeIf { moved.isNotEmpty() })
+    }
+
+    /**
+     * Removes the value at [key] with force, which takes exactly the comments that belong to it; the removed item
+     * stores with them.
+     */
+    private fun removedValue(
+        table: StandardTable,
+        key: String,
+    ): Outcome {
+        val own = table.items.getEntry(key)!!.itemComments()
+        val owned = comments(own.attachedAbove + own.sameLine)
+        val item = table.remove(key, force = true).assertSuccess()
+        val carried = comments(TomlDocument().also { it.set("k", item).assertSuccess() }.toString())
+        val problem = "the removed item stores with $carried".takeUnless { sameComments(carried, owned) }
+        return Outcome(owned, exact = true, problem = problem)
+    }
+
+    /** Removes the value at [key] without force, which is refused, changing nothing, when comments would go. */
+    private fun removedWithoutForce(
+        doc: TomlDocument,
+        table: StandardTable,
+        key: String,
+    ): Outcome {
+        val own = table.items.getEntry(key)!!.itemComments()
+        val owned = comments(own.attachedAbove + own.sameLine)
+        val before = doc.toString()
+        val result = table.remove(key)
+        val problem = when {
+            owned.isEmpty() -> (result as? Result.Error)?.let { "refused a removal taking no comment: ${it.error}" }
+            result !is Result.Error -> "removed $owned without force"
+            (result.error as? TomlEditError.CommentsWouldBeLost)?.count != owned.size -> "refused with ${result.error}"
+            before != doc.toString() -> "a refused removal changed the document"
+            else -> null
+        }
+        return Outcome(exact = true, problem = problem)
+    }
+
+    /** Removes the element at [index] with force, which takes exactly the comments that belong to it. */
+    private fun removedElement(
+        array: TomlArray,
+        index: Int,
+    ): Outcome {
         val own = array.elementComments(index)
-        val suffix = array[index].assertSuccess().decor.suffix.orEmpty()
-        val next = array.getOrNull(index + 1)?.decor?.prefix ?: array.trailing
-        val owned = comments(suffix) + comments(next.orEmpty().substringBefore('\n')) +
-            comments(own.attachedAbove + own.sameLine + own.attachedBelow)
+        val owned = comments(own.attachedAbove + own.sameLine + own.attachedBelow + own.commaLine)
         array.removeAt(index, force = true).assertSuccess()
-        return owned
+        return Outcome(owned, exact = true)
     }
 
     /** The comments before and after each of [array]'s elements and before its `]`, not those inside an element. */
@@ -295,6 +426,11 @@ class CommentPropertyTest {
     /** The comments in [text], in order, each as [commentsIn] gives it. */
     private fun comments(text: String): List<String> = commentsIn(text)
 
+    private fun sameComments(
+        left: List<String>,
+        right: List<String>,
+    ): Boolean = left.sorted() == right.sorted()
+
     /** These elements without one occurrence of each of [others]. */
     private fun List<String>.minusAll(others: List<String>): List<String> {
         val remaining = others.groupingBy { it }.eachCount().toMutableMap()
@@ -304,8 +440,6 @@ class CommentPropertyTest {
             count == 0
         }
     }
-
-    private operator fun List<String>.minus(owned: List<String>): List<String> = minusAll(owned)
 }
 
 /**
