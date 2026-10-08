@@ -47,10 +47,10 @@ official toml-test runner for TOML 1.0 and 1.1.
      inside it, returns `CommentsWouldBeLost` and changes nothing unless forced, and removing what is not there
      returns `NotFound`; `clear` follows the same rule. A removal leaves no blank line dangling at the start or end of
      the file;
-   - an array of tables left empty prints `key = []` under the comment that was above its first header, since the
-     array is still there;
+   - an array of tables left empty prints `key = []` under the comments that were above its first header, attached
+     and free, since the array is still there;
    - a store or copy carries the item's comments, a table's header comments included; a bare `Value` carries only its
-     same-line comment, the lines above belonging to its key. Comment lines below an array element that comes to
+     same-line comment, also one stored after its comma in braces, the lines above belonging to its key. Comment lines below an array element that comes to
      stand on a key/value line print above the key, so they still belong to it when read back;
    - replacing a value keeps the slot's comments, unless the new item brings comments of its own, which take their
      place;
@@ -68,7 +68,8 @@ official toml-test runner for TOML 1.0 and 1.1.
      the braces lay out themselves. No blank line is left dangling at the end of the file;
    - `setVersion` converts what TOML 1.0 cannot spell under the same comment rule, and under 1.0 an edit that would add
      1.1-only syntax is refused with `NotInToml10`;
-   - dotted keys turned into a header put the comment above their first line above the header;
+   - dotted keys turned into a header put the comment above their first line above the header and keep the comment
+     lines between their lines;
    - in a document that is only comments, new content goes below them; a new header gets its blank line above the
      comment that introduces it, and the header that opened the file gets one once key/value lines print above it;
    - sorting and reordering move each item with its comments, while free comments and blank lines stay in place; a
