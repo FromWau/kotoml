@@ -199,7 +199,7 @@ class CommentScenariosTest {
         Scenario("S-049", false, TomlVersion.V1_0, "z = 1 # z\nm.x = 2 # mx\na = 3 # a\n\n[t]\nk = 1\n", "a = 3 # a\nm.x = 2 # mx\nz = 1 # z\n\n[t]\nk = 1\n", ::eS_049),
         Scenario("S-050", false, TomlVersion.V1_0, "# config file\n\n# b key\nb = 1\na = 2\n", "# config file\n\na = 2\n# b key\nb = 1\n", ::eS_050),
         Scenario("S-051", false, TomlVersion.V1_0, "a.z = 1 # z\na.b = 2 # b\n", "a.b = 2 # b\na.z = 1 # z\n", ::eS_051),
-        Scenario("S-052", false, TomlVersion.V1_0, "# about a\na = 1 # one\n# about b\nb = 2 # two\n", "# about a\na = 1 # one\n# about a\nb = 1 # one\n", ::eS_052),
+        Scenario("S-052", false, TomlVersion.V1_0, "# about a\na = 1 # one\n# about b\nb = 2 # two\n", "# about a\na = 1 # one\n# about b\nb = 1 # two\n", ::eS_052),
         Scenario("S-053", false, TomlVersion.V1_0, "a = 1 # one\n", "a = 1 # one\nb = 1 # one\n", ::eS_053),
         Scenario("S-054", false, TomlVersion.V1_0, "a = [\n  1, # one\n  2,\n] # the list\n", "a = [\n  1, # one\n  2,\n] # the list\nb = [\n  1, # one\n  2,\n] # the list\n", ::eS_054),
         Scenario("S-055", false, TomlVersion.V1_0, "# about a\n[a] # a header\nx = 1 # x\n", "# about a\n[a] # a header\nx = 1 # x\n\n# about a\n[b] # a header\nx = 1 # x\n", ::eS_055),

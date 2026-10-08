@@ -1056,9 +1056,9 @@ a.z = 1 # z
 
 ## Copying
 
-### S-052: copying a value over another key brings the source's comments in place of the target's
+### S-052: copying a value over another key keeps the target's comments
 rule: 3   version: 1.0
-settled: owner ruling 2026-10-08: a stored item brings its own comments (GOALS.md goal 4).
+settled: owner ruling 2026-10-08: replacing keeps the slot's comments, brought ones fill only empty places (todo 131).
 ```toml input
 # about a
 a = 1 # one
@@ -1071,8 +1071,8 @@ doc.set("b", doc["a"].assertSuccess())
 ```toml expected
 # about a
 a = 1 # one
-# about a
-b = 1 # one
+# about b
+b = 1 # two
 ```
 
 ### S-053: copying a value to a new key brings its same-line comment
