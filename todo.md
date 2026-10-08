@@ -89,8 +89,6 @@ A layout change leaves no blank line dangling at the end of the file.
 
 
 
-- [ ] **84. Remove `mavenLocal()` from `settings.gradle.kts`.** Added so kotoml builds against kern 0.4.3 and klap
-  0.5.2 before they are published; take it out once they are, before kotoml ships.
 
 ### Owner calls on wave 2 (2026-10-05)
 
@@ -130,6 +128,11 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **84. Remove `mavenLocal()` from `settings.gradle.kts`.** Added so kotoml builds against kern 0.4.3 and klap
+  0.5.2 before they are published; take it out once they are, before kotoml ships.
+  **Verdict 2026-10-08:** done: kern 0.5.0 and klap 0.5.2 resolve from maven.frommhund.xyz (klap 0.5.2 depends on kern
+  0.5.0), `mavenLocal()` is gone from settings.gradle.kts; `./gradlew build --rerun-tasks` green.
 
 - [x] **132. A comment the caller sets wins over the slot's.** Owner, 2026-10-08: `port = 1 # comment`,
   `doc.set("port", Value.Integer(2L, Decor(prefix = " ", suffix = " # new")))` gives `port = 2 # new`; comments
