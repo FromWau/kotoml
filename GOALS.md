@@ -50,8 +50,9 @@ official toml-test runner for TOML 1.0 and 1.1.
    - an array of tables left empty prints `key = []` under the comments that were above its first header, attached
      and free, since the array is still there;
    - a store or copy carries the item's comments, a table's header comments included; a bare `Value` carries only its
-     same-line comment, also one stored after its comma in braces, the lines above belonging to its key. Comment lines below an array element that comes to
-     stand on a key/value line print above the key, so they still belong to it when read back;
+     same-line comment, also one stored after its comma in braces, the lines above belonging to its key. Comment
+     lines below an array element that comes to stand on a key/value line print above the key, so they still belong
+     to it when read back;
    - replacing a value keeps the slot's comments, unless the new item brings comments of its own, which take their
      place;
    - a store where the target cannot hold the item's comments (an inline table of TOML 1.0) returns
