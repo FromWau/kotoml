@@ -56,14 +56,6 @@ A layout change leaves no blank line dangling at the end of the file.
   Sorting `[t]\nz = 3 # z\n# about b\nb.d = 1 # d\nb.c = 2 # c\n` prints `# about b` between `b.c` and `b.d`;
   it should stay above `b.c`, the group's new first line. `[t]\nb.c = 1\n\n# free\n\nb.d = 2\n` with
   `setLayout(Inline, force = true)` on `b` ends the file with a blank line after `# free`.
-- [ ] **128. Stores have no `[]=`; every store returns its `Result`.** Owner, 2026-10-08: `val result =
-  (doc["t"]["v"] = one)` is not Kotlin, and `[]=` can only hide or throw a refusal, so it goes for every store.
-  Every store is a `set`/`put` method returning `Result<…, TomlEditError>`, marked `@MustUseReturnValues` so the
-  unused-result checker warns when it is ignored. `Result<Item, TomlEditError>.set(key, value)` stores under a
-  parent read by indexing: `doc["t"].set("v", one)`, `doc["a"]["b"].set("c", one)`; a missing parent passes its
-  `NotFound` through. `TomlEditException` and StoreOperators.kt go. Reading with `doc["t"]` is unchanged. A
-  vararg path with a trailing lambda was considered and dropped (overloads by lambda return type need an
-  experimental annotation).
 - [ ] **125. Review the QA scenarios and docs against the rule.** List every `qa/comment-scenarios` scenario whose
   expected output changes for the owner to confirm; update core/README.md's comment rules, CommentPropertyTest and
   the removal tests.
@@ -135,6 +127,20 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **128. Stores have no `[]=`; every store returns its `Result`.** Owner, 2026-10-08: `val result =
+  (doc["t"]["v"] = one)` is not Kotlin, and `[]=` can only hide or throw a refusal, so it goes for every store.
+  Every store is a `set`/`put` method returning `Result<…, TomlEditError>`, marked `@MustUseReturnValues` so the
+  unused-result checker warns when it is ignored. `Result<Item, TomlEditError>.set(key, value)` stores under a
+  parent read by indexing: `doc["t"].set("v", one)`, `doc["a"]["b"].set("c", one)`; a missing parent passes its
+  `NotFound` through. `TomlEditException` and StoreOperators.kt go. Reading with `doc["t"]` is unchanged. A
+  vararg path with a trailing lambda was considered and dropped (overloads by lambda return type need an
+  experimental annotation).
+  **Verdict 2026-10-08:** done: StoreOperators.kt and TomlEditException are gone; every store is a `set`/`put` returning
+  its `Result`; `Result<Item, TomlEditError>.set(key, value)` (IndexedStores.kt) stores under a parent read by indexing,
+  passing its `NotFound` on; the edit types are `@MustUseReturnValues`, so `-Xreturn-value-checker=check` warns on an
+  ignored result (checked with kotlinc); core, serialization and app compile with that flag. QA snippets use
+  `set(...).assertSuccess()`, gen.py lets the other results go with `val _ =`.
 
 - [x] **126. A value's comment lines below it are dropped in a dotted table printed on table lines.** Storing a
   value that brings comment lines below it (`2 # on 2\n  # more\n  , 3` copied from an array) into a dotted inline
