@@ -421,4 +421,20 @@ class StoreCarriesCommentsTest {
         doc["t"] = parse("[t]\nx = 1\n\n# about y\ny = 2\n")["t"].assertSuccess()
         assertEquals("a = 0\n\n[t]\nx = 1\n\n# about y\ny = 2\n", doc.toString())
     }
+
+    @Test
+    fun `a copy of a stored table brings the comment lines the store put above its header`() {
+        val doc = parse("# about a\n[a]\nn = 1\n\n[b]\nm = 2\n")
+        doc["b"]["c"] = doc["a"].assertSuccess()
+        doc["d"] = doc["b"]["c"].assertSuccess()
+        assertEquals("# about a\n[d]\nn = 1\n", doc.toString().substringAfter("[b.c]\nn = 1\n\n"))
+    }
+
+    @Test
+    fun `a copy of a stored table of an array of tables brings the comment lines above its header`() {
+        val doc = parse("# first\n[[x]]\nn = 1\n\n# second\n[[x]]\nn = 2\n\n[y]\n")
+        doc["y"]["q"] = doc["x"].assertSuccess().arrayOfTablesOrNull!![1].assertSuccess()
+        doc["z"] = doc["y"]["q"].assertSuccess()
+        assertEquals("# second\n[z]\nn = 2\n", doc.toString().substringAfter("[y.q]\nn = 2\n\n"))
+    }
 }

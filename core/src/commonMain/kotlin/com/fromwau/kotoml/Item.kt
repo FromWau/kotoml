@@ -143,7 +143,8 @@ public class Item private constructor(
             }
             is TableContent -> {
                 if (table.isDotted) table.keepOnlyAttachedAboveFirstLine() else table.keepOnlyAttachedAbove()
-                ""
+                // Lines its key held above a header with the default spacing go above it as the slot prints them.
+                if (!table.isDotted && table.rawDecor.prefix == null) comments.attachedAbove else ""
             }
             is ArrayOfTablesContent -> {
                 array.firstOrNull()?.keepOnlyAttachedAbove()

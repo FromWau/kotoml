@@ -272,7 +272,9 @@ internal fun sameLineCommentOf(container: Any): String = slotOf(container)?.let(
 internal fun StandardTable.headerComments(): ItemComments {
     val isArrayElement = holder?.arrayOwner is ArrayOfTables
     if (isDocumentRoot || printsDotted || !printsHeader(isArrayElement)) return ItemComments.NONE
-    val above = splitLinesAbove(gapOf(rawDecor.prefix.text(), startsMidLine = false).lines)
+    // Lines a store brings above a header with the default spacing are held by its key, printed above the header.
+    val keyLines = if (isArrayElement) "" else linesAbove(holder?.entry?.key?.rawLeafDecor?.prefix)
+    val above = splitLinesAbove(gapOf(rawDecor.prefix.text(), startsMidLine = false).lines + keyLines)
     return ItemComments(
         freeAbove = above.free,
         attachedAbove = above.attached,
