@@ -1,5 +1,6 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.Result
 import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -12,10 +13,10 @@ class RemovalCommentScopeTest {
 
     private fun removing(
         text: String,
-        edit: (TomlDocument) -> Unit,
+        edit: (TomlDocument) -> Result<*, TomlEditError>,
     ): String {
         val document = TomlDocument.parse(text).assertSuccess()
-        edit(document)
+        edit(document).assertSuccess()
         return document.toString()
     }
 
@@ -72,7 +73,7 @@ class RemovalCommentScopeTest {
         assertEquals(
             "[[server]]\nhost = \"a\"\n",
             removing(text) {
-                it["server"].assertSuccess().arrayOfTablesOrNull!!.removeAt(1, force = true).assertSuccess()
+                it["server"].assertSuccess().arrayOfTablesOrNull!!.removeAt(1, force = true)
             },
         )
     }
@@ -94,7 +95,7 @@ class RemovalCommentScopeTest {
         val text = "ports = [\n  8080, # http\n  # https\n  8443, # tls\n]\n"
         assertEquals(
             "ports = [\n  8080, # http\n]\n",
-            removing(text) { it["ports"].assertSuccess().arrayOrNull!!.removeAt(1, force = true).assertSuccess() },
+            removing(text) { it["ports"].assertSuccess().arrayOrNull!!.removeAt(1, force = true) },
         )
     }
 
@@ -118,7 +119,7 @@ class RemovalCommentScopeTest {
         val text = "# all servers\n[[server]]\nhost = \"a\"\n# backup\n[[server]]\nhost = \"b\"\n"
         assertEquals(
             "# all servers\nserver = []\n",
-            removing(text) { it["server"].assertSuccess().arrayOfTablesOrNull!!.clear(force = true).assertSuccess() },
+            removing(text) { it["server"].assertSuccess().arrayOfTablesOrNull!!.clear(force = true) },
         )
     }
 }

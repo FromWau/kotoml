@@ -5,7 +5,6 @@ import com.fromwau.kern.result.assertSuccess
 import com.fromwau.kern.result.flatMap
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlinx.serialization.json.Json
 
 /** Indexing returns the stored item or a typed error, and writing never creates a missing parent. */
@@ -55,29 +54,29 @@ class IndexingTest {
     }
 
     @Test
-    fun `writing under a missing parent with the index form throws NotFound and changes nothing`() {
+    fun `storing under a missing parent read by indexing returns its NotFound and changes nothing`() {
         val text = "[server]\nport = 8080\n"
         val doc = parse(text)
-        val thrown = assertFailsWith<TomlEditException> { doc["database"]["url"] = "postgres://" }
-        assertEquals(TomlEditError.NotFound("database"), thrown.error)
+        val error = doc["database"].set("url", "postgres://").assertError<TomlEditError.NotFound>()
+        assertEquals(TomlEditError.NotFound("database"), error)
         assertEquals(text, doc.toString())
     }
 
     @Test
     fun `a missing parent written first takes the key written under it`() {
         val doc = parse("[server]\nport = 8080\n")
-        doc["database"] = StandardTable()
-        doc["database"]["url"] = "postgres://"
+        doc.set("database", StandardTable()).assertSuccess()
+        doc["database"].set("url", "postgres://").assertSuccess()
         assertEquals("[server]\nport = 8080\n\n[database]\nurl = \"postgres://\"\n", doc.toString())
     }
 
     @Test
     fun `a removed key is gone and written again it is added at the end`() {
         val doc = parse("# about port\nport = 1\nhost = \"x\"\n")
-        doc.remove("port", force = true)
+        doc.remove("port", force = true).assertSuccess()
         assertEquals(TomlEditError.NotFound("port"), doc["port"].assertError<TomlEditError.NotFound>())
         assertEquals(setOf("host"), doc.keys)
-        doc["port"] = 2L
+        doc.set("port", 2L).assertSuccess()
         assertEquals("host = \"x\"\nport = 2\n", doc.toString())
     }
 

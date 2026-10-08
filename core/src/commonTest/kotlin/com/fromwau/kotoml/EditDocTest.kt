@@ -27,8 +27,8 @@ class EditDocTest {
         val doc = TomlDocument.parse(toml).assertSuccess()
         assertEquals(toml, doc.toString())
         // Add a new key/value pair inside a.b: c = {d = "hello"}
-        doc["a"]["b"]["c"] = Value.InlineTable(InlineTable())
-        doc["a"]["b"]["c"]["d"] = "hello"
+        doc["a"]["b"].set("c", Value.InlineTable(InlineTable())).assertSuccess()
+        doc["a"]["b"]["c"].set("d", "hello").assertSuccess()
         // Autoformat inline table a.b.c: { d = "hello" }
         doc["a"]["b"]["c"].assertSuccess().inlineTableOrNull?.format()
         val expected = """
@@ -45,8 +45,8 @@ c = { d = "hello" }
         val doc = TomlDocument.parse(toml).assertSuccess()
         assertEquals(toml, doc.toString())
         // Add a new key/value pair inside a.b: c = {d = "hello"}
-        doc["a"]["b"]["c"] = Value.InlineTable(InlineTable())
-        doc["a"]["b"]["c"]["d"] = "hello"
+        doc["a"]["b"].set("c", Value.InlineTable(InlineTable())).assertSuccess()
+        doc["a"]["b"]["c"].set("d", "hello").assertSuccess()
         // Autoformat inline table a.b.c: { d = "hello" }
         doc["a"]["b"]["c"].assertSuccess().inlineTableOrNull?.format()
         val expected = "\n\"hello\" = 'toml!' # comment\n['a'.b]\nc = { d = \"hello\" }\n    "
@@ -56,7 +56,7 @@ c = { d = "hello" }
     @Test
     fun `the repository README example adds a key below a commented one`() {
         val doc = TomlDocument.parse("[package]\nname = \"kotoml\" # the name\n").assertSuccess()
-        doc["package"]["version"] = "0.1.0"
+        doc["package"].set("version", "0.1.0").assertSuccess()
         assertEquals("[package]\nname = \"kotoml\" # the name\nversion = \"0.1.0\"\n", doc.toString())
     }
 
@@ -65,8 +65,8 @@ c = { d = "hello" }
         val text = "\n\"hello\" = 'toml!' # comment\n['a'.b]\n"
         val doc = TomlDocument.parse(text).assertSuccess()
         assertEquals(text, doc.toString())
-        doc["a"]["b"]["c"] = Value.InlineTable(InlineTable())
-        doc["a"]["b"]["c"]["d"] = "hello"
+        doc["a"]["b"].set("c", Value.InlineTable(InlineTable())).assertSuccess()
+        doc["a"]["b"]["c"].set("d", "hello").assertSuccess()
         assertEquals("\n\"hello\" = 'toml!' # comment\n['a'.b]\nc = { d = \"hello\" }\n", doc.toString())
     }
 
@@ -88,7 +88,8 @@ c = { d = "hello" }
     @Test
     fun `the module README reorder example moves each table with its comments`() {
         val doc = TomlDocument.parse("# first\n[[a]] # h1\nn = 1\n\n# second\n[[a]] # h2\nn = 2\n").assertSuccess()
-        doc["a"] = doc["a"].getOrNull()?.arrayOfTablesOrNull!!.reversed().toArrayOfTables().assertSuccess()
+        doc.set("a", doc["a"].getOrNull()?.arrayOfTablesOrNull!!.reversed().toArrayOfTables().assertSuccess())
+            .assertSuccess()
         assertEquals("# second\n[[a]] # h2\nn = 2\n\n# first\n[[a]] # h1\nn = 1\n", doc.toString())
     }
 
@@ -142,8 +143,8 @@ c = { d = "hello" }
     @Test
     fun `the module README values example builds decorated values and reads their spelling`() {
         val doc = TomlDocument()
-        doc["port"] = Value.Integer(8080L, Decor(prefix = " ", suffix = " # default"))
-        doc["when"] = Datetime.LocalDate(Date.of(1979, 5, 27).getOrElse { error(it) })
+        doc.set("port", Value.Integer(8080L, Decor(prefix = " ", suffix = " # default"))).assertSuccess()
+        doc.set("when", Datetime.LocalDate(Date.of(1979, 5, 27).getOrElse { error(it) })).assertSuccess()
         assertEquals("port = 8080 # default\nwhen = 1979-05-27\n", doc.toString())
 
         assertEquals(8080L, doc["port"].assertSuccess().longOrNull)
@@ -160,8 +161,8 @@ c = { d = "hello" }
         val doc = TomlDocument.parse("[server]\nhosts = [\"alpha\"]\n").assertSuccess()
         doc["server"]["hosts"].assertSuccess().arrayOrNull?.add("beta")
         val server = doc["server"].assertSuccess().standardTableOrNull!!
-        server.getOrPut("port") { Item(Value.Integer(8080L)) }
-        doc["client"] = standardTableOf("retries" to Item(Value.Integer(3L))).assertSuccess()
+        server.getOrPut("port") { Item(Value.Integer(8080L)) }.assertSuccess()
+        doc.set("client", standardTableOf("retries" to Item(Value.Integer(3L))).assertSuccess()).assertSuccess()
         assertEquals(
             "[server]\nhosts = [\"alpha\", \"beta\"]\nport = 8080\n\n[client]\nretries = 3\n",
             doc.toString(),
@@ -267,7 +268,7 @@ c = { d = "hello" }
                 },
             )
         }
-        doc["package"]["version"] = "0.2.0"
+        doc["package"].set("version", "0.2.0").assertSuccess()
         val written = Buffer()
         doc.writeTo(written).assertSuccess()
         assertEquals("[package]\nname = \"kotoml\" # the name\nversion = \"0.2.0\"\n", written.readString())
@@ -295,14 +296,14 @@ duplicate key `a`
     @Test
     fun `a string set on a new document prints in double quotes`() {
         val doc = TomlDocument()
-        doc["foo"] = "bar"
+        doc.set("foo", "bar").assertSuccess()
         assertEquals("foo = \"bar\"\n", doc.toString())
     }
 
     @Test
     fun `a parsed value set on a new document prints with its own spelling`() {
         val doc = TomlDocument()
-        doc["foo"] = Value.parse("'bar'").assertSuccess()
+        doc.set("foo", Value.parse("'bar'").assertSuccess()).assertSuccess()
         assertEquals("foo = 'bar'\n", doc.toString())
     }
 
@@ -341,7 +342,7 @@ duplicate key `a`
     fun `an array takes a parsed value with its spelling`() {
         val formattedValue = Value.parse("'literal'").assertSuccess()
         val arr = TomlArray()
-        arr.add(formattedValue)
+        arr.add(formattedValue).assertSuccess()
         assertEquals("['literal']", arr.toString())
     }
 
@@ -400,7 +401,7 @@ duplicate key `a`
     @Test
     fun `an array of tables element can be set to another table`() {
         val arr = ArrayOfTables()
-        arr.add(standardTableOf("name" to Item(Value.String("apple"))).assertSuccess())
+        arr.add(standardTableOf("name" to Item(Value.String("apple"))).assertSuccess()).assertSuccess()
 
         arr.set(0, standardTableOf("name" to Item(Value.String("banana"))).assertSuccess()).assertSuccess()
         assertEquals("banana", arr[0].assertSuccess()["name"].assertSuccess().stringOrNull)
@@ -413,9 +414,9 @@ duplicate key `a`
         array.add("hello")
         // A backslash is only allowed in a literal string.
         array.add("\\, world")
-        table["key1"] = "value1"
-        table["key2"] = 42L
-        table["key3"] = Value.Array(array)
+        table.set("key1", "value1").assertSuccess()
+        table.set("key2", 42L).assertSuccess()
+        table.set("key3", Value.Array(array)).assertSuccess()
         assertEquals("key1 = \"value1\"\nkey2 = 42\nkey3 = [\"hello\", '\\, world']\n", table.toString())
     }
 
@@ -430,29 +431,29 @@ duplicate key `a`
     @Test
     fun `getOrPut on an empty table stores the key under its name`() {
         val map = StandardTable()
-        map.getOrPut("hello") { Item(Value.Integer(1L)) }
+        map.getOrPut("hello") { Item(Value.Integer(1L)) }.assertSuccess()
         assertEquals("hello", map.keyOrNull("hello")?.name)
     }
 
     @Test
     fun `getOrPut on a present key keeps the key under its name`() {
         val map = StandardTable()
-        map["foo"] = 1L
-        map.getOrPut("foo") { Item(Value.Integer(2L)) }
+        map.set("foo", 1L).assertSuccess()
+        map.getOrPut("foo") { Item(Value.Integer(2L)) }.assertSuccess()
         assertEquals("foo", map.keyOrNull("foo")?.name)
     }
 
     @Test
     fun `getOrPut on a missing key stores the key under its name`() {
         val map = StandardTable()
-        map.getOrPut("foo") { Item(Value.Integer(1L)) }
+        map.getOrPut("foo") { Item(Value.Integer(1L)) }.assertSuccess()
         assertEquals("foo", map.keyOrNull("foo")?.name)
     }
 
     @Test
     fun `getOrPut on an inline table stores the key under its name`() {
         val map = InlineTable()
-        map.getOrPut("hello") { Value.Integer(1L) }
+        map.getOrPut("hello") { Value.Integer(1L) }.assertSuccess()
         assertEquals("hello", map.keyOrNull("hello")?.name)
     }
 
@@ -527,7 +528,7 @@ the-force = { value = "surrounds-you" }
         val value = item.valueOrNull
         if (value != null) {
             val kept = floatsToStrings(value)
-            if (kept !== value) item.assign(Item(kept))
+            if (kept !== value) item.assign(Item(kept)).assertSuccess()
         }
         item.standardTableOrNull?.let { floatsToStrings(it) }
         item.arrayOfTablesOrNull?.forEach { floatsToStrings(it) }
@@ -546,7 +547,7 @@ the-force = { value = "surrounds-you" }
             for (index in 0 until value.value.size) {
                 val element = value.value.getOrNull(index) ?: continue
                 val kept = floatsToStrings(element)
-                if (kept !== element) value.value.replace(index, kept, keepDecor = false)
+                if (kept !== element) value.value.replace(index, kept, keepDecor = false).assertSuccess()
             }
             value
         }
@@ -578,10 +579,10 @@ table = { apple = "4.50" }
     @Test
     fun `the module README example of choosing spellings and comments prints them`() {
         val doc = TomlDocument()
-        doc["license"] = Value.parse("'MIT'").getOrElse { error(it) }
-        doc["mode"] = Value.parse("0o755").getOrElse { error(it) }
+        doc.set("license", Value.parse("'MIT'").getOrElse { error(it) }).assertSuccess()
+        doc.set("mode", Value.parse("0o755").getOrElse { error(it) }).assertSuccess()
         doc.root.keyOrNull("mode")?.leafDecor = Decor(prefix = "# file mode\n")
-        doc["port"] = Value.Integer(8080, Decor(suffix = " # default"))
+        doc.set("port", Value.Integer(8080, Decor(suffix = " # default"))).assertSuccess()
         assertEquals("license = 'MIT'\n# file mode\nmode = 0o755\nport = 8080 # default\n", doc.toString())
     }
 }

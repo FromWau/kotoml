@@ -19,7 +19,7 @@ class PreservationTest {
     @Test
     fun `an inserted line ends like the line before it`() {
         val doc = parse("[t]\r\nb = 2\r\n")
-        doc["t"]["c"] = 3L
+        doc["t"].set("c", 3L).assertSuccess()
         assertEquals("[t]\r\nb = 2\r\nc = 3\r\n", doc.toString())
     }
 
@@ -44,7 +44,7 @@ class PreservationTest {
     @Test
     fun `a multi-line string stored in a CRLF document breaks its lines with CRLF`() {
         val doc = parse("a = []\r\n")
-        doc["b"] = Value.String("x\ny")
+        doc.set("b", Value.String("x\ny")).assertSuccess()
         doc["a"].assertSuccess().arrayOrNull!!.add("p\nq")
         val expected = "a = [\"\"\"\r\np\r\nq\"\"\"]\r\nb = \"\"\"\r\nx\r\ny\"\"\"\r\n"
         assertEquals(expected, doc.toString())
@@ -58,14 +58,14 @@ class PreservationTest {
     fun `a multi-line string built in code breaks its lines with LF until it is stored`() {
         assertEquals("\"\"\"\nx\ny\"\"\"", Value.String("x\ny").displaySpelling)
         val doc = parse("a = 1\n")
-        doc["b"] = Value.String("x\ny")
+        doc.set("b", Value.String("x\ny")).assertSuccess()
         assertEquals("a = 1\nb = \"\"\"\nx\ny\"\"\"\n", doc.toString())
     }
 
     @Test
     fun `a multi-line string removed from a CRLF document breaks its lines with CRLF`() {
         val doc = parse("a = []\r\n")
-        doc["s"] = Value.String("x\ny")
+        doc.set("s", Value.String("x\ny")).assertSuccess()
         doc["a"].assertSuccess().arrayOrNull!!.add("p\nq")
         val removed = doc.remove("s").assertSuccess().valueOrNull as Value.String
         val removedAt = doc["a"].assertSuccess().arrayOrNull!!.removeAt(0).assertSuccess() as Value.String
@@ -79,13 +79,13 @@ class PreservationTest {
     @Test
     fun `a multi-line string detached by a replace breaks its lines with CRLF`() {
         val doc = parse("a = [\"\"\"\r\np\r\nq\"\"\"]\r\nt = { u = 1 }\r\n")
-        doc["s"] = Value.String("x\ny")
-        doc["t"]["u"] = Value.String("v\nw")
+        doc.set("s", Value.String("x\ny")).assertSuccess()
+        doc["t"].set("u", Value.String("v\nw")).assertSuccess()
         doc["a"].assertSuccess().arrayOrNull!!.respell()
         val bySet = doc["s"].assertSuccess().valueOrNull as Value.String
         val byAssign = doc["t"]["u"].assertSuccess().valueOrNull as Value.String
         val byReplace = doc["a"][0].assertSuccess().valueOrNull as Value.String
-        doc["s"] = 1L
+        doc.set("s", 1L).assertSuccess()
         doc["t"]["u"].assertSuccess().assign(Item(Value.Integer(2L))).assertSuccess()
         doc["a"].assertSuccess().arrayOrNull!!.replace(0, Value.Integer(3L)).assertSuccess()
         assertEquals("a = [3]\r\nt = { u = 2 }\r\ns = 1\r\n", doc.toString())
@@ -97,9 +97,9 @@ class PreservationTest {
     @Test
     fun `a table removed from a CRLF document prints its strings and lines with CRLF`() {
         val doc = parse("[t]\r\na = 1\r\n")
-        doc["t"]["s"] = Value.String("x\ny")
+        doc["t"].set("s", Value.String("x\ny")).assertSuccess()
         val removed = doc.remove("t").assertSuccess()
-        removed["b"] = 2L
+        removed.set("b", 2L).assertSuccess()
         val expected = "a = 1\r\ns = \"\"\"\r\nx\r\ny\"\"\"\r\nb = 2\r\n"
         assertEquals(expected, removed.toString())
         assertEquals(expected, removed.standardTableOrNull!!.toString())
@@ -109,7 +109,7 @@ class PreservationTest {
     @Test
     fun `a table in a CRLF document prints its new lines with CRLF`() {
         val doc = parse("a = 1\r\n")
-        doc["t"] = standardTableOf("b" to Item(Value.Integer(2L))).assertSuccess()
+        doc.set("t", standardTableOf("b" to Item(Value.Integer(2L))).assertSuccess()).assertSuccess()
         assertEquals("a = 1\r\n\r\n[t]\r\nb = 2\r\n", doc.toString())
         assertEquals("b = 2\r\n", doc["t"].assertSuccess().toString())
     }
@@ -117,21 +117,21 @@ class PreservationTest {
     @Test
     fun `a multi-line string removed from a CRLF document takes the line ending of the document it is stored in`() {
         val crlf = parse("a = 1\r\n")
-        crlf["s"] = Value.String("x\ny")
+        crlf.set("s", Value.String("x\ny")).assertSuccess()
         val removed = crlf.remove("s").assertSuccess()
         val lf = parse("a = 1\n")
-        lf["s"] = removed
+        lf.set("s", removed).assertSuccess()
         assertEquals("a = 1\ns = \"\"\"\nx\ny\"\"\"\n", lf.toString())
         assertEquals("\"\"\"\nx\ny\"\"\"", lf["s"].assertSuccess().valueOrNull.toString())
         assertEquals("\"\"\"\r\nx\r\ny\"\"\"", removed.toString())
-        crlf["s"] = removed
+        crlf.set("s", removed).assertSuccess()
         assertEquals("a = 1\r\ns = \"\"\"\r\nx\r\ny\"\"\"\r\n", crlf.toString())
     }
 
     @Test
     fun `a multi-line string built in code or removed from an LF document breaks its lines with LF`() {
         val doc = parse("a = 1\n")
-        doc["s"] = Value.String("x\ny")
+        doc.set("s", Value.String("x\ny")).assertSuccess()
         assertEquals("\"\"\"\nx\ny\"\"\"", doc.remove("s").assertSuccess().toString())
         assertEquals("\"\"\"\nx\ny\"\"\"", Value.String("x\ny").toString())
         assertEquals("\"\"\"\nx\ny\"\"\"", Item(Value.String("x\ny")).toString())
@@ -155,7 +155,8 @@ class PreservationTest {
     @Test
     fun `an array of tables element added later prints its header as the key is spelled`() {
         val doc = parse("[[\"x\"]]\nn = 1\n")
-        doc["x"].assertSuccess().arrayOfTablesOrNull!!.add(standardTableOf("n" to Item(Value.Integer(2L))).assertSuccess())
+        val added = standardTableOf("n" to Item(Value.Integer(2L))).assertSuccess()
+        doc["x"].assertSuccess().arrayOfTablesOrNull!!.add(added).assertSuccess()
         assertEquals("[[\"x\"]]\nn = 1\n\n[[\"x\"]]\nn = 2\n", doc.toString())
     }
 
@@ -184,7 +185,7 @@ class PreservationTest {
         val doc = parse(input)
         assertEquals(input, doc.toString())
 
-        doc["other"] = 1L
+        doc.set("other", 1L).assertSuccess()
         assertEquals("$input" + "other = 1\n", doc.toString())
     }
 
@@ -211,7 +212,7 @@ class PreservationTest {
     @Test
     fun `a value added to a dotted table follows its last sibling`() {
         val doc = parse("apple.type = \"fruit\"\norange.type = \"fruit\"\napple.skin = \"thin\"\n")
-        doc["apple"]["color"] = "red"
+        doc["apple"].set("color", "red").assertSuccess()
         assertEquals(
             "apple.type = \"fruit\"\norange.type = \"fruit\"\napple.skin = \"thin\"\napple.color = \"red\"\n",
             doc.toString(),
@@ -254,7 +255,7 @@ class PreservationTest {
         val inner = doc["t"]["c"].assertSuccess().inlineTableOrNull!!
         doc["t"].assertSuccess().setLayout(TableLayout.Dotted).assertSuccess()
         doc["t"]["c"].assertSuccess().setLayout(TableLayout.Dotted).assertSuccess()
-        inner.remove("c")
+        inner.remove("c").assertSuccess()
         assertEquals("x = 1\n# about t\nt.c = {}\n", doc.toString())
     }
 }

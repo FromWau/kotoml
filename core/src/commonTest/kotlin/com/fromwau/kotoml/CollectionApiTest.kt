@@ -1,9 +1,9 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.assertError
 import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -32,7 +32,7 @@ class CollectionApiTest {
     @Test
     fun `put with a string on a document keeps the spelling and comment of a quoted key`() {
         val doc = parse("# about it\n'my key' = 1\n")
-        doc.put("my key", Item(Value.Integer(2L)))
+        doc.put("my key", Item(Value.Integer(2L))).assertSuccess()
         assertEquals("# about it\n'my key' = 2\n", doc.toString())
     }
 
@@ -48,42 +48,42 @@ class CollectionApiTest {
     @Test
     fun `put with a key on an inline table replaces the spelling of a quoted key`() {
         val doc = parse("t = { 'my key' = 1 }\n")
-        doc["t"].assertSuccess().inlineTableOrNull!!.put(Key("my key"), Value.Integer(2L))
+        doc["t"].assertSuccess().inlineTableOrNull!!.put(Key("my key"), Value.Integer(2L)).assertSuccess()
         assertEquals("t = { \"my key\" = 2 }\n", doc.toString())
     }
 
     @Test
     fun `a value key replaced by a table prints a clean header with its spelling and the comment above it`() {
         val doc = parse("b = 2\n# about it\n'my key'   =   1\n")
-        doc.put("my key", Item(standardTableOf("x" to Item(Value.Integer(1L))).assertSuccess()))
+        doc.put("my key", Item(standardTableOf("x" to Item(Value.Integer(1L))).assertSuccess())).assertSuccess()
         assertEquals("b = 2\n\n# about it\n['my key']\nx = 1\n", doc.toString())
     }
 
     @Test
     fun `a value key replaced by a table without a comment above it prints a blank line and then the header`() {
         val doc = parse("b = 2\n'my key'   =   1\n")
-        doc.put("my key", Item(standardTableOf("x" to Item(Value.Integer(1L))).assertSuccess()))
+        doc.put("my key", Item(standardTableOf("x" to Item(Value.Integer(1L))).assertSuccess())).assertSuccess()
         assertEquals("b = 2\n\n['my key']\nx = 1\n", doc.toString())
     }
 
     @Test
     fun `a value key set to a table through an item prints a clean header keeping the comment above it`() {
         val doc = parse("[s]\nb = 2\n# about it\n'my key'   =   1\n")
-        doc["s"]["my key"] = standardTableOf("x" to Item(Value.Integer(1L))).assertSuccess()
+        doc["s"].set("my key", standardTableOf("x" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
         assertEquals("[s]\nb = 2\n\n# about it\n[s.'my key']\nx = 1\n", doc.toString())
     }
 
     @Test
     fun `a table key replaced by a value prints a key and value line with default spacing`() {
         val doc = parse("a = 1\n[ 'my key' ]\nx = 1\n")
-        doc.put("my key", Item(Value.Integer(2L)))
+        doc.put("my key", Item(Value.Integer(2L))).assertSuccess()
         assertEquals("a = 1\n'my key' = 2\n", doc.toString())
     }
 
     @Test
     fun `a value replaced by another value keeps the key's spacing and the value's`() {
         val doc = parse("'my key'   =   1\n")
-        doc.put("my key", Item(Value.Integer(2L)))
+        doc.put("my key", Item(Value.Integer(2L))).assertSuccess()
         assertEquals("'my key'   =   2\n", doc.toString())
     }
 
@@ -91,20 +91,21 @@ class CollectionApiTest {
     fun `assigning a table to a value key's slot prints a clean header with the comment above it`() {
         val doc = parse("b = 2\n# about it\n'my key'   =   1\n")
         doc["my key"].assertSuccess().assign(Item(standardTableOf("x" to Item(Value.Integer(1L))).assertSuccess()))
+            .assertSuccess()
         assertEquals("b = 2\n\n# about it\n['my key']\nx = 1\n", doc.toString())
     }
 
     @Test
     fun `assigning a value to a table key's slot prints a key and value line with default spacing`() {
         val doc = parse("a = 1\n[ 'my key' ]\nx = 1\n")
-        doc["my key"].assertSuccess().assign(Item(Value.Integer(2L)))
+        doc["my key"].assertSuccess().assign(Item(Value.Integer(2L))).assertSuccess()
         assertEquals("a = 1\n'my key' = 2\n", doc.toString())
     }
 
     @Test
     fun `assigning a value to a value key's slot keeps the key's spacing and the value's`() {
         val doc = parse("'my key'   =   1\n")
-        doc["my key"].assertSuccess().assign(Item(Value.Integer(2L)))
+        doc["my key"].assertSuccess().assign(Item(Value.Integer(2L))).assertSuccess()
         assertEquals("'my key'   =   2\n", doc.toString())
     }
 
@@ -112,6 +113,7 @@ class CollectionApiTest {
     fun `assigning a table to a nested value key's slot prints a clean header`() {
         val doc = parse("[s]\n'my key'   =   1\n")
         doc["s"]["my key"].assertSuccess().assign(Item(standardTableOf("x" to Item(Value.Integer(1L))).assertSuccess()))
+            .assertSuccess()
         assertEquals("[s]\n\n[s.'my key']\nx = 1\n", doc.toString())
     }
 
@@ -158,7 +160,7 @@ class CollectionApiTest {
         doc.root.retainAll { (key, item) ->
             visited += key to item.longOrNull
             true
-        }
+        }.assertSuccess()
         assertEquals(listOf("b" to 1L, "a" to null), visited)
     }
 
@@ -279,8 +281,8 @@ class CollectionApiTest {
     fun `keys is a copy that later changes to the table leave as it is`() {
         val table = standardTableOf("a" to Item(Value.Integer(1L))).assertSuccess()
         val keys = table.keys
-        table["b"] = Value.Integer(2L)
-        table.remove("a")
+        table.set("b", Value.Integer(2L)).assertSuccess()
+        table.remove("a").assertSuccess()
         assertEquals(setOf("a"), keys)
     }
 
@@ -311,7 +313,7 @@ class CollectionApiTest {
     @Test
     fun `a document stores every pair of putAll at the root`() {
         val doc = TomlDocument()
-        doc.putAll(listOf("a" to Item(Value.Integer(1L)), "b" to Item(Value.Integer(2L))))
+        doc.putAll(listOf("a" to Item(Value.Integer(1L)), "b" to Item(Value.Integer(2L)))).assertSuccess()
         assertEquals("a = 1\nb = 2\n", doc.toString())
     }
 
@@ -355,7 +357,7 @@ class CollectionApiTest {
     fun `setting an array of tables element keeps the comments around the old header`() {
         val doc = parse("[[x]]\nn = 1\n\n# second\n[[x]] # two\nn = 2\n")
         val tables = doc["x"].assertSuccess().arrayOfTablesOrNull!!
-        tables[1] = standardTableOf("n" to Item(Value.Integer(3L))).assertSuccess()
+        tables.set(1, standardTableOf("n" to Item(Value.Integer(3L))).assertSuccess()).assertSuccess()
         assertEquals("[[x]]\nn = 1\n\n# second\n[[x]] # two\nn = 3\n", doc.toString())
     }
 
@@ -369,13 +371,13 @@ class CollectionApiTest {
     }
 
     @Test
-    fun `setting an element past the end through the index form throws IndexOutOfBounds and changes nothing`() {
+    fun `setting an element past the end returns IndexOutOfBounds and changes nothing`() {
         val array = tomlArrayOf(Value.Integer(1L)).assertSuccess()
-        val inArray = assertFailsWith<TomlEditException> { array[3] = Value.Integer(2L) }
+        val inArray = array.set(3, Value.Integer(2L)).assertError<TomlEditError.IndexOutOfBounds>()
         val tables = arrayOfTablesOf(StandardTable()).assertSuccess()
-        val inTables = assertFailsWith<TomlEditException> { tables[3] = StandardTable() }
-        assertEquals(TomlEditError.IndexOutOfBounds(3, 1), inArray.error)
-        assertEquals(TomlEditError.IndexOutOfBounds(3, 1), inTables.error)
+        val inTables = tables.set(3, StandardTable()).assertError<TomlEditError.IndexOutOfBounds>()
+        assertEquals(TomlEditError.IndexOutOfBounds(3, 1), inArray)
+        assertEquals(TomlEditError.IndexOutOfBounds(3, 1), inTables)
         assertEquals("[1]", array.toString())
         assertEquals(1, tables.size)
     }
@@ -392,15 +394,15 @@ class CollectionApiTest {
     fun `every store of an integer takes an Int`() {
         val count: Int = 3
         val doc = parse("[t]\ni = {}\n")
-        doc["a"] = count
-        doc.root["b"] = count
-        doc["t"]["c"] = count
-        doc["t"].assertSuccess()["d"] = count
-        doc["t"]["i"].assertSuccess().inlineTableOrNull!!["e"] = count
+        doc.set("a", count).assertSuccess()
+        doc.root.set("b", count).assertSuccess()
+        doc["t"].set("c", count).assertSuccess()
+        doc["t"].assertSuccess().set("d", count).assertSuccess()
+        doc["t"]["i"].assertSuccess().inlineTableOrNull!!.set("e", count).assertSuccess()
         val array = TomlArray()
         array.add(count)
-        doc["t"]["f"] = Value.Array(array)
-        doc["t"]["g"] = Value.Integer(count)
+        doc["t"].set("f", Value.Array(array)).assertSuccess()
+        doc["t"].set("g", Value.Integer(count)).assertSuccess()
         assertEquals("a = 3\nb = 3\n\n[t]\ni = { e = 3 }\nc = 3\nd = 3\nf = [3]\ng = 3\n", doc.toString())
     }
 }

@@ -1,5 +1,6 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.Result
 import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -12,24 +13,24 @@ class RemovalKeepsCommentsTest {
 
     private fun removing(
         text: String,
-        edit: (TomlDocument) -> Unit,
+        edit: (TomlDocument) -> Result<*, TomlEditError>,
     ): String {
         val document = TomlDocument.parse(text).assertSuccess()
-        edit(document)
+        edit(document).assertSuccess()
         return document.toString()
     }
 
     @Test
     fun `a dotted table left empty takes the comment above its only line`() {
         val doc = TomlDocument.parse("[t]\n# about b\na.b = 1\nz = 2\n").assertSuccess()
-        doc["t"]["a"].assertSuccess().standardTableOrNull!!.remove("b", force = true)
+        doc["t"]["a"].assertSuccess().standardTableOrNull!!.remove("b", force = true).assertSuccess()
         assertEquals("[t]\na = {}\nz = 2\n", doc.toString())
     }
 
     @Test
     fun `a dotted table left empty prints its key as an empty table below the free lines kept from it`() {
         val doc = TomlDocument.parse("[t]\n# about b\n\na.b = 1\nz = 2\n").assertSuccess()
-        doc["t"]["a"].assertSuccess().standardTableOrNull!!.remove("b", force = true)
+        doc["t"]["a"].assertSuccess().standardTableOrNull!!.remove("b", force = true).assertSuccess()
         assertEquals("[t]\n# about b\n\na = {}\nz = 2\n", doc.toString())
     }
 
@@ -43,7 +44,7 @@ class RemovalKeepsCommentsTest {
         for ((text, path, expected) in cases) {
             val doc = TomlDocument.parse(text).assertSuccess()
             val table = path.drop(1).fold(doc[path.first()]) { slot, key -> slot[key] }.assertSuccess()
-            table.standardTableOrNull!!.removeAll(force = true) { true }
+            table.standardTableOrNull!!.removeAll(force = true) { true }.assertSuccess()
             assertEquals(expected, doc.toString(), text)
             val formatted = TomlDocument.parse(expected).assertSuccess()
             formatted.format()
@@ -57,7 +58,7 @@ class RemovalKeepsCommentsTest {
         val doc = TomlDocument.parse("[a.b.d]\ne=2\n").assertSuccess()
         val d = doc["a"]["b"]["d"].assertSuccess()
         d.setLayout(TableLayout.Dotted).assertSuccess()
-        d.standardTableOrNull!!.remove("e", force = true)
+        d.standardTableOrNull!!.remove("e", force = true).assertSuccess()
         assertEquals("[a.b]\nd={}\n", doc.toString())
         d.setLayout(TableLayout.Header).assertSuccess()
         assertEquals("[a.b.d]\n", doc.toString())
@@ -66,7 +67,7 @@ class RemovalKeepsCommentsTest {
     @Test
     fun `removing a key below free lines in braces of a CRLF document keeps its line endings whole`() {
         val doc = TomlDocument.parse("s = {\r\n  b.c = 1,\r\n  # about d\r\n\r\n  b.d = 2,\r\n}\r\n").assertSuccess()
-        doc["s"]["b"].assertSuccess().valueOrNull!!.inlineTableOrNull!!.remove("d", force = true)
+        doc["s"]["b"].assertSuccess().valueOrNull!!.inlineTableOrNull!!.remove("d", force = true).assertSuccess()
         assertEquals("s = {\r\n  b.c = 1,\r\n  # about d\r\n}\r\n", doc.toString())
         doc.format()
         assertEquals("s = {\r\n  b.c = 1,\r\n  # about d\r\n}\r\n", doc.toString())
@@ -75,7 +76,7 @@ class RemovalKeepsCommentsTest {
     @Test
     fun `the comment above a removed dotted key in braces goes with it`() {
         val doc = TomlDocument.parse("s = {\n  b.c = 1,\n  # about d\n  b.d = 2,\n}\n").assertSuccess()
-        doc["s"]["b"].assertSuccess().valueOrNull!!.inlineTableOrNull!!.remove("d", force = true)
+        doc["s"]["b"].assertSuccess().valueOrNull!!.inlineTableOrNull!!.remove("d", force = true).assertSuccess()
         assertEquals("s = {\n  b.c = 1,\n}\n", doc.toString())
     }
 
@@ -83,21 +84,22 @@ class RemovalKeepsCommentsTest {
     fun `a dotted table in an inline table left empty prints its key as an empty table`() {
         val doc = TomlDocument.parse("a = { a.b = 1 }\n").assertSuccess()
         doc["a"].assertSuccess().inlineTableOrNull!!.getItem("a")!!.inlineTableOrNull!!.remove("b", force = true)
+            .assertSuccess()
         assertEquals("a = { a = {} }\n", doc.toString())
     }
 
     @Test
     fun `an implicit table left holding nothing prints its header`() {
         val doc = TomlDocument.parse("[a.b]\nx = 1\n").assertSuccess()
-        doc["a"].assertSuccess().standardTableOrNull!!.remove("b", force = true)
+        doc["a"].assertSuccess().standardTableOrNull!!.remove("b", force = true).assertSuccess()
         assertEquals("[a]\n", doc.toString())
     }
 
     @Test
     fun `a table added after a removal prints below the free lines kept from the removed table`() {
         val doc = TomlDocument.parse("[b]\ny = 1\n\n# about a\n\n[a]\nx = 1\n").assertSuccess()
-        doc.remove("a", force = true)
-        doc["c"] = standardTableOf("z" to Item(Value.Integer(1L))).assertSuccess()
+        doc.remove("a", force = true).assertSuccess()
+        doc.set("c", standardTableOf("z" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
         assertEquals("[b]\ny = 1\n\n# about a\n\n[c]\nz = 1\n", doc.toString())
     }
 
@@ -223,7 +225,7 @@ class RemovalKeepsCommentsTest {
         assertEquals(
             "a.x = 1\n# note\n\nc = 4\n",
             removing(interleavedFree) {
-                it["a"].assertSuccess().standardTableOrNull!!.remove("y")
+                it["a"].assertSuccess().standardTableOrNull!!.remove("y").assertSuccess()
                 it.remove("b")
             },
         )
@@ -234,13 +236,13 @@ class RemovalKeepsCommentsTest {
         val document = TomlDocument()
         val pool = StandardTable()
         Item(pool).setLayout(TableLayout.Dotted).assertSuccess()
-        pool.put(Key("size", leafDecor = Decor(prefix = "# size\n")), Item(Value.Integer(1L)))
-        pool.put(Key("idle", leafDecor = Decor(prefix = "# idle\n")), Item(Value.Integer(2L)))
-        document["pool"] = pool
-        document["timeout"] = Value.Integer(3L)
-        document["pool"].assertSuccess().standardTableOrNull!!.remove("size", force = true)
+        pool.put(Key("size", leafDecor = Decor(prefix = "# size\n")), Item(Value.Integer(1L))).assertSuccess()
+        pool.put(Key("idle", leafDecor = Decor(prefix = "# idle\n")), Item(Value.Integer(2L))).assertSuccess()
+        document.set("pool", pool).assertSuccess()
+        document.set("timeout", Value.Integer(3L)).assertSuccess()
+        document["pool"].assertSuccess().standardTableOrNull!!.remove("size", force = true).assertSuccess()
         assertEquals("# idle\npool.idle = 2\ntimeout = 3\n", document.toString())
-        document["pool"].assertSuccess().standardTableOrNull!!.remove("idle", force = true)
+        document["pool"].assertSuccess().standardTableOrNull!!.remove("idle", force = true).assertSuccess()
         assertEquals("pool = {}\ntimeout = 3\n", document.toString())
     }
 
@@ -283,7 +285,7 @@ class RemovalKeepsCommentsTest {
     fun `a table removed from an array of tables takes the comment above its header`() {
         assertEquals(
             "# second\n[[x]]\nn = 2\n\n# after\n[y]\n",
-            removing(fleet) { it["x"].assertSuccess().arrayOfTablesOrNull!!.removeAt(0, force = true).assertSuccess() },
+            removing(fleet) { it["x"].assertSuccess().arrayOfTablesOrNull!!.removeAt(0, force = true) },
         )
         assertEquals(
             "# first\n[[x]]\nn = 1\n\n# after\n[y]\n",
@@ -344,7 +346,7 @@ class RemovalKeepsCommentsTest {
     fun `an array element takes the comment above it`() {
         assertEquals(
             "ports = [\n  # https\n  443,\n]\n",
-            removing(ports) { it["ports"].assertSuccess().arrayOrNull!!.removeAt(0, force = true).assertSuccess() },
+            removing(ports) { it["ports"].assertSuccess().arrayOrNull!!.removeAt(0, force = true) },
         )
     }
 
@@ -352,7 +354,7 @@ class RemovalKeepsCommentsTest {
     fun `the last array element takes the comment above it`() {
         assertEquals(
             "ports = [\n  # http\n  80,\n]\n",
-            removing(ports) { it["ports"].assertSuccess().arrayOrNull!!.removeAt(1, force = true).assertSuccess() },
+            removing(ports) { it["ports"].assertSuccess().arrayOrNull!!.removeAt(1, force = true) },
         )
     }
 
@@ -361,7 +363,7 @@ class RemovalKeepsCommentsTest {
         val text = "ports = [\n  # http\n\n  80,\n  # https\n  443,\n]\n"
         assertEquals(
             "ports = [\n  # http\n\n  # https\n  443,\n]\n",
-            removing(text) { it["ports"].assertSuccess().arrayOrNull!!.removeAt(0, force = true).assertSuccess() },
+            removing(text) { it["ports"].assertSuccess().arrayOrNull!!.removeAt(0, force = true) },
         )
     }
 
@@ -370,7 +372,7 @@ class RemovalKeepsCommentsTest {
         val text = "ports = [\n  80,\n\n  # https\n  443,\n\n  8080,\n]\n"
         assertEquals(
             "ports = [\n  80,\n\n  8080,\n]\n",
-            removing(text) { it["ports"].assertSuccess().arrayOrNull!!.removeAt(1, force = true).assertSuccess() },
+            removing(text) { it["ports"].assertSuccess().arrayOrNull!!.removeAt(1, force = true) },
         )
     }
 
@@ -379,7 +381,7 @@ class RemovalKeepsCommentsTest {
         val text = "ports = [\n  80, # http\n  443, # https\n]\n"
         assertEquals(
             "ports = [\n  443, # https\n]\n",
-            removing(text) { it["ports"].assertSuccess().arrayOrNull!!.removeAt(0, force = true).assertSuccess() },
+            removing(text) { it["ports"].assertSuccess().arrayOrNull!!.removeAt(0, force = true) },
         )
     }
 
@@ -388,7 +390,7 @@ class RemovalKeepsCommentsTest {
         val text = "ports = [\n  80, # http\n  443 # https\n]\n"
         assertEquals(
             "ports = [\n  80, # http\n]\n",
-            removing(text) { it["ports"].assertSuccess().arrayOrNull!!.removeAt(1, force = true).assertSuccess() },
+            removing(text) { it["ports"].assertSuccess().arrayOrNull!!.removeAt(1, force = true) },
         )
     }
 
@@ -397,7 +399,7 @@ class RemovalKeepsCommentsTest {
         val text = "ports = [\n  80, 443, # web\n  8080,\n]\n"
         assertEquals(
             "ports = [\n  80,\n  8080,\n]\n",
-            removing(text) { it["ports"].assertSuccess().arrayOrNull!!.removeAt(1, force = true).assertSuccess() },
+            removing(text) { it["ports"].assertSuccess().arrayOrNull!!.removeAt(1, force = true) },
         )
     }
 
@@ -406,7 +408,7 @@ class RemovalKeepsCommentsTest {
         val text = "ports = [\n  80, 443, # web\n  8080,\n]\n"
         assertEquals(
             "ports = [\n  443, # web\n  8080,\n]\n",
-            removing(text) { it["ports"].assertSuccess().arrayOrNull!!.removeAt(0).assertSuccess() },
+            removing(text) { it["ports"].assertSuccess().arrayOrNull!!.removeAt(0) },
         )
     }
 
@@ -415,7 +417,7 @@ class RemovalKeepsCommentsTest {
         val text = "arr = [\n  1,\n  2 # on 2\n  # more\n  , 3,\n]\n"
         assertEquals(
             "arr = [\n  1,\n  3,\n]\n",
-            removing(text) { it["arr"].assertSuccess().arrayOrNull!!.removeAt(1, force = true).assertSuccess() },
+            removing(text) { it["arr"].assertSuccess().arrayOrNull!!.removeAt(1, force = true) },
         )
     }
 
@@ -436,7 +438,7 @@ class RemovalKeepsCommentsTest {
     fun `clearing an array with force takes the comment above each element`() {
         assertEquals(
             "ports = [\n]\n",
-            removing(ports) { it["ports"].assertSuccess().arrayOrNull!!.clear(force = true).assertSuccess() },
+            removing(ports) { it["ports"].assertSuccess().arrayOrNull!!.clear(force = true) },
         )
     }
 
@@ -445,7 +447,7 @@ class RemovalKeepsCommentsTest {
         val text = "[a]\n# note\n\n# one\nx = 1\n# two\ny = 2\n[b]\n"
         assertEquals(
             "[a]\n# note\n\n[b]\n",
-            removing(text) { it["a"].assertSuccess().standardTableOrNull!!.clear(force = true).assertSuccess() },
+            removing(text) { it["a"].assertSuccess().standardTableOrNull!!.clear(force = true) },
         )
     }
 
@@ -460,7 +462,7 @@ class RemovalKeepsCommentsTest {
     @Test
     fun `a copy prints the kept lines too`() {
         val document = TomlDocument.parse(fleetWithNote).assertSuccess()
-        document.remove("x", force = true)
+        document.remove("x", force = true).assertSuccess()
         assertEquals(document.toString(), document.copy().toString())
     }
 
@@ -469,8 +471,8 @@ class RemovalKeepsCommentsTest {
         val text = "[a]\nx = 1\n# note\n\ny = 2\n[b]\n"
         assertEquals("[a]\nx = 1\nz = 3\n# note\n\n[b]\n", removing(text) { document ->
             val a = document["a"].assertSuccess().standardTableOrNull!!
-            a.remove("y")
-            a["z"] = Value.Integer(3L)
+            a.remove("y").assertSuccess()
+            a.set("z", Value.Integer(3L))
         })
     }
 
@@ -484,9 +486,9 @@ class RemovalKeepsCommentsTest {
         val doc = TomlDocument.parse(text).assertSuccess()
         val from = if (source == text) doc else TomlDocument.parse(source).assertSuccess()
         val b = from["s"]["b"].assertSuccess()
-        b.valueOrNull!!.inlineTableOrNull!!.remove(removed, force = true)
+        b.valueOrNull!!.inlineTableOrNull!!.remove(removed, force = true).assertSuccess()
         val holder = path.dropLast(1).fold(doc["t"].assertSuccess()) { item, key -> item[key].assertSuccess() }
-        holder.standardTableOrNull!![path.last()] = b
+        holder.standardTableOrNull!!.set(path.last(), b).assertSuccess()
         return doc
     }
 
@@ -541,7 +543,7 @@ class RemovalKeepsCommentsTest {
         val text = "s = {\n  b.c = 1,\n  # about d\n\n  b.d = 2,\n}\n[t]\nu = {\n  y = 1,\n}\n"
         val doc = storedAfterRemoving(text, "d")
         val u = doc["t"]["u"].assertSuccess().valueOrNull!!.inlineTableOrNull!!
-        u["b"] = doc["t"]["b"].assertSuccess().valueOrNull!!
+        u.set("b", doc["t"]["b"].assertSuccess().valueOrNull!!).assertSuccess()
         val inBraces = "u = {\n  y = 1,\n  b.c = 1,\n  # about d\n}\n"
         assertEquals("[t]\n${inBraces}b.c = 1\n# about d\n", doc.toString().substringAfter("}\n"))
     }
@@ -569,7 +571,7 @@ class RemovalKeepsCommentsTest {
     fun `a comment after a sibling's comma stays with that sibling in braces after the dotted key below it goes`() {
         val text = "s = {\n  b.c = 1,\n  y = 5, # on y\n  # about d\n\n  b.d = 2,\n}\n"
         val doc = TomlDocument.parse(text).assertSuccess()
-        doc["s"]["b"].assertSuccess().valueOrNull!!.inlineTableOrNull!!.remove("d", force = true)
+        doc["s"]["b"].assertSuccess().valueOrNull!!.inlineTableOrNull!!.remove("d", force = true).assertSuccess()
         val expected = "s = {\n  b.c = 1,\n  y = 5, # on y\n  # about d\n}\n"
         assertEquals(expected, doc.toString())
         assertFormatsTo(expected, doc)

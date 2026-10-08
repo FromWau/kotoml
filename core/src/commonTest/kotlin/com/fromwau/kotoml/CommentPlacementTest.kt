@@ -65,8 +65,8 @@ class CommentPlacementTest {
     @Test
     fun `a key added after the last table is removed prints below the document's head`() {
         val doc = parse("# banner\n\n[db]\nurl = 1\n")
-        doc.remove("db", force = true)
-        doc["x"] = 1L
+        doc.remove("db", force = true).assertSuccess()
+        doc.set("x", 1L).assertSuccess()
         assertEquals("# banner\n\nx = 1\n", doc.toString())
     }
 
@@ -370,8 +370,8 @@ class CommentPlacementTest {
     @Test
     fun `a key added after the last key is removed prints below the free lines above it`() {
         val doc = parse("# c\n\na = 1\n")
-        doc.remove("a", force = true)
-        doc["x"] = 1L
+        doc.remove("a", force = true).assertSuccess()
+        doc.set("x", 1L).assertSuccess()
         assertEquals("# c\n\nx = 1\n", doc.toString())
     }
 
@@ -384,7 +384,7 @@ class CommentPlacementTest {
         doc: TomlDocument,
         source: TomlDocument = doc,
     ) {
-        doc["t"].assertSuccess().standardTableOrNull!!["b"] = source["s"]["b"].assertSuccess()
+        doc["t"].assertSuccess().standardTableOrNull!!.set("b", source["s"]["b"].assertSuccess()).assertSuccess()
     }
 
     private fun assertFormatsTo(
@@ -435,7 +435,7 @@ class CommentPlacementTest {
     fun `a dotted table in braces stored in other braces leaves a sibling's comma comment with that sibling`() {
         val doc = parse("$siblingCommented[t]\nu = {\n  z = 1,\n}\n")
         val u = doc["t"]["u"].assertSuccess().valueOrNull!!.inlineTableOrNull!!
-        u["b"] = doc["s"]["b"].assertSuccess().valueOrNull!!
+        u.set("b", doc["s"]["b"].assertSuccess().valueOrNull!!).assertSuccess()
         val inBraces = "u = {\n  b.c = 1,\n  # about d\n  b.d = 2,\n  z = 1,\n}\n"
         assertEquals("$siblingCommented[t]\n$inBraces", doc.toString())
     }
@@ -444,7 +444,7 @@ class CommentPlacementTest {
     fun `a copy of a dotted table in braces stored in another document leaves a sibling's comma comment behind`() {
         val source = parse(siblingCommented)
         val doc = parse("[t]\nx = 0\n")
-        doc["t"].assertSuccess().standardTableOrNull!!["b"] = source["s"]["b"].assertSuccess().copy()
+        doc["t"].assertSuccess().standardTableOrNull!!.set("b", source["s"]["b"].assertSuccess().copy()).assertSuccess()
         assertEquals("[t]\nx = 0\nb.c = 1\n# about d\nb.d = 2\n", doc.toString())
         assertEquals(siblingCommented, source.toString())
     }

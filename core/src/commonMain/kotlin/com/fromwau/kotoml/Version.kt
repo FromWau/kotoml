@@ -161,7 +161,7 @@ internal class Toml10Conversion {
         // The header comment may move past the comma, into the text of the array or inline table holding the slot.
         val scope = slot.owner?.takeIf { it is TomlArray || it is InlineTable } ?: slot
         val before = commentsPrinted(scope)
-        slot.setLayout(TableLayout.Inline, force = true)
+        val _ = slot.setLayout(TableLayout.Inline, force = true)
         val dropped = missing(before, commentsPrinted(scope))
         if (dropped > 0 && firstLoss == null) firstLoss = layoutKeyPathOf(slot)
         lost += dropped

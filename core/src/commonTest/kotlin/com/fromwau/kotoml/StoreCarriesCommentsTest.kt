@@ -4,7 +4,6 @@ import com.fromwau.kern.result.assertError
 import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 
 /**
  * Storing or copying an item takes the comments it owns: the comment lines directly above it and its same-line
@@ -23,25 +22,25 @@ class StoreCarriesCommentsTest {
     @Test
     fun `a stored table brings the comment lines above its header and its header comment but not the free ones`() {
         val dst = TomlDocument()
-        dst["db"] = parse(db)["db"].assertSuccess()
+        dst.set("db", parse(db)["db"].assertSuccess()).assertSuccess()
         assertEquals("# about db\n[db] # primary\nurl = \"x\" # local\n", dst.toString())
     }
 
     @Test
     fun `a table stored below other lines prints its comments below the blank line before its header`() {
         val dst = parse("[app]\nname = 1\n")
-        dst["db"] = parse(db)["db"].assertSuccess()
+        dst.set("db", parse(db)["db"].assertSuccess()).assertSuccess()
         assertEquals("[app]\nname = 1\n\n# about db\n[db] # primary\nurl = \"x\" # local\n", dst.toString())
     }
 
     @Test
     fun `a copy of a table stores as the table does`() {
         val viaItem = parse("a = 0\n")
-        viaItem["db"] = parse(db)["db"].assertSuccess().copy()
+        viaItem.set("db", parse(db)["db"].assertSuccess().copy()).assertSuccess()
         val viaTable = parse("a = 0\n")
-        viaTable["db"] = parse(db)["db"].assertSuccess().standardTableOrNull!!.copy()
+        viaTable.set("db", parse(db)["db"].assertSuccess().standardTableOrNull!!.copy()).assertSuccess()
         val stored = parse("a = 0\n")
-        stored["db"] = parse(db)["db"].assertSuccess()
+        stored.set("db", parse(db)["db"].assertSuccess()).assertSuccess()
         assertEquals("a = 0\n\n# about db\n[db] # primary\nurl = \"x\" # local\n", stored.toString())
         assertEquals(stored.toString(), viaItem.toString())
         assertEquals(stored.toString(), viaTable.toString())
@@ -50,7 +49,7 @@ class StoreCarriesCommentsTest {
     @Test
     fun `a value stored under a new key brings the comment lines above it and its same-line comment`() {
         val doc = parse("a = 1\n")
-        doc["y"] = parse("# free\n\n# about y\ny = 5 # five\n")["y"].assertSuccess()
+        doc.set("y", parse("# free\n\n# about y\ny = 5 # five\n")["y"].assertSuccess()).assertSuccess()
         assertEquals("a = 1\n# about y\ny = 5 # five\n", doc.toString())
     }
 
@@ -58,57 +57,57 @@ class StoreCarriesCommentsTest {
     fun `a copy of a value stored twice brings its comments to both keys`() {
         val copy = parse("# about x\nx = 1 # one\n")["x"].assertSuccess().copy()
         val doc = parse("a = 0\n")
-        doc["x"] = copy
-        doc["y"] = copy
+        doc.set("x", copy).assertSuccess()
+        doc.set("y", copy).assertSuccess()
         assertEquals("a = 0\n# about x\nx = 1 # one\n# about x\ny = 1 # one\n", doc.toString())
     }
 
     @Test
     fun `a value with no comments of its own keeps the comments of the slot it replaces`() {
         val doc = parse("# about x\nx = 1 # one\n")
-        doc["x"] = 2L
+        doc.set("x", 2L).assertSuccess()
         assertEquals("# about x\nx = 2 # one\n", doc.toString())
     }
 
     @Test
     fun `a value read without comments keeps the comments of the slot it replaces`() {
         val doc = parse("# about x\nx = 1 # one\n")
-        doc["x"] = parse("y = 5\n")["y"].assertSuccess()
+        doc.set("x", parse("y = 5\n")["y"].assertSuccess()).assertSuccess()
         assertEquals("# about x\nx = 5 # one\n", doc.toString())
     }
 
     @Test
     fun `a value that brings comments replaces the comments of the slot`() {
         val doc = parse("# free\n\n# about x\nx = 1 # one\n")
-        doc["x"] = parse("# about y\ny = 5 # five\n")["y"].assertSuccess()
+        doc.set("x", parse("# about y\ny = 5 # five\n")["y"].assertSuccess()).assertSuccess()
         assertEquals("# free\n\n# about y\nx = 5 # five\n", doc.toString())
     }
 
     @Test
     fun `a table that brings comments replaces the header comments of the slot and keeps its free lines`() {
         val doc = parse("# keep\n\n# about a\n[a] # ah\nx = 1\n")
-        doc["a"] = parse("# free\n\n# about b\n[b] # bh\nk = 2\n")["b"].assertSuccess()
+        doc.set("a", parse("# free\n\n# about b\n[b] # bh\nk = 2\n")["b"].assertSuccess()).assertSuccess()
         assertEquals("# keep\n\n# about b\n[a] # bh\nk = 2\n", doc.toString())
     }
 
     @Test
     fun `a table with no comments of its own keeps the header comments of the slot`() {
         val doc = parse("# keep\n\n# about a\n[a] # ah\nx = 1\n")
-        doc["a"] = parse("[b]\nk = 2\n")["b"].assertSuccess()
+        doc.set("a", parse("[b]\nk = 2\n")["b"].assertSuccess()).assertSuccess()
         assertEquals("# keep\n\n# about a\n[a] # ah\nk = 2\n", doc.toString())
     }
 
     @Test
     fun `a value stored in an indented table indents the comment lines it brings like the line above`() {
         val doc = parse("[t]\n  a = 0\n")
-        doc["t"]["x"] = parse("# about x\nx = 1 # one\n")["x"].assertSuccess()
+        doc["t"].set("x", parse("# about x\nx = 1 # one\n")["x"].assertSuccess()).assertSuccess()
         assertEquals("[t]\n  a = 0\n  # about x\n  x = 1 # one\n", doc.toString())
     }
 
     @Test
     fun `a value stored in a document with CRLF line endings brings its comment lines ending in CRLF`() {
         val doc = parse("a = 0\r\n")
-        doc["x"] = parse("# about x\nx = 1 # one\n")["x"].assertSuccess()
+        doc.set("x", parse("# about x\nx = 1 # one\n")["x"].assertSuccess()).assertSuccess()
         assertEquals("a = 0\r\n# about x\r\nx = 1 # one\r\n", doc.toString())
     }
 
@@ -116,7 +115,7 @@ class StoreCarriesCommentsTest {
     fun `a removed value stored again brings the comment lines above it`() {
         val source = parse("y = 0\n# about x\nx = 1 # one\n")
         val doc = parse("a = 0\n")
-        doc["x"] = source.remove("x", force = true).assertSuccess()
+        doc.set("x", source.remove("x", force = true).assertSuccess()).assertSuccess()
         assertEquals("a = 0\n# about x\nx = 1 # one\n", doc.toString())
     }
 
@@ -124,7 +123,7 @@ class StoreCarriesCommentsTest {
     fun `a removed table stored again prints its comments below the blank line before its header`() {
         val source = parse("# about db\n[db] # primary\nurl = 1\n")
         val doc = parse("a = 0\n")
-        doc["db"] = source.remove("db", force = true).assertSuccess()
+        doc.set("db", source.remove("db", force = true).assertSuccess()).assertSuccess()
         assertEquals("a = 0\n\n# about db\n[db] # primary\nurl = 1\n", doc.toString())
     }
 
@@ -132,7 +131,7 @@ class StoreCarriesCommentsTest {
     fun `a table built from pairs brings the comments of an item read from a document`() {
         val table = standardTableOf("k" to parse("# about x\nx = 1 # one\n")["x"].assertSuccess()).assertSuccess()
         val doc = parse("a = 0\n")
-        doc["t"] = table
+        doc.set("t", table).assertSuccess()
         assertEquals("a = 0\n\n[t]\n# about x\nk = 1 # one\n", doc.toString())
     }
 
@@ -140,7 +139,7 @@ class StoreCarriesCommentsTest {
     fun `an array of tables stored under a new key brings the comments above its first header`() {
         val source = parse("# free\n\n# about arr\n[[arr]] # first\nx = 1\n\n# second\n[[arr]] # two\nx = 2\n")
         val doc = parse("[app]\n")
-        doc["arr"] = source["arr"].assertSuccess()
+        doc.set("arr", source["arr"].assertSuccess()).assertSuccess()
         val expected = "[app]\n\n# about arr\n[[arr]] # first\nx = 1\n\n# second\n[[arr]] # two\nx = 2\n"
         assertEquals(expected, doc.toString())
     }
@@ -165,7 +164,8 @@ class StoreCarriesCommentsTest {
     fun `tables of a document gathered into an array of tables stored under a new key bring their comments`() {
         val source = parse("# first\n[[a]] # h1\nn = 1\n\n# second\n[[a]] # h2\nn = 2\n")
         val doc = parse("z = 0\n")
-        doc["b"] = source["a"].assertSuccess().arrayOfTablesOrNull!!.reversed().toArrayOfTables().assertSuccess()
+        doc.set("b", source["a"].assertSuccess().arrayOfTablesOrNull!!.reversed().toArrayOfTables().assertSuccess())
+            .assertSuccess()
         assertEquals("z = 0\n\n# second\n[[b]] # h2\nn = 2\n\n# first\n[[b]] # h1\nn = 1\n", doc.toString())
     }
 
@@ -173,21 +173,21 @@ class StoreCarriesCommentsTest {
     fun `an element assigned by index brings its comments in place of the element's`() {
         val source = parse("a = [\n  # about one\n  1, # one\n]\n")
         val doc = parse("b = [\n  # about two\n  2, # two\n  3,\n]\n")
-        doc["b"][0] = source["a"][0].assertSuccess()
+        doc["b"].set(0, source["a"][0].assertSuccess()).assertSuccess()
         assertEquals("b = [\n  # about one\n  1, # one\n  3,\n]\n", doc.toString())
     }
 
     @Test
     fun `an element assigned by index into an array on one line brings its comments onto lines of their own`() {
         val doc = parse("x = [1, 2]\n")
-        doc["x"][0] = parse("# about a\na = 5 # five\n")["a"].assertSuccess()
+        doc["x"].set(0, parse("# about a\na = 5 # five\n")["a"].assertSuccess()).assertSuccess()
         assertEquals("x = [\n  # about a\n  5, # five\n  2,\n]\n", doc.toString())
     }
 
     @Test
     fun `an element assigned by index with no comments keeps the place and comments of the slot`() {
         val doc = parse("b = [\n  # about two\n  2, # two\n  3,\n]\n")
-        doc["b"][0] = parse("a = 5\n")["a"].assertSuccess()
+        doc["b"].set(0, parse("a = 5\n")["a"].assertSuccess()).assertSuccess()
         assertEquals("b = [\n  # about two\n  5, # two\n  3,\n]\n", doc.toString())
     }
 
@@ -201,7 +201,7 @@ class StoreCarriesCommentsTest {
     @Test
     fun `a value stored in an inline table brings its comments onto lines of their own`() {
         val doc = parse("t = { a = 0 }\n")
-        doc["t"]["x"] = parse("# about x\nx = 1 # one\n")["x"].assertSuccess()
+        doc["t"].set("x", parse("# about x\nx = 1 # one\n")["x"].assertSuccess()).assertSuccess()
         assertEquals("t = {\n  a = 0,\n  # about x\n  x = 1, # one\n}\n", doc.toString())
     }
 
@@ -240,13 +240,14 @@ class StoreCarriesCommentsTest {
     }
 
     @Test
-    fun `a refused store in the index form throws the error and changes nothing`() {
+    fun `a refused store under a parent read by indexing returns the error and changes nothing`() {
         val doc = parse("v = 1 # one\nt = { a = 1 }\n", TomlVersion.V1_0)
-        val thrown = assertFailsWith<TomlEditException> { doc["t"]["v"] = doc["v"].assertSuccess() }
-        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("t", "v"), 1), thrown.error)
+        val underIndex = doc["t"].set("v", doc["v"].assertSuccess()).assertError<TomlEditError.CommentsWouldBeLost>()
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("t", "v"), 1), underIndex)
         val table = doc["t"].assertSuccess().inlineTableOrNull!!
-        val onTable = assertFailsWith<TomlEditException> { table["v"] = doc["v"].assertSuccess().valueOrNull!! }
-        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("t", "v"), 1), onTable.error)
+        val onTable = table.set("v", doc["v"].assertSuccess().valueOrNull!!)
+            .assertError<TomlEditError.CommentsWouldBeLost>()
+        assertEquals(TomlEditError.CommentsWouldBeLost(listOf("t", "v"), 1), onTable)
         assertEquals("v = 1 # one\nt = { a = 1 }\n", doc.toString())
     }
 
@@ -330,7 +331,7 @@ class StoreCarriesCommentsTest {
     @Test
     fun `an element assigned by index into another array keeps the comment lines between it and its comma`() {
         val doc = parse("${linesBelow}c = [8, 9]\n")
-        doc["c"][0] = doc["a"][1].assertSuccess()
+        doc["c"].set(0, doc["a"][1].assertSuccess()).assertSuccess()
         assertEquals("${linesBelow}c = [\n  2 # on 2\n  # more\n  ,\n  9,\n]\n", doc.toString())
     }
 
@@ -350,7 +351,7 @@ class StoreCarriesCommentsTest {
     @Test
     fun `an element stored in a dotted table on a table's lines puts the comment lines below it above its key`() {
         val doc = dottedOnTableLines()
-        doc["t"]["d"]["b"] = doc["a"][1].assertSuccess()
+        doc["t"]["d"].set("b", doc["a"][1].assertSuccess()).assertSuccess()
         assertEquals("$linesBelow\n[t]\nd.x = 1\n# more\nd.b = 2 # on 2\n", doc.toString())
     }
 
@@ -365,7 +366,7 @@ class StoreCarriesCommentsTest {
     @Test
     fun `an element replacing a dotted key on a table's lines puts the comment lines below it above the line`() {
         val doc = dottedOnTableLines()
-        doc["t"]["d"]["x"] = doc["a"][1].assertSuccess()
+        doc["t"]["d"].set("x", doc["a"][1].assertSuccess()).assertSuccess()
         assertEquals("$linesBelow\n[t]\n# more\nd.x = 2 # on 2\n", doc.toString())
     }
 
@@ -379,22 +380,22 @@ class StoreCarriesCommentsTest {
     @Test
     fun `a copy of a dotted table in braces keeps the comment after the comma of its last line`() {
         val doc = parse("s = {\n  b.c = 1, # on c\n  y = 5,\n}\n[t]\nx = 0\n")
-        doc["t"]["b"] = doc["s"]["b"].assertSuccess()
+        doc["t"].set("b", doc["s"]["b"].assertSuccess()).assertSuccess()
         assertEquals("s = {\n  b.c = 1, # on c\n  y = 5,\n}\n[t]\nx = 0\nb.c = 1 # on c\n", doc.toString())
     }
 
     @Test
     fun `the comment after an opening brace stays with its table when a dotted table inside is copied`() {
         val doc = parse("s = { # on s\n  b.c = 1,\n  y = 5,\n}\n[t]\nx = 0\n")
-        doc["t"]["b"] = doc["s"]["b"].assertSuccess()
+        doc["t"].set("b", doc["s"]["b"].assertSuccess()).assertSuccess()
         assertEquals("s = { # on s\n  b.c = 1,\n  y = 5,\n}\n[t]\nx = 0\nb.c = 1\n", doc.toString())
     }
 
     @Test
     fun `two copies of one dotted table stored in one table print their lines together`() {
         val doc = parse("s = {\n  b.c = 1,\n  b.d = 2,\n}\n[t]\nx = 0\n")
-        doc["t"]["b"] = doc["s"]["b"].assertSuccess()
-        doc["t"]["e"] = doc["s"]["b"].assertSuccess()
+        doc["t"].set("b", doc["s"]["b"].assertSuccess()).assertSuccess()
+        doc["t"].set("e", doc["s"]["b"].assertSuccess()).assertSuccess()
         val stored = "[t]\nx = 0\nb.c = 1\nb.d = 2\ne.c = 1\ne.d = 2\n"
         assertEquals("s = {\n  b.c = 1,\n  b.d = 2,\n}\n$stored", doc.toString())
     }
@@ -410,7 +411,7 @@ class StoreCarriesCommentsTest {
         val source = parse("x = 0\n\n# free\n\n# about a\na.b = 1\na.c = 2\n")
         val removed = source.remove("a", force = true).assertSuccess()
         val doc = parse("y = 1\n")
-        doc["a"] = removed
+        doc.set("a", removed).assertSuccess()
         assertEquals("x = 0\n\n# free\n", source.toString())
         assertEquals("y = 1\n# about a\na.b = 1\na.c = 2\n", doc.toString())
     }
@@ -418,23 +419,23 @@ class StoreCarriesCommentsTest {
     @Test
     fun `blank lines inside a copied table stay`() {
         val doc = parse("a = 0\n")
-        doc["t"] = parse("[t]\nx = 1\n\n# about y\ny = 2\n")["t"].assertSuccess()
+        doc.set("t", parse("[t]\nx = 1\n\n# about y\ny = 2\n")["t"].assertSuccess()).assertSuccess()
         assertEquals("a = 0\n\n[t]\nx = 1\n\n# about y\ny = 2\n", doc.toString())
     }
 
     @Test
     fun `a copy of a stored table brings the comment lines the store put above its header`() {
         val doc = parse("# about a\n[a]\nn = 1\n\n[b]\nm = 2\n")
-        doc["b"]["c"] = doc["a"].assertSuccess()
-        doc["d"] = doc["b"]["c"].assertSuccess()
+        doc["b"].set("c", doc["a"].assertSuccess()).assertSuccess()
+        doc.set("d", doc["b"]["c"].assertSuccess()).assertSuccess()
         assertEquals("# about a\n[d]\nn = 1\n", doc.toString().substringAfter("[b.c]\nn = 1\n\n"))
     }
 
     @Test
     fun `a copy of a stored table of an array of tables brings the comment lines above its header`() {
         val doc = parse("# first\n[[x]]\nn = 1\n\n# second\n[[x]]\nn = 2\n\n[y]\n")
-        doc["y"]["q"] = doc["x"].assertSuccess().arrayOfTablesOrNull!![1].assertSuccess()
-        doc["z"] = doc["y"]["q"].assertSuccess()
+        doc["y"].set("q", doc["x"].assertSuccess().arrayOfTablesOrNull!![1].assertSuccess()).assertSuccess()
+        doc.set("z", doc["y"]["q"].assertSuccess()).assertSuccess()
         assertEquals("# second\n[z]\nn = 2\n", doc.toString().substringAfter("[y.q]\nn = 2\n\n"))
     }
 }

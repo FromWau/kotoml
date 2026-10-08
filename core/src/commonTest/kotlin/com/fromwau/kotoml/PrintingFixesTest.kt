@@ -27,14 +27,14 @@ class PrintingFixesTest {
     @Test
     fun `a key added to a one-line inline table takes over the space before the closing brace`() {
         val doc = TomlDocument.parse("t = { x = 1 }\n").assertSuccess()
-        doc["t"]["y"] = 2L
+        doc["t"].set("y", 2L).assertSuccess()
         assertEquals("t = { x = 1, y = 2 }\n", doc.toString())
     }
 
     @Test
     fun `a key added after an entry spaced before its comma keeps that spacing on the entry`() {
         val doc = TomlDocument.parse("t = { a = [1, 2] , b = [1] }\n").assertSuccess()
-        doc["t"]["c"] = 3L
+        doc["t"].set("c", 3L).assertSuccess()
         assertEquals("t = { a = [1, 2] , b = [1], c = 3 }\n", doc.toString())
     }
 
@@ -63,7 +63,8 @@ class PrintingFixesTest {
     fun `a reversed array of tables prints in its new order`() {
         val doc = parse("[[arr]]\nx = 1\n\n[[arr]]\nx = 2\n")
 
-        doc["arr"] = doc["arr"].assertSuccess().arrayOfTablesOrNull!!.reversed().toArrayOfTables().assertSuccess()
+        doc.set("arr", doc["arr"].assertSuccess().arrayOfTablesOrNull!!.reversed().toArrayOfTables().assertSuccess())
+            .assertSuccess()
 
         assertEquals("[[arr]]\nx = 2\n\n[[arr]]\nx = 1\n", doc.toString())
         assertEquals(listOf(2L, 1L), parse(doc.toString()).xs())
@@ -73,7 +74,8 @@ class PrintingFixesTest {
     fun `reordered tables move with the comment lines above their headers and their header comments`() {
         val doc = parse("# first\n[[a]] # h1\nn = 1 #one\n\n# second\n[[a]] # h2\nn = 2 #two\n")
 
-        doc["a"] = doc["a"].assertSuccess().arrayOfTablesOrNull!!.reversed().toArrayOfTables().assertSuccess()
+        doc.set("a", doc["a"].assertSuccess().arrayOfTablesOrNull!!.reversed().toArrayOfTables().assertSuccess())
+            .assertSuccess()
 
         assertEquals("# second\n[[a]] # h2\nn = 2 #two\n\n# first\n[[a]] # h1\nn = 1 #one\n", doc.toString())
     }
@@ -82,7 +84,8 @@ class PrintingFixesTest {
     fun `reordered tables of a CRLF document move with the comment lines above their headers`() {
         val doc = parse("# first\r\n[[a]] # h1\r\nn = 1\r\n\r\n# second\r\n[[a]] # h2\r\nn = 2\r\n")
 
-        doc["a"] = doc["a"].assertSuccess().arrayOfTablesOrNull!!.reversed().toArrayOfTables().assertSuccess()
+        doc.set("a", doc["a"].assertSuccess().arrayOfTablesOrNull!!.reversed().toArrayOfTables().assertSuccess())
+            .assertSuccess()
 
         assertEquals("# second\r\n[[a]] # h2\r\nn = 2\r\n\r\n# first\r\n[[a]] # h1\r\nn = 1\r\n", doc.toString())
     }
@@ -92,7 +95,7 @@ class PrintingFixesTest {
         val doc = parse("# one\n[[arr]]\nx = 1 # c1\n\n# two\n[[arr]] # h2\nx = 2\n\n\n# three\n[[arr]]\nx = 3\n")
         val tables = doc["arr"].assertSuccess().arrayOfTablesOrNull!!.toList()
 
-        doc["arr"] = listOf(tables[1], tables[2], tables[0]).toArrayOfTables().assertSuccess()
+        doc.set("arr", listOf(tables[1], tables[2], tables[0]).toArrayOfTables().assertSuccess()).assertSuccess()
 
         assertEquals(
             "# two\n[[arr]] # h2\nx = 2\n\n# three\n[[arr]]\nx = 3\n\n\n# one\n[[arr]]\nx = 1 # c1\n",
@@ -104,7 +107,8 @@ class PrintingFixesTest {
     fun `a table between reordered elements keeps the lines above it`() {
         val doc = parse("# one\n[[arr]]\nx = 1\n\n# b\n[b]\n\n# two\n[[arr]]\nx = 2\n")
 
-        doc["arr"] = doc["arr"].assertSuccess().arrayOfTablesOrNull!!.reversed().toArrayOfTables().assertSuccess()
+        doc.set("arr", doc["arr"].assertSuccess().arrayOfTablesOrNull!!.reversed().toArrayOfTables().assertSuccess())
+            .assertSuccess()
 
         assertEquals("# two\n[[arr]]\nx = 2\n\n# b\n[b]\n\n# one\n[[arr]]\nx = 1\n", doc.toString())
     }
@@ -113,7 +117,8 @@ class PrintingFixesTest {
     fun `a table under a reordered element moves with it and its comments while the blank lines stay`() {
         val doc = parse("# one\n[[arr]]\nx = 1\n# sub\n[arr.sub]\ny = 1\n\n# two\n[[arr]]\nx = 2\n")
 
-        doc["arr"] = doc["arr"].assertSuccess().arrayOfTablesOrNull!!.reversed().toArrayOfTables().assertSuccess()
+        doc.set("arr", doc["arr"].assertSuccess().arrayOfTablesOrNull!!.reversed().toArrayOfTables().assertSuccess())
+            .assertSuccess()
 
         assertEquals("# two\n[[arr]]\nx = 2\n# one\n[[arr]]\nx = 1\n\n# sub\n[arr.sub]\ny = 1\n", doc.toString())
     }
@@ -122,7 +127,8 @@ class PrintingFixesTest {
     fun `reordered elements share their places while a table between them stays put`() {
         val doc = parse("[[arr]]\nx = 1\n[b]\n[[arr]]\nx = 2\n")
 
-        doc["arr"] = doc["arr"].assertSuccess().arrayOfTablesOrNull!!.reversed().toArrayOfTables().assertSuccess()
+        doc.set("arr", doc["arr"].assertSuccess().arrayOfTablesOrNull!!.reversed().toArrayOfTables().assertSuccess())
+            .assertSuccess()
 
         assertEquals("[[arr]]\nx = 2\n[b]\n[[arr]]\nx = 1\n", doc.toString())
     }
@@ -131,7 +137,8 @@ class PrintingFixesTest {
     fun `the tables under an element move with it`() {
         val doc = parse("[[arr]]\nx = 1\n[arr.sub]\ny = 1\n[[arr]]\nx = 2\n")
 
-        doc["arr"] = doc["arr"].assertSuccess().arrayOfTablesOrNull!!.reversed().toArrayOfTables().assertSuccess()
+        doc.set("arr", doc["arr"].assertSuccess().arrayOfTablesOrNull!!.reversed().toArrayOfTables().assertSuccess())
+            .assertSuccess()
 
         assertEquals("[[arr]]\nx = 2\n[[arr]]\nx = 1\n[arr.sub]\ny = 1\n", doc.toString())
     }
@@ -168,7 +175,7 @@ class PrintingFixesTest {
         val doc = parse("a.b = 1\n")
         val dotted = doc["a"].assertSuccess().standardTableOrNull!!
 
-        doc["arr"] = arrayOfTablesOf(dotted.copy()).assertSuccess()
+        doc.set("arr", arrayOfTablesOf(dotted.copy()).assertSuccess()).assertSuccess()
 
         assertEquals("a.b = 1\n\n[[arr]]\nb = 1\n", doc.toString())
     }
@@ -195,8 +202,8 @@ class PrintingFixesTest {
     @Test
     fun `sorting orders tables made by hand`() {
         val doc = TomlDocument()
-        doc["z"] = table("y" to 1L)
-        doc["a"] = table("x" to 1L)
+        doc.set("z", table("y" to 1L)).assertSuccess()
+        doc.set("a", table("x" to 1L)).assertSuccess()
 
         doc.root.sortBy { (key, _) -> key }
 
@@ -206,7 +213,7 @@ class PrintingFixesTest {
     @Test
     fun `sorting moves a table made by hand ahead of a parsed one`() {
         val doc = parse("[z]\ny = 1\n")
-        doc["a"] = table("x" to 1L)
+        doc.set("a", table("x" to 1L)).assertSuccess()
 
         doc.root.sortBy { (key, _) -> key }
 
@@ -216,9 +223,9 @@ class PrintingFixesTest {
     @Test
     fun `sorting orders values and tables made by hand`() {
         val doc = TomlDocument()
-        doc["b"] = 2L
-        doc["z"] = table("y" to 1L)
-        doc["a"] = 1L
+        doc.set("b", 2L).assertSuccess()
+        doc.set("z", table("y" to 1L)).assertSuccess()
+        doc.set("a", 1L).assertSuccess()
 
         doc.root.sortBy { (key, _) -> key }
 
@@ -253,7 +260,7 @@ class PrintingFixesTest {
     fun `an edited document and its copy keep the byte order mark`() {
         val doc = parse("﻿a = 1\n")
 
-        doc["b"] = 2L
+        doc.set("b", 2L).assertSuccess()
 
         assertEquals("﻿a = 1\nb = 2\n", doc.toString())
         assertEquals("﻿a = 1\nb = 2\n", doc.copy().toString())
@@ -263,7 +270,7 @@ class PrintingFixesTest {
     fun `a new table in a CRLF document has a CRLF blank line above its header`() {
         val doc = parse("a = 1\r\n")
 
-        doc["t"] = table("x" to 1L)
+        doc.set("t", table("x" to 1L)).assertSuccess()
 
         assertEquals("a = 1\r\n\r\n[t]\r\nx = 1\r\n", doc.toString())
     }
@@ -283,7 +290,7 @@ class PrintingFixesTest {
 
         assertEquals("a = 1", doc.toString())
         assertEquals("a = 1", doc.copy().toString())
-        doc["b"] = 2L
+        doc.set("b", 2L).assertSuccess()
         assertEquals("a = 1\nb = 2", doc.toString())
         assertEquals("a = 1\nb = 2", doc.copy().toString())
     }
@@ -309,7 +316,7 @@ class PrintingFixesTest {
     @Test
     fun `a lone surrogate in a string is kept but not written and names its key`() {
         val doc = TomlDocument()
-        doc["name"] = "half \uD800 pair"
+        doc.set("name", "half \uD800 pair").assertSuccess()
         val sink = Buffer()
 
         val error = doc.writeTo(sink).assertError<TomlWriteError.NotUnicode>()
@@ -323,7 +330,7 @@ class PrintingFixesTest {
     @Test
     fun `a lone surrogate in a nested key names the path to it`() {
         val doc = TomlDocument()
-        doc["server"] = table("na\uDC00me" to 1L)
+        doc.set("server", table("na\uDC00me" to 1L)).assertSuccess()
 
         val error = doc.writeTo(Buffer()).assertError<TomlWriteError.NotUnicode>()
 
@@ -343,7 +350,7 @@ class PrintingFixesTest {
     @Test
     fun `a surrogate pair is written`() {
         val doc = TomlDocument()
-        doc["emoji"] = "😀"
+        doc.set("emoji", "😀").assertSuccess()
         val sink = Buffer()
 
         doc.writeTo(sink).assertSuccess()

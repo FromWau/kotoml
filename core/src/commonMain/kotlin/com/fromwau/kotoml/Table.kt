@@ -11,6 +11,7 @@ import com.fromwau.kern.result.Result
  * fun names(table: Table): List<String> = table.entries.map { it.first }
  * ```
  */
+@MustUseReturnValues
 public sealed interface Table {
     /** The key/item pairs, in order. */
     public val entries: List<Pair<String, Item>>

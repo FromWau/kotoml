@@ -20,7 +20,7 @@ a = "x # not a comment" # real
 b = 1
 ```
 ```kotlin edit
-doc["b"] = 2L
+doc.set("b", 2L).assertSuccess()
 ```
 ```toml expected
 a = "x # not a comment" # real
@@ -33,7 +33,7 @@ rule: 3   version: 1.0
 a = "x # y" # real
 ```
 ```kotlin edit
-doc["a"] = "z"
+doc.set("a", "z").assertSuccess()
 ```
 ```toml expected
 a = "z" # real
@@ -45,7 +45,7 @@ rule: 3   version: 1.0
 p = 'C:\#dir' # path
 ```
 ```kotlin edit
-doc["p"] = "D"
+doc.set("p", "D").assertSuccess()
 ```
 ```toml expected
 p = "D" # path
@@ -76,7 +76,7 @@ line # x
 ''' # trailing
 ```
 ```kotlin edit
-doc["s"] = "y"
+doc.set("s", "y").assertSuccess()
 ```
 ```toml expected
 s = "y" # trailing
@@ -88,7 +88,7 @@ rule: 3   version: 1.0
 a = "say \"#hi\"" # c
 ```
 ```kotlin edit
-doc["a"] = "bye"
+doc.set("a", "bye").assertSuccess()
 ```
 ```toml expected
 a = "bye" # c
@@ -100,7 +100,7 @@ rule: 3   version: 1.0
 a = 'x#'#c
 ```
 ```kotlin edit
-doc["a"] = "z"
+doc.set("a", "z").assertSuccess()
 ```
 ```toml expected
 a = "z"#c
@@ -146,7 +146,7 @@ a = 1#c
 b = 2
 ```
 ```kotlin edit
-doc["a"] = 10L
+doc.set("a", 10L).assertSuccess()
 ```
 ```toml expected
 a = 10#c
@@ -159,7 +159,7 @@ rule: 3   version: 1.0
 	a = 1	# tabbed
 ```
 ```kotlin edit
-doc["a"] = 2L
+doc.set("a", 2L).assertSuccess()
 ```
 ```toml expected
 	a = 2	# tabbed
@@ -249,7 +249,7 @@ rule: 1   version: 1.0
 x = 1
 ```
 ```kotlin edit
-doc["a"]["b"]["y"] = 2L
+doc["a"]["b"].set("y", 2L).assertSuccess()
 ```
 ```toml expected
 [ a . b ] # hdr
@@ -264,7 +264,7 @@ rule: 1, 3   version: 1.0
 k = 1 # one
 ```
 ```kotlin edit
-doc["x#y"]["k"] = 2L
+doc["x#y"].set("k", 2L).assertSuccess()
 ```
 ```toml expected
 ["x#y"] # real
@@ -749,7 +749,7 @@ a = [
 ] # after
 ```
 ```kotlin edit
-doc["a"] = 5L
+doc.set("a", 5L).assertSuccess()
 ```
 ```toml expected
 # above
@@ -873,7 +873,7 @@ a = [
 ```
 ```kotlin edit
 val v = doc["a"].assertSuccess().valueOrNull!!
-doc["b"] = v
+doc.set("b", v).assertSuccess()
 ```
 ```toml expected
 a = [
@@ -1049,7 +1049,7 @@ t = {
 } # close
 ```
 ```kotlin edit
-doc["t"] = 0L
+doc.set("t", 0L).assertSuccess()
 ```
 ```toml expected
 # cfg
@@ -1065,7 +1065,7 @@ t = {
 }
 ```
 ```kotlin edit
-doc["t"]["inner"]["x"] = 5L
+doc["t"]["inner"].set("x", 5L).assertSuccess()
 ```
 ```toml expected
 t = {
@@ -1179,7 +1179,7 @@ a . b = 1 # ab
 a.c = 2 # ac
 ```
 ```kotlin edit
-doc["a"]["b"] = 7L
+doc["a"].set("b", 7L).assertSuccess()
 ```
 ```toml expected
 a . b = 7 # ab
@@ -1268,7 +1268,7 @@ rule: 3   version: 1.0
 "a#b" = 1 # c
 ```
 ```kotlin edit
-doc["a#b"] = 2L
+doc.set("a#b", 2L).assertSuccess()
 ```
 ```toml expected
 "a#b" = 2 # c
@@ -1295,7 +1295,7 @@ rule: 10   version: 1.0
 a = 1 # c
 ```
 ```kotlin edit
-doc["x#y"] = 2L
+doc.set("x#y", 2L).assertSuccess()
 ```
 ```toml expected
 a = 1 # c
@@ -1311,7 +1311,7 @@ rule: 9, 1   version: 1.0   line endings: CRLF
 a = 1 # c
 ```
 ```kotlin edit
-doc["b"] = 2L
+doc.set("b", 2L).assertSuccess()
 ```
 ```toml expected
 # top
@@ -1376,7 +1376,7 @@ a = 1 # crlf
 b = 2 # lf
 ```
 ```kotlin edit
-doc["c"] = 3L
+doc.set("c", 3L).assertSuccess()
 ```
 ```toml expected
 a = 1 # crlf
@@ -1392,7 +1392,7 @@ a = 1 # lf
 b = 2 # crlf
 ```
 ```kotlin edit
-doc["c"] = 3L
+doc.set("c", 3L).assertSuccess()
 ```
 ```toml expected
 a = 1 # lf
@@ -1408,7 +1408,7 @@ settled: todo 31, 2026-10-05: a file read without a final newline keeps none aft
 a = 1 # c
 ```
 ```kotlin edit
-doc["a"] = 2L
+doc.set("a", 2L).assertSuccess()
 ```
 ```toml expected
 # top
@@ -1421,7 +1421,7 @@ settled: todo 31, 2026-10-05: a file read without a final newline keeps none aft
 a = 1 # c
 ```
 ```kotlin edit
-doc["a"] = 2L
+doc.set("a", 2L).assertSuccess()
 ```
 ```toml expected
 a = 2 # c```
@@ -1434,7 +1434,7 @@ a = 1
 # end
 ```
 ```kotlin edit
-doc["b"] = 2L
+doc.set("b", 2L).assertSuccess()
 ```
 ```toml expected
 a = 1
@@ -1461,7 +1461,7 @@ rule: 9, 3   version: 1.0   BOM
 a = 1 # c
 ```
 ```kotlin edit
-doc["a"] = 2L
+doc.set("a", 2L).assertSuccess()
 ```
 ```toml expected
 # first line after BOM
@@ -1488,7 +1488,7 @@ settled: owner ruling 2026-10-05 (Q3): in a document that is only comments, new 
 # only a comment
 ```
 ```kotlin edit
-doc["a"] = 1L
+doc.set("a", 1L).assertSuccess()
 ```
 ```toml expected
 # only a comment
@@ -1551,7 +1551,7 @@ a = 1
 b = 2 # bee
 ```
 ```kotlin edit
-doc["b"] = 3L
+doc.set("b", 3L).assertSuccess()
 ```
 ```toml expected
 a = 1
@@ -1572,7 +1572,7 @@ settled: owner ruling 2026-10-05 (Q3): in a document that is only comments, new 
 # second comment
 ```
 ```kotlin edit
-doc["a"] = 1L
+doc.set("a", 1L).assertSuccess()
 ```
 ```toml expected
 # header comment
@@ -1588,7 +1588,7 @@ settled: owner ruling 2026-10-05 (Q3): in a document that is only comments, new 
 # just comments
 ```
 ```kotlin edit
-doc["t"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
+doc.set("t", standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
 ```
 ```toml expected
 # just comments
@@ -1843,7 +1843,7 @@ rule: 3   version: 1.0
 a = 1 # c
 ```
 ```kotlin edit
-doc["a"] = Value.Array(tomlArrayOf(Value.Integer(1L), Value.Integer(2L)).assertSuccess())
+doc.set("a", Value.Array(tomlArrayOf(Value.Integer(1L), Value.Integer(2L)).assertSuccess())).assertSuccess()
 ```
 ```toml expected
 # above
@@ -1856,7 +1856,7 @@ rule: 3   version: 1.0
 a = 1 # c
 ```
 ```kotlin edit
-doc["a"] = Value.InlineTable(inlineTableOf("k" to Value.Integer(1L)).assertSuccess())
+doc.set("a", Value.InlineTable(inlineTableOf("k" to Value.Integer(1L)).assertSuccess())).assertSuccess()
 ```
 ```toml expected
 a = { k = 1 } # c
@@ -1870,7 +1870,7 @@ settled: owner confirmed 2026-10-05: as kotoml prints it.
 a = 1 # c
 ```
 ```kotlin edit
-doc["a"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
+doc.set("a", standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
 ```
 ```toml expected
 # above
@@ -1889,7 +1889,7 @@ x = 1
 a = 1 # one
 ```
 ```kotlin edit
-doc["t"] = 5L
+doc.set("t", 5L).assertSuccess()
 ```
 ```toml expected
 x = 1
@@ -1926,7 +1926,7 @@ n = 1
 n = 2
 ```
 ```kotlin edit
-doc["bin"] = 0L
+doc.set("bin", 0L).assertSuccess()
 ```
 ```toml expected
 x = 1

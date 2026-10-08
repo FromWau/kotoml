@@ -100,7 +100,7 @@ class VisitExampleTest {
                 if (inlineTable != null) {
                     val table = inlineTable.toStandardTable()
                     key.format()
-                    item.assign(Item(table))
+                    item.assign(Item(table)).assertSuccess()
                 }
             }
             VisitState.SubDependencies -> {
@@ -109,7 +109,7 @@ class VisitExampleTest {
                 if (table != null) {
                     val inlineTable = table.toInlineTable().assertSuccess()
                     key.format()
-                    item.assign(Item(Value.InlineTable(inlineTable)))
+                    item.assign(Item(Value.InlineTable(inlineTable))).assertSuccess()
                 }
             }
             else -> {}

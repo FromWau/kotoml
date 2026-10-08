@@ -265,11 +265,11 @@ class LayoutTest {
     fun `a dotted table holding lines kept from removed keys goes across lines keeping every comment once`() {
         val doc = parse("# about a.x\na.x = 1 # x\n# about b\n\nb = 2\n# about a.y\n\na.y = 3 # y\n")
         val a = doc["a"].assertSuccess()
-        a.standardTableOrNull!!.remove("y", force = true)
+        a.standardTableOrNull!!.remove("y", force = true).assertSuccess()
         a.setLayout(TableLayout.Header, force = true).assertSuccess()
         a.standardTableOrNull!!.setImplicit(true)
         a.setLayout(TableLayout.Dotted, force = true).assertSuccess()
-        doc.remove("b", force = true)
+        doc.remove("b", force = true).assertSuccess()
         val before = doc.toString()
         doc["a"].assertSuccess().setLayout(TableLayout.MultilineInline).assertSuccess()
         assertEquals("# about a.x\na = {\n  x = 1, # x\n  # about b\n  # about a.y\n}\n", doc.toString())
@@ -280,11 +280,11 @@ class LayoutTest {
     fun `a dotted table holding lines kept from removed keys put on one line keeps them below it`() {
         val doc = parse("# about a.x\na.x = 1 # x\n# about b\n\nb = 2\n# about a.y\n\na.y = 3 # y\n")
         val a = doc["a"].assertSuccess()
-        a.standardTableOrNull!!.remove("y", force = true)
+        a.standardTableOrNull!!.remove("y", force = true).assertSuccess()
         a.setLayout(TableLayout.Header, force = true).assertSuccess()
         a.standardTableOrNull!!.setImplicit(true)
         a.setLayout(TableLayout.Dotted, force = true).assertSuccess()
-        doc.remove("b", force = true)
+        doc.remove("b", force = true).assertSuccess()
         val error = doc["a"].assertSuccess().setLayout(TableLayout.Inline).assertError<TomlEditError.CommentsWouldBeLost>()
         assertEquals(TomlEditError.CommentsWouldBeLost(listOf("a"), 1), error)
         doc["a"].assertSuccess().setLayout(TableLayout.Inline, force = true).assertSuccess()
@@ -327,7 +327,7 @@ class LayoutTest {
     @Test
     fun `a table made inline keeps the lines above an earlier header under a table given a header later`() {
         val doc = parse("# about w\n[x.y.z.w]\n[x]\nc = 3\n")
-        doc["x"]["y"]["z"].assertSuccess().standardTableOrNull!!["q"] = Item(Value.Integer(1L))
+        doc["x"]["y"]["z"].assertSuccess().standardTableOrNull!!.set("q", Item(Value.Integer(1L))).assertSuccess()
         doc["x"].assertSuccess().setLayout(TableLayout.Inline).assertSuccess()
         assertEquals("# about w\nx = { y = { z = { w = {}, q = 1 } }, c = 3 }\n", doc.toString())
     }
@@ -335,7 +335,7 @@ class LayoutTest {
     @Test
     fun `an empty dotted table across lines keeps the lines kept above it from a removed key`() {
         val doc = parse("a.b.c = 1\n# about e\n\na.b.d.e = true\na.f = 2\n")
-        doc["a"]["b"]["d"].assertSuccess().standardTableOrNull!!.remove("e", force = true)
+        doc["a"]["b"]["d"].assertSuccess().standardTableOrNull!!.remove("e", force = true).assertSuccess()
         doc["a"].assertSuccess().setLayout(TableLayout.MultilineInline).assertSuccess()
         assertEquals("a = {\n  b.c = 1,\n  # about e\n\n  b.d = {},\n  f = 2,\n}\n", doc.toString())
     }
@@ -367,7 +367,7 @@ class LayoutTest {
         doc["t"]["u"].assertSuccess().setLayout(TableLayout.MultilineInline).assertSuccess()
         assertSame(inline, doc["t"]["u"].assertSuccess().inlineTableOrNull)
         assertEquals(TableLayout.MultilineInline, inline.layout)
-        inline["c"] = 3L
+        inline.set("c", 3L).assertSuccess()
         assertEquals("t.a = 1\nt.u = {\n  b = 2,\n  c = 3,\n}\n", doc.toString())
     }
 
@@ -464,7 +464,7 @@ class LayoutTest {
     @Test
     fun `a table stored nowhere takes a layout`() {
         val table = StandardTable()
-        table["a"] = 1L
+        table.set("a", 1L).assertSuccess()
         val item = Item(table)
         item.setLayout(TableLayout.Dotted).assertSuccess()
         assertEquals(TableLayout.Dotted, table.layout)

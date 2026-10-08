@@ -80,7 +80,7 @@ class HeaderCommentsTest {
         val table = doc["t"].assertSuccess().inlineTableOrNull!!
         doc["t"].assertSuccess().setLayout(TableLayout.Dotted, force = true).assertSuccess()
         assertEquals("# about t\nt.c = 3 # three\nt.d = 4 # four\n", doc.toString())
-        table.remove("c", force = true)
+        table.remove("c", force = true).assertSuccess()
         assertEquals("# about t\nt.d = 4 # four\n", doc.toString())
     }
 
@@ -89,8 +89,8 @@ class HeaderCommentsTest {
         val doc = parse("# about b\n\nb = 2\n\n# about t\n[t] # t\nc = 3\n")
         val table = doc.table("t")
         doc["t"].assertSuccess().setLayout(TableLayout.Dotted, force = true).assertSuccess()
-        table.remove("c", force = true)
-        doc.remove("b", force = true)
+        table.remove("c", force = true).assertSuccess()
+        doc.remove("b", force = true).assertSuccess()
         assertEquals("# about b\n\n# about t\nt = {}\n", doc.toString())
         doc["t"].assertSuccess().setLayout(TableLayout.Header, force = true).assertSuccess()
         assertEquals("# about b\n\n# about t\n[t]\n", doc.toString())

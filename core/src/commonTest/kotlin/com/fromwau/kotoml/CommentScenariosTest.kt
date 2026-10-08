@@ -373,328 +373,328 @@ class CommentScenariosTest {
     )
 
     private fun eR_001(doc: TomlDocument) {
-        doc.remove("b", force = true)
+        val _ = doc.remove("b", force = true)
     }
 
     private fun eR_002(doc: TomlDocument) {
-        doc.remove("a", force = true)
+        val _ = doc.remove("a", force = true)
     }
 
     private fun eR_003(doc: TomlDocument) {
-        doc.remove("b", force = true)
+        val _ = doc.remove("b", force = true)
     }
 
     private fun eR_004(doc: TomlDocument) {
-        doc.remove("a", force = true)
+        val _ = doc.remove("a", force = true)
     }
 
     private fun eR_005(doc: TomlDocument) {
-        doc.remove("a", force = true)
+        val _ = doc.remove("a", force = true)
     }
 
     private fun eR_006(doc: TomlDocument) {
-        doc.remove("b", force = true)
+        val _ = doc.remove("b", force = true)
     }
 
     private fun eR_007(doc: TomlDocument) {
-        doc["a"].assertSuccess().standardTableOrNull!!.remove("y", force = true)
+        val _ = doc["a"].assertSuccess().standardTableOrNull!!.remove("y", force = true)
     }
 
     private fun eR_008(doc: TomlDocument) {
-        doc["a"].assertSuccess().standardTableOrNull!!.remove("k", force = true)
+        val _ = doc["a"].assertSuccess().standardTableOrNull!!.remove("k", force = true)
     }
 
     private fun eR_009(doc: TomlDocument) {
-        doc["t"].assertSuccess().standardTableOrNull!!.remove("a", force = true)
+        val _ = doc["t"].assertSuccess().standardTableOrNull!!.remove("a", force = true)
     }
 
     private fun eR_010(doc: TomlDocument) {
-        doc["t"].assertSuccess().standardTableOrNull!!.remove("a", force = true)
+        val _ = doc["t"].assertSuccess().standardTableOrNull!!.remove("a", force = true)
     }
 
     private fun eR_011(doc: TomlDocument) {
-        doc.remove("list", force = true)
+        val _ = doc.remove("list", force = true)
     }
 
     private fun eR_012(doc: TomlDocument) {
-        doc.remove("s", force = true)
+        val _ = doc.remove("s", force = true)
     }
 
     private fun eR_013(doc: TomlDocument) {
-        doc.remove("t", force = true)
+        val _ = doc.remove("t", force = true)
     }
 
     private fun eR_014(doc: TomlDocument) {
-        doc.remove("b", force = true)
+        val _ = doc.remove("b", force = true)
     }
 
     private fun eR_015(doc: TomlDocument) {
-        doc.remove("b", force = true)
+        val _ = doc.remove("b", force = true)
     }
 
     private fun eR_016(doc: TomlDocument) {
-        doc.remove("zz", force = true)
+        val _ = doc.remove("zz", force = true)
     }
 
     private fun eR_017(doc: TomlDocument) {
-        doc["a"].assertSuccess().tableOrNull!!.removeItem("b", force = true)
+        val _ = doc["a"].assertSuccess().tableOrNull!!.removeItem("b", force = true)
     }
 
     private fun eR_018(doc: TomlDocument) {
-        doc.remove("a", force = true)
+        val _ = doc.remove("a", force = true)
     }
 
     private fun eR_019(doc: TomlDocument) {
-        doc["t"].assertSuccess().standardTableOrNull!!.remove("x", force = true)
+        val _ = doc["t"].assertSuccess().standardTableOrNull!!.remove("x", force = true)
     }
 
     private fun eR_020(doc: TomlDocument) {
-        doc["a"]["b"]["c"].assertSuccess().standardTableOrNull!!.remove("k", force = true)
+        val _ = doc["a"]["b"]["c"].assertSuccess().standardTableOrNull!!.remove("k", force = true)
     }
 
     private fun eR_021(doc: TomlDocument) {
-        doc.remove("a", force = true)
-        doc["a"] = 3L
+        val _ = doc.remove("a", force = true)
+        doc.set("a", 3L).assertSuccess()
     }
 
     private fun eR_022(doc: TomlDocument) {
-        doc.remove("server", force = true)
+        val _ = doc.remove("server", force = true)
     }
 
     private fun eR_023(doc: TomlDocument) {
-        doc.remove("a", force = true)
+        val _ = doc.remove("a", force = true)
     }
 
     private fun eR_024(doc: TomlDocument) {
-        doc["a"].assertSuccess().standardTableOrNull!!.remove("b", force = true)
+        val _ = doc["a"].assertSuccess().standardTableOrNull!!.remove("b", force = true)
     }
 
     private fun eR_025(doc: TomlDocument) {
-        doc.remove("t", force = true)
+        val _ = doc.remove("t", force = true)
     }
 
     private fun eR_026(doc: TomlDocument) {
-        doc.remove("a", force = true)
+        val _ = doc.remove("a", force = true)
     }
 
     private fun eR_027(doc: TomlDocument) {
-        doc.remove("a", force = true)
+        val _ = doc.remove("a", force = true)
     }
 
     private fun eR_028(doc: TomlDocument) {
-        doc.remove("a", force = true)
+        val _ = doc.remove("a", force = true)
     }
 
     private fun eR_029(doc: TomlDocument) {
-        doc["p"].assertSuccess().arrayOfTablesOrNull!![0].assertSuccess().remove("q", force = true)
+        val _ = doc["p"].assertSuccess().arrayOfTablesOrNull!![0].assertSuccess().remove("q", force = true)
     }
 
     private fun eR_030(doc: TomlDocument) {
-        doc.remove("a", force = true)
+        val _ = doc.remove("a", force = true)
     }
 
     private fun eR_031(doc: TomlDocument) {
-        doc.remove("fruit", force = true)
+        val _ = doc.remove("fruit", force = true)
     }
 
     private fun eR_032(doc: TomlDocument) {
-        doc["fruit"].assertSuccess().arrayOfTablesOrNull!!.removeAt(0, force = true)
+        val _ = doc["fruit"].assertSuccess().arrayOfTablesOrNull!!.removeAt(0, force = true)
     }
 
     private fun eR_033(doc: TomlDocument) {
-        doc["fruit"].assertSuccess().arrayOfTablesOrNull!!.removeAt(1, force = true)
+        val _ = doc["fruit"].assertSuccess().arrayOfTablesOrNull!!.removeAt(1, force = true)
     }
 
     private fun eR_034(doc: TomlDocument) {
-        doc["p"].assertSuccess().arrayOfTablesOrNull!!.removeAt(1, force = true)
+        val _ = doc["p"].assertSuccess().arrayOfTablesOrNull!!.removeAt(1, force = true)
     }
 
     private fun eR_035(doc: TomlDocument) {
-        doc["p"].assertSuccess().arrayOfTablesOrNull!!.removeAll(force = true) { it.getOrNull("n")?.longOrNull != 1L }
+        val _ = doc["p"].assertSuccess().arrayOfTablesOrNull!!.removeAll(force = true) { it.getOrNull("n")?.longOrNull != 1L }
     }
 
     private fun eR_036(doc: TomlDocument) {
-        doc["fruit"].assertSuccess().arrayOfTablesOrNull!!.clear(force = true)
+        val _ = doc["fruit"].assertSuccess().arrayOfTablesOrNull!!.clear(force = true)
     }
 
     private fun eR_037(doc: TomlDocument) {
-        doc["bin"].assertSuccess().arrayOfTablesOrNull!!.removeAt(0, force = true)
+        val _ = doc["bin"].assertSuccess().arrayOfTablesOrNull!!.removeAt(0, force = true)
     }
 
     private fun eR_038(doc: TomlDocument) {
-        doc["bin"].assertSuccess().arrayOfTablesOrNull!!.clear(force = true)
+        val _ = doc["bin"].assertSuccess().arrayOfTablesOrNull!!.clear(force = true)
     }
 
     private fun eR_039(doc: TomlDocument) {
-        doc["p"].assertSuccess().arrayOfTablesOrNull!![0].assertSuccess().remove("n", force = true)
+        val _ = doc["p"].assertSuccess().arrayOfTablesOrNull!![0].assertSuccess().remove("n", force = true)
     }
 
     private fun eR_040(doc: TomlDocument) {
-        doc["a"].assertSuccess().standardTableOrNull!!.remove("b", force = true)
+        val _ = doc["a"].assertSuccess().standardTableOrNull!!.remove("b", force = true)
     }
 
     private fun eR_041(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
     }
 
     private fun eR_042(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
     }
 
     private fun eR_043(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(2, force = true)
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.removeAt(2, force = true)
     }
 
     private fun eR_044(doc: TomlDocument) {
-        doc["ports"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
+        val _ = doc["ports"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
     }
 
     private fun eR_045(doc: TomlDocument) {
-        doc["ports"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
+        val _ = doc["ports"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
     }
 
     private fun eR_046(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
     }
 
     private fun eR_047(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
     }
 
     private fun eR_048(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
     }
 
     private fun eR_049(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
     }
 
     private fun eR_050(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
     }
 
     private fun eR_051(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
     }
 
     private fun eR_052(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
     }
 
     private fun eR_053(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.clear(force = true)
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.clear(force = true)
     }
 
     private fun eR_054(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.clear(force = true)
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.clear(force = true)
     }
 
     private fun eR_055(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAll(force = true) { (it as? Value.Integer)?.value != 3L }
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.removeAll(force = true) { (it as? Value.Integer)?.value != 3L }
     }
 
     private fun eR_056(doc: TomlDocument) {
-        doc["pts"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
+        val _ = doc["pts"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
     }
 
     private fun eR_057(doc: TomlDocument) {
-        doc["m"].assertSuccess().arrayOrNull!![0].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
+        val _ = doc["m"].assertSuccess().arrayOrNull!![0].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
     }
 
     private fun eR_058(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.remove("b", force = true)
+        val _ = doc["t"].assertSuccess().inlineTableOrNull!!.remove("b", force = true)
     }
 
     private fun eR_059(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.remove("a", force = true)
+        val _ = doc["t"].assertSuccess().inlineTableOrNull!!.remove("a", force = true)
     }
 
     private fun eR_060(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.remove("c", force = true)
+        val _ = doc["t"].assertSuccess().inlineTableOrNull!!.remove("c", force = true)
     }
 
     private fun eR_061(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.remove("a", force = true)
+        val _ = doc["t"].assertSuccess().inlineTableOrNull!!.remove("a", force = true)
     }
 
     private fun eR_062(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.remove("b", force = true)
+        val _ = doc["t"].assertSuccess().inlineTableOrNull!!.remove("b", force = true)
     }
 
     private fun eR_063(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.remove("b", force = true)
+        val _ = doc["t"].assertSuccess().inlineTableOrNull!!.remove("b", force = true)
     }
 
     private fun eR_064(doc: TomlDocument) {
-        doc["t"]["a"].assertSuccess().inlineTableOrNull!!.remove("x", force = true)
+        val _ = doc["t"]["a"].assertSuccess().inlineTableOrNull!!.remove("x", force = true)
     }
 
     private fun eR_065(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.clear(force = true)
+        val _ = doc["t"].assertSuccess().inlineTableOrNull!!.clear(force = true)
     }
 
     private fun eR_066(doc: TomlDocument) {
-        doc["t"].assertSuccess().standardTableOrNull!!.retainAll(force = true) { (k, _) -> k == "b" }
+        val _ = doc["t"].assertSuccess().standardTableOrNull!!.retainAll(force = true) { (k, _) -> k == "b" }
     }
 
     private fun eR_067(doc: TomlDocument) {
-        doc["t"].assertSuccess().standardTableOrNull!!.clear(force = true)
+        val _ = doc["t"].assertSuccess().standardTableOrNull!!.clear(force = true)
     }
 
     private fun eR_068(doc: TomlDocument) {
-        doc.removeAll(force = true) { (_, item) -> item.valueOrNull is Value.Integer }
+        val _ = doc.removeAll(force = true) { (_, item) -> item.valueOrNull is Value.Integer }
     }
 
     private fun eR_069(doc: TomlDocument) {
-        doc.clear(force = true)
+        val _ = doc.clear(force = true)
     }
 
     private fun eR_070(doc: TomlDocument) {
-        doc.retainAll(force = true) { (k, _) -> k == "t" }
+        val _ = doc.retainAll(force = true) { (k, _) -> k == "t" }
     }
 
     private fun eR_071(doc: TomlDocument) {
-        doc["port"] = 2L
+        doc.set("port", 2L).assertSuccess()
     }
 
     private fun eR_072(doc: TomlDocument) {
-        doc["port"] = 2L
+        doc.set("port", 2L).assertSuccess()
     }
 
     private fun eR_073(doc: TomlDocument) {
-        doc.set("my key", Value.Integer(2L))
+        val _ = doc.set("my key", Value.Integer(2L))
     }
 
     private fun eR_074(doc: TomlDocument) {
-        doc["n"] = 17L
+        doc.set("n", 17L).assertSuccess()
     }
 
     private fun eR_075(doc: TomlDocument) {
-        doc["s"] = Value.Integer(5L)
+        doc.set("s", Value.Integer(5L)).assertSuccess()
     }
 
     private fun eR_076(doc: TomlDocument) {
-        doc["a"]["b"] = 2L
+        doc["a"].set("b", 2L).assertSuccess()
     }
 
     private fun eR_077(doc: TomlDocument) {
-        doc["t"]["a"] = 9L
+        doc["t"].set("a", 9L).assertSuccess()
     }
 
     private fun eR_078(doc: TomlDocument) {
-        doc["a"] = 5L
+        doc.set("a", 5L).assertSuccess()
     }
 
     private fun eR_079(doc: TomlDocument) {
-        doc["x"] = Value.InlineTable(inlineTableOf("k" to Value.Integer(1L)).assertSuccess())
+        doc.set("x", Value.InlineTable(inlineTableOf("k" to Value.Integer(1L)).assertSuccess())).assertSuccess()
     }
 
     private fun eR_080(doc: TomlDocument) {
-        doc["x"] = Value.Array(tomlArrayOf(Value.Integer(1L), Value.Integer(2L)).assertSuccess())
+        doc.set("x", Value.Array(tomlArrayOf(Value.Integer(1L), Value.Integer(2L)).assertSuccess())).assertSuccess()
     }
 
     private fun eR_081(doc: TomlDocument) {
-        doc["t"] = 5L
+        doc.set("t", 5L).assertSuccess()
     }
 
     private fun eR_082(doc: TomlDocument) {
@@ -702,103 +702,103 @@ class CommentScenariosTest {
     }
 
     private fun eR_083(doc: TomlDocument) {
-        doc["t"].assertSuccess().standardTableOrNull!!.put("k", Item(Value.Integer(2L)))
+        val _ = doc["t"].assertSuccess().standardTableOrNull!!.put("k", Item(Value.Integer(2L)))
     }
 
     private fun eR_084(doc: TomlDocument) {
-        doc["k"].assertSuccess().assign(Item(Value.Integer(7L)))
+        val _ = doc["k"].assertSuccess().assign(Item(Value.Integer(7L)))
     }
 
     private fun eR_085(doc: TomlDocument) {
-        doc["a"] = 3L
+        doc.set("a", 3L).assertSuccess()
     }
 
     private fun eR_086(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.replace(1, Value.Integer(9L))
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.replace(1, Value.Integer(9L))
     }
 
     private fun eR_087(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.replace(0, Value.Integer(10L))
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.replace(0, Value.Integer(10L))
     }
 
     private fun eR_088(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.replace(1, Value.String("x"))
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.replace(1, Value.String("x"))
     }
 
     private fun eR_089(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.replace(0, Value.Integer(0L))
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.replace(0, Value.Integer(0L))
     }
 
     private fun eR_090(doc: TomlDocument) {
-        doc["x"] = 0L
+        doc.set("x", 0L).assertSuccess()
     }
 
     private fun eR_091(doc: TomlDocument) {
-        doc["x"] = 0L
+        doc.set("x", 0L).assertSuccess()
     }
 
     private fun eR_092(doc: TomlDocument) {
-        doc["fruit"] = 0L
+        doc.set("fruit", 0L).assertSuccess()
     }
 
     private fun eR_093(doc: TomlDocument) {
-        doc["t"] = 5L
+        doc.set("t", 5L).assertSuccess()
     }
 
     private fun eR_094(doc: TomlDocument) {
-        doc["t"] = 5L
+        doc.set("t", 5L).assertSuccess()
     }
 
     private fun eR_095(doc: TomlDocument) {
-        doc["t"] = 5L
+        doc.set("t", 5L).assertSuccess()
     }
 
     private fun eR_096(doc: TomlDocument) {
-        doc["x"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
+        doc.set("x", standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
     }
 
     private fun eR_097(doc: TomlDocument) {
-        doc["x"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
+        doc.set("x", standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
     }
 
     private fun eR_098(doc: TomlDocument) {
-        doc["t"] = standardTableOf("a" to Item(Value.Integer(1L))).assertSuccess()
+        doc.set("t", standardTableOf("a" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
     }
 
     private fun eR_099(doc: TomlDocument) {
-        doc["t"] = Value.InlineTable(inlineTableOf("m" to Value.Integer(2L)).assertSuccess())
+        doc.set("t", Value.InlineTable(inlineTableOf("m" to Value.Integer(2L)).assertSuccess())).assertSuccess()
     }
 
     private fun eR_100(doc: TomlDocument) {
-        doc["t"].assertSuccess().setLayout(TableLayout.Inline, force = true)
+        val _ = doc["t"].assertSuccess().setLayout(TableLayout.Inline, force = true)
     }
 
     private fun eR_101(doc: TomlDocument) {
-        doc["t"] = standardTableOf("m" to Item(Value.Integer(2L))).assertSuccess()
+        doc.set("t", standardTableOf("m" to Item(Value.Integer(2L))).assertSuccess()).assertSuccess()
     }
 
     private fun eR_102(doc: TomlDocument) {
-        doc["p"].assertSuccess().arrayOfTablesOrNull!!.replace(0, standardTableOf("n" to Item(Value.Integer(9L))).assertSuccess())
+        val _ = doc["p"].assertSuccess().arrayOfTablesOrNull!!.replace(0, standardTableOf("n" to Item(Value.Integer(9L))).assertSuccess())
     }
 
     private fun eR_103(doc: TomlDocument) {
-        doc["x"] = Item(ArrayOfTables().apply { add(standardTableOf("n" to Item(Value.Integer(1L))).assertSuccess()) })
+        doc.set("x", Item(ArrayOfTables().apply { val _ = add(standardTableOf("n" to Item(Value.Integer(1L))).assertSuccess()) })).assertSuccess()
     }
 
     private fun eR_104(doc: TomlDocument) {
-        doc["x"] = Item(ArrayOfTables().apply { add(standardTableOf("n" to Item(Value.Integer(1L))).assertSuccess()) })
+        doc.set("x", Item(ArrayOfTables().apply { val _ = add(standardTableOf("n" to Item(Value.Integer(1L))).assertSuccess()) })).assertSuccess()
     }
 
     private fun eR_105(doc: TomlDocument) {
-        doc["t"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
+        val _ = doc["t"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
     }
 
     private fun eR_106(doc: TomlDocument) {
-        doc["t"].assertSuccess().setLayout(TableLayout.Header)
+        val _ = doc["t"].assertSuccess().setLayout(TableLayout.Header)
     }
 
     private fun eR_107(doc: TomlDocument) {
-        doc["t"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
+        val _ = doc["t"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
     }
 
     private fun eR_108(doc: TomlDocument) {
@@ -806,111 +806,111 @@ class CommentScenariosTest {
     }
 
     private fun eS_001(doc: TomlDocument) {
-        doc["b"] = 2L
+        doc.set("b", 2L).assertSuccess()
     }
 
     private fun eS_002(doc: TomlDocument) {
-        doc["version"] = "1.0"
+        doc.set("version", "1.0").assertSuccess()
     }
 
     private fun eS_003(doc: TomlDocument) {
         val t = doc["t"].assertSuccess().standardTableOrNull!!
-        t.set("n", Value.Integer(2L))
+        val _ = t.set("n", Value.Integer(2L))
     }
 
     private fun eS_004(doc: TomlDocument) {
         val t = doc["t"].assertSuccess().standardTableOrNull!!
-        t.set("n", Value.Integer(2L))
+        val _ = t.set("n", Value.Integer(2L))
     }
 
     private fun eS_005(doc: TomlDocument) {
-        doc["b"] = 2L
+        doc.set("b", 2L).assertSuccess()
     }
 
     private fun eS_006(doc: TomlDocument) {
         val t = doc["t"].assertSuccess().standardTableOrNull!!
-        t.set("n", Value.Integer(2L))
+        val _ = t.set("n", Value.Integer(2L))
     }
 
     private fun eS_007(doc: TomlDocument) {
         val t = doc["t"].assertSuccess().standardTableOrNull!!
-        t.set("k", Value.Integer(1L))
+        val _ = t.set("k", Value.Integer(1L))
     }
 
     private fun eS_008(doc: TomlDocument) {
         val t = doc["t"].assertSuccess().standardTableOrNull!!
-        t.set("k", Value.Integer(1L))
+        val _ = t.set("k", Value.Integer(1L))
     }
 
     private fun eS_009(doc: TomlDocument) {
-        doc["t"]["c"] = 3L
+        doc["t"].set("c", 3L).assertSuccess()
     }
 
     private fun eS_010(doc: TomlDocument) {
         val server = doc["server"].assertSuccess().standardTableOrNull!!
-        server.getOrPut("port") { Item(Value.Integer(8080L)) }
+        val _ = server.getOrPut("port") { Item(Value.Integer(8080L)) }
     }
 
     private fun eS_011(doc: TomlDocument) {
         val server = doc["server"].assertSuccess().standardTableOrNull!!
-        server.getOrPut("host") { Item(Value.String("localhost")) }
+        val _ = server.getOrPut("host") { Item(Value.String("localhost")) }
     }
 
     private fun eS_012(doc: TomlDocument) {
-        doc.getOrPut("owner") { Item(Value.String("me")) }
+        val _ = doc.getOrPut("owner") { Item(Value.String("me")) }
     }
 
     private fun eS_013(doc: TomlDocument) {
-        doc["port"] = Value.Integer(8080L, Decor(prefix = " ", suffix = " # default"))
+        doc.set("port", Value.Integer(8080L, Decor(prefix = " ", suffix = " # default"))).assertSuccess()
     }
 
     private fun eS_014(doc: TomlDocument) {
-        doc["v"] = 1L
+        doc.set("v", 1L).assertSuccess()
     }
 
     private fun eS_015(doc: TomlDocument) {
-        doc["a"] = 1L
+        doc.set("a", 1L).assertSuccess()
     }
 
     private fun eS_016(doc: TomlDocument) {
-        doc["t"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
+        doc.set("t", standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
     }
 
     private fun eS_017(doc: TomlDocument) {
-        doc["c"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
+        doc.set("c", standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
     }
 
     private fun eS_018(doc: TomlDocument) {
-        doc["t"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
+        doc.set("t", standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
     }
 
     private fun eS_019(doc: TomlDocument) {
-        doc["t"]["sub"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
+        doc["t"].set("sub", standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
     }
 
     private fun eS_020(doc: TomlDocument) {
-        doc["t"]["sub"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
+        doc["t"].set("sub", standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
     }
 
     private fun eS_021(doc: TomlDocument) {
-        doc["t"]["z"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
+        doc["t"].set("z", standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
     }
 
     private fun eS_022(doc: TomlDocument) {
-        doc["a"]["c"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
+        doc["a"].set("c", standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
     }
 
     private fun eS_023(doc: TomlDocument) {
-        doc["a"]["k"] = 1L
+        doc["a"].set("k", 1L).assertSuccess()
     }
 
     private fun eS_024(doc: TomlDocument) {
         val t = doc["t"].assertSuccess().standardTableOrNull!!
-        t.getOrPut("sub") { Item(StandardTable()) }
+        val _ = t.getOrPut("sub") { Item(StandardTable()) }
     }
 
     private fun eS_025(doc: TomlDocument) {
-        doc["a"]["c"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
+        doc["a"].set("c", standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
     }
 
     private fun eS_026(doc: TomlDocument) {
@@ -922,86 +922,86 @@ class CommentScenariosTest {
     }
 
     private fun eS_027(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.add(Value.Integer(3L))
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.add(Value.Integer(3L))
     }
 
     private fun eS_028(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.add(Value.Integer(3L))
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.add(Value.Integer(3L))
     }
 
     private fun eS_029(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.add(Value.Integer(3L))
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.add(Value.Integer(3L))
     }
 
     private fun eS_030(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.add(Value.Integer(2L))
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.add(Value.Integer(2L))
     }
 
     private fun eS_031(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.add(0, Value.Integer(0L))
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.add(0, Value.Integer(0L))
     }
 
     private fun eS_032(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.add(0, Value.Integer(0L))
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.add(0, Value.Integer(0L))
     }
 
     private fun eS_033(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.add(1, Value.Integer(9L))
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.add(1, Value.Integer(9L))
     }
 
     private fun eS_034(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.replace(1, Value.Integer(20L))
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.replace(1, Value.Integer(20L))
     }
 
     private fun eS_035(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.add(Value.Integer(1L))
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.add(Value.Integer(1L))
     }
 
     private fun eS_036(doc: TomlDocument) {
         val p = inlineTableOf("x" to Value.Integer(3L), "y" to Value.Integer(4L)).assertSuccess()
-        doc["points"].assertSuccess().arrayOrNull!!.add(Value.InlineTable(p))
+        val _ = doc["points"].assertSuccess().arrayOrNull!!.add(Value.InlineTable(p))
     }
 
     private fun eS_037(doc: TomlDocument) {
         val row = tomlArrayOf(Value.Integer(5L), Value.Integer(6L)).assertSuccess()
-        doc["m"].assertSuccess().arrayOrNull!!.add(Value.Array(row))
+        val _ = doc["m"].assertSuccess().arrayOrNull!!.add(Value.Array(row))
     }
 
     private fun eS_038(doc: TomlDocument) {
         val aot = doc["x"].assertSuccess().arrayOfTablesOrNull!!
-        aot.add(standardTableOf("a" to Item(Value.Integer(2L))).assertSuccess())
+        val _ = aot.add(standardTableOf("a" to Item(Value.Integer(2L))).assertSuccess())
     }
 
     private fun eS_039(doc: TomlDocument) {
         val aot = doc["x"].assertSuccess().arrayOfTablesOrNull!!
-        aot.add(standardTableOf("a" to Item(Value.Integer(2L))).assertSuccess())
+        val _ = aot.add(standardTableOf("a" to Item(Value.Integer(2L))).assertSuccess())
     }
 
     private fun eS_040(doc: TomlDocument) {
         val aot = doc["x"].assertSuccess().arrayOfTablesOrNull!!
-        aot.add(0, standardTableOf("a" to Item(Value.Integer(0L))).assertSuccess())
+        val _ = aot.add(0, standardTableOf("a" to Item(Value.Integer(0L))).assertSuccess())
     }
 
     private fun eS_041(doc: TomlDocument) {
         val aot = doc["x"].assertSuccess().arrayOfTablesOrNull!!
-        aot.add(1, standardTableOf("a" to Item(Value.Integer(9L))).assertSuccess())
+        val _ = aot.add(1, standardTableOf("a" to Item(Value.Integer(9L))).assertSuccess())
     }
 
     private fun eS_042(doc: TomlDocument) {
         val aot = doc["x"].assertSuccess().arrayOfTablesOrNull!!
-        aot.removeAt(0, force = true)
-        aot.add(standardTableOf("k" to Item(Value.Integer(2L))).assertSuccess())
+        val _ = aot.removeAt(0, force = true)
+        val _ = aot.add(standardTableOf("k" to Item(Value.Integer(2L))).assertSuccess())
     }
 
     private fun eS_043(doc: TomlDocument) {
         val aot = doc["x"].assertSuccess().arrayOfTablesOrNull!!
-        aot.first().set("b", Value.Integer(2L))
+        val _ = aot.first().set("b", Value.Integer(2L))
     }
 
     private fun eS_044(doc: TomlDocument) {
         val aot = doc["x"].assertSuccess().arrayOfTablesOrNull!!
-        aot.removeAt(1, force = true)
-        aot.removeAt(0, force = true)
+        val _ = aot.removeAt(1, force = true)
+        val _ = aot.removeAt(0, force = true)
     }
 
     private fun eS_045(doc: TomlDocument) {
@@ -1033,115 +1033,115 @@ class CommentScenariosTest {
     }
 
     private fun eS_052(doc: TomlDocument) {
-        doc.set("b", doc["a"].assertSuccess())
+        val _ = doc.set("b", doc["a"].assertSuccess())
     }
 
     private fun eS_053(doc: TomlDocument) {
-        doc.set("b", doc["a"].assertSuccess())
+        val _ = doc.set("b", doc["a"].assertSuccess())
     }
 
     private fun eS_054(doc: TomlDocument) {
-        doc.set("b", doc["a"].assertSuccess())
+        val _ = doc.set("b", doc["a"].assertSuccess())
     }
 
     private fun eS_055(doc: TomlDocument) {
-        doc.set("b", doc["a"].assertSuccess())
+        val _ = doc.set("b", doc["a"].assertSuccess())
     }
 
     private fun eS_056(doc: TomlDocument) {
-        doc.set("b", doc["a"].assertSuccess())
+        val _ = doc.set("b", doc["a"].assertSuccess())
     }
 
     private fun eS_057(doc: TomlDocument) {
-        doc.set("y", doc["x"].assertSuccess())
+        val _ = doc.set("y", doc["x"].assertSuccess())
     }
 
     private fun eS_058(doc: TomlDocument) {
         val inline = doc["t"].assertSuccess().standardTableOrNull!!.toInlineTable().assertSuccess()
-        doc["u"] = Value.InlineTable(inline)
+        doc.set("u", Value.InlineTable(inline)).assertSuccess()
     }
 
     private fun eS_059(doc: TomlDocument) {
-        doc["t"].assertSuccess().setLayout(TableLayout.Inline, force = true)
+        val _ = doc["t"].assertSuccess().setLayout(TableLayout.Inline, force = true)
     }
 
     private fun eS_060(doc: TomlDocument) {
-        doc["t"].assertSuccess().setLayout(TableLayout.Inline, force = true)
+        val _ = doc["t"].assertSuccess().setLayout(TableLayout.Inline, force = true)
     }
 
     private fun eS_061(doc: TomlDocument) {
-        doc["t"].assertSuccess().setLayout(TableLayout.Inline)
+        val _ = doc["t"].assertSuccess().setLayout(TableLayout.Inline)
     }
 
     private fun eS_062(doc: TomlDocument) {
-        doc["t"].assertSuccess().setLayout(TableLayout.Inline, force = true)
+        val _ = doc["t"].assertSuccess().setLayout(TableLayout.Inline, force = true)
     }
 
     private fun eS_063(doc: TomlDocument) {
-        doc["t"].assertSuccess().setLayout(TableLayout.Inline)
+        val _ = doc["t"].assertSuccess().setLayout(TableLayout.Inline)
     }
 
     private fun eS_064(doc: TomlDocument) {
-        doc["t"].assertSuccess().setLayout(TableLayout.Inline, force = true)
+        val _ = doc["t"].assertSuccess().setLayout(TableLayout.Inline, force = true)
     }
 
     private fun eS_065(doc: TomlDocument) {
-        doc["t"].assertSuccess().setLayout(TableLayout.MultilineInline)
+        val _ = doc["t"].assertSuccess().setLayout(TableLayout.MultilineInline)
     }
 
     private fun eS_066(doc: TomlDocument) {
-        doc["x"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
+        val _ = doc["x"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
     }
 
     private fun eS_067(doc: TomlDocument) {
-        doc["x"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
+        val _ = doc["x"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
     }
 
     private fun eS_068(doc: TomlDocument) {
-        doc["x"].assertSuccess().setLayout(TableLayout.Dotted)
+        val _ = doc["x"].assertSuccess().setLayout(TableLayout.Dotted)
     }
 
     private fun eS_069(doc: TomlDocument) {
-        doc["x"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
+        val _ = doc["x"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
     }
 
     private fun eS_070(doc: TomlDocument) {
-        doc["x"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
+        val _ = doc["x"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
     }
 
     private fun eS_071(doc: TomlDocument) {
-        doc["x"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
+        val _ = doc["x"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
     }
 
     private fun eS_072(doc: TomlDocument) {
-        doc["x"].assertSuccess().setLayout(TableLayout.Header)
+        val _ = doc["x"].assertSuccess().setLayout(TableLayout.Header)
     }
 
     private fun eS_073(doc: TomlDocument) {
-        doc["x"].assertSuccess().setLayout(TableLayout.Header)
+        val _ = doc["x"].assertSuccess().setLayout(TableLayout.Header)
     }
 
     private fun eS_074(doc: TomlDocument) {
-        doc["t"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
+        val _ = doc["t"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
     }
 
     private fun eS_075(doc: TomlDocument) {
-        doc["t"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
-        doc["t"]["u"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
+        val _ = doc["t"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
+        val _ = doc["t"]["u"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
     }
 
     private fun eS_076(doc: TomlDocument) {
         val x = doc["x"].assertSuccess()
-        x.setLayout(TableLayout.Dotted, force = true)
-        x.setLayout(TableLayout.Header, force = true)
+        val _ = x.setLayout(TableLayout.Dotted, force = true)
+        val _ = x.setLayout(TableLayout.Header, force = true)
     }
 
     private fun eS_077(doc: TomlDocument) {
-        doc["a"]["b"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
+        val _ = doc["a"]["b"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
     }
 
     private fun eS_078(doc: TomlDocument) {
-        doc["s"]["t"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
+        val _ = doc["s"]["t"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
     }
 
     private fun eS_079(doc: TomlDocument) {
@@ -1157,19 +1157,19 @@ class CommentScenariosTest {
     }
 
     private fun eS_082(doc: TomlDocument) {
-        doc["a"]["e"] = 2L
+        doc["a"].set("e", 2L).assertSuccess()
     }
 
     private fun eS_083(doc: TomlDocument) {
-        doc["a"]["b"]["d"] = 2L
+        doc["a"]["b"].set("d", 2L).assertSuccess()
     }
 
     private fun eS_084(doc: TomlDocument) {
-        doc["a"]["w"] = 3L
+        doc["a"].set("w", 3L).assertSuccess()
     }
 
     private fun eS_085(doc: TomlDocument) {
-        doc["a"]["n"] = 5L
+        doc["a"].set("n", 5L).assertSuccess()
     }
 
     private fun eS_086(doc: TomlDocument) {
@@ -1230,472 +1230,472 @@ class CommentScenariosTest {
     }
 
     private fun eS_094(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.set("b", Value.Integer(2L))
+        val _ = doc["t"].assertSuccess().inlineTableOrNull!!.set("b", Value.Integer(2L))
     }
 
     private fun eS_095(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.set("b", Value.Integer(2L))
+        val _ = doc["t"].assertSuccess().inlineTableOrNull!!.set("b", Value.Integer(2L))
     }
 
     private fun eS_096(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.set("b", Value.Integer(2L))
+        val _ = doc["t"].assertSuccess().inlineTableOrNull!!.set("b", Value.Integer(2L))
     }
 
     private fun eS_097(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.set("b", Value.Integer(2L))
+        val _ = doc["t"].assertSuccess().inlineTableOrNull!!.set("b", Value.Integer(2L))
     }
 
     private fun eS_098(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.set("a", Value.Integer(10L))
+        val _ = doc["t"].assertSuccess().inlineTableOrNull!!.set("a", Value.Integer(10L))
     }
 
     private fun eS_099(doc: TomlDocument) {
-        doc["x"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
+        doc.set("x", standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
     }
 
     private fun eS_100(doc: TomlDocument) {
-        doc["x"] = 0L
+        doc.set("x", 0L).assertSuccess()
     }
 
     private fun eS_101(doc: TomlDocument) {
-        doc["x"] = 0L
+        doc.set("x", 0L).assertSuccess()
     }
 
     private fun eS_102(doc: TomlDocument) {
-        doc["x"] = Value.Array(tomlArrayOf(Value.Integer(1L)).assertSuccess())
+        doc.set("x", Value.Array(tomlArrayOf(Value.Integer(1L)).assertSuccess())).assertSuccess()
     }
 
     private fun eS_103(doc: TomlDocument) {
-        doc["t"] = Value.InlineTable(inlineTableOf("b" to Value.Integer(2L)).assertSuccess())
+        doc.set("t", Value.InlineTable(inlineTableOf("b" to Value.Integer(2L)).assertSuccess())).assertSuccess()
     }
 
     private fun eS_104(doc: TomlDocument) {
-        doc["xs"] = Value.Array(tomlArrayOf(Value.Integer(5L)).assertSuccess())
+        doc.set("xs", Value.Array(tomlArrayOf(Value.Integer(5L)).assertSuccess())).assertSuccess()
     }
 
     private fun eS_105(doc: TomlDocument) {
-        doc["t"] = standardTableOf("b" to Item(Value.Integer(2L))).assertSuccess()
+        doc.set("t", standardTableOf("b" to Item(Value.Integer(2L))).assertSuccess()).assertSuccess()
     }
 
     private fun eS_106(doc: TomlDocument) {
-        doc.remove("a", force = true)
-        doc["a"] = 3L
+        val _ = doc.remove("a", force = true)
+        doc.set("a", 3L).assertSuccess()
     }
 
     private fun eS_107(doc: TomlDocument) {
-        doc.remove("t", force = true)
-        doc["t"] = standardTableOf("k" to Item(Value.Integer(2L))).assertSuccess()
+        val _ = doc.remove("t", force = true)
+        doc.set("t", standardTableOf("k" to Item(Value.Integer(2L))).assertSuccess()).assertSuccess()
     }
 
     private fun eS_108(doc: TomlDocument) {
-        doc["b"] = 2L
+        doc.set("b", 2L).assertSuccess()
     }
 
     private fun eS_109(doc: TomlDocument) {
-        doc["t"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
+        doc.set("t", standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
     }
 
     private fun eS_110(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.add(Value.Integer(2L))
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.add(Value.Integer(2L))
     }
 
     private fun eC_001(doc: TomlDocument) {
-        doc["b"] = 2L
+        doc.set("b", 2L).assertSuccess()
     }
 
     private fun eC_002(doc: TomlDocument) {
-        doc["a"] = "z"
+        doc.set("a", "z").assertSuccess()
     }
 
     private fun eC_003(doc: TomlDocument) {
-        doc["p"] = "D"
+        doc.set("p", "D").assertSuccess()
     }
 
     private fun eC_004(doc: TomlDocument) {
-        doc.remove("s", force = true)
+        val _ = doc.remove("s", force = true)
     }
 
     private fun eC_005(doc: TomlDocument) {
-        doc["s"] = "y"
+        doc.set("s", "y").assertSuccess()
     }
 
     private fun eC_006(doc: TomlDocument) {
-        doc["a"] = "bye"
+        doc.set("a", "bye").assertSuccess()
     }
 
     private fun eC_007(doc: TomlDocument) {
-        doc["a"] = "z"
+        doc.set("a", "z").assertSuccess()
     }
 
     private fun eC_008(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
     }
 
     private fun eC_009(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.add(Value.Integer(2L))
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.add(Value.Integer(2L))
     }
 
     private fun eC_010(doc: TomlDocument) {
-        doc["a"] = 10L
+        doc.set("a", 10L).assertSuccess()
     }
 
     private fun eC_011(doc: TomlDocument) {
-        doc["a"] = 2L
+        doc.set("a", 2L).assertSuccess()
     }
 
     private fun eC_012(doc: TomlDocument) {
-        doc["t"].assertSuccess().standardTableOrNull!!.remove("a", force = true)
+        val _ = doc["t"].assertSuccess().standardTableOrNull!!.remove("a", force = true)
     }
 
     private fun eC_013(doc: TomlDocument) {
-        doc.remove("b", force = true)
+        val _ = doc.remove("b", force = true)
     }
 
     private fun eC_014(doc: TomlDocument) {
-        doc.remove("a", force = true)
+        val _ = doc.remove("a", force = true)
     }
 
     private fun eC_015(doc: TomlDocument) {
-        doc["t"].assertSuccess().standardTableOrNull!!.set("b", Value.Integer(2L))
+        val _ = doc["t"].assertSuccess().standardTableOrNull!!.set("b", Value.Integer(2L))
     }
 
     private fun eC_016(doc: TomlDocument) {
-        doc["t"].assertSuccess().standardTableOrNull!!.remove("a", force = true)
+        val _ = doc["t"].assertSuccess().standardTableOrNull!!.remove("a", force = true)
     }
 
     private fun eC_017(doc: TomlDocument) {
-        doc["a"]["b"]["y"] = 2L
+        doc["a"]["b"].set("y", 2L).assertSuccess()
     }
 
     private fun eC_018(doc: TomlDocument) {
-        doc["x#y"]["k"] = 2L
+        doc["x#y"].set("k", 2L).assertSuccess()
     }
 
     private fun eC_019(doc: TomlDocument) {
-        doc["x"].assertSuccess().arrayOfTablesOrNull!!.removeAt(0, force = true)
+        val _ = doc["x"].assertSuccess().arrayOfTablesOrNull!!.removeAt(0, force = true)
     }
 
     private fun eC_020(doc: TomlDocument) {
-        doc["x"].assertSuccess().arrayOfTablesOrNull!!.removeAt(1, force = true)
+        val _ = doc["x"].assertSuccess().arrayOfTablesOrNull!!.removeAt(1, force = true)
     }
 
     private fun eC_021(doc: TomlDocument) {
-        doc["x"].assertSuccess().arrayOfTablesOrNull!!.removeAt(1, force = true)
+        val _ = doc["x"].assertSuccess().arrayOfTablesOrNull!!.removeAt(1, force = true)
     }
 
     private fun eC_022(doc: TomlDocument) {
         val aot = doc["x"].assertSuccess().arrayOfTablesOrNull!!
-        aot.removeAt(0, force = true)
-        aot.removeAt(0, force = true)
+        val _ = aot.removeAt(0, force = true)
+        val _ = aot.removeAt(0, force = true)
     }
 
     private fun eC_023(doc: TomlDocument) {
-        doc["x"].assertSuccess().arrayOfTablesOrNull!!.removeAt(0, force = true)
+        val _ = doc["x"].assertSuccess().arrayOfTablesOrNull!!.removeAt(0, force = true)
     }
 
     private fun eC_024(doc: TomlDocument) {
-        doc["x"].assertSuccess().arrayOfTablesOrNull!!.removeAt(0, force = true)
+        val _ = doc["x"].assertSuccess().arrayOfTablesOrNull!!.removeAt(0, force = true)
     }
 
     private fun eC_025(doc: TomlDocument) {
-        doc["x"].assertSuccess().arrayOfTablesOrNull!!.add(standardTableOf("n" to Item(Value.Integer(2L))).assertSuccess())
+        val _ = doc["x"].assertSuccess().arrayOfTablesOrNull!!.add(standardTableOf("n" to Item(Value.Integer(2L))).assertSuccess())
     }
 
     private fun eC_026(doc: TomlDocument) {
-        doc.remove("x", force = true)
+        val _ = doc.remove("x", force = true)
     }
 
     private fun eC_027(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
     }
 
     private fun eC_028(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
     }
 
     private fun eC_029(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(2, force = true)
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.removeAt(2, force = true)
     }
 
     private fun eC_030(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
     }
 
     private fun eC_031(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
     }
 
     private fun eC_032(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
     }
 
     private fun eC_033(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.add(Value.Integer(3L))
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.add(Value.Integer(3L))
     }
 
     private fun eC_034(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.add(Value.Integer(3L))
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.add(Value.Integer(3L))
     }
 
     private fun eC_035(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.add(Value.Integer(2L))
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.add(Value.Integer(2L))
     }
 
     private fun eC_036(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.add(0, Value.Integer(0L))
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.add(0, Value.Integer(0L))
     }
 
     private fun eC_037(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.replace(0, Value.Integer(9L))
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.replace(0, Value.Integer(9L))
     }
 
     private fun eC_038(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.replace(1, Value.String("b"))
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.replace(1, Value.String("b"))
     }
 
     private fun eC_039(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.clear(force = true)
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.clear(force = true)
     }
 
     private fun eC_040(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.add(Value.Integer(1L))
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.add(Value.Integer(1L))
     }
 
     private fun eC_041(doc: TomlDocument) {
         val arr = doc["a"].assertSuccess().arrayOrNull!!
-        arr.add(Value.Integer(3L))
-        arr.removeAt(0, force = true)
+        val _ = arr.add(Value.Integer(3L))
+        val _ = arr.removeAt(0, force = true)
     }
 
     private fun eC_042(doc: TomlDocument) {
-        doc.remove("a", force = true)
+        val _ = doc.remove("a", force = true)
     }
 
     private fun eC_043(doc: TomlDocument) {
-        doc["a"] = 5L
+        doc.set("a", 5L).assertSuccess()
     }
 
     private fun eC_044(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
     }
 
     private fun eC_045(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!![1].assertSuccess().arrayOrNull!!.add(Value.Integer(4L))
+        val _ = doc["a"].assertSuccess().arrayOrNull!![1].assertSuccess().arrayOrNull!!.add(Value.Integer(4L))
     }
 
     private fun eC_046(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.add(Value.Integer(2L))
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.add(Value.Integer(2L))
     }
 
     private fun eC_047(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
     }
 
     private fun eC_048(doc: TomlDocument) {
         val v = doc["v"].assertSuccess().valueOrNull!!
-        doc["a"].assertSuccess().arrayOrNull!!.add(v)
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.add(v)
     }
 
     private fun eC_049(doc: TomlDocument) {
         val v = doc["v"].assertSuccess().valueOrNull!!
-        doc["t"].assertSuccess().inlineTableOrNull!!.set("k", v)
+        val _ = doc["t"].assertSuccess().inlineTableOrNull!!.set("k", v)
     }
 
     private fun eC_050(doc: TomlDocument) {
         val v = doc["a"].assertSuccess().valueOrNull!!
-        doc["b"] = v
+        doc.set("b", v).assertSuccess()
     }
 
     private fun eC_051(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.remove("a", force = true)
+        val _ = doc["t"].assertSuccess().inlineTableOrNull!!.remove("a", force = true)
     }
 
     private fun eC_052(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.remove("a", force = true)
+        val _ = doc["t"].assertSuccess().inlineTableOrNull!!.remove("a", force = true)
     }
 
     private fun eC_053(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.set("a", Value.Integer(9L))
+        val _ = doc["t"].assertSuccess().inlineTableOrNull!!.set("a", Value.Integer(9L))
     }
 
     private fun eC_054(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.set("c", Value.Integer(3L))
+        val _ = doc["t"].assertSuccess().inlineTableOrNull!!.set("c", Value.Integer(3L))
     }
 
     private fun eC_055(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.remove("b", force = true)
+        val _ = doc["t"].assertSuccess().inlineTableOrNull!!.remove("b", force = true)
     }
 
     private fun eC_056(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.set("b", Value.Integer(2L))
+        val _ = doc["t"].assertSuccess().inlineTableOrNull!!.set("b", Value.Integer(2L))
     }
 
     private fun eC_057(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.remove("a", force = true)
+        val _ = doc["t"].assertSuccess().inlineTableOrNull!!.remove("a", force = true)
     }
 
     private fun eC_058(doc: TomlDocument) {
-        doc["t"].assertSuccess().inlineTableOrNull!!.remove("b", force = true)
+        val _ = doc["t"].assertSuccess().inlineTableOrNull!!.remove("b", force = true)
     }
 
     private fun eC_059(doc: TomlDocument) {
-        doc.remove("t", force = true)
+        val _ = doc.remove("t", force = true)
     }
 
     private fun eC_060(doc: TomlDocument) {
-        doc["t"] = 0L
+        doc.set("t", 0L).assertSuccess()
     }
 
     private fun eC_061(doc: TomlDocument) {
-        doc["t"]["inner"]["x"] = 5L
+        doc["t"]["inner"].set("x", 5L).assertSuccess()
     }
 
     private fun eC_062(doc: TomlDocument) {
-        doc["deps"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
+        val _ = doc["deps"].assertSuccess().arrayOrNull!!.removeAt(1, force = true)
     }
 
     private fun eC_063(doc: TomlDocument) {
-        doc["t"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
+        val _ = doc["t"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
     }
 
     private fun eC_064(doc: TomlDocument) {
-        doc["t"].assertSuccess().setLayout(TableLayout.Dotted)
+        val _ = doc["t"].assertSuccess().setLayout(TableLayout.Dotted)
     }
 
     private fun eC_065(doc: TomlDocument) {
-        doc.remove("a", force = true)
+        val _ = doc.remove("a", force = true)
     }
 
     private fun eC_066(doc: TomlDocument) {
-        doc["a"].assertSuccess().standardTableOrNull!!.remove("b", force = true)
+        val _ = doc["a"].assertSuccess().standardTableOrNull!!.remove("b", force = true)
     }
 
     private fun eC_067(doc: TomlDocument) {
-        doc["a"]["b"] = 7L
+        doc["a"].set("b", 7L).assertSuccess()
     }
 
     private fun eC_068(doc: TomlDocument) {
-        doc["a"].assertSuccess().standardTableOrNull!!.set("e", Value.Integer(5L))
+        val _ = doc["a"].assertSuccess().standardTableOrNull!!.set("e", Value.Integer(5L))
     }
 
     private fun eC_069(doc: TomlDocument) {
-        doc["a"].assertSuccess().standardTableOrNull!!.remove("y", force = true)
+        val _ = doc["a"].assertSuccess().standardTableOrNull!!.remove("y", force = true)
     }
 
     private fun eC_070(doc: TomlDocument) {
-        doc["t"].assertSuccess().setLayout(TableLayout.Header)
+        val _ = doc["t"].assertSuccess().setLayout(TableLayout.Header)
     }
 
     private fun eC_071(doc: TomlDocument) {
-        doc["t"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
+        val _ = doc["t"].assertSuccess().setLayout(TableLayout.Dotted, force = true)
     }
 
     private fun eC_072(doc: TomlDocument) {
-        doc["a#b"] = 2L
+        doc.set("a#b", 2L).assertSuccess()
     }
 
     private fun eC_073(doc: TomlDocument) {
-        doc.remove("x", force = true)
+        val _ = doc.remove("x", force = true)
     }
 
     private fun eC_074(doc: TomlDocument) {
-        doc["x#y"] = 2L
+        doc.set("x#y", 2L).assertSuccess()
     }
 
     private fun eC_075(doc: TomlDocument) {
-        doc["b"] = 2L
+        doc.set("b", 2L).assertSuccess()
     }
 
     private fun eC_076(doc: TomlDocument) {
-        doc.remove("a", force = true)
+        val _ = doc.remove("a", force = true)
     }
 
     private fun eC_077(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.add(Value.Integer(2L))
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.add(Value.Integer(2L))
     }
 
     private fun eC_078(doc: TomlDocument) {
-        doc["a"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
+        val _ = doc["a"].assertSuccess().arrayOrNull!!.removeAt(0, force = true)
     }
 
     private fun eC_079(doc: TomlDocument) {
-        doc["c"] = 3L
+        doc.set("c", 3L).assertSuccess()
     }
 
     private fun eC_080(doc: TomlDocument) {
-        doc["c"] = 3L
+        doc.set("c", 3L).assertSuccess()
     }
 
     private fun eC_081(doc: TomlDocument) {
-        doc["a"] = 2L
+        doc.set("a", 2L).assertSuccess()
     }
 
     private fun eC_082(doc: TomlDocument) {
-        doc["a"] = 2L
+        doc.set("a", 2L).assertSuccess()
     }
 
     private fun eC_083(doc: TomlDocument) {
-        doc["b"] = 2L
+        doc.set("b", 2L).assertSuccess()
     }
 
     private fun eC_084(doc: TomlDocument) {
-        doc.remove("a", force = true)
+        val _ = doc.remove("a", force = true)
     }
 
     private fun eC_085(doc: TomlDocument) {
-        doc["a"] = 2L
+        doc.set("a", 2L).assertSuccess()
     }
 
     private fun eC_086(doc: TomlDocument) {
-        doc.remove("a", force = true)
+        val _ = doc.remove("a", force = true)
     }
 
     private fun eC_087(doc: TomlDocument) {
-        doc["a"] = 1L
+        doc.set("a", 1L).assertSuccess()
     }
 
     private fun eC_088(doc: TomlDocument) {
-        doc.remove("a", force = true)
+        val _ = doc.remove("a", force = true)
     }
 
     private fun eC_089(doc: TomlDocument) {
-        doc.remove("b", force = true)
+        val _ = doc.remove("b", force = true)
     }
 
     private fun eC_090(doc: TomlDocument) {
-        doc["b"] = 3L
+        doc.set("b", 3L).assertSuccess()
     }
 
     private fun eC_091(doc: TomlDocument) {
-        doc["a"] = 1L
+        doc.set("a", 1L).assertSuccess()
     }
 
     private fun eC_092(doc: TomlDocument) {
-        doc["t"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
+        doc.set("t", standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
     }
 
     private fun eC_093(doc: TomlDocument) {
-        doc["t"].assertSuccess().standardTableOrNull!!.set("k", Value.Integer(1L))
+        val _ = doc["t"].assertSuccess().standardTableOrNull!!.set("k", Value.Integer(1L))
     }
 
     private fun eC_094(doc: TomlDocument) {
-        doc.remove("t", force = true)
+        val _ = doc.remove("t", force = true)
     }
 
     private fun eC_095(doc: TomlDocument) {
-        doc.remove("t", force = true)
+        val _ = doc.remove("t", force = true)
     }
 
     private fun eC_096(doc: TomlDocument) {
-        doc.remove("a", force = true)
+        val _ = doc.remove("a", force = true)
     }
 
     private fun eC_097(doc: TomlDocument) {
-        doc["t"].assertSuccess().standardTableOrNull!!.set("c", Value.Integer(3L))
+        val _ = doc["t"].assertSuccess().standardTableOrNull!!.set("c", Value.Integer(3L))
     }
 
     private fun eC_098(doc: TomlDocument) {
-        doc["t"].assertSuccess().standardTableOrNull!!.remove("b", force = true)
+        val _ = doc["t"].assertSuccess().standardTableOrNull!!.remove("b", force = true)
     }
 
     private fun eC_099(doc: TomlDocument) {
@@ -1723,34 +1723,34 @@ class CommentScenariosTest {
     }
 
     private fun eC_105(doc: TomlDocument) {
-        doc["a"] = Value.Array(tomlArrayOf(Value.Integer(1L), Value.Integer(2L)).assertSuccess())
+        doc.set("a", Value.Array(tomlArrayOf(Value.Integer(1L), Value.Integer(2L)).assertSuccess())).assertSuccess()
     }
 
     private fun eC_106(doc: TomlDocument) {
-        doc["a"] = Value.InlineTable(inlineTableOf("k" to Value.Integer(1L)).assertSuccess())
+        doc.set("a", Value.InlineTable(inlineTableOf("k" to Value.Integer(1L)).assertSuccess())).assertSuccess()
     }
 
     private fun eC_107(doc: TomlDocument) {
-        doc["a"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
+        doc.set("a", standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
     }
 
     private fun eC_108(doc: TomlDocument) {
-        doc["t"] = 5L
+        doc.set("t", 5L).assertSuccess()
     }
 
     private fun eC_109(doc: TomlDocument) {
-        doc["t"].assertSuccess().setLayout(TableLayout.Inline, force = true)
+        val _ = doc["t"].assertSuccess().setLayout(TableLayout.Inline, force = true)
     }
 
     private fun eC_110(doc: TomlDocument) {
-        doc["bin"] = 0L
+        doc.set("bin", 0L).assertSuccess()
     }
 
     private fun eC_111(doc: TomlDocument) {
-        doc["t"].assertSuccess().standardTableOrNull!!.getOrPut("k") { Item(Value.Integer(9L)) }
+        val _ = doc["t"].assertSuccess().standardTableOrNull!!.getOrPut("k") { Item(Value.Integer(9L)) }
     }
 
     private fun eC_112(doc: TomlDocument) {
-        doc["t"].assertSuccess().standardTableOrNull!!.getOrPut("m") { Item(Value.Integer(2L)) }
+        val _ = doc["t"].assertSuccess().standardTableOrNull!!.getOrPut("m") { Item(Value.Integer(2L)) }
     }
 }

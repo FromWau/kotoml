@@ -28,7 +28,7 @@ class EditUnitTest {
 
     @Test
     fun `an item prints as text that parses back`() {
-        Item(Value.parse(Item(Value.String("hello")).toString()).assertSuccess())
+        val _ = Item(Value.parse(Item(Value.String("hello")).toString()).assertSuccess())
     }
 
     @Test

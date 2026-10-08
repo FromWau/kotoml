@@ -16,13 +16,13 @@ import com.fromwau.kern.result.map
  *
  * ```kotlin
  * val doc = TomlDocument.parse("[server]\nport = 8080\n").getOrElse { error(it) }
- * doc["server"]["port"] = 9090L
+ * doc["server"].set("port", 9090L) // Ok
  * doc["server"]["port"].getOrNull()?.longOrNull // 9090
  * doc["database"]["url"] // Err(NotFound("database"))
  * ```
  *
  * Storing an item stores a copy of what it holds, so two places never share one slot or one table or value:
- * after `doc["b"] = doc["a"].getOrElse { error(it) }`, editing `doc["a"]` leaves `doc["b"]` as it was. A copy
+ * after `doc.set("b", doc["a"].getOrElse { error(it) })`, editing `doc["a"]` leaves `doc["b"]` as it was. A copy
  * taken from a place in a document, this one or another, takes the comments that belong to it there: the comment
  * lines right above it with no blank line between, its same-line comment, for a table those of its header, and every
  * comment inside it. Comment lines set apart from it by a blank line stay in its source. A table copied within one
@@ -36,9 +36,9 @@ import com.fromwau.kern.result.map
  * Indexing returns a [Result]: a key that is not there is [TomlEditError.NotFound], and indexing on through an
  * error passes it on, so a chain stops at the first key it misses. Writing creates only the key it names, never
  * a missing parent; create each level first. Writing through an index that cannot hold the write, such as a key
- * of an integer or a position past the end of an array, fails with [TomlEditError]; upstream panics there. The
- * `item[key] = x` form throws [TomlEditException] with the error instead, changing nothing; call [set] for a [Result].
+ * of an integer or a position past the end of an array, fails with [TomlEditError]; upstream panics there.
  */
+@MustUseReturnValues
 public class Item private constructor(
     content: Content,
     private var holds: Holds,
@@ -766,6 +766,7 @@ public class Item private constructor(
      * Expands each inline table and array of inline tables in [table]'s slots, and those under its dotted keys,
      * which stay dotted keys.
      */
+    @IgnorableReturnValue
     private fun expandWithin(
         table: StandardTable,
         lineBreak: String,

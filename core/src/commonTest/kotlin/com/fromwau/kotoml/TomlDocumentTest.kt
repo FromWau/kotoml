@@ -48,8 +48,8 @@ class TomlDocumentTest {
     fun `the keyed calls act on the root table`() {
         val document = TomlDocument()
 
-        document["a"] = 1L
-        document.getOrPut("b") { Item(Value.Integer(2L)) }
+        document.set("a", 1L).assertSuccess()
+        document.getOrPut("b") { Item(Value.Integer(2L)) }.assertSuccess()
 
         assertTrue("a" in document)
         assertEquals(2, document.size)
@@ -73,7 +73,7 @@ class TomlDocumentTest {
         val document = TomlDocument.parse("a = 1 # one\n").assertSuccess()
         val copy = document.copy()
 
-        copy["a"] = 2L
+        copy.set("a", 2L).assertSuccess()
 
         assertEquals("a = 1 # one\n", document.toString())
         assertEquals("a = 2 # one\n", copy.toString())
@@ -128,7 +128,7 @@ class TomlDocumentTest {
     @Test
     fun `writeTo writes the document as it prints`() {
         val document = TomlDocument.parse("name = 'kotoml' # the name\n").assertSuccess()
-        document["version"] = "0.1.0"
+        document.set("version", "0.1.0").assertSuccess()
         val sink = Buffer()
 
         document.writeTo(sink).assertSuccess()

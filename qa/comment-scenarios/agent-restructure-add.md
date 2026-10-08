@@ -12,7 +12,7 @@ rule: 1, 9   version: 1.0
 a = 1 # one
 ```
 ```kotlin edit
-doc["b"] = 2L
+doc.set("b", 2L).assertSuccess()
 ```
 ```toml expected
 # about a
@@ -30,7 +30,7 @@ name = "x" # the name
 port = 80
 ```
 ```kotlin edit
-doc["version"] = "1.0"
+doc.set("version", "1.0").assertSuccess()
 ```
 ```toml expected
 name = "x" # the name
@@ -97,7 +97,7 @@ a = 1
 # end of file
 ```
 ```kotlin edit
-doc["b"] = 2L
+doc.set("b", 2L).assertSuccess()
 ```
 ```toml expected
 a = 1
@@ -179,7 +179,7 @@ a = 1 # a
 b = 2 # b
 ```
 ```kotlin edit
-doc["t"]["c"] = 3L
+doc["t"].set("c", 3L).assertSuccess()
 ```
 ```toml expected
 [t]
@@ -258,7 +258,7 @@ rule: 1, 9   version: 1.0
 host = "h" # host
 ```
 ```kotlin edit
-doc["port"] = Value.Integer(8080L, Decor(prefix = " ", suffix = " # default"))
+doc.set("port", Value.Integer(8080L, Decor(prefix = " ", suffix = " # default"))).assertSuccess()
 ```
 ```toml expected
 # settings
@@ -274,7 +274,7 @@ settled: owner ruling 2026-10-05: the header that opened the file gets a blank l
 a = 1
 ```
 ```kotlin edit
-doc["v"] = 1L
+doc.set("v", 1L).assertSuccess()
 ```
 ```toml expected
 v = 1
@@ -290,7 +290,7 @@ settled: owner ruling 2026-10-05 (Q3): in a document that is only comments, new 
 # just a comment
 ```
 ```kotlin edit
-doc["a"] = 1L
+doc.set("a", 1L).assertSuccess()
 ```
 ```toml expected
 # just a comment
@@ -305,7 +305,7 @@ rule: 1, 9   version: 1.0
 a = 1 # one
 ```
 ```kotlin edit
-doc["t"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
+doc.set("t", standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
 ```
 ```toml expected
 a = 1 # one
@@ -326,7 +326,7 @@ x = 1 # x
 y = 2 # y
 ```
 ```kotlin edit
-doc["c"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
+doc.set("c", standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
 ```
 ```toml expected
 # first
@@ -351,7 +351,7 @@ x = 1
 # end
 ```
 ```kotlin edit
-doc["t"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
+doc.set("t", standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
 ```
 ```toml expected
 [s]
@@ -374,7 +374,7 @@ a = 1 # a
 b = 2
 ```
 ```kotlin edit
-doc["t"]["sub"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
+doc["t"].set("sub", standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
 ```
 ```toml expected
 [t]
@@ -397,7 +397,7 @@ a = 1
 [u]
 ```
 ```kotlin edit
-doc["t"]["sub"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
+doc["t"].set("sub", standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
 ```
 ```toml expected
 [t]
@@ -420,7 +420,7 @@ a = 1
 y = 1
 ```
 ```kotlin edit
-doc["t"]["z"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
+doc["t"].set("z", standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
 ```
 ```toml expected
 [t]
@@ -442,7 +442,7 @@ rule: 1, 9   version: 1.0
 x = 1
 ```
 ```kotlin edit
-doc["a"]["c"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
+doc["a"].set("c", standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
 ```
 ```toml expected
 # about b
@@ -462,7 +462,7 @@ settled: owner confirmed 2026-10-05: as kotoml prints it.
 x = 1
 ```
 ```kotlin edit
-doc["a"]["k"] = 1L
+doc["a"].set("k", 1L).assertSuccess()
 ```
 ```toml expected
 [a]
@@ -502,7 +502,7 @@ rule: 1, 9   version: 1.0
 a.b = 1 # ab
 ```
 ```kotlin edit
-doc["a"]["c"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
+doc["a"].set("c", standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
 ```
 ```toml expected
 # about a
@@ -1192,7 +1192,7 @@ a = 1 # one
 ```
 ```kotlin edit
 val inline = doc["t"].assertSuccess().standardTableOrNull!!.toInlineTable()
-doc["u"] = Value.InlineTable(inline)
+doc.set("u", Value.InlineTable(inline)).assertSuccess()
 ```
 ```toml expected
 x = 0
@@ -1637,7 +1637,7 @@ a.b = 1 # ab
 d = 1
 ```
 ```kotlin edit
-doc["a"]["e"] = 2L
+doc["a"].set("e", 2L).assertSuccess()
 ```
 ```toml expected
 # about a
@@ -1655,7 +1655,7 @@ rule: 1, 9   version: 1.0
 b.c = 1 # bc
 ```
 ```kotlin edit
-doc["a"]["b"]["d"] = 2L
+doc["a"]["b"].set("d", 2L).assertSuccess()
 ```
 ```toml expected
 [a]
@@ -1672,7 +1672,7 @@ z = 0 # z
 a.y = 2 # ay
 ```
 ```kotlin edit
-doc["a"]["w"] = 3L
+doc["a"].set("w", 3L).assertSuccess()
 ```
 ```toml expected
 a.x = 1 # ax
@@ -1691,7 +1691,7 @@ z = 0 # z
 [q]
 ```
 ```kotlin edit
-doc["a"]["n"] = 5L
+doc["a"].set("n", 5L).assertSuccess()
 ```
 ```toml expected
 [a]
@@ -1974,7 +1974,7 @@ x = 1 # one
 y = 2 # y
 ```
 ```kotlin edit
-doc["x"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
+doc.set("x", standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
 ```
 note: corrected: owner ruling 2026-10-05 (Q3): a value replaced by a table takes the comment above it to its new header.
 ```toml expected
@@ -1992,7 +1992,7 @@ rule: 4   version: 1.0
 a = 1
 ```
 ```kotlin edit
-doc["x"] = 0L
+doc.set("x", 0L).assertSuccess()
 ```
 ```toml expected
 x = 0
@@ -2009,7 +2009,7 @@ a = 0
 k = 1
 ```
 ```kotlin edit
-doc["x"] = 0L
+doc.set("x", 0L).assertSuccess()
 ```
 ```toml expected
 a = 0
@@ -2033,7 +2033,7 @@ a = 1
 a = 2
 ```
 ```kotlin edit
-doc["x"] = Value.Array(tomlArrayOf(Value.Integer(1L)).assertSuccess())
+doc.set("x", Value.Array(tomlArrayOf(Value.Integer(1L)).assertSuccess())).assertSuccess()
 ```
 ```toml expected
 name = "n"
@@ -2049,7 +2049,7 @@ rule: 3   version: 1.0
 t = { a = 1 } # tt
 ```
 ```kotlin edit
-doc["t"] = Value.InlineTable(inlineTableOf("b" to Value.Integer(2L)).assertSuccess())
+doc.set("t", Value.InlineTable(inlineTableOf("b" to Value.Integer(2L)).assertSuccess())).assertSuccess()
 ```
 ```toml expected
 # about t
@@ -2065,7 +2065,7 @@ xs = [
 ] # end
 ```
 ```kotlin edit
-doc["xs"] = Value.Array(tomlArrayOf(Value.Integer(5L)).assertSuccess())
+doc.set("xs", Value.Array(tomlArrayOf(Value.Integer(5L)).assertSuccess())).assertSuccess()
 ```
 ```toml expected
 # xs
@@ -2081,7 +2081,7 @@ settled: owner ruling 2026-10-05 (Q7): a table replaced by a table keeps its hea
 a = 1 # a
 ```
 ```kotlin edit
-doc["t"] = standardTableOf("b" to Item(Value.Integer(2L))).assertSuccess()
+doc.set("t", standardTableOf("b" to Item(Value.Integer(2L))).assertSuccess()).assertSuccess()
 ```
 ```toml expected
 # about t
@@ -2101,7 +2101,7 @@ b = 2
 ```
 ```kotlin edit
 doc.remove("a")
-doc["a"] = 3L
+doc.set("a", 3L).assertSuccess()
 ```
 ```toml expected
 b = 2
@@ -2120,7 +2120,7 @@ k = 1
 ```
 ```kotlin edit
 doc.remove("t")
-doc["t"] = standardTableOf("k" to Item(Value.Integer(2L))).assertSuccess()
+doc.set("t", standardTableOf("k" to Item(Value.Integer(2L))).assertSuccess()).assertSuccess()
 ```
 ```toml expected
 x = 1
@@ -2139,7 +2139,7 @@ settled: owner confirmed 2026-10-05: as kotoml prints it.
 a = 1 # one
 ```
 ```kotlin edit
-doc["b"] = 2L
+doc.set("b", 2L).assertSuccess()
 ```
 ```toml expected
 # about a
@@ -2154,7 +2154,7 @@ settled: owner confirmed 2026-10-05: as kotoml prints it.
 a = 1 # one
 ```
 ```kotlin edit
-doc["t"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
+doc.set("t", standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
 ```
 ```toml expected
 a = 1 # one

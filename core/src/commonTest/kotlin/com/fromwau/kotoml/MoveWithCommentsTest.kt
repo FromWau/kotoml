@@ -10,7 +10,8 @@ class MoveWithCommentsTest {
     private fun parse(text: String): TomlDocument = TomlDocument.parse(text, TomlVersion.V1_1).assertSuccess()
 
     private fun TomlDocument.reverse(key: String) {
-        this[key] = this[key].assertSuccess().arrayOfTablesOrNull!!.reversed().toArrayOfTables().assertSuccess()
+        set(key, this[key].assertSuccess().arrayOfTablesOrNull!!.reversed().toArrayOfTables().assertSuccess())
+            .assertSuccess()
     }
 
     private fun TomlDocument.sortArray(key: String) {
@@ -216,8 +217,8 @@ class MoveWithCommentsTest {
     fun `a free comment inside a copied dotted table stays below its line when the table is put on one line`() {
         val doc = parse("[s]\nb.c = 1\n# about d\n\nb.d = 2\n[t]\nx = 0\n")
         doc["s"]["b"].assertSuccess().standardTableOrNull!!.remove("d", force = true).assertSuccess()
-        doc["t"]["b"] = doc["s"]["b"].assertSuccess()
-        doc["t"]["y"] = 5L
+        doc["t"].set("b", doc["s"]["b"].assertSuccess()).assertSuccess()
+        doc["t"].set("y", 5L).assertSuccess()
         doc["t"]["b"].assertSuccess().setLayout(TableLayout.Inline).assertSuccess()
         assertEquals("[s]\nb.c = 1\n# about d\n\n[t]\nx = 0\nb = { c = 1 }\n# about d\n\ny = 5\n", doc.toString())
     }
@@ -225,7 +226,7 @@ class MoveWithCommentsTest {
     @Test
     fun `free lines between the lines of a copied dotted table stay below it on one line`() {
         val doc = parse("[s]\nb.c = 1\n\n# free\n\nb.d = 2\n[t]\nx = 0\n")
-        doc["t"]["b"] = doc["s"]["b"].assertSuccess()
+        doc["t"].set("b", doc["s"]["b"].assertSuccess()).assertSuccess()
         doc["t"]["b"].assertSuccess().setLayout(TableLayout.Inline).assertSuccess()
         assertEquals("[t]\nx = 0\nb = { c = 1, d = 2 }\n\n# free\n", doc.toString().substringAfter("b.d = 2\n"))
     }

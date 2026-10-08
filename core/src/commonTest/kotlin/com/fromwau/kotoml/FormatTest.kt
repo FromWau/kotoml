@@ -236,9 +236,9 @@ class FormatTest {
     @Test
     fun `an edited document formats`() {
         val doc = parse("# top\na=1\n# about b\nb=2\n\n[ t ]\n  c=3\n")
-        doc.remove("b", force = true)
-        doc["t"]["d"] = 4L
-        doc["u"] = standardTableOf("e" to Item(Value.Integer(5L))).assertSuccess()
+        doc.remove("b", force = true).assertSuccess()
+        doc["t"].set("d", 4L).assertSuccess()
+        doc.set("u", standardTableOf("e" to Item(Value.Integer(5L))).assertSuccess()).assertSuccess()
         doc.format()
         assertEquals("# top\na = 1\n\n[t]\nc = 3\nd = 4\n\n[u]\ne = 5\n", doc.toString())
     }
@@ -368,6 +368,7 @@ class FormatTest {
     ) {
         val doc = parse(text)
         doc["t"][dottedKey].assertSuccess().valueOrNull!!.inlineTableOrNull!!.remove(removed, force = true)
+            .assertSuccess()
         doc["t"].assertSuccess().setLayout(TableLayout.Header, force = true).assertSuccess()
         val printed = doc.toString()
         doc.format()
@@ -408,7 +409,7 @@ class FormatTest {
     fun `a comment kept in a dotted table in braces stored into a table stays on its own line after formatting`() {
         val doc = parse("s = {\n  b.c = 1,\n  # about d\n\n  b.d = 2,\n}\n[t]\nx = 0\n")
         doc["s"]["b"].assertSuccess().valueOrNull!!.inlineTableOrNull!!.remove("d").assertSuccess()
-        doc["t"].assertSuccess().standardTableOrNull!!["b"] = doc["s"]["b"].assertSuccess()
+        doc["t"].assertSuccess().standardTableOrNull!!.set("b", doc["s"]["b"].assertSuccess()).assertSuccess()
         doc.format()
         val expected = "s = {\n  b.c = 1,\n  # about d\n}\n\n[t]\nx = 0\nb.c = 1\n# about d\n"
         assertEquals(expected, doc.toString())

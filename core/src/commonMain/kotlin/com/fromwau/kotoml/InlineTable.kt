@@ -13,17 +13,18 @@ import com.fromwau.kern.result.map
  * prints back as a dotted key rather than as `b = { c = 2 }`.
  *
  * Storing a value stores a copy of it, formatting included, so two keys never share one value and a table never
- * holds itself: after `table["b"] = table.getOrNull("a")!!`, editing `table["a"]` leaves `table["b"]` as it was.
+ * holds itself: after `table.set("b", table.getOrNull("a")!!)`, editing `table["a"]` leaves `table["b"]` as it was.
  *
  * ```kotlin
  * val table = inlineTableOf("a" to Value.Integer(1L)).getOrElse { error(it) }
- * table["b"] = "two"
+ * table.set("b", "two") // Ok
  * table.toString() // "{ a = 1, b = \"two\" }"
  * ```
  *
  * In a document whose [TomlDocument.version] is TOML 1.0, a store that would add what only TOML 1.1 reads, such as a
  * string spelled with a `\e` escape, fails with [TomlEditError.NotInToml10] and stores nothing.
  */
+@MustUseReturnValues
 public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     internal var rawTrailing: KeptText = KeptText()
 
@@ -164,6 +165,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
      * Puts [comment] after the comma of [value], one of this table's values, when the line ends there with no comment;
      * whether it did. A table on one line, or a dotted one, holds no comment after a value.
      */
+    @IgnorableReturnValue
     internal fun keepCommentAfter(
         value: Value,
         comment: String,
@@ -592,8 +594,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
 
     /**
      * Sets [key] to a copy of [value], keeping the key's position and formatting when it is already there, as [put]
-     * does without force. In the `table[key] = value` form a failure throws [TomlEditException] instead, changing
-     * nothing; call [put] to force the store.
+     * does without force; call [put] to force the store.
      *
      * @return [TomlEditError.TooDeep] or [TomlEditError.CommentsWouldBeLost], storing nothing, as [put] says.
      */
@@ -674,7 +675,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     }
 
     /**
-     * Sets [key] to a copy of [value], as `table[key] = value` does: a key already there keeps its position, its
+     * Sets [key] to a copy of [value], as [set] does: a key already there keeps its position, its
      * spelling and its decor. Pass a [Key] to replace those. A new key is spaced like the entries already there.
      *
      * A comment in [value]'s decor suffix, read with it or given, such as `Decor(suffix = " # note")`, puts a table on
@@ -776,6 +777,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         return if (count == 0) null else TomlEditError.CommentsWouldBeLost(keyPathOf(this) + key, count)
     }
 
+    @IgnorableReturnValue
     private fun putEntry(
         key: Key,
         value: Value,
@@ -1030,6 +1032,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
             entry.item.valueOrNull?.let { predicate(entry.key.name to it) } ?: false
         }
 
+    @IgnorableReturnValue
     private fun removeEntries(removed: List<KeyValue>): Boolean {
         if (removed.isEmpty()) return false
         keepLinesAbove(removed)
@@ -1240,7 +1243,9 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
             val count = lost.sumOf { it.count }
             lost.firstOrNull()?.let { return Err(TomlEditError.CommentsWouldBeLost(it.keyPath, count)) }
         }
-        for ((key, value) in stored) put(key, value, force = true)
+        for ((key, value) in stored) {
+            val _ = put(key, value, force = true)
+        }
         return Ok(Unit)
     }
 

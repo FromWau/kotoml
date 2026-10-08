@@ -14,21 +14,21 @@ class EditLayoutTest {
     @Test
     fun `replacing a value keeps a missing final newline`() {
         val doc = parse("a = 1\nb = 2")
-        doc["a"] = 5L
+        doc.set("a", 5L).assertSuccess()
         assertEquals("a = 5\nb = 2", doc.toString())
     }
 
     @Test
     fun `adding a key keeps a missing final newline`() {
         val doc = parse("a = 1\nb = 2")
-        doc["c"] = 3L
+        doc.set("c", 3L).assertSuccess()
         assertEquals("a = 1\nb = 2\nc = 3", doc.toString())
     }
 
     @Test
     fun `replacing the last value of a CRLF file keeps its missing final newline`() {
         val doc = parse("a = 1\r\nb = 2")
-        doc["b"] = 3L
+        doc.set("b", 3L).assertSuccess()
         assertEquals("a = 1\r\nb = 3", doc.toString())
     }
 
@@ -75,35 +75,35 @@ class EditLayoutTest {
     @Test
     fun `removing a table between blank lines leaves one blank line`() {
         val doc = parse("[a]\nx = 1\n\n[b]\ny = 2\n\n[c]\nz = 3\n")
-        doc.remove("b")
+        doc.remove("b").assertSuccess()
         assertEquals("[a]\nx = 1\n\n[c]\nz = 3\n", doc.toString())
     }
 
     @Test
     fun `removing the last table leaves no blank line at the end`() {
         val doc = parse("[a]\nx = 1\n\n[b]\ny = 2\n")
-        doc.remove("b")
+        doc.remove("b").assertSuccess()
         assertEquals("[a]\nx = 1\n", doc.toString())
     }
 
     @Test
     fun `removing the first table leaves no blank line at the start`() {
         val doc = parse("[a]\nx = 1\n\n[b]\ny = 2\n")
-        doc.remove("a")
+        doc.remove("a").assertSuccess()
         assertEquals("[b]\ny = 2\n", doc.toString())
     }
 
     @Test
     fun `removing a table keeps both blank lines around the free lines kept from it`() {
         val doc = parse("[a]\nx = 1\n\n# about b\n\n[b]\ny = 2\n\n[c]\nz = 3\n")
-        doc.remove("b", force = true)
+        doc.remove("b", force = true).assertSuccess()
         assertEquals("[a]\nx = 1\n\n# about b\n\n[c]\nz = 3\n", doc.toString())
     }
 
     @Test
     fun `removing a table takes the comment above its header and leaves one blank line`() {
         val doc = parse("[a]\nx = 1\n\n# about b\n[b]\ny = 2\n\n[c]\nz = 3\n")
-        doc.remove("b", force = true)
+        doc.remove("b", force = true).assertSuccess()
         assertEquals("[a]\nx = 1\n\n[c]\nz = 3\n", doc.toString())
     }
 

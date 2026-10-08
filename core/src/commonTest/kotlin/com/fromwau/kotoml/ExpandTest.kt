@@ -290,7 +290,7 @@ class ExpandTest {
         val doc = parse("t = { x = 1 }\n")
         val slot = doc["t"].assertSuccess()
         slot.setLayout(TableLayout.Header).assertSuccess()
-        slot["y"] = 2L
+        slot.set("y", 2L).assertSuccess()
         assertEquals("[t]\nx = 1\ny = 2\n", doc.toString())
         assertNotNull(doc["t"].assertSuccess().standardTableOrNull)
     }
@@ -300,7 +300,7 @@ class ExpandTest {
         val doc = parse("t = { x = 1 }\n")
         val old = doc["t"].assertSuccess().inlineTableOrNull!!
         doc["t"].assertSuccess().setLayout(TableLayout.Header).assertSuccess()
-        old["y"] = 2L
+        old.set("y", 2L).assertSuccess()
         assertEquals("[t]\nx = 1\n", doc.toString())
     }
 
@@ -351,7 +351,7 @@ class ExpandTest {
     @Test
     fun `an inline table in an item stored nowhere becomes a table`() {
         val inline = InlineTable()
-        inline["x"] = 1L
+        inline.set("x", 1L).assertSuccess()
         val item = Item(Value.InlineTable(inline))
         item.setLayout(TableLayout.Header).assertSuccess()
         assertEquals("x = 1\n", item.standardTableOrNull.toString())

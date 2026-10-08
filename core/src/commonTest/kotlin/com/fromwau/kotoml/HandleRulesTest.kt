@@ -33,7 +33,7 @@ class HandleRulesTest {
     fun `a table stored in a new document brings its comments and leaves the free ones`() {
         val src = parse("# Generated\n\n# about db\n[db] # primary\nurl = \"x\" # local\n")
         val dst = TomlDocument()
-        dst["db"] = src["db"].assertSuccess()
+        dst.set("db", src["db"].assertSuccess()).assertSuccess()
         assertEquals("# about db\n[db] # primary\nurl = \"x\" # local\n", dst.toString())
     }
 
@@ -224,7 +224,7 @@ class HandleRulesTest {
     fun `an item replaced in a document no longer writes through to it`() {
         val doc = parse("a = 1\n")
         val old = doc["a"].assertSuccess()
-        doc["a"] = 2L
+        doc.set("a", 2L).assertSuccess()
         old.assign(Item(Value.Integer(3L))).assertSuccess()
         assertEquals("a = 2\n", doc.toString())
     }
@@ -233,7 +233,7 @@ class HandleRulesTest {
     fun `an item removed from a document no longer writes through to it`() {
         val doc = parse("[t]\nk = 1\n")
         val removed = doc.remove("t", force = true).assertSuccess()
-        removed["k"] = 2L
+        removed.set("k", 2L).assertSuccess()
         assertEquals("", doc.toString())
     }
 }

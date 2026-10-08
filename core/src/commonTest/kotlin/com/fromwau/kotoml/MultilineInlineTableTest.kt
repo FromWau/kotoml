@@ -232,7 +232,7 @@ class MultilineInlineTableTest {
     }
 
     private fun TomlDocument.removeFromDotted(vararg path: String) {
-        slotAt(*path.dropLast(1).toTypedArray()).inlineTableOrNull!!.remove(path.last(), force = true)
+        slotAt(*path.dropLast(1).toTypedArray()).inlineTableOrNull!!.remove(path.last(), force = true).assertSuccess()
     }
 
     @Test
@@ -248,7 +248,7 @@ class MultilineInlineTableTest {
     @Test
     fun `an empty dotted table last in a table made multi-line inline from a header takes the trailing comma`() {
         val doc = parse("[t]\na = 1\nb.d.e = 2\n")
-        doc["t"]["b"]["d"].assertSuccess().standardTableOrNull!!.remove("e", force = true)
+        doc["t"]["b"]["d"].assertSuccess().standardTableOrNull!!.remove("e", force = true).assertSuccess()
         doc["t"].assertSuccess().setLayout(TableLayout.MultilineInline).assertSuccess()
         assertEquals("t = {\n  a = 1,\n  b.d = {},\n}\n", doc.toString())
     }
@@ -281,10 +281,10 @@ class MultilineInlineTableTest {
     fun `a key put in an emptied dotted table across lines and removed again leaves the empty table on its line`() {
         val doc = parse("t = {\n  a = 1,\n  b.d.e = 2,\n  c = 3,\n}\n")
         val d = doc.slotAt("t", "b", "d").inlineTableOrNull!!
-        d.remove("e", force = true)
-        d["x"] = Value.Integer(5L)
+        d.remove("e", force = true).assertSuccess()
+        d.set("x", Value.Integer(5L)).assertSuccess()
         assertEquals("t = {\n  a = 1,\n  b.d.x = 5,\n  c = 3,\n}\n", doc.toString())
-        d.remove("x", force = true)
+        d.remove("x", force = true).assertSuccess()
         assertEquals("t = {\n  a = 1,\n  b.d = {},\n  c = 3,\n}\n", doc.toString())
     }
 

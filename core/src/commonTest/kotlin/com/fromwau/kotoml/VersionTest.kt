@@ -215,9 +215,9 @@ class VersionTest {
     fun `a table removed from a TOML 1_0 document takes TOML 1_1 edits once stored in a TOML 1_1 document`() {
         val removed = parse("[a]\nt = { x = 1 }\n", TomlVersion.V1_0).remove("a").assertSuccess()
         val doc = parse("b = 1\n")
-        doc["a"] = removed
+        doc.set("a", removed).assertSuccess()
         doc["a"]["t"].assertSuccess().inline().setTrailingComma(true).assertSuccess()
-        doc["a"]["u"] = Value.Datetime(Datetime.LocalTime(Time.of(7, 32).assertSuccess()))
+        doc["a"].set("u", Value.Datetime(Datetime.LocalTime(Time.of(7, 32).assertSuccess()))).assertSuccess()
         assertEquals("b = 1\n\n[a]\nt = { x = 1 ,}\nu = 07:32\n", doc.toString())
     }
 
@@ -226,7 +226,7 @@ class VersionTest {
         val doc = parse("t = { x = 1 }\nl = [{ y = 1 }]\n", TomlVersion.V1_0)
         val bySet = doc["t"].assertSuccess().inline()
         val byReplace = doc["l"][0].assertSuccess().valueOrNull!!.inlineTableOrNull!!
-        doc["t"] = 1L
+        doc.set("t", 1L).assertSuccess()
         doc["l"].assertSuccess().arrayOrNull!!.replace(0, Value.Integer(2L)).assertSuccess()
         bySet.setTrailingComma(true).assertError<TomlEditError.NotInToml10>()
         byReplace.setTrailingComma(true).assertError<TomlEditError.NotInToml10>()
@@ -262,7 +262,7 @@ class VersionTest {
     @Test
     fun `a time without seconds displays as it prints in the version of its document`() {
         val doc = TomlDocument()
-        doc["t"] = Value.Datetime(Datetime.LocalTime(Time.of(7, 32).assertSuccess()))
+        doc.set("t", Value.Datetime(Datetime.LocalTime(Time.of(7, 32).assertSuccess()))).assertSuccess()
         val time = doc["t"].assertSuccess().valueOrNull as Value.Datetime
         assertEquals("07:32", time.displaySpelling)
         assertEquals("07:32", time.toString())
@@ -291,7 +291,7 @@ class VersionTest {
         assertEquals(TomlVersion.V1_1, doc.version)
         assertEquals(text, doc.toString())
         doc["t"].assertSuccess().inline().setTrailingComma(true).assertSuccess()
-        doc["e"] = Value.parse("\"\\e\"").assertSuccess()
+        doc.set("e", Value.parse("\"\\e\"").assertSuccess()).assertSuccess()
         assertEquals("t = { a = 1 ,} # c\nd = 07:32:00\ne = \"\\e\"\n", written(doc))
     }
 
@@ -415,7 +415,7 @@ class VersionTest {
     @Test
     fun `a time without seconds stored in a TOML 1_0 document prints its seconds`() {
         val doc = parse("a = [1]\n", TomlVersion.V1_0)
-        doc["t"] = Value.parse("07:32").assertSuccess()
+        doc.set("t", Value.parse("07:32").assertSuccess()).assertSuccess()
         doc["a"].assertSuccess().valueOrNull!!.arrayOrNull!!.add(Value.parse("1979-05-27T07:32").assertSuccess()).assertSuccess()
         val expected = "a = [1, 1979-05-27T07:32:00]\nt = 07:32:00\n"
         assertEquals(expected, written(doc))
@@ -425,8 +425,8 @@ class VersionTest {
     @Test
     fun `a TOML 1_1 spelling stored in a TOML 1_1 document is kept`() {
         val doc = parse("a = 1\n")
-        doc["s"] = Value.parse("\"\\e\"").assertSuccess()
-        doc["t"] = Value.parse("{\n  x = 1,\n}").assertSuccess()
+        doc.set("s", Value.parse("\"\\e\"").assertSuccess()).assertSuccess()
+        doc.set("t", Value.parse("{\n  x = 1,\n}").assertSuccess()).assertSuccess()
         assertEquals("a = 1\ns = \"\\e\"\nt = {\n  x = 1,\n}\n", written(doc))
     }
 

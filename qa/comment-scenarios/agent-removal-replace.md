@@ -356,7 +356,7 @@ b = 2
 ```
 ```kotlin edit
 doc.remove("a")
-doc["a"] = 3L
+doc.set("a", 3L).assertSuccess()
 ```
 ```toml expected
 b = 2
@@ -1332,7 +1332,7 @@ rule: 3   version: 1.0
 port = 1 # p
 ```
 ```kotlin edit
-doc["port"] = 2L
+doc.set("port", 2L).assertSuccess()
 ```
 ```toml expected
 # the port
@@ -1345,7 +1345,7 @@ rule: 3   version: 1.0
   port   =   1    # p
 ```
 ```kotlin edit
-doc["port"] = 2L
+doc.set("port", 2L).assertSuccess()
 ```
 ```toml expected
   port   =   2    # p
@@ -1369,7 +1369,7 @@ rule: 3   version: 1.0
 n = 0x10 # hex
 ```
 ```kotlin edit
-doc["n"] = 17L
+doc.set("n", 17L).assertSuccess()
 ```
 ```toml expected
 n = 17 # hex
@@ -1381,7 +1381,7 @@ rule: 3   version: 1.0
 s = 'a' # c
 ```
 ```kotlin edit
-doc["s"] = Value.Integer(5L)
+doc.set("s", Value.Integer(5L)).assertSuccess()
 ```
 ```toml expected
 s = 5 # c
@@ -1395,7 +1395,7 @@ a.b = 1 # c
 a.c = 2
 ```
 ```kotlin edit
-doc["a"]["b"] = 2L
+doc["a"].set("b", 2L).assertSuccess()
 ```
 ```toml expected
 # about a.b
@@ -1409,7 +1409,7 @@ rule: 3   version: 1.0
 t = { a = 1, b = 2 } # t
 ```
 ```kotlin edit
-doc["t"]["a"] = 9L
+doc["t"].set("a", 9L).assertSuccess()
 ```
 ```toml expected
 t = { a = 9, b = 2 } # t
@@ -1427,7 +1427,7 @@ a = [
 b = 1
 ```
 ```kotlin edit
-doc["a"] = 5L
+doc.set("a", 5L).assertSuccess()
 ```
 ```toml expected
 # above
@@ -1442,7 +1442,7 @@ settled: owner confirmed 2026-10-05: as kotoml prints it.
 x = 1 # one
 ```
 ```kotlin edit
-doc["x"] = Value.InlineTable(inlineTableOf("k" to Value.Integer(1L)).assertSuccess())
+doc.set("x", Value.InlineTable(inlineTableOf("k" to Value.Integer(1L)).assertSuccess())).assertSuccess()
 ```
 ```toml expected
 x = { k = 1 } # one
@@ -1454,7 +1454,7 @@ rule: 3   version: 1.0
 x = 1 # one
 ```
 ```kotlin edit
-doc["x"] = Value.Array(tomlArrayOf(Value.Integer(1L), Value.Integer(2L)).assertSuccess())
+doc.set("x", Value.Array(tomlArrayOf(Value.Integer(1L), Value.Integer(2L)).assertSuccess())).assertSuccess()
 ```
 ```toml expected
 x = [1, 2] # one
@@ -1469,7 +1469,7 @@ t = {
 } # tee
 ```
 ```kotlin edit
-doc["t"] = 5L
+doc.set("t", 5L).assertSuccess()
 ```
 ```toml expected
 t = 5 # tee
@@ -1528,7 +1528,7 @@ a = 1 # one
 b = 2
 ```
 ```kotlin edit
-doc["a"] = 3L
+doc.set("a", 3L).assertSuccess()
 ```
 ```toml expected
 a = 3 # one
@@ -1617,7 +1617,7 @@ rule: 4   version: 1.0
 a = 1
 ```
 ```kotlin edit
-doc["x"] = 0L
+doc.set("x", 0L).assertSuccess()
 ```
 ```toml expected
 x = 0
@@ -1636,7 +1636,7 @@ b = 1
 b = 2
 ```
 ```kotlin edit
-doc["x"] = 0L
+doc.set("x", 0L).assertSuccess()
 ```
 ```toml expected
 a = 1
@@ -1656,7 +1656,7 @@ x = 1
 name = "a"
 ```
 ```kotlin edit
-doc["fruit"] = 0L
+doc.set("fruit", 0L).assertSuccess()
 ```
 ```toml expected
 
@@ -1678,7 +1678,7 @@ a = 1
 k = 1 # kay
 ```
 ```kotlin edit
-doc["t"] = 5L
+doc.set("t", 5L).assertSuccess()
 ```
 ```toml expected
 a = 1
@@ -1697,7 +1697,7 @@ k = 1
 m = 2
 ```
 ```kotlin edit
-doc["t"] = 5L
+doc.set("t", 5L).assertSuccess()
 ```
 ```toml expected
 t = 5
@@ -1721,7 +1721,7 @@ m = 2
 [u]
 ```
 ```kotlin edit
-doc["t"] = 5L
+doc.set("t", 5L).assertSuccess()
 ```
 ```toml expected
 t = 5
@@ -1739,7 +1739,7 @@ x = 1 # one
 y = 2
 ```
 ```kotlin edit
-doc["x"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
+doc.set("x", standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
 ```
 ```toml expected
 y = 2
@@ -1758,7 +1758,7 @@ a = 1
 x = 1 # one
 ```
 ```kotlin edit
-doc["x"] = standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()
+doc.set("x", standardTableOf("k" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
 ```
 ```toml expected
 a = 1
@@ -1776,7 +1776,7 @@ z = 0
 t = { a = 1 } # tee
 ```
 ```kotlin edit
-doc["t"] = standardTableOf("a" to Item(Value.Integer(1L))).assertSuccess()
+doc.set("t", standardTableOf("a" to Item(Value.Integer(1L))).assertSuccess()).assertSuccess()
 ```
 ```toml expected
 z = 0
@@ -1796,7 +1796,7 @@ x = 1
 k = 1 # kay
 ```
 ```kotlin edit
-doc["t"] = Value.InlineTable(inlineTableOf("m" to Value.Integer(2L)).assertSuccess())
+doc.set("t", Value.InlineTable(inlineTableOf("m" to Value.Integer(2L)).assertSuccess())).assertSuccess()
 ```
 ```toml expected
 x = 1
@@ -1837,7 +1837,7 @@ k = 1 # kay
 [u]
 ```
 ```kotlin edit
-doc["t"] = standardTableOf("m" to Item(Value.Integer(2L))).assertSuccess()
+doc.set("t", standardTableOf("m" to Item(Value.Integer(2L))).assertSuccess()).assertSuccess()
 ```
 ```toml expected
 # about t
@@ -1878,7 +1878,7 @@ settled: owner ruling 2026-10-05 (Q2): a new header after the root values gets i
 x = 1 # one
 ```
 ```kotlin edit
-doc["x"] = Item(ArrayOfTables().apply { add(standardTableOf("n" to Item(Value.Integer(1L))).assertSuccess()) })
+doc.set("x", Item(ArrayOfTables().apply { add(standardTableOf("n" to Item(Value.Integer(1L))).assertSuccess()) })).assertSuccess()
 ```
 ```toml expected
 # about x
@@ -1896,7 +1896,7 @@ x = [
 ] # arr
 ```
 ```kotlin edit
-doc["x"] = Item(ArrayOfTables().apply { add(standardTableOf("n" to Item(Value.Integer(1L))).assertSuccess()) })
+doc.set("x", Item(ArrayOfTables().apply { add(standardTableOf("n" to Item(Value.Integer(1L))).assertSuccess()) })).assertSuccess()
 ```
 ```toml expected
 a = 1

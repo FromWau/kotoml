@@ -4,7 +4,6 @@ import com.fromwau.kern.result.assertError
 import com.fromwau.kern.result.assertSuccess
 import com.fromwau.kotoml.TomlDocument
 import com.fromwau.kotoml.Value
-import com.fromwau.kotoml.set
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration.Companion.minutes
@@ -215,7 +214,7 @@ class EncodeTest {
     @Test
     fun `encodeToDocument gives an editable document`() {
         val document = Toml.encodeToDocument(Server("h")).assertSuccess()
-        document["port"] = Value.Integer(1L)
+        document.set("port", Value.Integer(1L)).assertSuccess()
         assertEquals("host = \"h\"\nport = 1\n", document.toString())
     }
 }

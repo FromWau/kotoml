@@ -144,7 +144,7 @@ private fun taggedFloat(value: Double): String = when {
 internal fun Tagged.toDocument(): TomlDocument? {
     if (this !is Tagged.Table) return null
     val table = StandardTable()
-    for ((key, value) in entries) table[key] = Item(value.toValue() ?: return null)
+    for ((key, value) in entries) table.set(key, Item(value.toValue() ?: return null)).assertSuccess()
     return TomlDocument(table)
 }
 
@@ -165,12 +165,12 @@ private fun Tagged.toValue(): Value? = when (this) {
     }
     is Tagged.Table -> {
         val table = InlineTable()
-        for ((key, value) in entries) table[key] = value.toValue() ?: return null
+        for ((key, value) in entries) table.set(key, value.toValue() ?: return null).assertSuccess()
         Value.InlineTable(table)
     }
     is Tagged.Array -> {
         val array = TomlArray()
-        for (item in items) array.add(item.toValue() ?: return null)
+        for (item in items) array.add(item.toValue() ?: return null).assertSuccess()
         Value.Array(array)
     }
 }

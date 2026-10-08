@@ -8,6 +8,8 @@ description = "A format-preserving TOML parser and editor, ported from toml_edit
 kotlin {
     compilerOptions {
         allWarningsAsErrors = true
+        // The store classes are @MustUseReturnValues, which the compiler accepts only with the checker on.
+        freeCompilerArgs.add("-Xreturn-value-checker=check")
     }
 
     sourceSets {

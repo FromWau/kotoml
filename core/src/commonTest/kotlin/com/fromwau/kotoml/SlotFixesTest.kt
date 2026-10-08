@@ -16,14 +16,14 @@ class SlotFixesTest {
     @Test
     fun `a table replacing a table keeps the comment above its header`() {
         val doc = parse("a = 1\n\n# about t\n[t]\nx = 1\n")
-        doc["t"] = standardTableOf("y" to Item(Value.Integer(2L))).assertSuccess()
+        doc.set("t", standardTableOf("y" to Item(Value.Integer(2L))).assertSuccess()).assertSuccess()
         assertEquals("a = 1\n\n# about t\n[t]\ny = 2\n", doc.toString())
     }
 
     @Test
     fun `a value replacing a table moves the comment above its header above the key`() {
         val doc = parse("a = 1\n\n# about t\n[t]\nx = 1\n")
-        doc["t"] = Value.Integer(2L)
+        doc.set("t", Value.Integer(2L)).assertSuccess()
         assertEquals("a = 1\n\n# about t\nt = 2\n", doc.toString())
     }
 
@@ -44,7 +44,7 @@ class SlotFixesTest {
     @Test
     fun `a value replacing a table leaves the blank line above its header behind`() {
         val doc = parse("a = 1\n\n[t]\nx = 1\n")
-        doc["t"] = Value.Integer(2L)
+        doc.set("t", Value.Integer(2L)).assertSuccess()
         assertEquals("a = 1\nt = 2\n", doc.toString())
     }
 
@@ -60,7 +60,7 @@ class SlotFixesTest {
         val doc = parse("[t]\nx = 1\n")
         val taken = doc["t"].assertSuccess().standardTableOrNull!!
         doc["t"].assertSuccess().setLayout(TableLayout.Inline).assertSuccess()
-        taken["y"] = 2L
+        taken.set("y", 2L).assertSuccess()
         assertEquals(1L, taken.getOrNull("x")?.longOrNull)
         assertEquals("t = { x = 1 }\n", doc.toString())
     }
@@ -78,7 +78,7 @@ class SlotFixesTest {
     fun `an inline table stores a copy of a value taken from another of its keys`() {
         val doc = parse("t = { a = [1] }\n")
         val t = doc["t"].assertSuccess().inlineTableOrNull!!
-        t["b"] = t["a"].assertSuccess()
+        t.set("b", t["a"].assertSuccess()).assertSuccess()
         t["a"].assertSuccess().arrayOrNull!!.add(2L)
         assertEquals("t = { a = [1, 2] , b = [1] }\n", doc.toString())
     }
@@ -86,8 +86,8 @@ class SlotFixesTest {
     @Test
     fun `an inline table stored in itself holds a copy and prints`() {
         val t = InlineTable()
-        t["a"] = 1L
-        t["self"] = Value.InlineTable(t)
+        t.set("a", 1L).assertSuccess()
+        t.set("self", Value.InlineTable(t)).assertSuccess()
         assertEquals("{ a = 1, self = { a = 1 } }", t.toString())
     }
 
@@ -113,7 +113,7 @@ class SlotFixesTest {
     fun `a slot handed out for a key keeps the old value and leaves the key after put replaces it`() {
         val doc = parse("'k'   =   1\n")
         val slot = doc["k"].assertSuccess()
-        doc["k"] = 2L
+        doc.set("k", 2L).assertSuccess()
         assertEquals(1L, slot.longOrNull)
         slot.assign(Item(Value.Integer(3L))).assertSuccess()
         assertEquals("'k'   =   2\n", doc.toString())

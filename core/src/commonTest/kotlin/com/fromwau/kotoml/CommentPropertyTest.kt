@@ -181,7 +181,7 @@ class CommentPropertyTest {
                     if (force) {
                         // On one line the comments in the array's own text go; those inside its elements stay.
                         val owned = if (multiline) emptyList() else commentsBetweenBrackets(array)
-                        array.setMultiline(multiline, force = true)
+                        array.setMultiline(multiline, force = true).assertSuccess()
                         Outcome(owned)
                     } else {
                         keptOrRefused(doc) { array.setMultiline(multiline) }
@@ -200,7 +200,7 @@ class CommentPropertyTest {
                     if (force) {
                         // A new layout for the table: its comments may go, but for the lines above its key.
                         val owned = commentsOf(doc, slot)
-                        slot.setLayout(layout, force = true)
+                        val _ = slot.setLayout(layout, force = true)
                         Outcome(owned)
                     } else {
                         keptOrRefused(doc) { slot.setLayout(layout) }
@@ -215,7 +215,7 @@ class CommentPropertyTest {
                     val owned = edits.slots
                         .filter { it.inlineTableOrNull?.layout == TableLayout.MultilineInline }
                         .flatMap { commentsOf(doc, it) }
-                    doc.setVersion(version, force = true)
+                    doc.setVersion(version, force = true).assertSuccess()
                     Outcome(owned)
                 } else {
                     keptOrRefused(doc) { doc.setVersion(version) }
@@ -272,8 +272,8 @@ class CommentPropertyTest {
             }
         }
         when (val last = path.last()) {
-            is String -> (parent as StandardTable).remove(last, force = true)
-            else -> (parent as ArrayOfTables).removeAt(last as Int, force = true)
+            is String -> (parent as StandardTable).remove(last, force = true).assertSuccess()
+            else -> (parent as ArrayOfTables).removeAt(last as Int, force = true).assertSuccess()
         }
         val aboveHeader = comments(table.headerComments().attachedAbove)
         return comments(doc.toString()).minusAll(comments(copy.toString())).minusAll(aboveHeader)

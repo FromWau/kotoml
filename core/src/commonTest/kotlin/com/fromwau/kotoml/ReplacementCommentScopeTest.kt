@@ -1,5 +1,6 @@
 package com.fromwau.kotoml
 
+import com.fromwau.kern.result.Result
 import com.fromwau.kern.result.assertSuccess
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -12,10 +13,10 @@ class ReplacementCommentScopeTest {
 
     private fun replacing(
         text: String,
-        edit: (TomlDocument) -> Unit,
+        edit: (TomlDocument) -> Result<*, TomlEditError>,
     ): String {
         val document = TomlDocument.parse(text).assertSuccess()
-        edit(document)
+        edit(document).assertSuccess()
         return document.toString()
     }
 
@@ -25,10 +26,10 @@ class ReplacementCommentScopeTest {
     fun `a value replaced by a value keeps the comment after it`() {
         val text = "[server]\nport = 1 # comment\nhost = \"localhost\"\n"
         val expected = "[server]\nport = 2 # comment\nhost = \"localhost\"\n"
-        assertEquals(expected, replacing(text) { it["server"]["port"] = Value.Integer(2L) })
+        assertEquals(expected, replacing(text) { it["server"].set("port", Value.Integer(2L)) })
         assertEquals(
             expected,
-            replacing(text) { it["server"]["port"].assertSuccess().assign(Item(Value.Integer(2L))).assertSuccess() },
+            replacing(text) { it["server"]["port"].assertSuccess().assign(Item(Value.Integer(2L))) },
         )
     }
 
@@ -37,7 +38,7 @@ class ReplacementCommentScopeTest {
         val text = "port = 1 # comment\n"
         assertEquals(
             "port = 2 # new\n",
-            replacing(text) { it["port"] = Value.Integer(2L, Decor(prefix = " ", suffix = " # new")) },
+            replacing(text) { it.set("port", Value.Integer(2L, Decor(prefix = " ", suffix = " # new"))) },
         )
     }
 
@@ -45,8 +46,8 @@ class ReplacementCommentScopeTest {
     fun `a comment above a dotted key replaced by a value stays above the value`() {
         val text = "c = 2\n# about a\na.b = 1 # same line\nz = 0\n"
         val expected = "c = 2\n# about a\na = 5\nz = 0\n"
-        assertEquals(expected, replacing(text) { it["a"] = Value.Integer(5L) })
-        assertEquals(expected, replacing(text) { it["a"].assertSuccess().assign(Item(Value.Integer(5L))).assertSuccess() })
+        assertEquals(expected, replacing(text) { it.set("a", Value.Integer(5L)) })
+        assertEquals(expected, replacing(text) { it["a"].assertSuccess().assign(Item(Value.Integer(5L))) })
     }
 
     @Test
@@ -54,7 +55,7 @@ class ReplacementCommentScopeTest {
         val text = "c = 2\n# about a\na.b = 1\n# about a.d\na.d = 3\nz = 0\n"
         assertEquals(
             "c = 2\n# about a\na = 5\n# about a.d\nz = 0\n",
-            replacing(text) { it["a"] = Value.Integer(5L) },
+            replacing(text) { it.set("a", Value.Integer(5L)) },
         )
     }
 
@@ -63,7 +64,7 @@ class ReplacementCommentScopeTest {
         val text = "# about a\na.b = 1\nz = 0\n# about a.d\na.d = 3\n"
         assertEquals(
             "# about a\na = 5\nz = 0\n# about a.d\n",
-            replacing(text) { it["a"] = Value.Integer(5L) },
+            replacing(text) { it.set("a", Value.Integer(5L)) },
         )
     }
 
@@ -72,7 +73,7 @@ class ReplacementCommentScopeTest {
         val text = "[s]\n# about a\na.b = 1\nz = 0\n"
         assertEquals(
             "[s]\n# about a\na = 5\nz = 0\n",
-            replacing(text) { it["s"]["a"] = Value.Integer(5L) },
+            replacing(text) { it["s"].set("a", Value.Integer(5L)) },
         )
     }
 
@@ -81,7 +82,7 @@ class ReplacementCommentScopeTest {
         val text = "c = 2\n# about a\na.b = 1\n# about a.d\na.d = 3\nz = 0\n"
         assertEquals(
             "c = 2\n# about a.d\nz = 0\n\n# about a\n[a]\nq = 1\n",
-            replacing(text) { it["a"] = table },
+            replacing(text) { it.set("a", table) },
         )
     }
 

@@ -20,13 +20,14 @@ import kotlinx.io.readByteArray
  *
  * ```kotlin
  * val doc = TomlDocument.parse("\"hello\" = 'toml!' # comment\n['a'.b]\n").getOrElse { error(it) }
- * doc["a"]["b"]["c"] = Value.InlineTable(InlineTable())
- * doc["a"]["b"]["c"]["d"] = "hello"
+ * doc["a"]["b"].set("c", Value.InlineTable(InlineTable()))
+ * doc["a"]["b"]["c"].set("d", "hello")
  * doc.toString() // "\"hello\" = 'toml!' # comment\n['a'.b]\nc = { d = \"hello\" }\n"
  * ```
  *
  * The keyed operations here act on [root]; everything else a [StandardTable] offers is reached through [root].
  */
+@MustUseReturnValues
 public class TomlDocument internal constructor(
     /** The root table, holding the document's top-level keys and, through them, every table. */
     public val root: StandardTable,

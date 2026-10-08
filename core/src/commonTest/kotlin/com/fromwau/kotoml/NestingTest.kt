@@ -63,7 +63,7 @@ class NestingTest {
     fun `a wrapper made from a stored table leaves the table where it stands`() {
         val doc = parse("[a.b]\nx = 1\n")
         val table = doc.item("a", "b").standardTableOrNull!!
-        Item(table)
+        val _ = Item(table)
         assertEquals(Nesting.InTable(parts = 2, dots = 0), nestingOf(table))
     }
 
@@ -71,7 +71,7 @@ class NestingTest {
     fun `a removed table stands at the top`() {
         val doc = parse("[a.b]\nx = 1\n")
         val table = doc.item("a", "b").standardTableOrNull!!
-        doc.item("a").standardTableOrNull!!.remove("b")
+        doc.item("a").standardTableOrNull!!.remove("b").assertSuccess()
         assertEquals(Nesting.InTable(parts = 0, dots = 0), nestingOf(table))
     }
 
@@ -79,7 +79,7 @@ class NestingTest {
     fun `a replaced table stands at the top and its replacement where it stood`() {
         val doc = parse("[a.b]\nx = 1\n")
         val old = doc.item("a", "b").standardTableOrNull!!
-        doc.item("a")["b"] = StandardTable()
+        doc.item("a").set("b", StandardTable()).assertSuccess()
         assertEquals(Nesting.InTable(parts = 0, dots = 0), nestingOf(old))
         assertEquals(Nesting.InTable(parts = 2, dots = 0), nestingOf(doc.item("a", "b").standardTableOrNull!!))
     }
@@ -89,7 +89,7 @@ class NestingTest {
         val doc = parse("a = [[1], [2]]\n")
         val array = doc.item("a").arrayOrNull!!
         val first = array[0].assertSuccess().arrayOrNull!!
-        array.removeAt(0)
+        array.removeAt(0).assertSuccess()
         assertEquals(Nesting.InLine(level = 1), nestingOf(first))
         assertEquals(Nesting.InLine(level = 2), nestingOf(array[0].assertSuccess().arrayOrNull!!))
     }

@@ -25,6 +25,7 @@ import com.fromwau.kern.result.map
  * In a document whose [TomlDocument.version] is TOML 1.0, a store that would add what only TOML 1.1 reads, such as a
  * string spelled with a `\e` escape, fails with [TomlEditError.NotInToml10] and stores nothing.
  */
+@MustUseReturnValues
 public class TomlArray() : Iterable<Value> {
     internal var rawTrailing: KeptText = KeptText()
 
@@ -280,6 +281,7 @@ public class TomlArray() : Iterable<Value> {
      * Puts [comment] after [value], one of the elements, past its comma when one follows, when the line ends there
      * with no comment; whether it did.
      */
+    @IgnorableReturnValue
     internal fun keepCommentAfter(
         value: Value,
         comment: String,
@@ -324,6 +326,7 @@ public class TomlArray() : Iterable<Value> {
     }
 
     // One element per line with a comma, two spaces in from the line holding `[` and `]`; returns an element's start.
+    @IgnorableReturnValue
     private fun spreadOverLines(): String {
         val lineBreak = lineEndingOf(this)
         val indent = lineIndentOf(this)
@@ -451,32 +454,32 @@ public class TomlArray() : Iterable<Value> {
 
     /** Appends a string. */
     public fun add(value: String) {
-        add(Value.String(value))
+        val _ = add(Value.String(value))
     }
 
     /** Appends an integer. */
     public fun add(value: Long) {
-        add(Value.Integer(value))
+        val _ = add(Value.Integer(value))
     }
 
     /** Appends an integer. */
     public fun add(value: Int) {
-        add(Value.Integer(value))
+        val _ = add(Value.Integer(value))
     }
 
     /** Appends a float. */
     public fun add(value: Double) {
-        add(Value.Float(value))
+        val _ = add(Value.Float(value))
     }
 
     /** Appends a boolean. */
     public fun add(value: Boolean) {
-        add(Value.Boolean(value))
+        val _ = add(Value.Boolean(value))
     }
 
     /** Appends a date-time. */
     public fun add(value: Datetime) {
-        add(Value.Datetime(value))
+        val _ = add(Value.Datetime(value))
     }
 
     /**
@@ -507,8 +510,8 @@ public class TomlArray() : Iterable<Value> {
     /**
      * Replaces the element at [index] with [value], which takes over the old element's decor; see [replace].
      *
-     * In the `array[index] = value` form a failure, such as [TomlEditError.IndexOutOfBounds] for an [index] past the
-     * end, throws [TomlEditException] instead, changing nothing.
+     * @return the value it replaced, or [TomlEditError.IndexOutOfBounds] for an [index] past the end, changing
+     *   nothing.
      */
     public fun set(
         index: Int,
@@ -622,6 +625,7 @@ public class TomlArray() : Iterable<Value> {
             copy.removeSlots(at)
         }
 
+    @IgnorableReturnValue
     private fun removeSlots(indices: List<Int>): Boolean {
         for (index in indices.asReversed()) removeSlot(index)
         return indices.isNotEmpty()
@@ -727,7 +731,9 @@ public class TomlArray() : Iterable<Value> {
     public fun addAll(values: Iterable<Value>): EmptyResult<TomlEditError> {
         val added = values.toList()
         for (value in added) storeError(this, null, Item(value))?.let { return Err(it) }
-        for (value in added) add(value)
+        for (value in added) {
+            val _ = add(value)
+        }
         return Ok(Unit)
     }
 

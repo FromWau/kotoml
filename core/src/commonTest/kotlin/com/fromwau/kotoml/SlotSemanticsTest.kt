@@ -16,8 +16,8 @@ class SlotSemanticsTest {
         val shared = Value.Array(tomlArrayOf(Value.Integer(1L)).assertSuccess())
         val first = TomlArray()
         val second = TomlArray()
-        first.add(shared)
-        second.add(shared)
+        first.add(shared).assertSuccess()
+        second.add(shared).assertSuccess()
         first[0].assertSuccess().arrayOrNull!!.add(2L)
         assertEquals("[[1, 2]] [[1]]", "$first $second")
     }
@@ -25,7 +25,7 @@ class SlotSemanticsTest {
     @Test
     fun `an array added into itself holds a copy and prints`() {
         val array = tomlArrayOf(Value.Integer(1L)).assertSuccess()
-        array.add(Value.Array(array))
+        array.add(Value.Array(array)).assertSuccess()
         assertEquals("[1, [1]]", array.toString())
     }
 
@@ -33,8 +33,8 @@ class SlotSemanticsTest {
     fun `a table added to an array of tables is a copy`() {
         val doc = TomlDocument.parse("[t]\nx = 1\n").assertSuccess()
         val tables = ArrayOfTables()
-        tables.add(doc["t"].assertSuccess().standardTableOrNull!!)
-        doc["t"]["x"] = 2L
+        tables.add(doc["t"].assertSuccess().standardTableOrNull!!).assertSuccess()
+        doc["t"].set("x", 2L).assertSuccess()
         assertEquals(1L, tables[0].assertSuccess().getOrNull("x")?.longOrNull)
     }
 
@@ -50,7 +50,7 @@ class SlotSemanticsTest {
     @Test
     fun `assigning a key after copying it into another leaves the copy alone`() {
         val doc = TomlDocument.parse("a = 1\n").assertSuccess()
-        doc["b"] = doc["a"].assertSuccess()
+        doc.set("b", doc["a"].assertSuccess()).assertSuccess()
         doc["a"].assertSuccess().assign(Item(Value.Integer(2L))).assertSuccess()
         assertEquals(1L, doc["b"].assertSuccess().longOrNull)
     }
@@ -58,7 +58,7 @@ class SlotSemanticsTest {
     @Test
     fun `editing an array in place after copying it leaves the copy alone`() {
         val doc = TomlDocument.parse("a = [1]\n").assertSuccess()
-        doc["b"] = doc["a"].assertSuccess()
+        doc.set("b", doc["a"].assertSuccess()).assertSuccess()
         doc["a"].assertSuccess().arrayOrNull!!.add(2L)
         assertEquals("a = [1, 2]\nb = [1]\n", doc.toString())
     }
@@ -66,8 +66,8 @@ class SlotSemanticsTest {
     @Test
     fun `editing a table in place after copying it leaves the copy alone`() {
         val doc = TomlDocument.parse("[a]\nx = 1\n").assertSuccess()
-        doc["b"] = doc["a"].assertSuccess()
-        doc["a"]["y"] = 2L
+        doc.set("b", doc["a"].assertSuccess()).assertSuccess()
+        doc["a"].set("y", 2L).assertSuccess()
         assertEquals(null, doc["b"].assertSuccess().getOrNull("y"))
     }
 
@@ -75,7 +75,7 @@ class SlotSemanticsTest {
     fun `table put stores a copy of the item`() {
         val table = StandardTable()
         val item = Item(Value.Integer(1L))
-        table.put("a", item)
+        table.put("a", item).assertSuccess()
         item.assign(Item(Value.Integer(2L))).assertSuccess()
         assertEquals(1L, table["a"].assertSuccess().longOrNull)
     }
@@ -84,7 +84,7 @@ class SlotSemanticsTest {
     fun `table put with a key stores a copy of the item`() {
         val table = StandardTable()
         val item = Item(Value.Integer(1L))
-        table.put(Key("a"), item)
+        table.put(Key("a"), item).assertSuccess()
         item.assign(Item(Value.Integer(2L))).assertSuccess()
         assertEquals(1L, table["a"].assertSuccess().longOrNull)
     }
@@ -93,7 +93,7 @@ class SlotSemanticsTest {
     fun `table putAll stores copies of the items`() {
         val item = Item(Value.Integer(1L))
         val table = StandardTable()
-        table.putAll(listOf("a" to item))
+        table.putAll(listOf("a" to item)).assertSuccess()
         item.assign(Item(Value.Integer(2L))).assertSuccess()
         assertEquals(1L, table["a"].assertSuccess().longOrNull)
     }
@@ -110,7 +110,7 @@ class SlotSemanticsTest {
     fun `document put stores a copy of the item`() {
         val doc = TomlDocument()
         val item = Item(Value.Integer(1L))
-        doc.put("a", item)
+        doc.put("a", item).assertSuccess()
         item.assign(Item(Value.Integer(2L))).assertSuccess()
         assertEquals(1L, doc["a"].assertSuccess().longOrNull)
     }
@@ -146,7 +146,7 @@ class SlotSemanticsTest {
     @Test
     fun `inserting an item into an inline table stores a copy`() {
         val doc = TomlDocument.parse("a = [1]\nt = {}\n").assertSuccess()
-        doc["t"].assertSuccess().inlineTableOrNull!!.putItem("b", doc["a"].assertSuccess())
+        doc["t"].assertSuccess().inlineTableOrNull!!.putItem("b", doc["a"].assertSuccess()).assertSuccess()
         doc["a"].assertSuccess().arrayOrNull!!.add(2L)
         assertEquals(1, doc["t"]["b"].assertSuccess().arrayOrNull!!.size)
     }
@@ -204,7 +204,7 @@ class SlotSemanticsTest {
     fun `a table assigned into an array of tables slot replaces the element`() {
         val doc = TomlDocument.parse("[[a]]\nx = 1\n").assertSuccess()
         val replacement = StandardTable()
-        replacement["y"] = 2L
+        replacement.set("y", 2L).assertSuccess()
         doc["a"].assertSuccess().set(0, Item(replacement)).assertSuccess()
         assertEquals("[[a]]\ny = 2\n", doc.toString())
     }
@@ -223,7 +223,7 @@ class SlotSemanticsTest {
     @Test
     fun `an array of tables turned into an array holds only values`() {
         val tables = ArrayOfTables()
-        tables.add(StandardTable())
+        tables.add(StandardTable()).assertSuccess()
         val array = tables.toTomlArray().assertSuccess()
         Item(Value.Array(array))[0]
             .assertSuccess()
@@ -276,7 +276,7 @@ class SlotSemanticsTest {
     @Test
     fun `a table turned into an inline table holds only values`() {
         val source = StandardTable()
-        source["a"] = 1L
+        source.set("a", 1L).assertSuccess()
         val inline = source.toInlineTable().assertSuccess()
         val slot = Item(Value.InlineTable(inline))["a"]
         slot.assertSuccess().assign(Item(StandardTable())).assertError<TomlEditError.NotAValue>()
@@ -285,7 +285,7 @@ class SlotSemanticsTest {
     @Test
     fun `an inline table turned into a table takes any item`() {
         val inline = InlineTable()
-        inline["a"] = 1L
+        inline.set("a", 1L).assertSuccess()
         val converted = inline.toStandardTable()
         val slot = converted.getOrNull("a")!!
         slot.assign(Item(StandardTable())).assertSuccess()
@@ -295,14 +295,14 @@ class SlotSemanticsTest {
     @Test
     fun `a copied inline table holds only values`() {
         val doc = TomlDocument.parse("t = { a = 1 }\n").assertSuccess()
-        doc["u"] = doc["t"].assertSuccess()
+        doc.set("u", doc["t"].assertSuccess()).assertSuccess()
         doc["u"]["a"].assertSuccess().assign(Item(StandardTable())).assertError<TomlEditError.NotAValue>()
     }
 
     @Test
     fun `array length counts what iteration yields`() {
         val doc = TomlDocument.parse("a = [1, 2]\n").assertSuccess()
-        doc["a"][0].assertSuccess().assign(Item(StandardTable()))
+        doc["a"][0].assertSuccess().assign(Item(StandardTable())).assertError<TomlEditError.NotAValue>()
         val array = doc["a"].assertSuccess().arrayOrNull!!
         assertEquals(array.count(), array.size)
     }

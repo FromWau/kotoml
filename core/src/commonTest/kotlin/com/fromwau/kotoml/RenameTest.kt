@@ -180,7 +180,7 @@ class RenameTest {
         assertSame(value, doc["b"].assertSuccess())
         assertSame(table, doc["new"].assertSuccess())
         value.assign(Item(Value.Integer(5L))).assertSuccess()
-        table["m"] = 2
+        table.set("m", 2).assertSuccess()
         assertEquals("# about a\nb = 5 # one\n[new]\nk = 1\nm = 2\n", doc.toString())
     }
 

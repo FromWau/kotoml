@@ -2,6 +2,7 @@ package com.fromwau.kotoml
 
 import com.fromwau.kern.result.Result
 import com.fromwau.kern.result.assertSuccess
+import com.fromwau.kern.result.flatMap
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -146,7 +147,7 @@ internal class Edits(
 
     /** Applies one edit and names it; a refused edit counts too, since it must leave the document valid. */
     fun applyOne(): String {
-        val edits = buildList<Pair<String, () -> Unit>> {
+        val edits = buildList<Pair<String, () -> Any?>> {
             val table = tables.random(random)
             val force = random.nextBoolean()
             val key = keyFor(table.keys)
@@ -214,8 +215,7 @@ internal class Edits(
                 add("slot index set" to { slot.set(keyFor(emptySet()), item()) })
                 slot.arrayOfTablesOrNull?.let { tables ->
                     add("slot reverse its tables" to {
-                        val reversed = tables.reversed().toArrayOfTables()
-                        if (reversed is Result.Success) slot.assign(Item(reversed.value))
+                        tables.reversed().toArrayOfTables().flatMap { slot.assign(Item(it)) }
                     })
                 }
             }
@@ -238,7 +238,7 @@ internal class Edits(
             }
         }
         val (name, edit) = edits.random(random)
-        edit()
+        val _ = edit()
         return name
     }
 
@@ -285,7 +285,7 @@ internal class Edits(
         val table = StandardTable()
         repeat(random.nextInt(3)) {
             val item = if (depth < 2 && random.nextInt(4) == 0) Item(table(depth + 1)) else Item(value())
-            table.set(newKeys.random(random), item)
+            table.set(newKeys.random(random), item).assertSuccess()
         }
         return table
     }

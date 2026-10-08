@@ -21,6 +21,7 @@ import com.fromwau.kern.result.map
  * In a document whose [TomlDocument.version] is TOML 1.0, a store that would add what only TOML 1.1 reads, such as a
  * string spelled with a `\e` escape, fails with [TomlEditError.NotInToml10] and stores nothing.
  */
+@MustUseReturnValues
 public class ArrayOfTables() : Iterable<StandardTable> {
     internal var span: Span? = null
 
@@ -198,8 +199,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
      * and its header decor: the comment and blank lines above its `[[header]]` and the comment after it on its line,
      * unless [table] brings comments of its own. See [replace].
      *
-     * In the `tables[index] = table` form a failure, such as [TomlEditError.IndexOutOfBounds] for an [index] past the
-     * end, throws [TomlEditException] instead, changing nothing.
+     * @return the table it replaced, or [TomlEditError.IndexOutOfBounds] for an [index] past the end, changing nothing.
      */
     public fun set(
         index: Int,
@@ -302,6 +302,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         }
 
     // An emptied array still prints its key, so the comment lines above its first header stay above it.
+    @IgnorableReturnValue
     private fun removeSlots(removed: List<Item>): Boolean {
         val removedSlots = removed.toHashSet()
         val empties = values.all { it in removedSlots }
@@ -442,15 +443,15 @@ public fun arrayOfTablesOf(vararg tables: StandardTable): Result<ArrayOfTables, 
 
 /**
  * An array of copies of these tables, in order. Each copy keeps its place among the document's tables, so
- * `doc["arr"] = arr.reversed().toArrayOfTables()` reorders the tables where they print. Each table takes its comments
- * along: the comment lines directly above its header, its header comment and the tables under it. Stored in place of
- * the array its tables were read from, the blank lines above each header, and comment lines a blank line sets apart
- * from it, stay where they print; stored anywhere else, each table read from a document brings the comment lines
+ * `doc.set("arr", arr.reversed().toArrayOfTables())` reorders the tables where they print. Each table takes its
+ * comments along: the comment lines directly above its header, its header comment and the tables under it. Stored in
+ * place of the array its tables were read from, the blank lines above each header, and comment lines a blank line sets
+ * apart from it, stay where they print; stored anywhere else, each table read from a document brings the comment lines
  * directly above its header, as [ArrayOfTables.add] says.
  *
  * ```kotlin
  * val doc = TomlDocument.parse("# first\n[[a]]\nn = 1\n\n# second\n[[a]]\nn = 2\n").getOrElse { error(it) }
- * doc["a"] = doc["a"].getOrNull()?.arrayOfTablesOrNull!!.reversed().toArrayOfTables().getOrElse { error(it) }
+ * doc.set("a", doc["a"].getOrNull()?.arrayOfTablesOrNull!!.reversed().toArrayOfTables().getOrElse { error(it) })
  * doc.toString() // "# second\n[[a]]\nn = 2\n\n# first\n[[a]]\nn = 1\n"
  * ```
  *

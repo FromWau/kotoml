@@ -39,8 +39,8 @@ class PrintScalingTest {
         TomlDocument.parse(builtArrayOfTables(count).toString()).assertSuccess()
 
     private fun fastestPrint(document: TomlDocument): Duration {
-        document.toString()
-        return List(RUNS) { measureTime { document.toString() } }.min()
+        val _ = document.toString()
+        return List(RUNS) { measureTime { val _ = document.toString() } }.min()
     }
 
     private fun assertPrintsInLinearTime(document: (Int) -> TomlDocument) {

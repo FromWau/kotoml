@@ -61,7 +61,7 @@ class EditTest {
 
         val name = document["parent"]["entries"][1]["name"]
         val decor = name.assertSuccess().valueOrNull!!.decor
-        name.assertSuccess().assign(Item(Value.String("updated")))
+        name.assertSuccess().assign(Item(Value.String("updated"))).assertSuccess()
         name.assertSuccess().valueOrNull!!.decor = decor
         assertEquals(input.replace("\"second\"", "\"updated\""), document.toString())
     }
@@ -77,7 +77,7 @@ class EditTest {
     @Test
     fun `a line inserted into a CRLF document ends with CRLF`() {
         val document = TomlDocument.parse("# comment\r\n[table]\r\nvalue = { dotted.key = [1, 2] }\r\n").assertSuccess()
-        document["table"]["new key"] = "new value"
+        document["table"].set("new key", "new value").assertSuccess()
         // Upstream prints CRLF input with LF line endings; this port keeps each line's ending, which the toml-test
         // round trip requires (valid/newline-crlf), and an inserted line ends like the line before it.
         assertEquals(
@@ -418,9 +418,9 @@ trailing...
 
         [other.table]""")
             .running { root ->
-                    root["servers"]["beta"] = StandardTable()
-                    root["servers"]["beta"]["ip"] = "10.0.0.2"
-                    root["servers"]["beta"]["dc"] = "eqdc10"
+                    root["servers"].set("beta", StandardTable()).assertSuccess()
+                    root["servers"]["beta"].set("ip", "10.0.0.2").assertSuccess()
+                    root["servers"]["beta"].set("dc", "eqdc10").assertSuccess()
             }
             .prints("""
 [servers]
@@ -446,7 +446,7 @@ dc = "eqdc10"
         [dependencies.opencl]
         [dev-dependencies]""")
             .running { root ->
-                    root["dependencies"]["newthing"] = StandardTable()
+                    root["dependencies"].set("newthing", StandardTable()).assertSuccess()
             }
             .prints("""
 
@@ -465,7 +465,7 @@ dc = "eqdc10"
         given("[a]")
             .running { root ->
                 val other = TomlDocument.parse("[b]").assertSuccess()
-                root["b"] = other["b"].assertSuccess().copy()
+                root.set("b", other["b"].assertSuccess().copy()).assertSuccess()
             }
             .prints("""
 [a]
@@ -479,10 +479,10 @@ dc = "eqdc10"
         given("""
         [other.table]""")
             .running { root ->
-                    root["servers"] = StandardTable()
-                    root["servers"]["alpha"] = StandardTable()
-                    root["servers"]["alpha"]["ip"] = "10.0.0.1"
-                    root["servers"]["alpha"]["dc"] = "eqdc10"
+                    root.set("servers", StandardTable()).assertSuccess()
+                    root["servers"].set("alpha", StandardTable()).assertSuccess()
+                    root["servers"]["alpha"].set("ip", "10.0.0.1").assertSuccess()
+                    root["servers"]["alpha"].set("dc", "eqdc10").assertSuccess()
             }
             .prints("""
 
@@ -498,14 +498,14 @@ dc = "eqdc10"
     fun `a new array of tables prints one header per table after the existing tables`() {
         given("\n        [package]\n        title = \"withoutarray\"")
             .running { root ->
-                root["bin"] = ArrayOfTables()
+                root.set("bin", ArrayOfTables()).assertSuccess()
                 val array = assertNotNull(root["bin"].assertSuccess().arrayOfTablesOrNull)
                 run {
                     val table = StandardTable()
-                    table["hello"] = "world"
+                    table.set("hello", "world").assertSuccess()
                     array.add(table)
                 }
-                array.add(StandardTable())
+                array.add(StandardTable()).assertSuccess()
             }
             .prints("""
 
@@ -524,9 +524,9 @@ hello = "world"
         given("""
         [tbl.son]""")
             .running { root ->
-                    root["tbl"]["key1"] = "value1"
-                    root["tbl"]["key2"] = 42L
-                    root["tbl"]["key3"] = 8.1415926
+                    root["tbl"].set("key1", "value1").assertSuccess()
+                    root["tbl"].set("key2", 42L).assertSuccess()
+                    root["tbl"].set("key3", 8.1415926).assertSuccess()
             }
             .prints("""
 [tbl]
@@ -547,9 +547,9 @@ key3 = 8.1415926
         [target]
         """)
             .running { root ->
-                    root["target"]["cfg(target_os = \"linux\")"] = StandardTable()
-                    root["target"]["cfg(target_os = \"linux\")"]["dependencies"] = StandardTable()
-                    root["target"]["cfg(target_os = \"linux\")"]["dependencies"]["name"] = "dep"
+                    root["target"].set("cfg(target_os = \"linux\")", StandardTable()).assertSuccess()
+                    root["target"]["cfg(target_os = \"linux\")"].set("dependencies", StandardTable()).assertSuccess()
+                    root["target"]["cfg(target_os = \"linux\")"]["dependencies"].set("name", "dep").assertSuccess()
             }
             .prints("""
 
@@ -822,7 +822,7 @@ name = "dep"
                     t.position = -1
                     Item(t)
                 }
-                pkg["edition"] = "2024"
+                pkg.set("edition", "2024").assertSuccess()
             }
             .prints("""
 
@@ -900,8 +900,8 @@ edition = "2024"
                 assertTrue(b.isEmpty())
                 b.add("hello")
                 assertEquals(1, b.size)
-                b.add(Value.String("world", Decor("\n", "\n")))
-                b.add(Value.String("test", Decor("", "")))
+                b.add(Value.String("world", Decor("\n", "\n"))).assertSuccess()
+                b.add(Value.String("test", Decor("", ""))).assertSuccess()
                 b.add(1, Value.String("beep")).assertSuccess()
                 b.add(2, Value.String("boop", Decor("   ", "   "))).assertSuccess()
                 // This should preserve formatting.
@@ -984,13 +984,13 @@ edition = "2024"
                     assertTrue(a.containsKey("a"))
                     assertTrue("a" in a)
                     a["c"].assertSuccess()
-                    a.getOrPut("b") { Value.Integer(42L) }
+                    a.getOrPut("b") { Value.Integer(42L) }.assertSuccess()
                     assertEquals(3, a.size)
                     a.format()
                 }
                 val b = root.getOrNull("b")!!.inlineTableOrNull!!
                 assertTrue(b.isEmpty())
-                b.getOrPut("hello") { Value.String("world") }
+                b.getOrPut("hello") { Value.String("world") }.assertSuccess()
                 assertEquals(1, b.size)
                 b.format()
             }
@@ -1061,7 +1061,7 @@ edition = "2024"
             inlineTableOf("c" to Value.Integer(4L), "d" to Value.Integer(5L), "e" to Value.Integer(6L)).assertSuccess(),
         )
         val bTable = b.inlineTableOrNull!!
-        aTable.putAll(bTable.map { (key, value) -> key to value.copy() })
+        aTable.putAll(bTable.map { (key, value) -> key to value.copy() }).assertSuccess()
         assertEquals(5, aTable.size)
         assertTrue(aTable.containsKey("e"))
         assertEquals(3, bTable.size)
@@ -1071,10 +1071,10 @@ edition = "2024"
     fun `a dotted sub-table set before its keys prints as dotted keys under the table header`() {
         given("")
             .running { root ->
-                root["nixpkgs"] = StandardTable()
-                root["nixpkgs"]["src"] = StandardTable()
+                root.set("nixpkgs", StandardTable()).assertSuccess()
+                root["nixpkgs"].set("src", StandardTable()).assertSuccess()
                 root["nixpkgs"]["src"].assertSuccess().setLayout(TableLayout.Dotted).assertSuccess()
-                root["nixpkgs"]["src"]["git"] = "https://github.com/nixos/nixpkgs"
+                root["nixpkgs"]["src"].set("git", "https://github.com/nixos/nixpkgs").assertSuccess()
             }
             .prints("""
 [nixpkgs]
@@ -1087,9 +1087,9 @@ src.git = "https://github.com/nixos/nixpkgs"
     fun `a sub-table made dotted after its keys prints as dotted keys under the table header`() {
         given("")
             .running { root ->
-                root["nixpkgs"] = StandardTable()
-                root["nixpkgs"]["src"] = Value.InlineTable(InlineTable())
-                root["nixpkgs"]["src"]["git"] = "https://github.com/nixos/nixpkgs"
+                root.set("nixpkgs", StandardTable()).assertSuccess()
+                root["nixpkgs"].set("src", Value.InlineTable(InlineTable())).assertSuccess()
+                root["nixpkgs"]["src"].set("git", "https://github.com/nixos/nixpkgs").assertSuccess()
                 root["nixpkgs"]["src"].assertSuccess().setLayout(TableLayout.Dotted).assertSuccess()
             }
             .prints("""
@@ -1111,11 +1111,11 @@ src.git = "https://github.com/nixos/nixpkgs"
     fun `an array of tables put at a string key replaces the value there`() {
         val document = TomlDocument.parse("bookmark = 1010").assertSuccess()
         val key = "bookmark"
-        document.put(key, Item(ArrayOfTables()))
+        document.put(key, Item(ArrayOfTables())).assertSuccess()
         val table = document[key].assertSuccess().arrayOfTablesOrNull!!
         val bookmarkTable = StandardTable()
-        bookmarkTable["name"] = "test.swf"
-        table.add(bookmarkTable)
+        bookmarkTable.set("name", "test.swf").assertSuccess()
+        table.add(bookmarkTable).assertSuccess()
         assertSnapshot("""
 [[bookmark]]
 name = "test.swf"
@@ -1126,11 +1126,11 @@ name = "test.swf"
     fun `an array of tables put at a parsed key prints the key's whitespace in its header`() {
         val document = TomlDocument.parse("bookmark = 1010").assertSuccess()
         val key = Key.parsePath("  bookmark   ").assertSuccess()[0]
-        document.root.put(key, Item(ArrayOfTables()))
+        document.root.put(key, Item(ArrayOfTables())).assertSuccess()
         val table = document[key.name].assertSuccess().arrayOfTablesOrNull!!
         val bookmarkTable = StandardTable()
-        bookmarkTable["name"] = "test.swf"
-        table.add(bookmarkTable)
+        bookmarkTable.set("name", "test.swf").assertSuccess()
+        table.add(bookmarkTable).assertSuccess()
         assertSnapshot("""
 [[  bookmark   ]]
 name = "test.swf"
@@ -1165,7 +1165,7 @@ other = "world"
         val t = doc.remove("table").assertSuccess()
         val inline = t.inlineTableOrNull ?: fail("Unexpected $t")
         val table = inline.toStandardTable()
-        doc.put("table", Item(table))
+        doc.put("table", Item(table)).assertSuccess()
         val actual = doc.toString()
         assertSnapshot("""
 [table]
@@ -1231,7 +1231,7 @@ other = "world"
         val doc = TomlDocument.parse("aaaaaa = 1").assertSuccess()
         val key = Key.parse("bbb").assertSuccess()
         val table = doc.root
-        table.put(key, Item(Value.Integer(2L)))
+        table.put(key, Item(Value.Integer(2L))).assertSuccess()
         assertEquals("aaaaaa = 1\nbbb = 2", doc.toString())
     }
 
@@ -1292,9 +1292,9 @@ other = "world"
         // An inline table holds only values, so a dotted inline table stands in for upstream's table here.
         val dotted = InlineTable()
         Item(Value.InlineTable(dotted)).setLayout(TableLayout.Dotted).assertSuccess()
-        doc["tool"] = Value.InlineTable(InlineTable())
-        doc["tool"]["typst-test"] = Value.InlineTable(dotted)
-        doc["tool"]["typst-test"]["tests"] = "tests"
+        doc.set("tool", Value.InlineTable(InlineTable())).assertSuccess()
+        doc["tool"].set("typst-test", Value.InlineTable(dotted)).assertSuccess()
+        doc["tool"]["typst-test"].set("tests", "tests").assertSuccess()
         assertSnapshot("""
 tool = { typst-test.tests = "tests" }
 
@@ -1312,8 +1312,8 @@ name = "banana"
             .running { root ->
                     val array = root["fruit"].assertSuccess().arrayOfTablesOrNull!!
                     val newTable = StandardTable()
-                    newTable.put("name", Item(Value.String("cherry")))
-                    array.add(0, newTable)
+                    newTable.put("name", Item(Value.String("cherry"))).assertSuccess()
+                    array.add(0, newTable).assertSuccess()
                     // The previously-first table (now at index 1) had no leading blank line
                     // from parsing; fix it up so it separates properly.
                     val moved = array[1].assertSuccess()
@@ -1343,10 +1343,10 @@ name = "banana"
             .running { root ->
                     val array = root["fruit"].assertSuccess().arrayOfTablesOrNull!!
                     val newTable = StandardTable()
-                    newTable.put("name", Item(Value.String("cherry")))
+                    newTable.put("name", Item(Value.String("cherry"))).assertSuccess()
                     // Give the new table a leading blank line to match the existing style.
                     newTable.decor = newTable.decor.copy(prefix = "\n")
-                    array.add(1, newTable)
+                    array.add(1, newTable).assertSuccess()
             }
             .prints("""
 [[fruit]]
@@ -1372,10 +1372,10 @@ name = "banana"
             .running { root ->
                     val array = root["fruit"].assertSuccess().arrayOfTablesOrNull!!
                     val newTable = StandardTable()
-                    newTable.put("name", Item(Value.String("cherry")))
+                    newTable.put("name", Item(Value.String("cherry"))).assertSuccess()
                     // Give the new table a leading blank line to match the existing style.
                     newTable.decor = newTable.decor.copy(prefix = "\n")
-                    array.add(2, newTable)
+                    array.add(2, newTable).assertSuccess()
             }
             .prints("""
 [[fruit]]
@@ -1405,9 +1405,9 @@ foo = { bar = 1 }
 """)
             .running { root ->
                 val newFoo = StandardTable()
-                newFoo.put("bar", Item(Value.Integer(1L)))
-                newFoo.put("baz", Item(Value.Integer(2L)))
-                root.getOrNull("foo")!!.assign(Item(newFoo))
+                newFoo.put("bar", Item(Value.Integer(1L))).assertSuccess()
+                newFoo.put("baz", Item(Value.Integer(2L))).assertSuccess()
+                root.getOrNull("foo")!!.assign(Item(newFoo)).assertSuccess()
             }
             .prints("""
 
@@ -1427,11 +1427,11 @@ foo = [{ bar = 1 }]
 """)
             .running { root ->
                 val newFooEntry = StandardTable()
-                newFooEntry.put("bar", Item(Value.Integer(1L)))
-                newFooEntry.put("baz", Item(Value.Integer(2L)))
+                newFooEntry.put("bar", Item(Value.Integer(1L))).assertSuccess()
+                newFooEntry.put("baz", Item(Value.Integer(2L))).assertSuccess()
                 val arr = ArrayOfTables()
-                arr.add(newFooEntry)
-                root.getOrNull("foo")!!.assign(Item(arr))
+                arr.add(newFooEntry).assertSuccess()
+                root.getOrNull("foo")!!.assign(Item(arr)).assertSuccess()
             }
             .prints("""
 
@@ -1455,7 +1455,7 @@ name = "banana"
             .running { root ->
                 val array = root["fruit"].assertSuccess().arrayOfTablesOrNull!!
                 val newTable = StandardTable()
-                newTable.put("name", Item(Value.String("cherry")))
+                newTable.put("name", Item(Value.String("cherry"))).assertSuccess()
                 val old = array.set(1, newTable).assertSuccess()
                 assertEquals("banana", old["name"].assertSuccess().stringOrNull)
             }

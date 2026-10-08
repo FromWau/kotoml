@@ -179,6 +179,7 @@ class LayoutChangeTest {
     ): TomlDocument {
         val doc = parse(text)
         doc["t"][dottedKey].assertSuccess().valueOrNull!!.inlineTableOrNull!!.remove(removed, force = true)
+            .assertSuccess()
         doc["t"].assertSuccess().setLayout(TableLayout.Header, force = true).assertSuccess()
         return doc
     }
@@ -216,7 +217,7 @@ class LayoutChangeTest {
     @Test
     fun `a comment kept in a dotted table in an array of inline tables prints on its own line under a header`() {
         val doc = parse("a = [\n  {\n    x = 0,\n    # about c\n\n    b.c = 1,\n  },\n]\n")
-        doc["a"][0]["b"].assertSuccess().valueOrNull!!.inlineTableOrNull!!.remove("c", force = true)
+        doc["a"][0]["b"].assertSuccess().valueOrNull!!.inlineTableOrNull!!.remove("c", force = true).assertSuccess()
         doc["a"].assertSuccess().setLayout(TableLayout.Header, force = true).assertSuccess()
         assertEquals("[[a]]\nx = 0\n# about c\n\nb = {}\n", doc.toString())
     }
@@ -257,7 +258,7 @@ class LayoutChangeTest {
         val doc = parse(text)
         doc["t"].assertSuccess().setLayout(TableLayout.Header).assertSuccess()
         val dotted = dottedPath.fold(doc["t"].assertSuccess()) { item, key -> item[key].assertSuccess() }
-        dotted.valueOrNull!!.inlineTableOrNull!!.remove(removed, force = true)
+        dotted.valueOrNull!!.inlineTableOrNull!!.remove(removed, force = true).assertSuccess()
         return doc
     }
 
@@ -278,8 +279,8 @@ class LayoutChangeTest {
         val doc = parse("t = {\n  # about c\n  b.c = 1,\n  # about d\n  b.d = 2,\n  x = 0,\n}\n")
         doc["t"].assertSuccess().setLayout(TableLayout.Header).assertSuccess()
         val b = doc["t"]["b"].assertSuccess().valueOrNull!!.inlineTableOrNull!!
-        b.remove("c", force = true)
-        b.remove("d", force = true)
+        b.remove("c", force = true).assertSuccess()
+        b.remove("d", force = true).assertSuccess()
         assertEquals("[t]\nb = {}\nx = 0\n", doc.toString())
     }
 

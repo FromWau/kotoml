@@ -126,8 +126,8 @@ class RespellTest {
     @Test
     fun `a value made in code prints as it did`() {
         val doc = TomlDocument()
-        doc["a"] = Value.String("kotoml")
-        doc["b"] = Value.Float(1.0)
+        doc.set("a", Value.String("kotoml")).assertSuccess()
+        doc.set("b", Value.Float(1.0)).assertSuccess()
         val before = doc.toString()
         doc.respell()
         assertEquals(before, doc.toString())

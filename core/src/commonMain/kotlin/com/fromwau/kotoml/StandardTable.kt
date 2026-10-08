@@ -15,17 +15,18 @@ import com.fromwau.kern.result.map
  * [decor]. A table that stands for the parts of a dotted key, such as `a` in `a.b = 1`, is dotted.
  *
  * Indexing reads and writes slots: `table["key"]` returns the [Item] stored there, or
- * [TomlEditError.NotFound]; `table["key"] = item` stores a copy of `item`, keeping the key's formatting.
+ * [TomlEditError.NotFound]; `table.set("key", item)` stores a copy of `item`, keeping the key's formatting.
  *
  * ```kotlin
  * val table = standardTableOf("name" to Item(Value.String("kotoml"))).getOrElse { error(it) }
- * table["version"] = "0.1.0"
+ * table.set("version", "0.1.0") // Ok
  * table.toString() // "name = \"kotoml\"\nversion = \"0.1.0\"\n"
  * ```
  *
  * In a document whose [TomlDocument.version] is TOML 1.0, a store that would add what only TOML 1.1 reads, such as a
  * string spelled with a `\e` escape, fails with [TomlEditError.NotInToml10] and stores nothing.
  */
+@MustUseReturnValues
 public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     internal val rawDecor: RawDecor = RawDecor()
 
@@ -701,19 +702,19 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         item: Item,
     ): EmptyResult<TomlEditError> = put(key, item).map { }
 
-    /** Stores a copy of [value] at [key], as `table[key] = Item(value)` does. */
+    /** Stores a copy of [value] at [key], as `set(key, Item(value))` does. */
     public fun set(
         key: String,
         value: Value,
     ): EmptyResult<TomlEditError> = set(key, Item(value))
 
-    /** Stores a copy of [table] at [key], as `table[key] = Item(table)` does. */
+    /** Stores a copy of [table] at [key], as `set(key, Item(table))` does. */
     public fun set(
         key: String,
         table: StandardTable,
     ): EmptyResult<TomlEditError> = set(key, Item(table))
 
-    /** Stores a copy of [arrayOfTables] at [key], as `table[key] = Item(arrayOfTables)` does. */
+    /** Stores a copy of [arrayOfTables] at [key], as `set(key, Item(arrayOfTables))` does. */
     public fun set(
         key: String,
         arrayOfTables: ArrayOfTables,
@@ -762,7 +763,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     override operator fun contains(key: String): Boolean = containsKey(key)
 
     /**
-     * Sets [key] to a copy of [item], as `table[key] = item` does: a key already there keeps its position, its
+     * Sets [key] to a copy of [item], as [set] does: a key already there keeps its position, its
      * spelling and its comments, the comment lines right above it and its same-line comment, unless [item] brings
      * comments of its own from where it was read, which take their place. It keeps its spacing too, unless [item] moves
      * it between a `key = value` line and a `[header]` or `[[header]]`, where it takes the default spacing. Pass a
@@ -955,6 +956,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
             copy.removeEntries(names.mapNotNull { copy.items.getEntry(it) })
         }
 
+    @IgnorableReturnValue
     private fun removeEntries(removed: List<KeyValue>): Boolean {
         if (removed.isEmpty()) return false
         keepLinesAbove(removed)
@@ -1008,14 +1010,16 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     }
 
     /**
-     * Stores a copy of every pair of [pairs], in order, as `table[key] = item` does.
+     * Stores a copy of every pair of [pairs], in order, as [set] does.
      *
      * @return [TomlEditError.TooDeep], storing none of them, when one would nest deeper than the parser reads.
      */
     public fun putAll(pairs: Iterable<Pair<String, Item>>): EmptyResult<TomlEditError> {
         val stored = pairs.toList()
         for ((key, item) in stored) storeError(this, key, item)?.let { return Err(it) }
-        for ((key, item) in stored) put(key, item)
+        for ((key, item) in stored) {
+            val _ = put(key, item)
+        }
         return Ok(Unit)
     }
 

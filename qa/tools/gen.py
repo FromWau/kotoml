@@ -40,6 +40,20 @@ FORCED = [
     (r'(?m)^(\s*)remove\(("[^"]*")\)', r'\1remove(\2, force = true)'),
 ]
 
+# A scenario is judged by the document it prints, so the Result of an edit it makes is let go.
+EDITS = r"(?:add|assign|clear|getOrPut|put|putAll|putItem|remove|removeAll|removeAt|removeItem|rename|replace" \
+    r"|retainAll|set|setLayout|setMultiline|setVersion|toInlineTable)"
+STATEMENT = re.compile(r"^(\s*)(?!(?:val|var|if|for|while|when|return)\b)([A-Za-z_][^=]*\." + EDITS + r"[ (].*)$")
+
+def let_go(edit):
+    out = []
+    for line in edit.splitlines():
+        m = STATEMENT.match(line)
+        if m and not line.rstrip().endswith(".assertSuccess()"):
+            line = f"{m.group(1)}val _ = {m.group(2)}"
+        out.append(re.sub(r"apply \{ (add\()", r"apply { val _ = \1", line))
+    return "\n".join(out)
+
 scenarios = []
 for path in sorted(glob.glob(os.path.join(ROOT, "comment-scenarios", "*.md"))):
     text = open(path, encoding="utf-8").read()
@@ -56,6 +70,7 @@ for path in sorted(glob.glob(os.path.join(ROOT, "comment-scenarios", "*.md"))):
             edit = edit.replace(old, new)
         for pattern, replacement in FORCED:
             edit = re.sub(pattern, replacement, edit)
+        edit = let_go(edit)
         version = "V1_1" if "version: 1.1" in header else "V1_0"
         notes = [l for l in header.splitlines() if l.startswith("note:")]
         if notes and len(note_bytes(notes[0])) >= 2:

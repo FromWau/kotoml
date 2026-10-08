@@ -11,8 +11,8 @@ class ValueTest {
     @Test
     fun `a null decor side prints the default and an empty one prints nothing`() {
         val table = StandardTable()
-        table["a"] = 1L
-        table["b"] = Value.Integer(2L, Decor(prefix = "", suffix = ""))
+        table.set("a", 1L).assertSuccess()
+        table.set("b", Value.Integer(2L, Decor(prefix = "", suffix = ""))).assertSuccess()
         assertEquals("a = 1\nb =2\n", table.toString())
     }
 
@@ -76,7 +76,7 @@ class ValueTest {
         val key = Key("a")
         key.leafDecor = Decor(prefix = "", suffix = "  ")
         val table = StandardTable()
-        table.put(key, Item(Value.Integer(1L)))
+        table.put(key, Item(Value.Integer(1L))).assertSuccess()
         assertEquals("a  = 1\n", table.toString())
     }
 }
