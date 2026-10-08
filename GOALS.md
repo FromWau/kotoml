@@ -33,25 +33,45 @@ official toml-test runner for TOML 1.0 and 1.1.
 4. **An edit touches only what it changes.** A comment belongs to the item directly below it, with no blank line
    between, or to the item on its line; comment lines set apart by a blank line belong to no item and stay where they
    are. An item is a key/value, a `[t]` or `[[a]]` header, an array element or an inline-table entry, and inside a
-   table or array the same rule applies again. Comments and formatting are kept, except:
+   table or array the same rule applies again. Where that leaves a doubt:
+   - a comment after an opening bracket (`arr = [ # open`) belongs to the item on that line, `arr`;
+   - of several items on one line, the last owns the line's comment (`1, 2, # pair` is `2`'s);
+   - a comment between a value and its comma, or on a line holding only the comma, belongs to the value before it;
+   - a comment directly above a header belongs to that header, also when it ends the table before;
+   - a comment with no item below it (before `]` or `}`, at the end of the file) belongs to no item, and one inside a
+     container goes only when the container goes;
+   - a comment above a dotted group's first line (`# about a` above `a.b = 1`) belongs to the group and to that line.
+
+   Comments and formatting are kept, except:
    - an item's comments move, copy and are removed with it; removing an item that holds comments, its own or those
      inside it, returns `CommentsWouldBeLost` and changes nothing unless forced, and removing what is not there
-     returns `NotFound`;
+     returns `NotFound`; `clear` follows the same rule. A removal leaves no blank line dangling at the start or end of
+     the file;
+   - an array of tables left empty prints `key = []` under the comment that was above its first header, since the
+     array is still there;
+   - a store or copy carries the item's comments, a table's header comments included; a bare `Value` carries only its
+     same-line comment, the lines above belonging to its key. Comment lines below an array element that comes to
+     stand on a key/value line print above the key, so they still belong to it when read back;
    - replacing a value keeps the slot's comments, unless the new item brings comments of its own, which take their
      place;
+   - a store where the target cannot hold the item's comments (an inline table of TOML 1.0) returns
+     `CommentsWouldBeLost` and changes nothing unless forced; braces on one line that can spread go across lines. The
+     `[]=` form of a store throws `TomlEditException` with the error, while `set` and `put` return it;
    - a layout change (`setLayout`: a header, dotted keys, an inline table on one line or across lines) keeps every
      comment and blank line the new layout can hold, and when it cannot hold a comment returns `CommentsWouldBeLost`
      and changes nothing, unless forced. Forced, it drops only what the new layout cannot hold: dotted keys keep the
      lines above the key and each value's same-line comment; across lines every comment stays; on one line the header
      comment stands after `}` and the comments inside the braces go; a header keeps every comment, the one after `{`,
-     or else after `}`, on the header. A header layout and a multi-line one reach the tables inside;
+     or else after `}`, on the header. A header layout and a multi-line one reach the tables inside. Blank lines are
+     spacing, not content: one line drops them without an error, and blank lines between `[[a]]` headers are spacing
+     the braces lay out themselves. No blank line is left dangling at the end of the file;
    - `setVersion` converts what TOML 1.0 cannot spell under the same comment rule, and under 1.0 an edit that would add
      1.1-only syntax is refused with `NotInToml10`;
-   - an array of tables left empty prints `key = []` under the free comments that were above its first header;
    - dotted keys turned into a header put the comment above their first line above the header;
    - in a document that is only comments, new content goes below them; a new header gets its blank line above the
      comment that introduces it, and the header that opened the file gets one once key/value lines print above it;
-   - sorting and reordering move each item with its comments, while free comments and blank lines stay in place.
+   - sorting and reordering move each item with its comments, while free comments and blank lines stay in place; a
+     dotted group's comment stays above the group's first line.
 
    Check: `CommentPropertyTest` applies random comment-keeping edits (adding, replacing a value with a value, removing a
    value, sorting, `setLayout`, `setImplicit` and `setVersion`) and checks that every comment survives but those the
