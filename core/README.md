@@ -33,8 +33,8 @@ val text = "\n\"hello\" = 'toml!' # comment\n['a'.b]\n"
 val doc = TomlDocument.parse(text).getOrElse { error(it) }
 check(doc.toString() == text)
 
-doc["a"]["b"]["c"] = Value.InlineTable(InlineTable())
-doc["a"]["b"]["c"]["d"] = "hello"
+doc["a"]["b"].set("c", Value.InlineTable(InlineTable()))
+doc["a"]["b"]["c"].set("d", "hello")
 // "hello" = 'toml!' # comment
 // ['a'.b]
 // c = { d = "hello" }
@@ -52,17 +52,17 @@ on writing a key into a string, the call returns a `TomlEditError` instead. Ever
 refuses to nest deeper than `TomlDocument.NESTING_LIMIT` lets the parser read: it returns `TomlEditError.TooDeep`
 and stores nothing, as do the `…Of` builders and the conversions to inline content. Its `keyPath` leads from the
 document's root to where the content gets too deep, or from the top of what is built when it is stored nowhere yet,
-and passes over array elements without a part. The `item["key"] = value` form throws them as a
-`TomlEditException`; call `item.set("key", value)` to get them as a `Result`. Writing never deletes a key; `remove`
-does. An item taken before its key is removed, or replaced by `set` or `put`, keeps what it held but no longer
-belongs to the document: writing through it changes nothing there, so index again.
+and passes over array elements without a part. Every store returns a `Result`, as every edit does; see
+[Handle errors](#handle-errors). Writing never deletes a key; `remove` does. An item taken before its key is removed,
+or replaced by `set` or `put`, keeps what it held but no longer belongs to the document: writing through it changes
+nothing there, so index again.
 
 ## Make and read values
 
 ```kotlin
 val doc = TomlDocument()
-doc["port"] = Value.Integer(8080L, Decor(prefix = " ", suffix = " # default"))
-doc["when"] = Datetime.LocalDate(Date.of(1979, 5, 27).getOrElse { error(it) })
+doc.set("port", Value.Integer(8080L, Decor(prefix = " ", suffix = " # default")))
+doc.set("when", Datetime.LocalDate(Date.of(1979, 5, 27).getOrElse { error(it) }))
 // port = 8080 # default
 // when = 1979-05-27
 
@@ -90,7 +90,7 @@ val doc = TomlDocument.parse("[server]\nhosts = [\"alpha\"]\n").getOrElse { erro
 doc["server"]["hosts"].getOrNull()?.arrayOrNull?.add("beta")
 val server = doc["server"].getOrNull()?.standardTableOrNull!!
 server.getOrPut("port") { Item(Value.Integer(8080L)) }
-doc["client"] = standardTableOf("retries" to Item(Value.Integer(3L))).getOrElse { error(it) }
+doc.set("client", standardTableOf("retries" to Item(Value.Integer(3L))).getOrElse { error(it) })
 // [server]
 // hosts = ["alpha", "beta"]
 // port = 8080
@@ -130,8 +130,7 @@ and its comma stay between them wherever the element goes, and on a line of a ta
 above its key, so they still belong to it. TOML 1.0 has no comments inside an inline table, so there the comments a
 value brings have no place: `put`, `putAll`, `getOrPut`, `putItem` and `Item.assign` return
 `TomlEditError.CommentsWouldBeLost` and change nothing, unless called with `force = true`, which stores the value
-without them. The `table[key] = value` form cannot take `force`: it does what `set` does without it, and throws when
-the store fails.
+without them.
 
 Sorting, by key name with `sort()` or by your own order with `sortBy` and `sortWith`, on a table, an inline table or an
 array, moves each item with its comments: the comment lines directly above it, the comment on its line, after its comma
@@ -139,11 +138,11 @@ in braces or brackets, and for a table its header comment and the tables under i
 dotted keys' first line, such as `# about b` above `b.d = 1`, stay above their first line once `b.c` sorts before it.
 Comment lines a blank line sets apart from the item below them, the blank lines themselves and the comment after `[`
 or `{` stay in place. Storing an array of tables in place of the one its tables were read from, such as
-`doc["a"] = arr.reversed().toArrayOfTables()`, reorders the tables the same way.
+`doc.set("a", arr.reversed().toArrayOfTables())`, reorders the tables the same way.
 
 ```kotlin
 val doc = TomlDocument.parse("# first\n[[a]] # h1\nn = 1\n\n# second\n[[a]] # h2\nn = 2\n").getOrElse { error(it) }
-doc["a"] = doc["a"].getOrNull()?.arrayOfTablesOrNull!!.reversed().toArrayOfTables().getOrElse { error(it) }
+doc.set("a", doc["a"].getOrNull()?.arrayOfTablesOrNull!!.reversed().toArrayOfTables().getOrElse { error(it) })
 // # second
 // [[a]] # h2
 // n = 2
@@ -311,10 +310,10 @@ TOML 1.0 stays one. `respell()` cannot fail. To put an array on one line or acro
 
 ```kotlin
 val doc = TomlDocument()
-doc["license"] = Value.parse("'MIT'").getOrElse { error(it) }
-doc["mode"] = Value.parse("0o755").getOrElse { error(it) }
+doc.set("license", Value.parse("'MIT'").getOrElse { error(it) })
+doc.set("mode", Value.parse("0o755").getOrElse { error(it) })
 doc.root.keyOrNull("mode")?.leafDecor = Decor(prefix = "# file mode\n")
-doc["port"] = Value.Integer(8080, Decor(suffix = " # default"))
+doc.set("port", Value.Integer(8080, Decor(suffix = " # default")))
 // license = 'MIT'
 // # file mode
 // mode = 0o755
@@ -335,7 +334,7 @@ follows the header on its line. `keyOrNull(name)` reads a key of a table.
 val text = "# Generated\n\n# about db\n[db] # primary\nurl = \"x\" # local\n"
 val src = TomlDocument.parse(text).getOrElse { error(it) }
 val dst = TomlDocument()
-dst["db"] = src["db"].getOrElse { error(it) } // prints as storing its copy() would
+dst.set("db", src["db"].getOrElse { error(it) }) // prints as storing its copy() would
 // # about db
 // [db] # primary
 // url = "x" # local
@@ -419,7 +418,7 @@ val doc = when (read) {
         },
     )
 }
-doc["package"]["version"] = "0.2.0"
+doc["package"].set("version", "0.2.0")
 SystemFileSystem.sink(path).buffered().use { doc.writeTo(it) }
 ```
 
@@ -451,19 +450,15 @@ with the offending line and a caret under each character of the offending text. 
 the error, about 80 characters with `…` where it is cut, and a control character as an escape such as `\x0D`; the
 error itself keeps the full span. A duplicate key names its whole path from the document's root, `a.b.c`.
 
-An edit called by name, such as `set`, `put` or `assign`, returns a `Result` holding a `TomlEditError` when it fails.
-The `[]=` form, `doc["a"]["b"] = 1L`, cannot return one, so it throws a `TomlEditException` carrying the same
-`error` instead; a failed store changes nothing either way. That includes indexing on through a key that is not
-there, which throws `NotFound`. The `[]=` form of a store is an extension, imported as `com.fromwau.kotoml.set`.
+Every edit, such as `set`, `put`, `assign` or `remove`, returns a `Result` holding a `TomlEditError` when it fails,
+and a failed edit changes nothing. The edit types are marked `@MustUseReturnValues`, so with Kotlin's checker on
+(`-Xreturn-value-checker=check`) the compiler warns when such a `Result` is ignored. `doc["t"].set("v", value)`
+stores under the item indexing reached and passes on the indexing's error, such as `NotFound` for a missing parent.
 
 ```kotlin
 val doc = TomlDocument.parse("[server]\nport = 8080\n").getOrElse { error(it) }
-doc["database"].flatMap { it.set("url", "postgres://") } // Err(NotFound("database")), nothing changed
-try {
-    doc["database"]["url"] = "postgres://"
-} catch (e: TomlEditException) {
-    e.error // NotFound("database")
-}
+doc["server"].set("port", 9090L) // Ok
+doc["database"].set("url", "postgres://") // Err(NotFound("database")), nothing changed
 ```
 
 A `TomlEditError`, a `TomlWriteError` and a `DatetimeParseError` have a `message` that words them for a person, led

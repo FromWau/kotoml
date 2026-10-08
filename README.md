@@ -25,7 +25,7 @@ which reads without credentials.
 
 ```kotlin
 val doc = TomlDocument.parse("[package]\nname = \"kotoml\" # the name\n").getOrElse { error(it) }
-doc["package"]["version"] = "0.1.0"
+doc["package"].set("version", "0.1.0") // Ok, or a TomlEditError saying why not
 doc.toString() // "[package]\nname = \"kotoml\" # the name\nversion = \"0.1.0\"\n"
 ```
 
