@@ -45,8 +45,17 @@ still belong to it when read back (`# more\nb = 2 # on 2`). `[]=` throws when th
 typed error; `put`/`set` return the `Result`. A dotted inline table refuses a commented value only where its lines
 cannot hold the comment (TOML 1.0, or one-line braces that cannot spread).
 
+Rulings on wave 4 (2026-10-08): sorting a dotted group keeps the comment above its first line above the group's
+new first line (it belongs to the group, C6). Blank lines dropped on one line are spacing, not content: no
+`CommentsWouldBeLost` for them. Blank lines between `[[a]]` headers are table spacing the braces lay out themselves.
+A layout change leaves no blank line dangling at the end of the file.
+
 - [ ] **120. Write the comment ownership rule down.** GOALS.md goal 4 holds it (done with this item's filing);
   core/README.md's "Items and their comments" changes wave by wave with the code (121 to 125), never ahead of it.
+- [ ] **127. Sorting keeps a dotted group's comment above its first line; no blank line dangles at the file end.**
+  Sorting `[t]\nz = 3 # z\n# about b\nb.d = 1 # d\nb.c = 2 # c\n` prints `# about b` between `b.c` and `b.d`;
+  it should stay above `b.c`, the group's new first line. `[t]\nb.c = 1\n\n# free\n\nb.d = 2\n` with
+  `setLayout(Inline, force = true)` on `b` ends the file with a blank line after `# free`.
 - [ ] **125. Review the QA scenarios and docs against the rule.** List every `qa/comment-scenarios` scenario whose
   expected output changes for the owner to confirm; update core/README.md's comment rules, CommentPropertyTest and
   the removal tests.
