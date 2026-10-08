@@ -54,7 +54,7 @@ class LayoutTest {
         (TableLayout.Header to TableLayout.MultilineInline) to
             Change("x = 1\n\n# above t\nt = { # header\n  # inside\n  a = 1, # a\n  b = 2,\n}\n"),
         (TableLayout.Dotted to TableLayout.Header) to
-            Change("x = 1\n\n# above t\n[t]\na = 1 # a\nb = 2 # b\n", lost = 1),
+            Change("x = 1\n\n# above t\n[t]\na = 1 # a\n# inside\nb = 2 # b\n"),
         (TableLayout.Dotted to TableLayout.Inline) to
             Change("x = 1\n# above t\nt = { a = 1, b = 2 }\n# inside\n", lost = 2),
         (TableLayout.Dotted to TableLayout.MultilineInline) to

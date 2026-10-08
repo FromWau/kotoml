@@ -214,7 +214,7 @@ one after `[t]` or after `{`, prints after `}`, or after the table's comma in an
 A comment already there stays, and the header comment goes. `Dotted` keeps the lines above the table's key and each
 value's same-line comment, and drops its header comment, the comment after its braces and the comment lines inside
 it; the tables under it keep their own layouts. Dotted keys made a `Header` put the comment lines above their first
-line above the header and drop the comment lines between their lines. A table stays the same `StandardTable` while
+line above the header and keep the comment lines between their lines. A table stays the same `StandardTable` while
 it changes between `Header` and `Dotted`, and the same `InlineTable` between the inline layouts. On an array of
 tables, or on an array of only inline tables, `Header` and the inline layouts change every table in it. A slot in an
 array or an inline table holds only values, so it takes no `Header`, and a slot in an array takes no `Dotted` either.

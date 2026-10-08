@@ -67,8 +67,8 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
 
     /**
      * Makes this table dotted or a header table as a new layout: the lines above its key stay and each value keeps the
-     * comment on its line, while its header comment and the comment lines inside it go; dotted keys made a header put
-     * the comment above their first line above the header.
+     * comment on its line. Made dotted, its header comment and the comment lines inside it go; dotted keys made a
+     * header put the comment above their first line above the header and keep the comment lines between their lines.
      */
     internal fun layOutDotted(value: Boolean) {
         if (value) {
@@ -76,7 +76,6 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
             dropCommentLines(fromLine = 0)
         } else {
             takeFirstLineCommentsAboveHeader()
-            dropCommentLinesWithinRuns()
         }
         dotted = value
     }
@@ -116,18 +115,6 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
     // The comment lines above this table's lines from [fromLine] on go; those kept from removed keys stay.
     private fun dropCommentLines(fromLine: Int) {
         for (line in visualValues().drop(fromLine)) line.dropCommentLines()
-    }
-
-    // Of this dotted table's lines, those right after another of them lose the comment lines between; one after
-    // other content keeps the lines above it, as removing the table would.
-    private fun dropCommentLinesWithinRuns() {
-        val own = visualValues().mapTo(HashSet()) { it.entry }
-        val printed = headerTableOf(this)?.bodyLines() ?: visualValues()
-        for ((before, line) in printed.zipWithNext()) {
-            if (before is VisualValue && line is VisualValue && before.entry in own && line.entry in own) {
-                line.dropCommentLines()
-            }
-        }
     }
 
     private fun VisualValue.dropCommentLines() {

@@ -524,8 +524,8 @@ public class Item private constructor(
      * header too, or below the table's lines when the one after `{` is there. In an array the comment after an
      * element's comma goes on its header the same way, the comment after `[` and the comment lines above an element go
      * above its header, and the comment lines before `]` and the comment after it below the last table. Dotted keys
-     * made a header put the comment lines above their first line above the header, and the comment lines between
-     * their lines go.
+     * made a header put the comment lines above their first line above the header and keep the comment lines between
+     * their lines.
      *
      * [TableLayout.MultilineInline] puts the table in braces across lines and reaches the tables inside it the same
      * way: each table and array of tables under it becomes a value across lines, and each inline table inside goes

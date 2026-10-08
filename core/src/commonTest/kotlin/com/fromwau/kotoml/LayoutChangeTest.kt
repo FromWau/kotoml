@@ -50,6 +50,20 @@ class LayoutChangeTest {
     }
 
     @Test
+    fun `dotted keys made a header keep the comment lines between their lines without force`() {
+        val doc = parse("[t]\nb.c = 1\n# about d\nb.d = 2\n")
+        doc["t"]["b"].assertSuccess().setLayout(TableLayout.Header).assertSuccess()
+        assertEquals("[t]\n\n[t.b]\nc = 1\n# about d\nd = 2\n", doc.toString())
+    }
+
+    @Test
+    fun `dotted keys made a header keep a free comment between their lines in its place`() {
+        val doc = parse("[t]\nb.c = 1\n\n# free\n\nb.d = 2\n")
+        doc["t"]["b"].assertSuccess().setLayout(TableLayout.Header).assertSuccess()
+        assertEquals("[t]\n\n[t.b]\nc = 1\n\n# free\n\nd = 2\n", doc.toString())
+    }
+
+    @Test
     fun `a nested table made dotted names its whole key path`() {
         assertRefusedThenForced("[a.b] # b\nc = 1\n", listOf("a", "b")) { doc, force ->
             doc["a"]["b"].assertSuccess().setLayout(TableLayout.Dotted, force)
