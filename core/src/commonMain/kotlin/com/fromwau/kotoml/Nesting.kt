@@ -69,16 +69,6 @@ internal fun copiesFromElsewhere(
     return source !== array
 }
 
-/** The table whose body prints [table]'s lines while it is dotted: the nearest one above it with a header. */
-internal fun headerTableOf(table: StandardTable): StandardTable? {
-    var current: Any = table
-    while (true) {
-        val parent = parentOf(current) ?: return null
-        if (parent is StandardTable && !parent.isDotted) return parent
-        current = parent
-    }
-}
-
 /** Whether [container] stands in a document, under its root, rather than in a tree stored nowhere. */
 internal fun isInDocument(container: Any): Boolean = outermostTableOf(container)?.isDocumentRoot == true
 

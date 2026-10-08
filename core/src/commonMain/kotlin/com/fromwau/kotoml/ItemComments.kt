@@ -21,7 +21,7 @@ internal data class ItemComments(
     val freeBelow: String = "",
 ) {
     /** Whether a comment ends the item's line or the line holding only its comma. */
-    val holdsOnLine: Boolean get() = '#' in sameLine || '#' in commaLine
+    private val holdsOnLine: Boolean get() = '#' in sameLine || '#' in commaLine
 
     /**
      * [brought], the comment lines a replacement brings directly above it, when the item it replaces has none there:
@@ -29,14 +29,14 @@ internal data class ItemComments(
      */
     fun fillAbove(brought: String): String = if ('#' in attachedAbove) "" else brought
 
-    /**
-     * [brought], the comment a replacement brings for its line, when the item it replaces has none there or a caller
-     * [given] it: a comment the caller sets takes the place of the slot's.
-     */
+    /** Whether the item keeps the comment on its line over a replacement's: unless a caller [given] that one. */
+    fun keepsOnLine(given: Boolean): Boolean = holdsOnLine && !given
+
+    /** [brought], the comment a replacement brings for its line, unless the item it replaces [keepsOnLine]. */
     fun fillOnLine(
         brought: String,
         given: Boolean,
-    ): String = if (holdsOnLine && !given) "" else brought
+    ): String = if (keepsOnLine(given)) "" else brought
 
     companion object {
         val NONE: ItemComments = ItemComments()

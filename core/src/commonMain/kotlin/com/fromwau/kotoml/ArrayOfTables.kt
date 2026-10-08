@@ -231,7 +231,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         var above = attachedAboveBroughtBy(table, stored)
         if (keepDecor) {
             val own = old.headerComments()
-            val takesPlace = !own.holdsOnLine || stored.rawDecor.givesComment()
+            val takesPlace = !own.keepsOnLine(stored.rawDecor.givesComment())
             val comment = stored.rawDecor.suffix.takeIf { stored.headerComment.isNotEmpty() && takesPlace }
             stored.rawDecor.assign(old.rawDecor)
             if (comment != null) stored.rawDecor.suffix = comment

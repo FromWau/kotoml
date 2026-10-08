@@ -270,7 +270,7 @@ public class Item private constructor(
             val element = standardTableOrNull
             if (oldElement != null && element != null) {
                 takePlaceOf(element, oldElement)
-                if (own.holdsOnLine && !element.rawDecor.givesComment()) {
+                if (own.keepsOnLine(element.rawDecor.givesComment())) {
                     element.rawDecor.suffix = oldElement.rawDecor.suffix
                 }
                 element.putAttachedAbove(broughtAbove)
