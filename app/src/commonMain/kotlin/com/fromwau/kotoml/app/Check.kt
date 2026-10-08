@@ -31,9 +31,8 @@ internal data class CheckReport(val files: List<CheckedFile>) {
     val valid: Boolean get() = files.all { it.valid }
 }
 
-/** `OK` for a file given alone, and `<file>: OK` for each valid one of several. */
-internal fun CheckReport.humanText(): String = files.singleOrNull()?.let { "OK" }
-    ?: files.filter { it.valid }.joinToString("\n") { "${it.path}: OK" }
+/** `OK` for a file given alone; of several, each file's line was printed as it was checked, so nothing is left. */
+internal fun CheckReport.humanText(): String = if (files.size == 1) "OK" else ""
 
 internal object CheckReportSerializer : KSerializer<CheckReport> {
     override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor

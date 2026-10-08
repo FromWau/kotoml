@@ -23,12 +23,17 @@ class ExitCodeTest {
         val out = StringBuilder()
         val err = StringBuilder()
 
+        /** Both streams in the order they were written, as a terminal showing them together reads them. */
+        val both = StringBuilder()
+
         override fun out(text: String) {
             out.append(text)
+            both.append(text)
         }
 
         override fun err(text: String) {
             err.append(text)
+            both.append(text)
         }
     }
 
@@ -171,6 +176,17 @@ class ExitCodeTest {
         assertEquals(1, code)
         assertTrue("$good: OK" in terminal.out.toString(), terminal.out.toString())
         assertTrue("error: $bad: " in terminal.err.toString(), terminal.err.toString())
+    }
+
+    @Test
+    fun `check of several files reports each in the order it was given`() {
+        val first = file("a = 1\n")
+        val bad = file("a = 1\na = 2\n")
+        val last = file("b = 1\n")
+        val (code, terminal) = kotoml("check", first, bad, last)
+        assertEquals(1, code)
+        val reported = terminal.both.lines().filter { it.startsWith("error: ") || it.endsWith(": OK") }
+        assertEquals(listOf("$first: OK", "error: $bad: TOML parse error at line 2, column 1", "$last: OK"), reported)
     }
 
     @Test

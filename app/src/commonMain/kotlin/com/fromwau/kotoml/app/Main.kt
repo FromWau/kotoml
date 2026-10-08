@@ -79,15 +79,22 @@ private fun encode(path: String?): Result<String, AppError> {
     }
 }
 
-/** Checks each of [paths] as TOML of [spec]; [errors], when given, gets a person's line for each that is not. */
+/**
+ * Checks each of [paths] as TOML of [spec]. [terminal], when given, gets a person's line for each file as it is
+ * checked, so the lines keep the order the files were given in although OK and errors go to different streams.
+ */
 private fun check(
     paths: List<String>,
     spec: String,
-    errors: Terminal?,
+    terminal: Terminal?,
 ): CheckReport {
     val results = paths.map { path ->
         val error = (parseToml(path, spec) as? Result.Error)?.error
-        if (errors != null && error != null) errors.err("error: ${error.describe().escapingControls()}\n")
+        when {
+            terminal == null -> Unit
+            error == null -> terminal.out("$path: OK\n")
+            else -> terminal.err("error: ${error.describe().escapingControls()}\n")
+        }
         CheckedFile(path, valid = error == null, error = error)
     }
     return CheckReport(results)
@@ -136,7 +143,7 @@ private class StandardErrorOnly(private val terminal: Terminal) : Terminal by te
     override fun out(text: String) = terminal.err(text)
 }
 
-/** The `kotoml` command line, built once per run; `check` of several files writes its errors to [terminal]. */
+/** The `kotoml` command line, built once per run; `check` of several files writes each file's line to [terminal]. */
 internal fun kotomlCli(terminal: Terminal): Cli = cli("kotoml") {
     description = "Query TOML like jq, keeping every comment and spelling of what it prints"
     version = VERSION
@@ -168,7 +175,7 @@ internal fun kotomlCli(terminal: Terminal): Cli = cli("kotoml") {
                     .map { CheckReport(listOf(CheckedFile(single, valid = true))) }
                     .orCliError()
             } else {
-                Ok(check(paths, spec(), errors = if (json) null else terminal))
+                Ok(check(paths, spec(), terminal = if (json) null else terminal))
             }
         }
     }
