@@ -56,14 +56,6 @@ A layout change leaves no blank line dangling at the end of the file.
   Sorting `[t]\nz = 3 # z\n# about b\nb.d = 1 # d\nb.c = 2 # c\n` prints `# about b` between `b.c` and `b.d`;
   it should stay above `b.c`, the group's new first line. `[t]\nb.c = 1\n\n# free\n\nb.d = 2\n` with
   `setLayout(Inline, force = true)` on `b` ends the file with a blank line after `# free`.
-- [ ] **129. Dotted keys made a header keep the comment lines between their lines.** `[t]\nb.c = 1\n# about d\nb.d
-  = 2\n` with `setLayout(Header)` on `b` returns `CommentsWouldBeLost`, forced `[t.b]\nc = 1\nd = 2`. Owner,
-  2026-10-08: keep them, `[t.b]\nc = 1\n# about d\nd = 2\n`, without force; this replaces the Q5 ruling, and the
-  QA scenarios whose settled note quotes Q5 follow.
-- [ ] **130. A value taken out of braces across lines carries the comment after its comma.**
-  `a = [\n  1, # on 1\n  2,\n]`: `removeAt(0, force = true)` or a copy of `arr[0]` stored elsewhere prints `1`
-  without `# on 1`, which is stored in the next element's prefix. Owner, 2026-10-08: the value carries it. Same for
-  an inline table's entries.
 - [ ] **125. Review the QA scenarios and docs against the rule.** List every `qa/comment-scenarios` scenario whose
   expected output changes for the owner to confirm; update core/README.md's comment rules, CommentPropertyTest and
   the removal tests.
@@ -135,6 +127,22 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **130. A value taken out of braces across lines carries the comment after its comma.**
+  `a = [\n  1, # on 1\n  2,\n]`: `removeAt(0, force = true)` or a copy of `arr[0]` stored elsewhere prints `1`
+  without `# on 1`, which is stored in the next element's prefix. Owner, 2026-10-08: the value carries it. Same for
+  an inline table's entries.
+  **Verdict 2026-10-08:** fixed: a value read by index or iteration, or removed by force, from brackets or braces across
+  lines carries the comment after its comma (`b = 1 # on 1`); stored over an element it replaces the slot's comment, a
+  value without one keeps it. Pinned in StoreCarriesCommentsTest.
+
+- [x] **129. Dotted keys made a header keep the comment lines between their lines.** `[t]\nb.c = 1\n# about d\nb.d
+  = 2\n` with `setLayout(Header)` on `b` returns `CommentsWouldBeLost`, forced `[t.b]\nc = 1\nd = 2`. Owner,
+  2026-10-08: keep them, `[t.b]\nc = 1\n# about d\nd = 2\n`, without force; this replaces the Q5 ruling, and the
+  QA scenarios whose settled note quotes Q5 follow.
+  **Verdict 2026-10-08:** fixed: `setLayout(Header)` on dotted keys keeps the comment lines between their lines, free
+  ones in place, without force: `[t]\n\n[t.b]\nc = 1\n# about d\nd = 2\n`. Pinned in LayoutChangeTest and LayoutTest; no
+  QA output changed, the Q5 notes of R-106 and S-076 amended.
 
 - [x] **128. Stores have no `[]=`; every store returns its `Result`.** Owner, 2026-10-08: `val result =
   (doc["t"]["v"] = one)` is not Kotlin, and `[]=` can only hide or throw a refusal, so it goes for every store.
