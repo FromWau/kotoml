@@ -137,21 +137,19 @@ doc["z"].getOrElse { error(it) }.valueOrNull!!.decor = Decor(prefix = " ", suffi
 doc.set("x", doc["z"].getOrElse { error(it) }) // # about x\nx = 2 # one
 ```
 
-An array of tables left with no tables prints
-`key = []` below the comment lines that stood above its first header, which stay since the array does. A new key
-takes the indentation of the key above it, and an element or key added to an array or inline table on one line takes
-the spacing already there. A comment an element or an inline table's value brings, read with it or given in its
-decor, such as `Decor(suffix = " # note")`, puts a one-line array or inline table on lines of its own, one entry per
-line, whether the entry is added, inserted at an index or replaces another. A comment given in its decor takes the
-place of the one that stood after the entry it replaces, one read with it only fills a place without one, and the new
-lines end as the document's do. An element or entry read from
-brackets or braces across lines brings the comment after its comma, its same-line comment, wherever it is stored,
-also when `removeAt` or `remove` hands it back. Comment lines between an element and its comma stay between them
-wherever the element goes, and on a line of a table, dotted keys' included, they print above its key, so they still
-belong to it. TOML 1.0 has no comments inside an inline table, so there the comments a
-value brings have no place: `put`, `putAll`, `getOrPut`, `putItem` and `Item.assign` return
-`TomlEditError.CommentsWouldBeLost` and change nothing, unless called with `force = true`, which stores the value
-without them.
+An array of tables left with no tables prints `key = []` below the comment lines that stood above its first header,
+which stay since the array does. A new key takes the indentation of the key above it, and an element or key added to an
+array or inline table on one line takes the spacing already there. A comment an element or an inline table's value
+brings, read with it or given in its decor, such as `Decor(suffix = " # note")`, puts a one-line array or inline table
+on lines of its own, one entry per line, whether the entry is added, inserted at an index or replaces another. A comment
+given in the decor of a value stored nowhere yet takes the place of the one that stood after the entry it replaces, one
+read with it only fills a place without one, and the new lines end as the document's do. An element or entry read from
+brackets or braces across lines brings the comment after its comma, its same-line comment, wherever it is stored, also
+when `removeAt` or `remove` hands it back. Comment lines between an element and its comma stay between them wherever the
+element goes, and on a line of a table, dotted keys' included, they print above its key, so they still belong to it.
+TOML 1.0 has no comments inside an inline table, so there the comments a value brings have no place: `put`, `putAll`,
+`getOrPut`, `putItem` and `Item.assign` return `TomlEditError.CommentsWouldBeLost` and change nothing, unless called
+with `force = true`, which stores the value without them.
 
 Sorting, by key name with `sort()` or by your own order with `sortBy` and `sortWith`, on a table, an inline table or an
 array, moves each item with its comments: the comment lines directly above it, the comment on its line, after its comma
@@ -382,8 +380,8 @@ An item handed out by indexing, and the comments that go with it, follow five ru
    it, its same-line and header comment, and every comment inside it. When that would take a comment out of the
    document they return `CommentsWouldBeLost` and change nothing, unless called with `force = true`. The item
    `remove` returns from a document or a table keeps the comments it took and stores with them. Comment lines set
-   apart from it by a blank line stay in the document it left. A comment a caller set
-   through `decor` is the item's own too, so it travels with every store and copy.
+   apart from it by a blank line stay in the document it left. A comment a caller set through `decor` is the item's
+   own too, so it travels with every store and copy.
 5. **A replaced or removed item is detached.** It keeps what it held, but writing through it no longer changes the
    document; index again. It prints, and takes edits, as in the document it left, with that document's line ending
    and TOML version, and so does a `copy()`; stored again, it takes those of the document it is stored in.

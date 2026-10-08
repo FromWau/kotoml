@@ -132,6 +132,13 @@ class ListMergeTest {
     }
 
     @Test
+    fun `a removed element leaves the comment lines set apart from it by a blank line`() {
+        val text = "name = \"f\"\n\n[[servers]]\nhost = \"a\"\n\n# free note\n\n[[servers]]\nhost = \"b\"\n"
+        val result = merged(text) { it.copy(servers = listOf(it.servers[0])) }
+        assertEquals("name = \"f\"\n\n[[servers]]\nhost = \"a\"\n\n# free note\n", result)
+    }
+
+    @Test
     fun `reordered elements move with their comments and leave the blank lines in place`() {
         val result = merged(fleet) { it.copy(servers = it.servers.reversed()) }
         assertEquals(

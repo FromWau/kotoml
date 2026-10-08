@@ -31,7 +31,7 @@ FIXES = {
     "S-058": [(".toInlineTable()", ".toInlineTable().assertSuccess()")],
 }
 
-# The scenarios remove what they name with its comments; a removal that takes comments needs force (todo 122).
+# The scenarios remove what they name with its comments; a removal that takes comments needs force.
 FORCED = [
     (r'\.(remove|removeItem)\(("[^"]*"|[A-Za-z_]+)\)', r'.\1(\2, force = true)'),
     (r'\.removeAt\(([0-9A-Za-z_]+)\)', r'.removeAt(\1, force = true)'),

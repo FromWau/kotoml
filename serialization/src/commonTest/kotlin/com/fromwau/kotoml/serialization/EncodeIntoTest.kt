@@ -215,6 +215,13 @@ class EncodeIntoTest {
     }
 
     @Test
+    fun `a key the map no longer has goes with the comment lines right above it while free ones stay`() {
+        val document = TomlDocument.parse("[ports]\nhttp = 80\n# free\n\n# about ftp\nftp = 21\n").assertSuccess()
+        Toml.encodeInto(document, Ports(mapOf("http" to 80))).assertSuccess()
+        assertEquals("[ports]\nhttp = 80\n# free\n", document.toString())
+    }
+
+    @Test
     fun `a changed subtype drops the old subtype's keys`() {
         val document = TomlDocument.parse("[shape] # the shape\ntype = \"circle\"\nradius = 1.0\n").assertSuccess()
         Toml.encodeInto(document, Holder(Square(2.0))).assertSuccess()
