@@ -56,11 +56,6 @@ A layout change leaves no blank line dangling at the end of the file.
   Sorting `[t]\nz = 3 # z\n# about b\nb.d = 1 # d\nb.c = 2 # c\n` prints `# about b` between `b.c` and `b.d`;
   it should stay above `b.c`, the group's new first line. `[t]\nb.c = 1\n\n# free\n\nb.d = 2\n` with
   `setLayout(Inline, force = true)` on `b` ends the file with a blank line after `# free`.
-- [ ] **132. A comment the caller sets wins over the slot's.** Owner, 2026-10-08: `port = 1 # comment`,
-  `doc.set("port", Value.Integer(2L, Decor(prefix = " ", suffix = " # new")))` gives `port = 2 # new`; comments
-  read from a document still only fill empty places (131). Also: a test for replacing in an inline table printed
-  on a table's lines (the `printsOnTableLines` branch). Kept as they are: a value replaced by a table or the other
-  way (`[x] # hdr` replaces `x = 1 # one`); in brackets an old element's whole comment area wins.
 - [ ] **125. Review the QA scenarios and docs against the rule.** List every `qa/comment-scenarios` scenario whose
   expected output changes for the owner to confirm; update core/README.md's comment rules, CommentPropertyTest and
   the removal tests.
@@ -132,6 +127,16 @@ a block (it propagates and the document is left as it was); an array added into 
 2 GiB on stdin; arbitrary text written into `Decor`, `trailing` or a key's decor.
 
 ## Done
+
+- [x] **132. A comment the caller sets wins over the slot's.** Owner, 2026-10-08: `port = 1 # comment`,
+  `doc.set("port", Value.Integer(2L, Decor(prefix = " ", suffix = " # new")))` gives `port = 2 # new`; comments
+  read from a document still only fill empty places (131). Also: a test for replacing in an inline table printed
+  on a table's lines (the `printsOnTableLines` branch). Kept as they are: a value replaced by a table or the other
+  way (`[x] # hdr` replaces `x = 1 # one`); in brackets an old element's whole comment area wins.
+  **Verdict 2026-10-08:** fixed: `KeptText.Given` marks text a caller set through a public decor setter; a given comment
+  takes the slot's place, comments read from a document only fill (131), also in an inline table printed on a table's
+  lines, where `InlineTable.set` stored a given comment as read text. A read value whose decor the caller sets counts as
+  given. Pinned in StoreCarriesCommentsTest and the restored caller-wins tests.
 
 - [x] **131. Replacing keeps the slot's comments; brought comments only fill empty places.** Owner, 2026-10-08,
   reversing Q6 and the 130 replace behaviour: `c = [\n  7, # seven\n  8,\n]`, `c.replace(0, a[0])` with `a[0]`
