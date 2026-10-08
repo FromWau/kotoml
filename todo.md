@@ -56,6 +56,12 @@ A layout change leaves no blank line dangling at the end of the file.
   Sorting `[t]\nz = 3 # z\n# about b\nb.d = 1 # d\nb.c = 2 # c\n` prints `# about b` between `b.c` and `b.d`;
   it should stay above `b.c`, the group's new first line. `[t]\nb.c = 1\n\n# free\n\nb.d = 2\n` with
   `setLayout(Inline, force = true)` on `b` ends the file with a blank line after `# free`.
+- [ ] **131. Replacing keeps the slot's comments; brought comments only fill empty places.** Owner, 2026-10-08,
+  reversing Q6 and the 130 replace behaviour: `c = [\n  7, # seven\n  8,\n]`, `c.replace(0, a[0])` with `a[0]`
+  bringing `# on 1` keeps `1, # seven`; a slot with no comment there gets `# on 1`. For items too:
+  `# about x\nx = 1 # one`, `doc.set("x", other["y"])` with `# about y\ny = 5 # five` gives `# about x\nx = 5 # one`.
+  Each place counts on its own: lines above, same-line comment, a table's header comment. QA S-052 follows. The
+  twelve Q5 settled notes in qa/ stay as a record (owner, 2026-10-08).
 - [ ] **125. Review the QA scenarios and docs against the rule.** List every `qa/comment-scenarios` scenario whose
   expected output changes for the owner to confirm; update core/README.md's comment rules, CommentPropertyTest and
   the removal tests.
