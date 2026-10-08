@@ -519,7 +519,8 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
      * same way, each header with the comment lines directly above it, its header comment and the tables under it, those
      * made by hand included: they share out the [position]s they held. Blank lines, and comment lines a blank line sets
      * apart from the item below them, stay in place. The parts of a dotted key are sorted the same way, and their order
-     * replaces the one they were read in. The sort is stable.
+     * replaces the one they were read in; the comment lines directly above its first line stay above its first line.
+     * The sort is stable.
      *
      * ```kotlin
      * val doc = TomlDocument.parse("b = 1\n\n# free\n\n# about a\na = 2\n").getOrElse { error(it) }
@@ -529,7 +530,19 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
      */
     public fun sortWith(comparator: Comparator<Pair<Key, Item>>) {
         forgetOrderKeepingKeptLines()
+        if (isDotted) sortGroupWith(comparator) else sortEntriesWith(comparator)
+    }
+
+    // The lines above a dotted table's first line belong to the table, so they stay above whichever line comes first.
+    private fun sortGroupWith(comparator: Comparator<Pair<Key, Item>>) {
+        val first = firstLineDecor()
+        val text = first?.prefix?.textOrNull.orEmpty()
+        val lines = text.substring(0, text.lastIndexOf('\n') + 1)
+        if (first != null && lines.isNotEmpty()) first.prefix = first.prefix.replacedBy(text.substring(lines.length))
         sortEntriesWith(comparator)
+        if (lines.isEmpty()) return
+        val newFirst = firstLineDecor() ?: return
+        newFirst.prefix = newFirst.prefix.replacedBy(lines + newFirst.prefix?.textOrNull.orEmpty())
     }
 
     private fun sortEntriesWith(comparator: Comparator<Pair<Key, Item>>) {
@@ -546,7 +559,7 @@ public class StandardTable() : Table, Iterable<Pair<String, Item>> {
         }
         for (entry in items.entries) {
             val table = entry.item.standardTableOrNull
-            if (table != null && table.isDotted) table.sortEntriesWith(comparator)
+            if (table != null && table.isDotted) table.sortGroupWith(comparator)
         }
     }
 

@@ -216,7 +216,8 @@ internal class KeyValue(key: Key, item: Item) {
                 keptInside && line !== firstValue -> continue
                 index == 0 || pairs == null -> carried += text
                 order == null -> if (onLinesOfTable) below += text else carried += text
-                else -> pairs.keptLines += KeptLines(text, order, (line as? KeptLines)?.dropBlankLinesMeeting == true)
+                // Free lines from between the item's lines spaced them from a line of the item that no longer follows.
+                else -> pairs.keptLines += KeptLines(text, order, line !is KeptLines || line.dropBlankLinesMeeting)
             }
         }
         keepBelowLines(below)

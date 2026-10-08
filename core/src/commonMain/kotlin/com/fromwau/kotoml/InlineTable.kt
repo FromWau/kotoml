@@ -447,8 +447,8 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
      * Across lines each entry moves with its comments: the comment lines directly above it, with no blank line
      * between, and the comment after it on its line, after its comma. Blank lines, comment lines a blank line sets
      * apart from the entry below them, and the comment after `{` stay in place. On one line the spacing stays in
-     * place. The parts of a dotted key are sorted the same way, and their order replaces the one they were read in.
-     * The sort is stable.
+     * place. The parts of a dotted key are sorted the same way, and their order replaces the one they were read in;
+     * across lines the comment lines directly above its first line stay above its first line. The sort is stable.
      */
     public fun sortWith(comparator: Comparator<Pair<Key, Value>>) {
         // On one line the spacing belongs to the position, not to the entry, so it stays where it was.
@@ -476,7 +476,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         val after = visualValues()
         val order = after.map { line -> before.indexOfFirst { it.entry === line.entry } }
         if (order.any { it < 0 }) return
-        val sorted = reorderBraced(text, trailingComma, order)
+        val sorted = reorderBraced(text, trailingComma, order, dottedGroups(before))
         for ((index, line) in after.withIndex()) {
             val decor = line.prefixDecor() ?: continue
             decor.prefix = decor.prefix.replacedBy(sorted.prefixes[index])
@@ -492,6 +492,18 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     private fun VisualValue.prefixDecor(): RawDecor? {
         val start = lineStart ?: return entry.key.rawLeafDecor
         return path.firstOrNull { it.rawLeafDecor.prefix === start }?.rawLeafDecor
+    }
+
+    /** The indexes in [lines] of each dotted table's lines, outermost first, this table's own when it is dotted. */
+    private fun dottedGroups(lines: List<VisualValue>): List<Set<Int>> {
+        val groups = linkedMapOf<List<String>, MutableSet<Int>>()
+        if (isDotted) groups[emptyList()] = lines.indices.toMutableSet()
+        for ((index, line) in lines.withIndex()) {
+            for (depth in 1 until line.path.size) {
+                groups.getOrPut(line.path.take(depth).map { it.name }) { mutableSetOf() } += index
+            }
+        }
+        return groups.entries.sortedBy { it.key.size }.map { it.value }
     }
 
     private fun printsOnOneLine(): Boolean = '\n' !in StringBuilder().also { encodeInlineTable(it, this, "", "") }

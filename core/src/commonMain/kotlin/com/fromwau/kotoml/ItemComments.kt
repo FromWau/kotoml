@@ -196,7 +196,7 @@ private fun keepKeptLinesInFront(
 internal fun InlineTable.takeAttachedAboveFirstLine(): String =
     firstLineDecor()?.takeAttachedAbove(spacedForBraces = true).orEmpty()
 
-private fun StandardTable.firstLineDecor(): RawDecor? = visualValues().firstOrNull()?.entry?.key?.rawLeafDecor
+internal fun StandardTable.firstLineDecor(): RawDecor? = visualValues().firstOrNull()?.entry?.key?.rawLeafDecor
 
 private fun InlineTable.firstLineDecor(): RawDecor? = visualValues().firstOrNull()?.entry?.key?.rawLeafDecor
 
@@ -488,15 +488,25 @@ internal class BracedText(
  * comment lines directly above it, what stands between it and its comma, and the comment ending the line its comma
  * stands on. The comment after the opening bracket, the line breaks, the lines above an item up to the last blank one
  * and the indentation stay at their place. A comment that comes to stand before another item on its line ends the
- * line instead.
+ * line instead. Each of [groups], the indexes of one dotted table's lines, outermost first, keeps the comment lines
+ * directly above its first line above its first line after the reorder.
  */
 internal fun reorderBraced(
     text: BracedText,
     trailingComma: Boolean,
     order: List<Int>,
+    groups: List<Set<Int>> = emptyList(),
 ): BracedText {
     val count = text.prefixes.size
     val places = text.prefixes.map(::BracedPlace)
+    val ownAttached = places.mapTo(mutableListOf()) { it.attached }
+    val broughtAttached = MutableList(count) { "" }
+    for (group in groups) {
+        val oldFirst = group.min()
+        val newFirst = order.first { it in group }
+        broughtAttached[newFirst] += ownAttached[oldFirst]
+        ownAttached[oldFirst] = ""
+    }
     val lineBreak = (text.prefixes + text.suffixes + text.trailing).firstOrNull { '\n' in it }?.lineBreak() ?: "\n"
     val indent = places.firstOrNull { it.lineBreak.isNotEmpty() }?.indent.orEmpty()
     // What follows each item up to its comma, and after the comma to the end of its line.
@@ -518,7 +528,7 @@ internal fun reorderBraced(
     val prefixes = order.mapIndexed { position, index ->
         val place = places[position]
         val lineEnd = if (position == 0) place.lineEnd else afterComma[order[position - 1]]
-        val attached = places[index].attached
+        val attached = broughtAttached[index] + ownAttached[index]
         when {
             place.lineBreak.isNotEmpty() -> lineEnd + place.lineBreak + place.free + attached + place.indent
             '#' in lineEnd || attached.isNotEmpty() -> lineEnd + lineBreak + attached + indent

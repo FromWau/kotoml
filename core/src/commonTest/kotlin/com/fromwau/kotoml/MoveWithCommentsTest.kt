@@ -65,6 +65,68 @@ class MoveWithCommentsTest {
     }
 
     @Test
+    fun `sorting keeps the comment above a dotted group's first line above its new first line`() {
+        val doc = parse("[t]\nz = 3 # z\n# about b\nb.d = 1 # d\nb.c = 2 # c\n")
+        doc["t"].assertSuccess().standardTableOrNull!!.sortWith(compareBy { it.first })
+        assertEquals("[t]\n# about b\nb.c = 2 # c\nb.d = 1 # d\nz = 3 # z\n", doc.toString())
+    }
+
+    @Test
+    fun `sorting moves the comment above a later line of a dotted group with that line`() {
+        val doc = parse("[t]\n# about b\nb.e = 1\n# about d\nb.d = 2\nb.c = 3\n")
+        doc["t"].assertSuccess().standardTableOrNull!!.sort()
+        assertEquals("[t]\n# about b\nb.c = 3\n# about d\nb.d = 2\nb.e = 1\n", doc.toString())
+    }
+
+    @Test
+    fun `sorting keeps the comments above the first lines of nested dotted groups above their new first lines`() {
+        val doc = parse("[t]\nz = 3\n# about b\nb.y = 0\n# about x\nb.x.d = 1\nb.x.c = 2\n")
+        doc["t"].assertSuccess().standardTableOrNull!!.sort()
+        assertEquals("[t]\n# about b\n# about x\nb.x.c = 2\nb.x.d = 1\nb.y = 0\nz = 3\n", doc.toString())
+    }
+
+    @Test
+    fun `sorting leaves a free comment above a dotted group at its place`() {
+        val doc = parse("[t]\nz = 3\n\n# free\n\n# about b\nb.d = 1\nb.c = 2\n")
+        doc["t"].assertSuccess().standardTableOrNull!!.sort()
+        assertEquals("[t]\n# about b\nb.c = 2\nb.d = 1\n\n# free\n\nz = 3\n", doc.toString())
+    }
+
+    @Test
+    fun `a sorted dotted table keeps the comment above its first line above its new first line`() {
+        val doc = parse("# about t\nt.z = 1\nt.a = 2\n")
+        doc["t"].assertSuccess().standardTableOrNull!!.sort()
+        assertEquals("# about t\nt.a = 2\nt.z = 1\n", doc.toString())
+    }
+
+    @Test
+    fun `a sorted inline table across lines keeps the comment above a dotted group's first line above it`() {
+        val doc = parse("t = {\n  z = 3, # z\n  # about b\n  b.d = 1, # d\n  b.c = 2, # c\n}\n")
+        doc.sortInline("t")
+        assertEquals("t = {\n  # about b\n  b.c = 2, # c\n  b.d = 1, # d\n  z = 3, # z\n}\n", doc.toString())
+    }
+
+    @Test
+    fun `a sorted inline table across lines keeps the comments above nested dotted groups above their first lines`() {
+        val doc = parse("t = {\n  z = 3,\n  # about b\n  b.y = 0,\n  # about x\n  b.x.d = 1,\n  b.x.c = 2,\n}\n")
+        doc.sortInline("t")
+        assertEquals(
+            "t = {\n  # about b\n  # about x\n  b.x.c = 2,\n  b.x.d = 1,\n  b.y = 0,\n  z = 3,\n}\n",
+            doc.toString(),
+        )
+    }
+
+    @Test
+    fun `a sorted inline table across lines moves the comment above a later line of a dotted group with it`() {
+        val doc = parse("t = {\n  z = 3,\n\n  # free\n\n  # about b\n  b.d = 1,\n  # about c\n  b.c = 2,\n}\n")
+        doc.sortInline("t")
+        assertEquals(
+            "t = {\n  # about b\n  # about c\n  b.c = 2,\n\n  # free\n\n  b.d = 1,\n  z = 3,\n}\n",
+            doc.toString(),
+        )
+    }
+
+    @Test
     fun `a sorted array across lines moves each value with the comment after its comma`() {
         val doc = parse("a = [\n  3, # three\n  1, # one\n  2, # two\n]\n")
         doc.sortArray("a")
@@ -166,5 +228,26 @@ class MoveWithCommentsTest {
         doc["t"]["b"] = doc["s"]["b"].assertSuccess()
         doc["t"]["b"].assertSuccess().setLayout(TableLayout.Inline).assertSuccess()
         assertEquals("[t]\nx = 0\nb = { c = 1, d = 2 }\n\n# free\n", doc.toString().substringAfter("b.d = 2\n"))
+    }
+
+    @Test
+    fun `dotted keys put on one line leave no blank line at the end of the file below a free comment`() {
+        val doc = parse("[t]\nb.c = 1\n\n# free\n\nb.d = 2\n")
+        doc["t"]["b"].assertSuccess().setLayout(TableLayout.Inline, force = true).assertSuccess()
+        assertEquals("[t]\nb = { c = 1, d = 2 }\n\n# free\n", doc.toString())
+    }
+
+    @Test
+    fun `dotted keys at the top put on one line leave no blank line at the end of the file`() {
+        val doc = parse("b.c = 1\n\n# free\n\nb.d = 2\n")
+        doc["b"].assertSuccess().setLayout(TableLayout.Inline, force = true).assertSuccess()
+        assertEquals("b = { c = 1, d = 2 }\n\n# free\n", doc.toString())
+    }
+
+    @Test
+    fun `dotted keys put on one line keep the blank line between a free comment and the line after`() {
+        val doc = parse("[t]\nb.c = 1\n\n# free\n\nb.d = 2\nx = 1\n")
+        doc["t"]["b"].assertSuccess().setLayout(TableLayout.Inline, force = true).assertSuccess()
+        assertEquals("[t]\nb = { c = 1, d = 2 }\n\n# free\n\nx = 1\n", doc.toString())
     }
 }

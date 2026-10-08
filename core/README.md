@@ -135,9 +135,10 @@ the store fails.
 
 Sorting, by key name with `sort()` or by your own order with `sortBy` and `sortWith`, on a table, an inline table or an
 array, moves each item with its comments: the comment lines directly above it, the comment on its line, after its comma
-in braces or brackets, and for a table its header comment and the tables under it. Comment lines a blank line sets
-apart from the item below them, the blank lines themselves and the comment after `[` or `{` stay in place. Storing an
-array of tables in place of the one its tables were read from, such as
+in braces or brackets, and for a table its header comment and the tables under it. The comment lines directly above
+dotted keys' first line, such as `# about b` above `b.d = 1`, stay above their first line once `b.c` sorts before it.
+Comment lines a blank line sets apart from the item below them, the blank lines themselves and the comment after `[`
+or `{` stay in place. Storing an array of tables in place of the one its tables were read from, such as
 `doc["a"] = arr.reversed().toArrayOfTables()`, reorders the tables the same way.
 
 ```kotlin
@@ -190,7 +191,8 @@ null when the slot holds no table. `Item.setLayout(layout, force = false)` chang
 comment changes nothing and returns `TomlEditError.CommentsWouldBeLost` with the key path and the number of comments;
 pass `force = true` to make it and drop them. Blank lines between the entries stay wherever the new layout has lines
 for them, under a header, as dotted keys or in braces across lines, and a free comment keeps its place among the
-lines around it; on one line blank lines go. Asking for the layout a table already has changes nothing.
+lines around it; on one line blank lines go, and none is left at the end of the file. Asking for the layout a table
+already has changes nothing.
 
 ```kotlin
 val doc = TomlDocument.parse("[t] # t\na = 1 # one\n").getOrElse { error(it) }
