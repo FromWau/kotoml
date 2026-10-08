@@ -282,6 +282,7 @@ public class Item private constructor(
                 array.takeBroughtComments(nextValue, broughtAbove, comment)
                 array.layOutCommentLinesBelow(nextValue)
             }
+            if (owner != null) settleGivenText()
             return Ok(Unit)
         }
         entry.prepareFor(item)
@@ -300,6 +301,7 @@ public class Item private constructor(
         } else if (nextValue != null) {
             inline.takeBroughtComments(nextValue, entry, broughtAbove, comment)
         }
+        if (owner != null) settleGivenText()
         return Ok(Unit)
     }
 

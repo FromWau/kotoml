@@ -806,7 +806,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
             // On a table's line the comment lines between a value and its comma go above its key, so they stay its own.
             val above = linesAbove + value.rawDecor.takeCommentLinesBelow()
             if (comment.isNotEmpty()) value.rawDecor.suffix = brought.suffix.replacedBy(comment)
-            return items.put(key, Item.inInlineTable(value), above)?.valueOrNull
+            return items.put(key, Item.inInlineTable(value), above)?.valueOrNull.also { value.settleGivenText() }
         }
         // A dotted table's lines print in the braces holding it, which spread across lines for a comment.
         val braces = outermostBraces()
@@ -832,6 +832,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
         val old = items.put(key, Item.inInlineTable(value), linesAbove)?.valueOrNull
         if (linesBelow) braces.layOutCommentLinesBelow(value, lineBreak)
         if (comment.isNotEmpty()) braces.putCommentAfter(value, comment)
+        value.settleGivenText()
         return old
     }
 

@@ -164,8 +164,10 @@ public class ArrayOfTables() : Iterable<StandardTable> {
     }
 
     // The comment lines a copy from elsewhere brings print below the default spacing of a new header.
-    private fun copyToAdd(table: StandardTable): StandardTable =
-        copyToStore(table).also { copy -> copy.putAttachedAbove(attachedAboveBroughtBy(table, copy)) }
+    private fun copyToAdd(table: StandardTable): StandardTable = copyToStore(table).also { copy ->
+        copy.putAttachedAbove(attachedAboveBroughtBy(table, copy))
+        copy.settleGivenText()
+    }
 
     /** Takes out of [copy] the comment lines that [table], copied from elsewhere, brings above its header. */
     private fun attachedAboveBroughtBy(
@@ -238,6 +240,7 @@ public class ArrayOfTables() : Iterable<StandardTable> {
         }
         stored.putAttachedAbove(above)
         values.set(index, Item.inArrayOfTables(stored, this)).leaveArray()
+        stored.settleGivenText()
         return Ok(old)
     }
 

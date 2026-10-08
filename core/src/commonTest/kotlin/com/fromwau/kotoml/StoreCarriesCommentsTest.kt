@@ -788,4 +788,110 @@ class StoreCarriesCommentsTest {
         assertEquals(TomlEditError.CommentsWouldBeLost(listOf("u", "x"), 1), error)
         assertEquals("${afterComma}u = { z = 0 }\n", doc.toString())
     }
+
+    private fun given(number: Long): Value = Value.Integer(number, Decor(prefix = " ", suffix = " # given"))
+
+    @Test
+    fun `a value stored with a given comment and copied over a key keeps the key's comment`() {
+        val doc = parse("x = 1 # one\n")
+        doc.set("y", given(2L)).assertSuccess()
+        doc.set("x", doc["y"].assertSuccess()).assertSuccess()
+        assertEquals("x = 2 # one\ny = 2 # given\n", doc.toString())
+    }
+
+    @Test
+    fun `a value stored with a given comment and assigned to a key keeps the key's comment`() {
+        val doc = parse("x = 1 # one\n")
+        doc.set("y", given(2L)).assertSuccess()
+        doc["x"].assertSuccess().assign(doc["y"].assertSuccess()).assertSuccess()
+        assertEquals("x = 2 # one\ny = 2 # given\n", doc.toString())
+    }
+
+    @Test
+    fun `a value stored with a given comment inside a table and copied over a key keeps the key's comment`() {
+        val doc = parse("x = 1 # one\n")
+        doc.set("t", standardTableOf("w" to Item(given(2L))).assertSuccess()).assertSuccess()
+        doc.set("x", doc["t"]["w"].assertSuccess()).assertSuccess()
+        assertEquals("x = 2 # one\n\n[t]\nw = 2 # given\n", doc.toString())
+    }
+
+    @Test
+    fun `a value stored with a given comment through the builder and copied over a key keeps the key's comment`() {
+        val doc = parse("x = 1 # one\n")
+        doc.edit { "y" to given(2L) }.assertSuccess()
+        doc.set("x", doc["y"].assertSuccess()).assertSuccess()
+        assertEquals("x = 2 # one\ny = 2 # given\n", doc.toString())
+    }
+
+    @Test
+    fun `a table stored with a given header comment and copied over a table keeps its header comment`() {
+        val doc = parse("[a] # ah\nx = 1\n")
+        val table = standardTableOf("k" to Item(Value.Integer(2L))).assertSuccess()
+        table.decor = Decor(suffix = " # given")
+        doc.set("b", table).assertSuccess()
+        doc.set("a", doc["b"].assertSuccess()).assertSuccess()
+        assertEquals("[a] # ah\nk = 2\n\n[b] # given\nk = 2\n", doc.toString())
+    }
+
+    @Test
+    fun `a table added with a given header comment and copied over an array of tables element keeps its comment`() {
+        val doc = parse("[[t]] # t0\ny = 0\n")
+        val tables = doc["t"].assertSuccess().arrayOfTablesOrNull!!
+        val table = standardTableOf("x" to Item(Value.Integer(1L))).assertSuccess()
+        table.decor = Decor(suffix = " # given")
+        tables.add(table).assertSuccess()
+        tables.replace(0, tables[1].assertSuccess()).assertSuccess()
+        assertEquals("[[t]] # t0\nx = 1\n\n[[t]] # given\nx = 1\n", doc.toString())
+    }
+
+    @Test
+    fun `a value stored with a given comment and copied over an element keeps the comment after its comma`() {
+        val doc = parse("a = [\n  1, # one\n  5,\n]\n")
+        doc.set("y", given(2L)).assertSuccess()
+        doc["a"].assertSuccess().arrayOrNull!!.replace(0, doc["y"].assertSuccess().valueOrNull!!).assertSuccess()
+        assertEquals("a = [\n  2, # one\n  5,\n]\ny = 2 # given\n", doc.toString())
+    }
+
+    @Test
+    fun `an element added with a given comment and copied over a key keeps the key's comment`() {
+        val doc = parse("x = 1 # one\na = [\n  5,\n]\n")
+        val array = doc["a"].assertSuccess().arrayOrNull!!
+        array.add(Value.Integer(2L, Decor(suffix = " # given"))).assertSuccess()
+        doc.set("x", array[1].assertSuccess()).assertSuccess()
+        assertEquals("x = 2 # one\na = [\n  5,\n  2, # given\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `an element added with given comment lines above it and copied over an element keeps the lines above that`() {
+        val doc = parse("a = [\n  # above\n  1,\n  2,\n]\n")
+        val array = doc["a"].assertSuccess().arrayOrNull!!
+        array.add(Value.Integer(9L, Decor(prefix = "\n  # given above\n  "))).assertSuccess()
+        array.replace(0, array[2].assertSuccess()).assertSuccess()
+        assertEquals("a = [\n  # above\n  9,\n  2,\n  # given above\n  9,\n]\n", doc.toString())
+    }
+
+    @Test
+    fun `an inline table entry set with a given comment and copied over an entry keeps the comment after its comma`() {
+        val doc = parse("u = {\n  x = 7, # seven\n  z = 0,\n}\n")
+        val u = doc["u"].assertSuccess().inlineTableOrNull!!
+        u.set("w", Value.Integer(2L, Decor(prefix = " ", suffix = " # given"))).assertSuccess()
+        u.set("x", u["w"].assertSuccess()).assertSuccess()
+        assertEquals("u = {\n  x = 2, # seven\n  z = 0,\n  w = 2, # given\n}\n", doc.toString())
+    }
+
+    @Test
+    fun `a value stored with a given comment and copied over an inline table entry keeps the slot's comment`() {
+        val doc = parse("u = {\n  x = 7, # seven\n  z = 0,\n}\n")
+        doc.set("y", given(2L)).assertSuccess()
+        doc["u"].assertSuccess().inlineTableOrNull!!.set("x", doc["y"].assertSuccess().valueOrNull!!).assertSuccess()
+        assertEquals("u = {\n  x = 2, # seven\n  z = 0,\n}\ny = 2 # given\n", doc.toString())
+    }
+
+    @Test
+    fun `a comment set on a stored value's decor takes the place of the slot's when that value is copied`() {
+        val doc = parse("x = 1 # one\ny = 2 # two\n")
+        doc["y"].assertSuccess().valueOrNull!!.decor = Decor(prefix = " ", suffix = " # set")
+        doc.set("x", doc["y"].assertSuccess()).assertSuccess()
+        assertEquals("x = 2 # set\ny = 2 # set\n", doc.toString())
+    }
 }

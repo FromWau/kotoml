@@ -18,7 +18,7 @@ internal class KeptText private constructor(private val state: State) {
         // Text read from a parse's input, as opposed to text a caller gave.
         data class Read(val text: String) : State
 
-        // Text a caller set in a decor, as opposed to text kotoml made or moved.
+        // Text a caller set in a decor since its value was last stored, as opposed to text kotoml made or moved.
         data class Given(val text: String) : State
 
         data class Spanned(val span: Span) : State
@@ -40,7 +40,7 @@ internal class KeptText private constructor(private val state: State) {
     val isRead: Boolean
         get() = state is State.Read
 
-    /** Whether a caller set this text in a decor, rather than it being read or made by kotoml. */
+    /** Whether a caller set this text in a decor since its value was last stored, rather than kotoml reading it. */
     val isGiven: Boolean
         get() = state is State.Given
 
@@ -71,6 +71,9 @@ internal class KeptText private constructor(private val state: State) {
         is State.Read -> read(transform(state.text))
         is State.Given -> given(transform(state.text))
     }
+
+    /** This text as the document's own: text a caller gave counts as text kotoml made, which a copy only fills with. */
+    fun settled(): KeptText = if (state is State.Given) from(state.text) else this
 
     fun resolveSpans(input: SourceText): KeptText = when (state) {
         is State.Spanned -> if (state.span.length <= 0) KeptText() else KeptText(State.Read(input.slice(state.span)))
@@ -309,6 +312,11 @@ internal class RawDecor(
     fun suffixEncode(buf: StringBuilder, default: String) {
         val suffix = suffix
         if (suffix != null) encodeRaw(buf, suffix.textOr(default)) else buf.append(default)
+    }
+
+    fun settleGiven() {
+        prefix = prefix?.settled()
+        suffix = suffix?.settled()
     }
 
     fun resolveSpans(input: SourceText) {

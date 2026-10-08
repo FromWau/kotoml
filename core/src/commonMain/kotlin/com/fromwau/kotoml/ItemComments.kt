@@ -508,6 +508,39 @@ internal fun KeptText?.replacedBy(text: String): KeptText = when {
     else -> KeptText.from(text)
 }
 
+/**
+ * Makes the text a caller gave in the decors of this content, just stored, and of all it holds the document's own: a
+ * later copy of it fills the places of the slot it replaces, as one read from a document does.
+ */
+internal fun Item.settleGivenText() {
+    valueOrNull?.settleGivenText()
+    standardTableOrNull?.settleGivenText()
+    arrayOfTablesOrNull?.forEach { it.settleGivenText() }
+}
+
+internal fun Value.settleGivenText() {
+    rawDecor.settleGiven()
+    arrayOrNull?.forEach { it.settleGivenText() }
+    val table = inlineTableOrNull ?: return
+    for ((name, value) in table) {
+        table.keyOrNull(name)?.settleGivenText()
+        value.settleGivenText()
+    }
+}
+
+internal fun StandardTable.settleGivenText() {
+    rawDecor.settleGiven()
+    for ((name, item) in this) {
+        keyOrNull(name)?.settleGivenText()
+        item.settleGivenText()
+    }
+}
+
+private fun Key.settleGivenText() {
+    rawLeafDecor.settleGiven()
+    rawDottedDecor.settleGiven()
+}
+
 /** The text around the items in brackets or braces: before each item, after each, and before the closing one. */
 internal class BracedText(
     val prefixes: List<String>,

@@ -205,6 +205,7 @@ public class TomlArray() : Iterable<Value> {
         append(stored)
         layOutCommentLinesBelow(stored)
         if (comment.isNotEmpty()) putCommentAfter(stored, comment)
+        stored.settleGivenText()
         return Ok(Unit)
     }
 
@@ -507,6 +508,7 @@ public class TomlArray() : Iterable<Value> {
         values.add(index, Item.inArray(stored, this))
         layOutCommentLinesBelow(stored)
         if (comment.isNotEmpty()) putCommentAfter(stored, comment)
+        stored.settleGivenText()
         return Ok(Unit)
     }
 
@@ -558,6 +560,7 @@ public class TomlArray() : Iterable<Value> {
         values.set(index, Item.inArray(stored, this)).leaveArray()
         layOutCommentLinesBelow(stored)
         if (comment.isNotEmpty()) putCommentAfter(stored, comment)
+        stored.settleGivenText()
         return Ok(old)
     }
 
