@@ -841,7 +841,7 @@ a = 2
 
 ### S-042: emptying an array of tables and adding a new element
 rule: 2, 5, 7, 9   version: 1.0
-settled: owner ruling 2026-10-05 (Q9): each removal keeps the lines above its own header where they print; a new element follows them.
+settled: owner ruling 2026-10-07: an array of tables left empty keeps the comment above its first header, since the array is still there; a new element follows it.
 ```toml input
 a = 1
 
@@ -997,7 +997,7 @@ b = 1 # b
 c = 3
 ```
 
-### S-049: sorting the root reorders values and dotted keys but not headers
+### S-049: sorting the root reorders values and dotted keys above the table
 rule: 1   version: 1.0
 ```toml input
 z = 1 # z
@@ -1019,7 +1019,7 @@ z = 1 # z
 k = 1
 ```
 
-### S-050: sorting moves the file-head comment with the key it sits on
+### S-050: sorting leaves the file-head comment in place and moves a key's comment with it
 rule: 1   version: 1.0
 settled: owner ruling 2026-10-05: sorting keeps blank lines, and the comment block heading a file, in place.
 ```toml input
@@ -1966,7 +1966,7 @@ t = {
 
 ## Replacing with a different structure
 
-### S-099: a value replaced by a table leaves its comment line where it printed
+### S-099: a value replaced by a table takes the comment above it to its new header
 rule: 2, 4   version: 1.0
 ```toml input
 # about x

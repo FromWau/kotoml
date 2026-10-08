@@ -1519,7 +1519,7 @@ doc.remove("a")
 b = 2
 ```
 
-### C-089: removing the last key keeps the comment above it, without blank lines after it
+### C-089: removing the last key keeps the free comment above it, without blank lines after it
 rule: 2   version: 1.0
 settled: owner ruling 2026-10-07: a comment belongs to the item below it or on its line (GOALS.md goal 4).
 ```toml input
