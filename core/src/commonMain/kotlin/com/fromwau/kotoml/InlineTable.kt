@@ -939,7 +939,7 @@ public class InlineTable() : Table, Iterable<Pair<String, Value>> {
     }
 
     /**
-     * Removes [key] and returns its value, with the comments that belong to it.
+     * Removes [key], with the comments that belong to it, and returns its value.
      *
      * What belongs to the entry goes with it: the key, its value, its comma, the comment lines right above it with no
      * blank line between, the comment ending its line when it is the last entry on that line, the comment lines

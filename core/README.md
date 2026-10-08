@@ -52,10 +52,10 @@ on writing a key into a string, the call returns a `TomlEditError` instead. Ever
 refuses to nest deeper than `TomlDocument.NESTING_LIMIT` lets the parser read: it returns `TomlEditError.TooDeep`
 and stores nothing, as do the `…Of` builders and the conversions to inline content. Its `keyPath` leads from the
 document's root to where the content gets too deep, or from the top of what is built when it is stored nowhere yet,
-and passes over array elements without a part. The `item["key"] = value` form drops these errors; call
-`item.set("key", value)` to see them. Writing never deletes a key; `remove` does. An item taken before its key is
-removed, or replaced by `set` or `put`, keeps what it held but no longer belongs to the document: writing through it
-changes nothing there, so index again.
+and passes over array elements without a part. The `item["key"] = value` form throws them as a
+`TomlEditException`; call `item.set("key", value)` to get them as a `Result`. Writing never deletes a key; `remove`
+does. An item taken before its key is removed, or replaced by `set` or `put`, keeps what it held but no longer
+belongs to the document: writing through it changes nothing there, so index again.
 
 ## Make and read values
 
@@ -214,10 +214,11 @@ comments inside the braces go, the header comments of the tables inside too, whi
 one after `[t]` or after `{`, prints after `}`, or after the table's comma in an array or an inline table across lines.
 A comment already there stays, and the header comment goes. `Dotted` keeps the lines above the table's key and each
 value's same-line comment, and drops its header comment, the comment after its braces and the comment lines inside
-it; the tables under it keep their own layouts. A table stays the same `StandardTable` while it changes
-between `Header` and `Dotted`, and the same `InlineTable` between the inline layouts. On an array of tables, or on an
-array of only inline tables, `Header` and the inline layouts change every table in it. A slot in an array or an
-inline table holds only values, so it takes no `Header`, and a slot in an array takes no `Dotted` either.
+it; the tables under it keep their own layouts. Dotted keys made a `Header` put the comment lines above their first
+line above the header and drop the comment lines between their lines. A table stays the same `StandardTable` while
+it changes between `Header` and `Dotted`, and the same `InlineTable` between the inline layouts. On an array of
+tables, or on an array of only inline tables, `Header` and the inline layouts change every table in it. A slot in an
+array or an inline table holds only values, so it takes no `Header`, and a slot in an array takes no `Dotted` either.
 `StandardTable.isImplicit` reads whether a header is hidden while the table holds no values of its own, and
 `setImplicit` changes it; it cannot fail. An `Item` is a slot that holds a value, a table or an array of tables;
 `valueOrNull`, `standardTableOrNull` and their siblings read what it holds, and `tableOrNull` reads a table of either
@@ -359,9 +360,9 @@ An item handed out by indexing, and the comments that go with it, follow five ru
    document and keeps every comment and its version.
 4. **Removing is a move.** `remove` and `removeAt` take the item's comments with it: the comment lines right above
    it, its same-line and header comment, and every comment inside it. When that would take a comment out of the
-   document they return `CommentsWouldBeLost` and change nothing, unless called with `force = true`. The returned
-   item keeps its same-line and header comment, and a table the comment lines right above its header, and stores
-   with them. Comment lines set apart from it by a blank line stay in the document it left. A comment a caller set
+   document they return `CommentsWouldBeLost` and change nothing, unless called with `force = true`. The item
+   `remove` returns from a document or a table keeps the comments it took and stores with them. Comment lines set
+   apart from it by a blank line stay in the document it left. A comment a caller set
    through `decor` is the item's own too, so it travels with every store and copy.
 5. **A replaced or removed item is detached.** It keeps what it held, but writing through it no longer changes the
    document; index again. It prints, and takes edits, as in the document it left, with that document's line ending

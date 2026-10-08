@@ -523,7 +523,8 @@ public class Item private constructor(
      * header too, or below the table's lines when the one after `{` is there. In an array the comment after an
      * element's comma goes on its header the same way, the comment after `[` and the comment lines above an element go
      * above its header, and the comment lines before `]` and the comment after it below the last table. Dotted keys
-     * made a header put the comment lines above their first line above the header.
+     * made a header put the comment lines above their first line above the header, and the comment lines between
+     * their lines go.
      *
      * [TableLayout.MultilineInline] puts the table in braces across lines and reaches the tables inside it the same
      * way: each table and array of tables under it becomes a value across lines, and each inline table inside goes
@@ -547,8 +548,8 @@ public class Item private constructor(
      * comment lines inside it go. The tables under a dotted table keep their own layouts.
      *
      * Blank lines between the table's entries stay wherever the new layout has lines for them: under a header, as
-     * dotted keys and in braces across lines; on one line they go. Comment lines a blank line sets apart from the entry
-     * below them keep their place among the lines around the table.
+     * dotted keys and in braces across lines; on one line they go, and none is left at the end of the file. Comment
+     * lines a blank line sets apart from the entry below them keep their place among the lines around the table.
      *
      * A non-empty array holding only inline tables takes [TableLayout.Header] as a whole, becoming an array of tables,
      * and the inline layouts table by table. An array of tables takes the inline layouts as a whole, becoming an array
