@@ -24,6 +24,7 @@ class WireSchemaTest {
                 ReadFailed(path, failure)
             """.trimIndent(),
             ReadFailure.serializer().descriptor to """
+                HomeUnknown()
                 Io(detail)
                 IsADirectory()
                 NotFound()

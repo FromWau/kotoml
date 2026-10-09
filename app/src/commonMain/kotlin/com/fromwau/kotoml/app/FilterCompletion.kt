@@ -28,20 +28,35 @@ internal fun filterCompletions(
         val selected = parseFilter(path).flatMap { it.evaluate(Item(document.root)) }
         (selected as? Result.Success)?.value?.map { it.item } ?: return emptyList()
     }
+    // The same step can reach items of different types, an element of each table of an array for one.
     return reached
         .flatMap { it.stepsFrom(parent) }
-        .distinctBy { it.filter }
+        .groupBy { it.filter }
+        .map { (filter, steps) ->
+            val types = steps.flatMap { it.types }.distinct().ifEmpty { listOf(steps.first().whenEmpty) }
+            FilterCompletion(filter, types.joinToString(" or "))
+        }
 }
 
-private fun Item.stepsFrom(parent: String): List<FilterCompletion> {
+/** A step from one item: the [types] of what it selects, and what to call it when it selects nothing. */
+private data class Reachable(
+    val filter: String,
+    val types: List<String>,
+    val whenEmpty: String,
+)
+
+private fun Item.stepsFrom(parent: String): List<Reachable> {
     tableOrNull?.let { table ->
         return table.entries.map { (key, child) ->
-            FilterCompletion(parent + Step.Key(key).describe(), child.type.words())
+            val type = child.type.words()
+            Reachable(parent + Step.Key(key).describe(), listOf(type), type)
         }
     }
     val elements = arrayOrNull?.map { Item(it) } ?: arrayOfTablesOrNull?.map { Item(it) } ?: return emptyList()
-    return listOf(FilterCompletion("$parent[]", type.words())) +
-        elements.mapIndexed { index, element -> FilterCompletion("$parent[$index]", element.type.words()) }
+    val each = elements.map { it.type.words() }
+    // `[]` selects every element in turn, so it reads as they do; an empty array selects none.
+    return listOf(Reachable("$parent[]", each.distinct(), type.words())) +
+        elements.indices.map { index -> Reachable("$parent[$index]", listOf(each[index]), each[index]) }
 }
 
 /** Where the step being typed starts: the last `.` or `[` outside a quoted key, or 0 for none. */

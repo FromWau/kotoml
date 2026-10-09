@@ -69,13 +69,13 @@ val hostTarget = when {
     hostOs.startsWith("linux") -> "linuxX64"
     hostOs.startsWith("mac") -> "macosArm64"
     hostOs.startsWith("windows") -> "mingwX64"
-    else -> error("toml-test has no kotoml binary for $hostOs")
+    else -> error("there is no kotoml binary for $hostOs")
 }
 val onWindows = hostTarget == "mingwX64"
-val linkHostBinary = "linkReleaseExecutable${hostTarget.replaceFirstChar(Char::uppercase)}"
-val hostBinary = layout.buildDirectory.file(
-    "bin/$hostTarget/releaseExecutable/kotoml.${if (onWindows) "exe" else "kexe"}",
-)
+val hostTask = hostTarget.replaceFirstChar(Char::uppercase)
+val hostExecutable = "kotoml.${if (onWindows) "exe" else "kexe"}"
+val linkHostBinary = "linkReleaseExecutable$hostTask"
+val hostBinary = layout.buildDirectory.file("bin/$hostTarget/releaseExecutable/$hostExecutable")
 
 // The runner and the suite it embeds come from the submodule, so the build judges against the pinned commit.
 val tomlTestSources = rootProject.layout.projectDirectory.dir("toml-test")
@@ -117,10 +117,15 @@ val tomlTest = tasks.register("tomlTest") {
 
 tasks.named("check") { dependsOn(tomlTest) }
 
+// --- The debug executable for this machine, which :live-test runs the way a user's shell does ---
 
-// The shell pipe tests run the native binary for this machine, the way a user's shell does.
-tasks.named<Test>("jvmTest") {
-    dependsOn(linkHostBinary)
-    val binary = hostBinary.get().asFile.absolutePath
-    systemProperty("kotoml.binary", binary)
+// Its own category, so a project that depends on :app for its classes never selects the executable, and :live-test
+// selects nothing else.
+val hostDebugBinary = configurations.consumable("hostDebugBinary") {
+    attributes { attribute(Category.CATEGORY_ATTRIBUTE, objects.named("kotoml-executable")) }
+}
+artifacts {
+    add(hostDebugBinary.name, layout.buildDirectory.file("bin/$hostTarget/debugExecutable/$hostExecutable")) {
+        builtBy("linkDebugExecutable$hostTask")
+    }
 }

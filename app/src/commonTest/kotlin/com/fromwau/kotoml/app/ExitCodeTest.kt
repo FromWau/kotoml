@@ -190,6 +190,62 @@ class ExitCodeTest {
     }
 
     @Test
+    fun `check of several files escapes a control character in a valid file's name as in an error`() {
+        val named = Path(SystemTemporaryDirectory, "kotoml-\u001b[31m-${Random.nextLong().toULong()}.toml")
+        SystemFileSystem.sink(named).buffered().use { it.writeString("a = 1\n") }
+        files += named
+        val (_, terminal) = kotoml("check", named.toString(), file("b = 1\n"))
+        assertTrue('\u001b' !in terminal.out.toString(), terminal.out.toString())
+        assertTrue("kotoml-\\x1B[31m-" in terminal.out.toString(), terminal.out.toString())
+    }
+
+    @Test
+    fun `get reads a file named from the home directory in either spelling`() {
+        // Where the shell leaves `~` as typed, `--file=~/x` or a quoted `-f '~/x'`, kotoml resolves it as Tab does.
+        val toml = Path(file("a = 1\n"))
+        val home = toml.parent ?: Path(".")
+        for (args in listOf(listOf("-f", "~/${toml.name}", ".a"), listOf("--file=~/${toml.name}", ".a"))) {
+            val terminal = Recorded()
+            assertEquals(0, runKotoml(listOf("get") + args, terminal) { home }, terminal.err.toString())
+            assertEquals("1\n", terminal.out.toString(), args.toString())
+        }
+    }
+
+    @Test
+    fun `check of several files keeps a valid file's name on its one line`() {
+        val named = Path(SystemTemporaryDirectory, "kotoml-\nfake.toml: OK\n-${Random.nextLong().toULong()}.toml")
+        SystemFileSystem.sink(named).buffered().use { it.writeString("a = 1\n") }
+        files += named
+        val (_, terminal) = kotoml("check", named.toString(), file("b = 1\n"))
+        assertEquals(2, terminal.out.lines().count { it.isNotEmpty() }, terminal.out.toString())
+        assertTrue("kotoml-\\x0Afake.toml: OK\\x0A-" in terminal.out.toString(), terminal.out.toString())
+    }
+
+    @Test
+    fun `every command reads a file named from the home directory`() {
+        val toml = Path(file("a = 1\n"))
+        val tagged = Path(file("{\"a\": {\"type\": \"integer\", \"value\": \"1\"}}"))
+        val home = toml.parent ?: Path(".")
+        val runs = listOf(
+            listOf("check", "~/${toml.name}") to "OK\n",
+            listOf("decode", "~/${toml.name}") to "{\"a\":{\"type\":\"integer\",\"value\":\"1\"}}\n",
+            listOf("encode", "~/${tagged.name}") to "a = 1\n",
+        )
+        for ((args, out) in runs) {
+            val terminal = Recorded()
+            assertEquals(0, runKotoml(args, terminal) { home }, "$args: ${terminal.err}")
+            assertEquals(out, terminal.out.toString(), "$args")
+        }
+    }
+
+    @Test
+    fun `get says when the home directory a file is named from is unknown`() {
+        val terminal = Recorded()
+        assertEquals(1, runKotoml(listOf("get", "-f", "~/a.toml", ".a"), terminal) { null })
+        assertEquals("error: ~/a.toml: the home directory is unknown, so ~ cannot be resolved\n", terminal.err.toString())
+    }
+
+    @Test
     fun `get takes its file through --file in every spelling`() {
         val toml = file("a = 1\n")
         for (args in listOf(listOf("-f", toml, ".a"), listOf("--file", toml, ".a"), listOf("--file=$toml", ".a"))) {

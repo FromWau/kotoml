@@ -68,7 +68,9 @@ port = 8081
 - `decode [file]` and `encode [file]` speak [toml-test](https://github.com/toml-lang/toml-test)'s protocol: TOML
   in and tagged JSON out, or the reverse. `encode` refuses JSON nested deeper than the TOML kotoml reads.
 
-Without a file, or with `-`, input is read from standard input. `--toml 1.0` refuses what TOML 1.1 added;
+Without a file, or with `-`, input is read from standard input. A file path that starts with `~` or `~/` is read
+from the home directory, also where the shell leaves the `~` as typed, such as `--file=~/a.toml` or a quoted
+`'~/a.toml'`; `~bob/a.toml` names bob's home and is left to the shell. `--toml 1.0` refuses what TOML 1.1 added;
 the default is 1.1. `kotoml completion <shell>` and `kotoml docs man` print a completion script and a man page;
 with the script installed, Tab on `get`'s filter offers the keys of the file `-f` names, such as
 `kotoml get -f config.toml .own<TAB>`.

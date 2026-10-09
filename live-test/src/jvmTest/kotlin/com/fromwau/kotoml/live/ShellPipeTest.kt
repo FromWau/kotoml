@@ -1,8 +1,9 @@
-package com.fromwau.kotoml.app
+package com.fromwau.kotoml.live
 
 import java.io.File
 import java.nio.file.Files
 import java.util.concurrent.TimeUnit
+import org.junit.jupiter.api.AfterAll
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -15,29 +16,25 @@ import kotlin.test.assertTrue
 class ShellPipeTest {
 
     private val binary = checkNotNull(System.getProperty("kotoml.binary")) { "kotoml.binary is not set" }
-    private val dir: File = Files.createTempDirectory("kotoml-pipe").toFile()
-
-    init {
-        // More lines than a pipe holds, so the reader closes it while kotoml is still writing.
-        File(dir, "big.toml").writeText((1..25_000).joinToString("\n", postfix = "\n") { "k$it = $it" })
-    }
+    private val outputs: File = Files.createTempDirectory("kotoml-pipe-out").toFile()
 
     @AfterTest
     fun cleanUp() {
-        dir.deleteRecursively()
+        outputs.deleteRecursively()
     }
 
-    /** What [script] printed when [shell] ran it, with `$KOTOML` naming the binary. */
+    /** What one run printed: standard output trimmed, and standard error as written. */
     private data class Ran(val out: String, val err: String)
 
+    /** Runs [script] in [shell], with `$KOTOML` naming the binary. */
     private fun run(
         shell: Shell,
         script: String,
     ): Ran {
-        val output = File(dir, "stdout")
-        val errors = File(dir, "stderr")
+        val output = File(outputs, "stdout")
+        val errors = File(outputs, "stderr")
         val process = ProcessBuilder(shell.command + script)
-            .directory(dir)
+            .directory(files)
             .redirectOutput(output)
             .redirectError(errors)
             .apply { environment()["KOTOML"] = binary }
@@ -61,11 +58,26 @@ class ShellPipeTest {
     private fun installed(): List<Shell> = Shell.entries.filter { it in installedShells }
 
     private companion object {
-        // Looked up once per run, so each missing shell is reported once rather than by every test.
+        // Written once for the class: more lines than a pipe holds, so a reader closes it while kotoml writes.
+        val files: File by lazy {
+            Files.createTempDirectory("kotoml-pipe").toFile().also { dir ->
+                File(dir, "big.toml").writeText((1..25_000).joinToString("\n", postfix = "\n") { "k$it = $it" })
+            }
+        }
+
+        @AfterAll
+        @JvmStatic
+        fun deleteFiles() {
+            files.deleteRecursively()
+        }
+
+        // Looked up once per run, so each missing shell is reported once rather than by every test. Windows
+        // names an executable with one of the extensions PATHEXT lists, `pwsh.exe` for one.
         val installedShells: Set<Shell> by lazy {
             val path = System.getenv("PATH").split(File.pathSeparator)
+            val extensions = listOf("") + System.getenv("PATHEXT").orEmpty().split(';').filter { it.isNotEmpty() }
             Shell.entries.filterTo(mutableSetOf()) { shell ->
-                val found = path.any { File(it, shell.executable).canExecute() }
+                val found = path.any { dir -> extensions.any { File(dir, shell.executable + it).canExecute() } }
                 if (!found) println("tests skipped because ${shell.executable} shell not installed")
                 found
             }

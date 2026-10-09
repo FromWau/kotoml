@@ -65,7 +65,7 @@ class FilterCompletionTest {
     ): List<String> {
         val terminal = Recorded()
         val words = listOf("get") + before + typed
-        runKotoml(listOf("__complete", "--cursor", "${words.lastIndex}", "--") + words, terminal, home)
+        runKotoml(listOf("__complete", "--cursor", "${words.lastIndex}", "--") + words, terminal) { home }
         return terminal.out.lines().filter { it.isNotEmpty() }
     }
 
@@ -102,14 +102,44 @@ class FilterCompletionTest {
 
     @Test
     fun `an array offers iteration and each index`() {
+        // `[]` selects each element in turn, so it is described as an element is.
         assertEquals(
-            listOf(".servers[]\tarray of tables", ".servers[0]\ttable", ".servers[1]\ttable"),
+            listOf(".servers[]\ttable", ".servers[0]\ttable", ".servers[1]\ttable"),
             completions(".servers[", "-f", file()),
         )
         assertEquals(
-            listOf(".database.ports[]\tarray", ".database.ports[0]\tinteger", ".database.ports[1]\tinteger"),
+            listOf(".database.ports[]\tinteger", ".database.ports[0]\tinteger", ".database.ports[1]\tinteger"),
             completions(".database.ports[", "-f", file()),
         )
+    }
+
+    @Test
+    fun `a step reaching items of different types names each type`() {
+        val text = "mixed = [1, \"a\"]\n\n[[s]]\np = 1\n\n[[s]]\np = \"x\"\n"
+        assertEquals(listOf(".mixed[]\tinteger or string"), completions(".mixed[]", "-f", file(text)))
+        assertEquals(listOf(".s[].p\tinteger or string"), completions(".s[].", "-f", file(text)))
+    }
+
+    @Test
+    fun `a step over several arrays names each type once`() {
+        val text = "none = []\n\n[[s]]\nm = [1, \"a\"]\n\n[[s]]\nm = [\"b\"]\n\n[[e]]\nm = []\n\n[[e]]\nm = [1]\n"
+        assertEquals(".s[].m[]\tinteger or string", completions(".s[].m[", "-f", file(text)).first())
+        // An empty array has no element to add a type, unless it is the only one there is.
+        assertEquals(".e[].m[]\tinteger", completions(".e[].m[", "-f", file(text)).first())
+        assertEquals(listOf(".none[]\tarray"), completions(".none[", "-f", file(text)))
+    }
+
+    @Test
+    fun `the home directory is looked up only for a path that starts with a tilde`() {
+        var lookups = 0
+        fun run(vararg args: String) = runKotoml(args.toList(), Recorded()) { lookups++; null }
+        run("get", "-f", file(), ".title")
+        run("__complete", "--cursor", "3", "--", "get", "-f", file(), ".")
+        // `~bob` names another user's home, which kotoml leaves to the shell.
+        run("get", "-f", "~bob/x.toml", ".title")
+        assertEquals(0, lookups)
+        run("__complete", "--cursor", "3", "--", "get", "-f", "~/x.toml", ".")
+        assertEquals(1, lookups)
     }
 
     @Test

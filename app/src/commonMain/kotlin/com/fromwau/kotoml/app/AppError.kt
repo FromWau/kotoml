@@ -94,6 +94,11 @@ internal sealed interface ReadFailure : IError {
     @SerialName("PermissionDenied")
     data object PermissionDenied : ReadFailure
 
+    /** The path starts with `~`, and no home directory was found to resolve it to. */
+    @Serializable
+    @SerialName("HomeUnknown")
+    data object HomeUnknown : ReadFailure
+
     /** The system refused the read; [detail] is its own account, when it gave one. */
     @Serializable
     @SerialName("Io")
@@ -149,6 +154,7 @@ internal fun AppError.describe(): String = when (this) {
             ReadFailure.NotFound -> "$name: no such file"
             ReadFailure.IsADirectory -> "$name: is a directory"
             ReadFailure.PermissionDenied -> "$name: permission denied"
+            ReadFailure.HomeUnknown -> "$name: the home directory is unknown, so ~ cannot be resolved"
             is ReadFailure.Io -> "$name: cannot read" + (failure.detail?.let { ": $it" } ?: "")
         }
     }

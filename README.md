@@ -33,7 +33,9 @@ doc.toString() // "[package]\nname = \"kotoml\" # the name\nversion = \"0.1.0\"\
 
 `./gradlew check` validates everything, the official toml-test suite included, judged by toml-test's own
 runner; that runner is built with [Go](https://go.dev/dl/), which `check` needs on the `PATH`. The suite is a git
-submodule: clone with `--recurse-submodules`, or run `git submodule update --init` after cloning.
+submodule: clone with `--recurse-submodules`, or run `git submodule update --init` after cloning. `check` also
+runs the [`live-test`](live-test/build.gradle.kts) module, which pipes the `kotoml` executable built for this
+machine through each installed shell (bash, zsh, fish, PowerShell) and passes for a shell that is missing.
 
 Licensed under [MIT](LICENSE). The design and the tests come from the toml-rs crates; see
 [core's credits](core/README.md#credits).
