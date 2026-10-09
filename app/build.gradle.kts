@@ -52,6 +52,7 @@ kotlin {
         commonMain.dependencies {
             implementation(project(":core"))
             implementation(libs.klap)
+            implementation(libs.kern.dirs)
             implementation(libs.kotlinx.io.core)
         }
 
@@ -116,3 +117,10 @@ val tomlTest = tasks.register("tomlTest") {
 
 tasks.named("check") { dependsOn(tomlTest) }
 
+
+// The shell pipe tests run the native binary for this machine, the way a user's shell does.
+tasks.named<Test>("jvmTest") {
+    dependsOn(linkHostBinary)
+    val binary = hostBinary.get().asFile.absolutePath
+    systemProperty("kotoml.binary", binary)
+}

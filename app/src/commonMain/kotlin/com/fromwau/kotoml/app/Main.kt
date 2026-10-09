@@ -1,5 +1,6 @@
 package com.fromwau.kotoml.app
 
+import com.fromwau.kern.dirs.expandTilde
 import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
 import com.fromwau.kern.result.flatMap
@@ -17,6 +18,7 @@ import com.fromwau.klap.parse
 import com.fromwau.klap.run
 import com.fromwau.kotoml.TomlDocument
 import com.fromwau.kotoml.TomlVersion
+import kotlinx.io.files.Path
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 
@@ -124,14 +126,15 @@ internal expect fun exitWith(status: Int): Nothing
 private val HELP_FLAGS = setOf("--help", "-h", "--help-all")
 
 /**
- * Runs `kotoml` with [args], writing to [terminal], and returns the exit status. Without a command, the help goes
- * to standard error and the run is a usage error.
+ * Runs `kotoml` with [args], writing to [terminal], and returns the exit status; [home] is where `~` points. Without
+ * a command, the help goes to standard error and the run is a usage error.
  */
 internal fun runKotoml(
     args: List<String>,
     terminal: Terminal,
+    home: Path? = homeDirectory(),
 ): Int {
-    val cli = kotomlCli(terminal)
+    val cli = kotomlCli(terminal, home)
     val showsHelp = (cli.parse(args) as? Result.Success)?.value is Invocation.ShowHelp
     if (!showsHelp || args.any { it in HELP_FLAGS }) return cli.run(args, terminal)
     cli.run(listOf("--help"), StandardErrorOnly(terminal))
@@ -143,19 +146,37 @@ private class StandardErrorOnly(private val terminal: Terminal) : Terminal by te
     override fun out(text: String) = terminal.err(text)
 }
 
-/** The `kotoml` command line, built once per run; `check` of several files writes each file's line to [terminal]. */
-internal fun kotomlCli(terminal: Terminal): Cli = cli("kotoml") {
+/**
+ * The `kotoml` command line, built once per run; `check` of several files writes each file's line to [terminal],
+ * and Tab reads a file named from [home] with `~` there.
+ */
+internal fun kotomlCli(
+    terminal: Terminal,
+    home: Path?,
+): Cli = cli("kotoml") {
     description = "Query TOML like jq, keeping every comment and spelling of what it prints"
     version = VERSION
     builtins { color = false }
 
     command("get", "print what a jq path selects") {
-        example("kotoml get '.servers[0].port' config.toml", "one value")
-        example("kotoml get '.servers[] | .host' --json config.toml", "the host of every server, as JSON")
-        val filter = argument("filter", "a jq path: ., .a.b, .\"key\", .[0], .[] and | between them")
-        val file = fileArgument()
-        val raw = flag("--raw", "-r", help = "print strings without quotes, and TOML without comments")
+        example("kotoml get -f config.toml '.servers[0].port'", "one value")
+        example("kotoml get -f config.toml '.servers[] | .host' --json", "the host of every server, as JSON")
+        // An option the user types before the filter, not an operand after it: fish gives a completion the line
+        // only up to the cursor, so the filter's keys complete only from a file named first.
+        val file = option("--file", "-f", help = "the TOML file; standard input when absent or `-`")
+            .placeholder("file")
+            .file()
         val spec = specOption()
+        val filter = argument("filter", "a jq path: ., .a.b, .\"key\", .[0], .[] and | between them")
+            .completeWith {
+                // Standard input is the data a later run will read, not one Tab press may consume.
+                val typed = file()?.takeUnless { it == "-" } ?: return@completeWith
+                // The shell expands `~` before a run, but a completion is handed the path as typed.
+                val path = home?.let { Path(typed).expandTilde(it).toString() } ?: typed
+                val document = (parseToml(path, spec()) as? Result.Success)?.value ?: return@completeWith
+                filterCompletions(document, current).forEach { candidate(it.filter, it.type) }
+            }
+        val raw = flag("--raw", "-r", help = "print strings without quotes, and TOML without comments")
         action(human = { it.humanText(raw()) }) {
             get(filter(), file(), spec()).orCliError()
         }

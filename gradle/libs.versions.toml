@@ -3,7 +3,7 @@
 kotomlVersion = "0.1.0"
 
 kern = "0.5.0"
-klap = "0.5.2"
+klap = "0.5.3"
 
 agp = "9.4.1"
 android-compileSdk = "37"
@@ -25,6 +25,7 @@ kern-result = { module = "com.fromwau.kern:result", version.ref = "kern" }
 kern-fuzzy = { module = "com.fromwau.kern:fuzzy", version.ref = "kern" }
 kern-result-test = { module = "com.fromwau.kern:result-test", version.ref = "kern" }
 klap = { module = "com.fromwau:klap", version.ref = "klap" }
+kern-dirs = { module = "com.fromwau.kern:dirs", version.ref = "kern" }
 
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }

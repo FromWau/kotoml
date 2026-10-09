@@ -4,25 +4,25 @@ Query TOML files like jq. What `kotoml` prints keeps the comments, spacing and s
 because it reads through [`:core`](../core/README.md), a format-preserving TOML parser.
 
 ```console
-$ kotoml get '.servers[0].host' config.toml
+$ kotoml get -f config.toml '.servers[0].host'
 "alpha"
-$ kotoml get -r '.servers[0].host' config.toml
+$ kotoml get -f config.toml -r '.servers[0].host'
 alpha
-$ kotoml get -r '.servers[0]' config.toml
+$ kotoml get -f config.toml -r '.servers[0]'
 host = "alpha"
 port = 8080
-$ kotoml get '.servers[] | .host' config.toml
+$ kotoml get -f config.toml '.servers[] | .host'
 "alpha"
 "beta"
-$ kotoml get '.servers[]' config.toml
+$ kotoml get -f config.toml '.servers[]'
 host = "alpha"  # primary
 port = 8080
 
 host = "beta"
 port = 8081
-$ kotoml get --json '.servers[0]' config.toml
+$ kotoml get -f config.toml --json '.servers[0]'
 {"host":"alpha","port":8080}
-$ kotoml get --json '.servers[] | .port' config.toml
+$ kotoml get -f config.toml --json '.servers[] | .port'
 [8080,8081]
 $ cat config.toml | kotoml get '.servers[1]'
 host = "beta"
@@ -31,9 +31,9 @@ port = 8081
 
 ## Commands
 
-- `get <filter> [file]` prints what a jq path selects: `.`, `.a.b`, `."quoted key"`, `.["quoted key"]`, `.[0]`,
-  `.[-1]`, `.[]`, and `|` between them. A quoted key takes jq's escapes, such as `\t`, `\n` and `\u00e9`. What
-  is printed keeps the file's comments, spacing and spelling:
+- `get [-f file] <filter>` prints what a jq path selects from the file `-f`/`--file` names: `.`, `.a.b`,
+  `."quoted key"`, `.["quoted key"]`, `.[0]`, `.[-1]`, `.[]`, and `|` between them. A quoted key takes jq's
+  escapes, such as `\t`, `\n` and `\u00e9`. What is printed keeps the file's comments, spacing and spelling:
   - a table prints as its key/value lines, without its own header, each line ending as it does in the file;
   - an array of tables prints as written, each element under its `[[name]]` header;
   - a header inside a selected table is written from that table, while a selected array of tables keeps its whole
@@ -46,13 +46,13 @@ port = 8081
     h = 1
     [a.c]
     d = 2
-    $ kotoml get .a nested.toml
+    $ kotoml get -f nested.toml .a
     x = 1
     [[srv]]
     h = 1
     [c]
     d = 2
-    $ kotoml get .a.srv nested.toml
+    $ kotoml get -f nested.toml .a.srv
     [[a.srv]]
     h = 1
     ```
@@ -69,7 +69,9 @@ port = 8081
   in and tagged JSON out, or the reverse. `encode` refuses JSON nested deeper than the TOML kotoml reads.
 
 Without a file, or with `-`, input is read from standard input. `--toml 1.0` refuses what TOML 1.1 added;
-the default is 1.1. `kotoml completion <shell>` and `kotoml docs man` print a completion script and a man page.
+the default is 1.1. `kotoml completion <shell>` and `kotoml docs man` print a completion script and a man page;
+with the script installed, Tab on `get`'s filter offers the keys of the file `-f` names, such as
+`kotoml get -f config.toml .own<TAB>`.
 `kotoml` without a command prints its help on standard error and exits 2; `kotoml --help` prints it on standard
 output.
 
@@ -122,7 +124,7 @@ $ ./gradlew :app:linkReleaseExecutableLinuxX64
 $ app/build/bin/linuxX64/releaseExecutable/kotoml.kexe --help
 ```
 
-The same task exists for `MingwX64` and `MacosArm64`, and `./gradlew :app:jvmRun --args="get . f.toml"`
+The same task exists for `MingwX64` and `MacosArm64`, and `./gradlew :app:jvmRun --args="get -f f.toml ."`
 runs it on the JVM. On Arch, `makepkg -si` in [`packaging/arch`](packaging/arch/PKGBUILD) builds and installs
 the binary with its completions and man page.
 

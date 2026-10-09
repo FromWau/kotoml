@@ -181,7 +181,7 @@ internal fun AppError.describe(): String = when (this) {
     is AppError.CannotApply -> "cannot apply ${step.describe()} to ${itemType.words()}"
 }
 
-private fun TomlType.words(): String = when (this) {
+internal fun TomlType.words(): String = when (this) {
     TomlType.String -> "string"
     TomlType.Integer -> "integer"
     TomlType.Float -> "float"
