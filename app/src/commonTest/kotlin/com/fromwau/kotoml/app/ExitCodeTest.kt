@@ -5,11 +5,16 @@ import com.fromwau.kern.result.Err
 import com.fromwau.kern.terminal.Terminal
 import com.fromwau.kern.terminal.Stream
 import com.fromwau.kern.terminal.WriteError
+import kotlinx.io.IOException
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
 import kotlinx.io.files.SystemTemporaryDirectory
 import kotlinx.io.writeString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import kotlin.random.Random
 import kotlin.test.AfterTest
 import kotlin.test.Test
@@ -39,11 +44,26 @@ class ExitCodeTest {
 
     private val files = mutableListOf<Path>()
 
-    private fun file(text: String): String {
-        val path = Path(SystemTemporaryDirectory, "kotoml-${Random.nextLong().toULong()}.toml")
-        SystemFileSystem.sink(path).buffered().use { it.writeString(text) }
+    private fun file(
+        text: String,
+        name: String = "kotoml",
+    ): String {
+        val path = Path(SystemTemporaryDirectory, "$name-${Random.nextLong().toULong()}.toml")
+        val sink = SystemFileSystem.sink(path)
         files += path
+        sink.buffered().use { it.writeString(text) }
         return path.toString()
+    }
+
+    /** A file with the [name] given, or null with a note where the file system refuses such a name, as Windows does. */
+    private fun namedFile(
+        name: String,
+        text: String,
+    ): String? = try {
+        file(text, name)
+    } catch (_: IOException) {
+        println("test skipped because the file system refuses the name ${inputName(name)}")
+        null
     }
 
     private fun missingFile(): String =
@@ -64,10 +84,11 @@ class ExitCodeTest {
     }
 
     @Test
-    fun `a valid file checks with exit 0 and prints OK`() {
-        val (code, terminal) = kotoml("check", file("a = 1\n"))
+    fun `a valid file checks with exit 0 and prints its name and OK`() {
+        val toml = file("a = 1\n")
+        val (code, terminal) = kotoml("check", toml)
         assertEquals(0, code)
-        assertEquals("OK", terminal.out.toString().trim())
+        assertEquals("$toml: OK\n", terminal.out.toString())
     }
 
     @Test
@@ -191,10 +212,8 @@ class ExitCodeTest {
 
     @Test
     fun `check of several files escapes a control character in a valid file's name as in an error`() {
-        val named = Path(SystemTemporaryDirectory, "kotoml-\u001b[31m-${Random.nextLong().toULong()}.toml")
-        SystemFileSystem.sink(named).buffered().use { it.writeString("a = 1\n") }
-        files += named
-        val (_, terminal) = kotoml("check", named.toString(), file("b = 1\n"))
+        val named = namedFile("kotoml-\u001b[31m", "a = 1\n") ?: return
+        val (_, terminal) = kotoml("check", named, file("b = 1\n"))
         assertTrue('\u001b' !in terminal.out.toString(), terminal.out.toString())
         assertTrue("kotoml-\\x1B[31m-" in terminal.out.toString(), terminal.out.toString())
     }
@@ -213,12 +232,27 @@ class ExitCodeTest {
 
     @Test
     fun `check of several files keeps a valid file's name on its one line`() {
-        val named = Path(SystemTemporaryDirectory, "kotoml-\nfake.toml: OK\n-${Random.nextLong().toULong()}.toml")
-        SystemFileSystem.sink(named).buffered().use { it.writeString("a = 1\n") }
-        files += named
-        val (_, terminal) = kotoml("check", named.toString(), file("b = 1\n"))
+        val named = namedFile("kotoml-\nfake.toml: OK\n", "a = 1\n") ?: return
+        val (_, terminal) = kotoml("check", named, file("b = 1\n"))
         assertEquals(2, terminal.out.lines().count { it.isNotEmpty() }, terminal.out.toString())
         assertTrue("kotoml-\\x0Afake.toml: OK\\x0A-" in terminal.out.toString(), terminal.out.toString())
+    }
+
+    @Test
+    fun `an error keeps an invalid file's name on its one line`() {
+        val named = namedFile("kotoml-\nother.toml: OK\n", "a = \n") ?: return
+        val (_, terminal) = kotoml("check", file("b = 1\n"), named)
+        assertTrue("\nother.toml: OK" !in terminal.err.toString(), terminal.err.toString())
+        assertTrue("kotoml-\\x0Aother.toml: OK\\x0A-" in terminal.err.toString(), terminal.err.toString())
+    }
+
+    @Test
+    fun `check --json names a file in its error as it was typed`() {
+        val terminal = Recorded()
+        val home = Path(file("a = 1\n")).parent ?: Path(".")
+        runKotoml(listOf("check", "--json", "~/kotoml-missing.toml", file("b = 1\n")), terminal) { home }
+        val missing = Json.parseToJsonElement(terminal.out.toString()).jsonArray.first().jsonObject
+        assertEquals(JsonPrimitive("~/kotoml-missing.toml"), missing.getValue("error").jsonObject["path"])
     }
 
     @Test
@@ -227,7 +261,7 @@ class ExitCodeTest {
         val tagged = Path(file("{\"a\": {\"type\": \"integer\", \"value\": \"1\"}}"))
         val home = toml.parent ?: Path(".")
         val runs = listOf(
-            listOf("check", "~/${toml.name}") to "OK\n",
+            listOf("check", "~/${toml.name}") to "~/${toml.name}: OK\n",
             listOf("decode", "~/${toml.name}") to "{\"a\":{\"type\":\"integer\",\"value\":\"1\"}}\n",
             listOf("encode", "~/${tagged.name}") to "a = 1\n",
         )
@@ -242,7 +276,10 @@ class ExitCodeTest {
     fun `get says when the home directory a file is named from is unknown`() {
         val terminal = Recorded()
         assertEquals(1, runKotoml(listOf("get", "-f", "~/a.toml", ".a"), terminal) { null })
-        assertEquals("error: ~/a.toml: the home directory is unknown, so ~ cannot be resolved\n", terminal.err.toString())
+        assertEquals(
+            "error: ~/a.toml: the home directory is unknown, so ~ cannot be resolved\n",
+            terminal.err.toString(),
+        )
     }
 
     @Test
@@ -271,10 +308,10 @@ class ExitCodeTest {
     }
 
     @Test
-    fun `check of one file prints OK and of several names each valid one`() {
+    fun `check names each valid file it checks alone or among several`() {
         val good = file("a = 1\n")
         val other = file("b = 1\n")
-        assertEquals("OK\n", kotoml("check", good).second.out.toString())
+        assertEquals("$good: OK\n", kotoml("check", good).second.out.toString())
         val (code, terminal) = kotoml("check", good, other)
         assertEquals(0, code)
         assertEquals("$good: OK\n$other: OK\n", terminal.out.toString())

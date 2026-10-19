@@ -55,7 +55,7 @@ private fun Item.stepsFrom(parent: String): List<Reachable> {
     val elements = arrayOrNull?.map { Item(it) } ?: arrayOfTablesOrNull?.map { Item(it) } ?: return emptyList()
     val each = elements.map { it.type.words() }
     // `[]` selects every element in turn, so it reads as they do; an empty array selects none.
-    return listOf(Reachable("$parent[]", each.distinct(), type.words())) +
+    return listOf(Reachable("$parent[]", each.distinct(), "empty array")) +
         elements.indices.map { index -> Reachable("$parent[$index]", listOf(each[index]), each[index]) }
 }
 

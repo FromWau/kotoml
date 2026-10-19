@@ -65,7 +65,8 @@ private fun readFile(
     home: () -> Path?,
 ): Result<ByteArray, AppError.ReadFailed> {
     val resolved = path?.let { it.withHome(home) ?: return Err(AppError.ReadFailed(it, ReadFailure.HomeUnknown)) }
-    return readInput(resolved)
+    // Named as typed, as the rest of a run's output names it.
+    return readInput(resolved).mapError { failed -> path?.let { failed.copy(path = it) } ?: failed }
 }
 
 private fun parseToml(
@@ -128,27 +129,12 @@ private fun check(
         val error = (parseToml(path, spec, home) as? Result.Error)?.error
         when {
             terminal == null -> Unit
-            // A line break in the name would start a line of its own, one that reads like another file's.
-            error == null -> terminal.out("${path.escapingControls(keepLayout = false)}: OK\n")
+            error == null -> terminal.out("${inputName(path)}: OK\n")
             else -> terminal.err("error: ${error.describe().escapingControls()}\n")
         }
         CheckedFile(path, valid = error == null, error = error)
     }
     return CheckReport(results)
-}
-
-// What klap does to an error's detail: a control character from the input could rewrite the terminal.
-private fun String.escapingControls(keepLayout: Boolean = true): String = buildString {
-    for (char in this@escapingControls) {
-        val code = char.code
-        val control = code in 0x00..0x1F || code == 0x7F
-        if (control && !(keepLayout && (char == '\n' || char == '\t'))) {
-            append("\\x")
-            append(code.toString(16).padStart(2, '0').uppercase())
-        } else {
-            append(char)
-        }
-    }
 }
 
 fun main(args: Array<String>) {
@@ -170,7 +156,8 @@ internal fun runKotoml(
     terminal: Terminal,
     home: () -> Path? = ::homeDirectory,
 ): Int {
-    val cli = kotomlCli(terminal, home)
+    val homeOnce by lazy(home)
+    val cli = kotomlCli(terminal) { homeOnce }
     val showsHelp = (cli.parse(args) as? Result.Success)?.value is Invocation.ShowHelp
     if (!showsHelp || args.any { it in HELP_FLAGS }) return cli.run(args, terminal)
     cli.run(listOf("--help"), StandardErrorOnly(terminal))
@@ -183,8 +170,8 @@ private class StandardErrorOnly(private val terminal: Terminal) : Terminal by te
 }
 
 /**
- * The `kotoml` command line, built once per run; `check` of several files writes each file's line to [terminal],
- * and a `~` that starts `get`'s file path resolves through [home].
+ * The `kotoml` command line, built once per run; `check` writes each file's line to [terminal], and a `~` that
+ * starts a file path resolves through [home].
  */
 internal fun kotomlCli(
     terminal: Terminal,
@@ -218,21 +205,22 @@ internal fun kotomlCli(
         }
     }
 
-    command("check", "print OK when each file is valid TOML, or print why it is not") {
+    command("check", "print each file with OK when it is valid TOML, or print why it is not") {
         example("kotoml check a.toml b.toml", "each file named with OK or its error, exit 1 if any is not TOML")
         val files = argument("file", "the TOML files; $READ_FROM")
             .file()
             .multiple()
         val spec = specOption()
-        action(human = { it.humanText() }, exitCode = { if (it.valid) 0 else 1 }) {
+        // Each file's line is printed as it is checked, so nothing is left to print at the end.
+        action(human = { "" }, exitCode = { if (it.valid) 0 else 1 }) {
             val paths = files().ifEmpty { listOf("-") }
             val single = paths.singleOrNull()
-            if (single != null) {
+            if (json && single != null) {
                 parseToml(single, spec(), home)
                     .map { CheckReport(listOf(CheckedFile(single, valid = true))) }
                     .orCliError()
             } else {
-                Ok(check(paths, spec(), terminal = if (json) null else terminal, home))
+                Ok(check(paths, spec(), terminal = if (json) null else terminal, home = home))
             }
         }
     }

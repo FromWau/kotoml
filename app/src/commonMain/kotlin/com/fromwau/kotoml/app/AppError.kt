@@ -143,8 +143,26 @@ internal val AppError.exitCode: Int
         else -> 1
     }
 
-/** How an error names the input at [path]. */
-internal fun inputName(path: String): String = if (path == "-") "standard input" else path
+/**
+ * How an error names the input at [path]. A line break in the name is escaped too, as it would start a line of its
+ * own, one that reads like another file's.
+ */
+internal fun inputName(path: String): String =
+    if (path == "-") "standard input" else path.escapingControls(keepLayout = false)
+
+// What klap does to an error's detail: a control character from the input could rewrite the terminal.
+internal fun String.escapingControls(keepLayout: Boolean = true): String = buildString {
+    for (char in this@escapingControls) {
+        val code = char.code
+        val control = code in 0x00..0x1F || code == 0x7F
+        if (control && !(keepLayout && (char == '\n' || char == '\t'))) {
+            append("\\x")
+            append(code.toString(16).padStart(2, '0').uppercase())
+        } else {
+            append(char)
+        }
+    }
+}
 
 /** This error as a person reads it. */
 internal fun AppError.describe(): String = when (this) {

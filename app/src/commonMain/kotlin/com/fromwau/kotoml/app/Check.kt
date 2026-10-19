@@ -14,7 +14,7 @@ import kotlinx.serialization.json.JsonElement
 @Serializable
 internal data class Checked(val valid: Boolean)
 
-/** One of several files `check` was given; [error] is why it is not TOML, when it is not. */
+/** A file `check` was given; [error] is why it is not TOML, when it is not. */
 @Serializable
 internal data class CheckedFile(
     val path: String,
@@ -23,16 +23,13 @@ internal data class CheckedFile(
 )
 
 /**
- * What `check` found in each of its [files]. `--json` prints a file given alone as [Checked], and several as an
- * array of [CheckedFile].
+ * What `check` found in each of its [files]. `--json` prints a file given alone as [Checked], which leaves out its
+ * error, and several as an array of [CheckedFile].
  */
 @Serializable(with = CheckReportSerializer::class)
 internal data class CheckReport(val files: List<CheckedFile>) {
     val valid: Boolean get() = files.all { it.valid }
 }
-
-/** `OK` for a file given alone; of several, each file's line was printed as it was checked, so nothing is left. */
-internal fun CheckReport.humanText(): String = if (files.size == 1) "OK" else ""
 
 internal object CheckReportSerializer : KSerializer<CheckReport> {
     override val descriptor: SerialDescriptor = JsonElement.serializer().descriptor

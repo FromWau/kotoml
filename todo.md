@@ -66,6 +66,13 @@ A layout change leaves no blank line dangling at the end of the file.
   and writes all tables inline. `encode` reads only tagged JSON, not what `get --json` prints.
   **Ruling 2026-10-05:** `-i` writes back into the file. Low priority: do when nothing else is open. Plain JSON to
   TOML not in scope yet.
+- [ ] **135. Standard input moves into kern's terminal.** Owner, 2026-10-10: kern's `Terminal` should handle all the
+  interaction with the process's streams, input included. Today it only writes (`out`, `err`, `columns`, `ansi`,
+  `errAnsi`, `writeResult`, kern 0.5.1), so kotoml reads stdin itself: `readInput` calls an `expect fun readStdin()`
+  for `-` (`app/src/commonMain/.../Input.kt`), backed by `System.in.readBytes()` on the JVM and a POSIX `read(0, ...)`
+  loop on Native (`Stdin.native.kt`, with a `readStdinChunk` per platform). Move that into kern's terminal (reading
+  stdin, and telling whether it is a terminal), have kotoml read through it, and give the recording terminal a way to
+  be fed input, so the `-` path is unit-tested without a shell; `ShellPipeTest` stays the end-to-end check.
 
 ### Docs
 

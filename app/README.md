@@ -62,9 +62,9 @@ port = 8081
     with the spaces before it, a line holding only a comment goes whole, and the blank lines this leaves side by
     side fold into one. A `#` inside a string stays;
   - a key or index that is not there is an error, such as `no key "nope" at .nope`, and exits 3.
-- `check [file...]` prints `OK` and exits 0 when the file is valid TOML, and otherwise prints why it is not,
-  pointing at the line. Given several files, it prints `<file>: OK` for each valid one and an error for each
-  other, and exits 1 when any is not TOML.
+- `check [file...]` prints `<file>: OK` for each file that is valid TOML and, for each other, why it is not,
+  pointing at the line, one file after another in the order given. It exits 0 when every file is TOML and 1
+  otherwise. Standard input is named `standard input`.
 - `decode [file]` and `encode [file]` speak [toml-test](https://github.com/toml-lang/toml-test)'s protocol: TOML
   in and tagged JSON out, or the reverse. `encode` refuses JSON nested deeper than the TOML kotoml reads.
 

@@ -24,6 +24,9 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode = RepositoriesMode.FAIL_ON_PROJECT_REPOS
     repositories {
+        mavenLocal {
+            mavenContent { includeModuleByRegex("com\\.fromwau", "klap.*") }
+        }
         google {
             mavenContent {
                 includeGroupAndSubgroups("androidx")

@@ -126,7 +126,7 @@ class FilterCompletionTest {
         assertEquals(".s[].m[]\tinteger or string", completions(".s[].m[", "-f", file(text)).first())
         // An empty array has no element to add a type, unless it is the only one there is.
         assertEquals(".e[].m[]\tinteger", completions(".e[].m[", "-f", file(text)).first())
-        assertEquals(listOf(".none[]\tarray"), completions(".none[", "-f", file(text)))
+        assertEquals(listOf(".none[]\tempty array"), completions(".none[", "-f", file(text)))
     }
 
     @Test
@@ -140,6 +140,9 @@ class FilterCompletionTest {
         assertEquals(0, lookups)
         run("__complete", "--cursor", "3", "--", "get", "-f", "~/x.toml", ".")
         assertEquals(1, lookups)
+        // Once a run however many paths start with it.
+        run("check", "~/a.toml", "~/b.toml")
+        assertEquals(2, lookups)
     }
 
     @Test

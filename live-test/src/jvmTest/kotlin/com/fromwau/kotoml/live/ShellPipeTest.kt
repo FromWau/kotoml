@@ -59,16 +59,17 @@ class ShellPipeTest {
 
     private companion object {
         // Written once for the class: more lines than a pipe holds, so a reader closes it while kotoml writes.
-        val files: File by lazy {
+        private val made = lazy {
             Files.createTempDirectory("kotoml-pipe").toFile().also { dir ->
                 File(dir, "big.toml").writeText((1..25_000).joinToString("\n", postfix = "\n") { "k$it = $it" })
             }
         }
+        val files: File by made
 
         @AfterAll
         @JvmStatic
         fun deleteFiles() {
-            files.deleteRecursively()
+            if (made.isInitialized()) files.deleteRecursively()
         }
 
         // Looked up once per run, so each missing shell is reported once rather than by every test. Windows
