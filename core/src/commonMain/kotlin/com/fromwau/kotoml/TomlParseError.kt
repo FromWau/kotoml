@@ -1,6 +1,6 @@
 package com.fromwau.kotoml
 
-import com.fromwau.kern.result.IError
+import com.fromwau.kern.result.ResultError
 import com.fromwau.kotoml.parser.ErrorSink
 import com.fromwau.kotoml.parser.ParseError
 import kotlinx.serialization.SerialName
@@ -23,7 +23,7 @@ public data class TomlParseError(
     val position: TextPosition? = null,
     val context: Span? = null,
     val expected: List<Expected>? = null,
-) : IError {
+) : ResultError {
 
     /** What is wrong. */
     @Serializable

@@ -7,6 +7,7 @@ import com.fromwau.kotoml.TextPosition
 import com.fromwau.kotoml.TomlDocument
 import com.fromwau.kotoml.TomlType
 import com.fromwau.kotoml.Value
+import kotlinx.serialization.Serializable
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -46,6 +47,12 @@ class ErrorMessageTest {
         val error = Toml.decodeFromString<Fleet>("nmae = \"f\"\n").assertError<TomlDecodeError.UnknownKey>()
         assertEquals(TomlDecodeError.UnknownKey("nmae", "name", TextPosition(1, 1)), error)
         assertEquals("unknown key nmae, did you mean name?", error.message)
+    }
+
+    @Test
+    fun `an unknown key one edit from a field suggests it over a field it starts with`() {
+        val error = Toml.decodeFromString<HostNames>("hostame = \"h\"\n").assertError<TomlDecodeError.UnknownKey>()
+        assertEquals("unknown key hostame, did you mean hostname?", error.message)
     }
 
     @Test
@@ -126,3 +133,9 @@ class ErrorMessageTest {
         )
     }
 }
+
+@Serializable
+private data class HostNames(
+    val host: String = "",
+    val hostname: String = "",
+)

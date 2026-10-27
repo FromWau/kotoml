@@ -74,8 +74,7 @@ from the home directory, also where the shell leaves the `~` as typed, such as `
 the default is 1.1. `kotoml completion <shell>` and `kotoml docs man` print a completion script and a man page;
 with the script installed, Tab on `get`'s filter offers the keys of the file `-f` names, such as
 `kotoml get -f config.toml .own<TAB>`.
-`kotoml` without a command prints its help on standard error and exits 2; `kotoml --help` prints it on standard
-output.
+`kotoml` without a command, like `kotoml --help`, prints its help on standard output.
 
 An error starts with the file it is in, or `standard input`:
 
@@ -116,7 +115,7 @@ In an error, a `span` counts UTF-16 units of the text from 0, as a JVM or JavaSc
 
 Exit codes: 0 on success; 1 when the input cannot be read or is not TOML or tagged JSON, when a filter step does
 not apply to what it meets, such as `.a.b` on a string, or when the output cannot be written; 2 for a usage error,
-such as a filter that does not parse, an unknown option or no command; 3 when the filter finds no key or index
+such as a filter that does not parse or an unknown option; 3 when the filter finds no key or index
 where it looks; 141, with no message, when a reader such as `head` closes the pipe early.
 
 ## Build and install

@@ -1,8 +1,8 @@
 package com.fromwau.kotoml.app
 
-import com.fromwau.kern.dirs.FileType
-import com.fromwau.kern.dirs.expandTilde
-import com.fromwau.kern.dirs.fileType
+import com.fromwau.kern.fs.FileType
+import com.fromwau.kern.fs.expandTilde
+import com.fromwau.kern.fs.fileType
 import com.fromwau.kern.result.Err
 import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
@@ -11,13 +11,14 @@ import com.fromwau.kern.result.map
 import com.fromwau.kern.result.mapError
 import com.fromwau.kern.terminal.Terminal
 import com.fromwau.kern.terminal.defaultTerminal
+import com.fromwau.klap.Abbreviation
+import com.fromwau.klap.Builtin
 import com.fromwau.klap.Cli
 import com.fromwau.klap.CliError
 import com.fromwau.klap.CommandBuilder
-import com.fromwau.klap.Invocation
-import com.fromwau.klap.USAGE_ERROR_EXIT
+import com.fromwau.klap.Help
+import com.fromwau.klap.Version
 import com.fromwau.klap.cli
-import com.fromwau.klap.parse
 import com.fromwau.klap.run
 import com.fromwau.kotoml.TomlDocument
 import com.fromwau.kotoml.TomlVersion
@@ -25,7 +26,7 @@ import kotlinx.io.files.Path
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 
-private fun CommandBuilder.specOption() = option("--toml", help = "the TOML version to accept")
+private fun CommandBuilder.specOption() = option(long = "toml", help = "the TOML version to accept")
     .choice("1.0", "1.1")
     .default("1.1")
 
@@ -144,12 +145,9 @@ fun main(args: Array<String>) {
 /** Ends the process with [status]. */
 internal expect fun exitWith(status: Int): Nothing
 
-private val HELP_FLAGS = setOf("--help", "-h", "--help-all")
-
 /**
  * Runs `kotoml` with [args], writing to [terminal], and returns the exit status; [home] finds where `~` points, asked
- * only for a path that starts with one. Without a command, the help goes to standard error and the run is a usage
- * error.
+ * only for a path that starts with one.
  */
 internal fun runKotoml(
     args: List<String>,
@@ -157,16 +155,7 @@ internal fun runKotoml(
     home: () -> Path? = ::homeDirectory,
 ): Int {
     val homeOnce by lazy(home)
-    val cli = kotomlCli(terminal) { homeOnce }
-    val showsHelp = (cli.parse(args) as? Result.Success)?.value is Invocation.ShowHelp
-    if (!showsHelp || args.any { it in HELP_FLAGS }) return cli.run(args, terminal)
-    cli.run(listOf("--help"), StandardErrorOnly(terminal))
-    return USAGE_ERROR_EXIT
-}
-
-/** [terminal] with standard output sent to its standard error. */
-private class StandardErrorOnly(private val terminal: Terminal) : Terminal by terminal {
-    override fun out(text: String) = terminal.err(text)
+    return kotomlCli(terminal) { homeOnce }.run(args, terminal)
 }
 
 /**
@@ -177,16 +166,21 @@ internal fun kotomlCli(
     terminal: Terminal,
     home: () -> Path?,
 ): Cli = cli("kotoml") {
-    description = "Query TOML like jq, keeping every comment and spelling of what it prints"
-    version = VERSION
-    builtins { color = false }
+    help = "Query TOML like jq, keeping every comment and spelling of what it prints"
+    version = Version.Of(VERSION)
+    abbreviation = Abbreviation.None
+    builtins {
+        help = Help.ByTree(short = 'h')
+        color = Builtin.Off
+    }
 
-    command("get", "print what a jq path selects") {
+    command("get") {
+        help = "print what a jq path selects"
         example("kotoml get -f config.toml '.servers[0].port'", "one value")
         example("kotoml get -f config.toml '.servers[] | .host' --json", "the host of every server, as JSON")
         // An option the user types before the filter, not an operand after it: fish gives a completion the line
         // only up to the cursor, so the filter's keys complete only from a file named first.
-        val file = option("--file", "-f", help = "the TOML file; $READ_FROM")
+        val file = option(short = 'f', long = "file", help = "the TOML file; $READ_FROM")
             .placeholder("file")
             .file()
         val spec = specOption()
@@ -199,13 +193,14 @@ internal fun kotomlCli(
                 val document = (parseToml(path, spec(), home) as? Result.Success)?.value ?: return@completeWith
                 filterCompletions(document, current).forEach { candidate(it.filter, it.type) }
             }
-        val raw = flag("--raw", "-r", help = "print strings without quotes, and TOML without comments")
+        val raw = flag(short = 'r', long = "raw", help = "print strings without quotes, and TOML without comments")
         action(human = { it.humanText(raw()) }) {
             get(filter(), file(), spec(), home).orCliError()
         }
     }
 
-    command("check", "print each file with OK when it is valid TOML, or print why it is not") {
+    command("check") {
+        help = "print each file with OK when it is valid TOML, or print why it is not"
         example("kotoml check a.toml b.toml", "each file named with OK or its error, exit 1 if any is not TOML")
         val files = argument("file", "the TOML files; $READ_FROM")
             .file()
@@ -225,7 +220,8 @@ internal fun kotomlCli(
         }
     }
 
-    command("decode", "toml-test decoder: TOML in, tagged JSON on standard output") {
+    command("decode") {
+        help = "toml-test decoder: TOML in, tagged JSON on standard output"
         val file = fileArgument()
         val spec = specOption()
         action(human = { Json.encodeToString(JsonElement.serializer(), it) }) {
@@ -233,7 +229,8 @@ internal fun kotomlCli(
         }
     }
 
-    command("encode", "toml-test encoder: tagged JSON in, TOML on standard output") {
+    command("encode") {
+        help = "toml-test encoder: tagged JSON in, TOML on standard output"
         val file = fileArgument("toml-test's tagged JSON")
         action { encode(file(), home).orCliError() }
     }

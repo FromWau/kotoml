@@ -1,12 +1,12 @@
 package com.fromwau.kotoml
 
-import com.fromwau.kern.result.IError
+import com.fromwau.kern.result.ResultError
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /** Why an index, an edit or a builder block could not do what it was asked; upstream panics on most of these. */
 @Serializable
-public sealed interface TomlEditError : IError {
+public sealed interface TomlEditError : ResultError {
     /**
      * The error as a person reads it, led by the key when it has one, such as
      * `server: expected a table, found an integer`.

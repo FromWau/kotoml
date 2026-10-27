@@ -2,9 +2,9 @@ package com.fromwau.kotoml.app
 
 import com.fromwau.kern.result.EmptyResult
 import com.fromwau.kern.result.Err
-import com.fromwau.kern.result.IError
 import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
+import com.fromwau.kern.result.ResultError
 import com.fromwau.kern.result.getOrElse
 import com.fromwau.kern.result.mapError
 import com.fromwau.kotoml.Datetime
@@ -120,7 +120,7 @@ internal fun parseTaggedJson(
 ): Result<TomlDocument, AppError> = text.toDocument().mapError { it.from(path) }
 
 /** Why JSON text does not describe a document, before it is known which input it came from. */
-private sealed interface JsonProblem : IError {
+private sealed interface JsonProblem : ResultError {
     data class Invalid(val position: TextPosition?) : JsonProblem
 
     data class NotTagged(

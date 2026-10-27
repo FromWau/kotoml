@@ -33,7 +33,7 @@ internal fun seq(items: List<Dbg>): Dbg = Dbg.Seq(items)
 internal fun <T> option(value: T?, render: (T) -> Dbg): Dbg =
     if (value == null) lit("None") else tuple("Some", render(value))
 
-internal fun <S, E : com.fromwau.kern.result.IError> Result<S, E>.debug(
+internal fun <S, E : com.fromwau.kern.result.ResultError> Result<S, E>.debug(
     success: (S) -> Dbg,
     error: (E) -> Dbg,
 ): Dbg = when (this) {

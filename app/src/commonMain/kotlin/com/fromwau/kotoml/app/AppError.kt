@@ -1,6 +1,7 @@
 package com.fromwau.kotoml.app
 
-import com.fromwau.kern.result.IError
+import com.fromwau.kern.fs.LONGEST_NAME_BYTES
+import com.fromwau.kern.result.ResultError
 import com.fromwau.klap.USAGE_ERROR_EXIT
 import com.fromwau.kotoml.TomlParseError
 import com.fromwau.kotoml.TextPosition
@@ -15,7 +16,7 @@ import kotlinx.serialization.Transient
  * standard input.
  */
 @Serializable
-internal sealed interface AppError : IError {
+internal sealed interface AppError : ResultError {
     /** [path] could not be read; `-` is standard input. */
     @Serializable
     @SerialName("ReadFailed")
@@ -81,14 +82,15 @@ internal sealed interface AppError : IError {
 
 /** Why reading an input failed. */
 @Serializable
-internal sealed interface ReadFailure : IError {
+internal sealed interface ReadFailure : ResultError {
     @Serializable
     @SerialName("NotFound")
     data object NotFound : ReadFailure
 
+    /** Something other than a regular file is at the path, such as a folder or a socket. */
     @Serializable
-    @SerialName("IsADirectory")
-    data object IsADirectory : ReadFailure
+    @SerialName("NotAFile")
+    data class NotAFile(val kind: FileKind) : ReadFailure
 
     @Serializable
     @SerialName("PermissionDenied")
@@ -99,10 +101,39 @@ internal sealed interface ReadFailure : IError {
     @SerialName("HomeUnknown")
     data object HomeUnknown : ReadFailure
 
-    /** The system refused the read; [detail] is its own account, when it gave one. */
+    /** A name in the path is [bytes] long in UTF-8, longer than the [LONGEST_NAME_BYTES] a file name may have. */
+    @Serializable
+    @SerialName("NameTooLong")
+    data class NameTooLong(val bytes: Int) : ReadFailure
+
+    /** The read failed for another reason; [detail] is the system's own account, when it gave one. */
     @Serializable
     @SerialName("Io")
     data class Io(val detail: String?) : ReadFailure
+}
+
+/** What stands where a file to read was expected. */
+@Serializable
+internal enum class FileKind {
+    @SerialName("Directory")
+    Directory,
+
+    @SerialName("Socket")
+    Socket,
+
+    @SerialName("CharacterDevice")
+    CharacterDevice,
+
+    @SerialName("BlockDevice")
+    BlockDevice,
+
+    /** A named pipe that could not be read as one. */
+    @SerialName("Fifo")
+    Fifo,
+
+    /** Something the system does not name, as on Windows. */
+    @SerialName("Other")
+    Other,
 }
 
 /** What a filter needed where it stopped parsing. */
@@ -170,9 +201,19 @@ internal fun AppError.describe(): String = when (this) {
         val name = inputName(path)
         when (failure) {
             ReadFailure.NotFound -> "$name: no such file"
-            ReadFailure.IsADirectory -> "$name: is a directory"
+            is ReadFailure.NotAFile -> when (failure.kind) {
+                FileKind.Directory -> "$name: is a directory"
+                FileKind.Socket -> "$name: is a socket, not a file"
+                FileKind.CharacterDevice -> "$name: is a character device, not a file"
+                FileKind.BlockDevice -> "$name: is a block device, not a file"
+                FileKind.Fifo -> "$name: is a FIFO, not a file"
+                FileKind.Other -> "$name: is not a file"
+            }
             ReadFailure.PermissionDenied -> "$name: permission denied"
             ReadFailure.HomeUnknown -> "$name: the home directory is unknown, so ~ cannot be resolved"
+            is ReadFailure.NameTooLong ->
+                "$name: a name in the path is ${failure.bytes} bytes, " +
+                    "longer than the $LONGEST_NAME_BYTES a file name may have"
             is ReadFailure.Io -> "$name: cannot read" + (failure.detail?.let { ": $it" } ?: "")
         }
     }

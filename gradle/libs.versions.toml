@@ -2,8 +2,8 @@
 # One version across every kotoml module, released together, so a consumer pins a single number.
 kotomlVersion = "0.1.0"
 
-kern = "0.5.0"
-klap = "0.5.3"
+kern = "0.6.0"
+klap = "0.6.0"
 
 agp = "9.4.1"
 android-compileSdk = "37"
@@ -24,7 +24,9 @@ kotlin-gradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", ve
 kern-result = { module = "com.fromwau.kern:result", version.ref = "kern" }
 kern-fuzzy = { module = "com.fromwau.kern:fuzzy", version.ref = "kern" }
 kern-dirs = { module = "com.fromwau.kern:dirs", version.ref = "kern" }
+kern-fs = { module = "com.fromwau.kern:fs", version.ref = "kern" }
 kern-result-test = { module = "com.fromwau.kern:result-test", version.ref = "kern" }
+kern-terminal-test = { module = "com.fromwau.kern:terminal-test", version.ref = "kern" }
 klap = { module = "com.fromwau:klap", version.ref = "klap" }
 
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }

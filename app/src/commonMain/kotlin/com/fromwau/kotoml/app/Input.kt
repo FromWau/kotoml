@@ -1,13 +1,13 @@
 package com.fromwau.kotoml.app
 
+import com.fromwau.kern.fs.FileError
+import com.fromwau.kern.fs.FileType
+import com.fromwau.kern.fs.IoCause
+import com.fromwau.kern.fs.readBytes
 import com.fromwau.kern.result.Err
-import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
-import kotlinx.io.IOException
-import kotlinx.io.buffered
+import com.fromwau.kern.result.mapError
 import kotlinx.io.files.Path
-import kotlinx.io.files.SystemFileSystem
-import kotlinx.io.readByteArray
 
 /** Every byte of standard input, or the system's account of why it could not be read. */
 internal expect fun readStdin(): Result<ByteArray, ReadFailure>
@@ -22,27 +22,27 @@ internal fun readInput(path: String?): Result<ByteArray, AppError.ReadFailed> {
     }
 }
 
-/** Whether this process may read the file at [path]; kotlinx-io reports a refusal only as a sentence. */
-internal expect fun isReadable(path: String): Boolean
+// streams: a FIFO, such as the one `<(...)` names, is read to its end rather than refused.
+private fun readFile(path: Path): Result<ByteArray, ReadFailure> =
+    path.readBytes(streams = true).mapError { it.toReadFailure() }
 
-/** Why the file at [path] could not be looked up, after kotlinx-io refused with the sentence [detail]. */
-internal expect fun statFailure(
-    path: String,
-    detail: String?,
-): ReadFailure
-
-private fun readFile(path: Path): Result<ByteArray, ReadFailure> {
-    val metadata = try {
-        SystemFileSystem.metadataOrNull(path)
-    } catch (error: IOException) {
-        // On Kotlin/Native, every stat failure but a missing file throws, such as a path through a regular file.
-        return Err(statFailure(path.toString(), error.message))
-    } ?: return Err(ReadFailure.NotFound)
-    if (metadata.isDirectory) return Err(ReadFailure.IsADirectory)
-    if (!isReadable(path.toString())) return Err(ReadFailure.PermissionDenied)
-    return try {
-        Ok(SystemFileSystem.source(path).buffered().use { it.readByteArray() })
-    } catch (error: IOException) {
-        Err(ReadFailure.Io(error.message))
+private fun FileError.toReadFailure(): ReadFailure = when (this) {
+    is FileError.NotFound -> ReadFailure.NotFound
+    is FileError.NotRegularFile -> ReadFailure.NotAFile(type.toFileKind())
+    is FileError.NameTooLong -> ReadFailure.NameTooLong(bytes)
+    is FileError.Inaccessible -> when (cause) {
+        IoCause.Denied -> ReadFailure.PermissionDenied
+        IoCause.NotFound -> ReadFailure.NotFound
+        else -> ReadFailure.Io(exception?.message)
     }
+    else -> ReadFailure.Io(null)
+}
+
+private fun FileType.toFileKind(): FileKind = when (this) {
+    FileType.Directory -> FileKind.Directory
+    FileType.Socket -> FileKind.Socket
+    FileType.CharacterDevice -> FileKind.CharacterDevice
+    FileType.BlockDevice -> FileKind.BlockDevice
+    FileType.Fifo -> FileKind.Fifo
+    FileType.Regular, FileType.Symlink, FileType.Other -> FileKind.Other
 }

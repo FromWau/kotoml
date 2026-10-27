@@ -1,6 +1,6 @@
 package com.fromwau.kotoml.app
 
-import com.fromwau.kern.terminal.Terminal
+import com.fromwau.kern.terminal.test.RecordingTerminal
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.Test
@@ -9,16 +9,6 @@ import kotlin.test.assertTrue
 
 /** What Tab reads to complete `get`'s filter, when `-f` names something other than a TOML file. */
 class CompletionInputTest {
-
-    private class Recorded : Terminal {
-        val out = StringBuilder()
-
-        override fun out(text: String) {
-            out.append(text)
-        }
-
-        override fun err(text: String) = Unit
-    }
 
     @Test
     fun `a pipe named by --file is not read on Tab`() {
@@ -31,7 +21,7 @@ class CompletionInputTest {
                 println("test skipped because mkfifo is not installed")
                 return
             }
-            val terminal = Recorded()
+            val terminal = RecordingTerminal()
             val tab = Thread {
                 runKotoml(listOf("__complete", "--cursor", "3", "--", "get", "-f", fifo.path, "."), terminal) { null }
             }.apply {
@@ -40,7 +30,7 @@ class CompletionInputTest {
                 join(10_000)
             }
             assertTrue(!tab.isAlive, "Tab blocked reading the pipe")
-            assertEquals("", terminal.out.toString())
+            assertEquals("", terminal.out)
         } finally {
             dir.deleteRecursively()
         }

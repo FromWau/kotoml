@@ -53,11 +53,13 @@ kotlin {
             implementation(project(":core"))
             implementation(libs.klap)
             implementation(libs.kern.dirs)
+            implementation(libs.kern.fs)
             implementation(libs.kotlinx.io.core)
         }
 
         commonTest.dependencies {
             implementation(libs.kern.result.test)
+            implementation(libs.kern.terminal.test)
         }
     }
 }

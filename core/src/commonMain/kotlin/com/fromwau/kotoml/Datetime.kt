@@ -1,9 +1,9 @@
 package com.fromwau.kotoml
 
 import com.fromwau.kern.result.Err
-import com.fromwau.kern.result.IError
 import com.fromwau.kern.result.Ok
 import com.fromwau.kern.result.Result
+import com.fromwau.kern.result.ResultError
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -274,7 +274,7 @@ public data class DatetimeParseError(
     val part: DatetimePart?,
     val expected: DatetimeExpected?,
     val value: Int? = null,
-) : IError {
+) : ResultError {
     /** The error as a person reads it, such as `invalid date: day 29 is out of range 01 to 28`. */
     public val message: String
         get() = describe()

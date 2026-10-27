@@ -1,6 +1,6 @@
 package com.fromwau.kotoml.app
 
-import com.fromwau.kern.terminal.Terminal
+import com.fromwau.kern.terminal.test.RecordingTerminal
 import kotlinx.io.buffered
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
@@ -13,16 +13,6 @@ import kotlin.test.assertEquals
 
 /** Tab completion of `get`'s filter: the keys of the file `--file` names, as the shell scripts ask for them. */
 class FilterCompletionTest {
-
-    private class Recorded : Terminal {
-        val out = StringBuilder()
-
-        override fun out(text: String) {
-            out.append(text)
-        }
-
-        override fun err(text: String) = Unit
-    }
 
     private val sample = """
         |title = "kotoml"
@@ -63,7 +53,7 @@ class FilterCompletionTest {
         vararg before: String,
         home: Path? = null,
     ): List<String> {
-        val terminal = Recorded()
+        val terminal = RecordingTerminal()
         val words = listOf("get") + before + typed
         runKotoml(listOf("__complete", "--cursor", "${words.lastIndex}", "--") + words, terminal) { home }
         return terminal.out.lines().filter { it.isNotEmpty() }
@@ -132,7 +122,7 @@ class FilterCompletionTest {
     @Test
     fun `the home directory is looked up only for a path that starts with a tilde`() {
         var lookups = 0
-        fun run(vararg args: String) = runKotoml(args.toList(), Recorded()) { lookups++; null }
+        fun run(vararg args: String) = runKotoml(args.toList(), RecordingTerminal()) { lookups++; null }
         run("get", "-f", file(), ".title")
         run("__complete", "--cursor", "3", "--", "get", "-f", file(), ".")
         // `~bob` names another user's home, which kotoml leaves to the shell.

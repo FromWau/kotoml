@@ -1680,3 +1680,32 @@ the comment that used to print in that spot. Fixed with the line-start rule the 
 fixed todo 28's last case.
 
 **Lesson:** rerun the heavy property sweeps after every rule change, not only the default sizes.
+
+### 100. 2026-10-27 01:40 - kern 0.6.0 and klap 0.6.0 (from Maven Local)
+
+**Wanted:** kotoml on kern 0.6.0 and klap 0.6.0 with no change in what kotoml does.
+
+**Got:** `IError` became `ResultError`. `FileType`, `fileType` and `expandTilde` moved to kern `fs`. klap now takes
+spellings without dashes, a `Version`, `Builtin` values and `help` set inside each command block. Everything
+compiled and passed, but three things had changed without failing a test: `-h` and `--help-all` were gone (klap's
+default help is now `Help.ByCommand` with no short), and `--fil` resolved to `--file` (klap now abbreviates long
+options by default). The `--color` test read `--help-all` without checking its exit code, so it passed on an empty
+help page. kern 0.6.0 as published asks edit distance before its new prefix rule for `didYouMean`, so `hostame` with
+fields `host` and `hostname` suggests `hostname`. A float field given `"nanosecond"` now suggests `nan`. kern `fs`'s
+`readBytes` reads FIFOs and character devices when given `streams = true`, so `-f <(cmd)` and `/dev/null` still
+read through it.
+
+**Severity:** detour.
+
+**Doing:** `builtins { help = Help.ByTree(short = 'h') }` and `abbreviation = Abbreviation.None` keep the old line.
+Each change is pinned by an `ExitCodeTest` test, and each test failed before its fix. The kern findings went to the
+kern owner. `Input.kt` now reads through kern fs's `readBytes(streams = true)`; a Linux test reads a FIFO whole and
+a common one reads `/dev/null` as empty input. `ReadFailure.IsADirectory` became `NotAFile(kind)`, which also names
+a socket or a block device, and its kinds print in PascalCase on the `--json` wire, such as `"Directory"`. A path
+with a name over 255 bytes is the new `ReadFailure.NameTooLong(bytes)`, taken from kern's typed error rather than
+its message. A bare `kotoml` now shows klap's normal help on standard output and exits 0. A serialization test pins
+`hostame` suggesting `hostname`. kern then split `FileType.Device` into `CharacterDevice` and `BlockDevice` and
+made `LONGEST_NAME_BYTES` public, so kotoml maps each kind exactly and no longer hard-codes 255.
+kern's `RecordingTerminal` then replaced the four hand-written test terminals. It keeps a failed stream's writes
+apart in `lostWrites`, so the test on a refused standard error pins exit 1, the standard output it kept, and the
+`cannot write to standard error` message klap tried to write there.

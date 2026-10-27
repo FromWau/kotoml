@@ -127,7 +127,7 @@ official toml-test runner for TOML 1.0 and 1.1.
 ### Platforms and modules
 
 13. **The same behaviour on every target.** Tests live in `commonTest`, except those of platform code such as the
-    CLI's file access (`ReadFailureTest` on native, `PermissionTest` on the JVM).
+    CLI's file access (`SocketTest` and `FifoTest` on Linux, `PermissionTest` and `SpecialFileTest` on the JVM).
     Check: every common test runs on the JVM and linuxX64. Gap: Android, Windows and Apple targets are compiled, not
     tested.
 14. **Serialization.** A model round-trips through TOML. `encodeInto` keeps the document's formatting. A nullable
@@ -136,7 +136,7 @@ official toml-test runner for TOML 1.0 and 1.1.
 15. **CLI.** Exit 0 on success, 1 for errors about the data, 2 for usage errors. `--json` prints errors as JSON. No
     input crashes it, including invalid UTF-8 and deep nesting.
     Check: `ExitCodeTest` runs whole invocations for every exit code and `check --json`'s output; `CheckTest`,
-    `InputTest`, `TaggedJsonTest`, `ReadFailureTest` (native only).
+    `InputTest`, `NotAFileTest`, `TaggedJsonTest`, `SocketTest` and `FifoTest` (Linux only).
 
 ## Should
 

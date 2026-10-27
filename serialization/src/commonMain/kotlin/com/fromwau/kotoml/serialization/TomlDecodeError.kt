@@ -1,6 +1,6 @@
 package com.fromwau.kotoml.serialization
 
-import com.fromwau.kern.result.IError
+import com.fromwau.kern.result.ResultError
 import com.fromwau.kotoml.TextPosition
 import com.fromwau.kotoml.TomlParseError
 import com.fromwau.kotoml.TomlType
@@ -28,7 +28,7 @@ import kotlinx.serialization.Serializable
  * ```
  */
 @Serializable
-public sealed interface TomlDecodeError : IError {
+public sealed interface TomlDecodeError : ResultError {
     /**
      * The error as a person reads it, led by its path, such as
      * `database.pool: expected an integer, found the string "ten"`.

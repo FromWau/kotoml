@@ -25,7 +25,11 @@ dependencyResolutionManagement {
     repositoriesMode = RepositoriesMode.FAIL_ON_PROJECT_REPOS
     repositories {
         mavenLocal {
-            mavenContent { includeModuleByRegex("com\\.fromwau", "klap.*") }
+            mavenContent {
+                includeModuleByRegex("com\\.fromwau", "klap.*")
+                // Temporary until kern 0.6.0 is on the release repository.
+                includeGroup("com.fromwau.kern")
+            }
         }
         google {
             mavenContent {

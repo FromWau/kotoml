@@ -1,13 +1,13 @@
 package com.fromwau.kotoml
 
-import com.fromwau.kern.result.IError
+import com.fromwau.kern.result.ResultError
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 
 /** Why [TomlDocument.read] produced no document: the bytes could not be read, or they are not TOML. */
 @Serializable
-public sealed interface TomlReadError : IError {
+public sealed interface TomlReadError : ResultError {
     /**
      * The bytes were read but are not TOML. [text] is what was read, decoded as UTF-8, for rendering the
      * error with `error.render(text)`; it is left out of the serialized form.
@@ -22,7 +22,7 @@ public sealed interface TomlReadError : IError {
 
 /** Why [TomlDocument.writeTo] wrote nothing, or not all of the document. */
 @Serializable
-public sealed interface TomlWriteError : IError {
+public sealed interface TomlWriteError : ResultError {
     /**
      * The error as a person reads it, led by the key path when it has one, such as
      * `server.name: half of a surrogate pair, which is not Unicode text`.

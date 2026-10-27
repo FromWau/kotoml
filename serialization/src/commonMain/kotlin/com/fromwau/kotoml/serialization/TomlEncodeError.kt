@@ -1,6 +1,6 @@
 package com.fromwau.kotoml.serialization
 
-import com.fromwau.kern.result.IError
+import com.fromwau.kern.result.ResultError
 import com.fromwau.kotoml.TomlDocument
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -20,7 +20,7 @@ import kotlinx.serialization.Serializable
  * ```
  */
 @Serializable
-public sealed interface TomlEncodeError : IError {
+public sealed interface TomlEncodeError : ResultError {
     /** The error as a person reads it, led by its path, such as `ports: a map key that is not a string`. */
     public val message: String
         get() = describe()

@@ -26,9 +26,18 @@ class WireSchemaTest {
             ReadFailure.serializer().descriptor to """
                 HomeUnknown()
                 Io(detail)
-                IsADirectory()
+                NameTooLong(bytes)
+                NotAFile(kind)
                 NotFound()
                 PermissionDenied()
+            """.trimIndent(),
+            FileKind.serializer().descriptor to """
+                Directory
+                Socket
+                CharacterDevice
+                BlockDevice
+                Fifo
+                Other
             """.trimIndent(),
             TaggedJsonProblem.serializer().descriptor to """
                 BadValue(tomlType, value)

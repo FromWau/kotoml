@@ -23,4 +23,14 @@ class InputTest {
             SystemFileSystem.delete(file)
         }
     }
+
+    @Test
+    fun `the null device reads as empty input`() {
+        if (!SystemFileSystem.exists(Path("/dev/null"))) {
+            println("test skipped because the system has no /dev/null")
+            return
+        }
+        val read = readInput("/dev/null")
+        assertEquals("", (read as? Result.Success)?.value?.decodeToString(), "$read")
+    }
 }
